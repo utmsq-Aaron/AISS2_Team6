@@ -12,7 +12,9 @@ pip install -r requirements.txt
 
 ### 2. Configure environment variables
 
-Create a `.env` file in the project root. Choose one of the providers below:
+Create a `.env` file in the project root. Choose one of the providers below.
+
+Get your API key at [https://ki-toolbox.scc.kit.edu/](https://ki-toolbox.scc.kit.edu/).
 
 **KI-Toolbox (KIT)**
 ```env
