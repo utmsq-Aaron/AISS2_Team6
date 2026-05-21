@@ -22,13 +22,16 @@ __pycache__/
 # Log files
 *.log
 logs/
+.logs/
 
 # Test files (cleanup)
 tests/
 
 # OAuth2 tokens - NEVER commit these!
-.strava_tokens.json
-*.tokens.json
+.tokens/
+
+# Streamlit secrets (config.toml is safe to commit, secrets.toml is not)
+.streamlit/secrets.toml
 
 # IDE and editor files
 .vscode/
@@ -40,3 +43,6 @@ tests/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Private file
+importable_smartwatch_data/*

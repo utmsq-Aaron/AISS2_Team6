@@ -1,0 +1,455 @@
+"""Dashboard tab — activity map, key metrics, charts, and official Strava stats."""
+
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+
+import folium
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import polyline as pl
+import streamlit as st
+from streamlit_folium import st_folium
+
+from ui.shared import get_strava_mcp, run_async
+from ui.styles import (
+    ACTIVITY_ICONS, CHART_COLORS, DARK_MAP_ATTR, DARK_MAP_TILES,
+    STRAVA_ORANGE, activity_icon, chart_style,
+)
+
+# ── Cached data loaders ───────────────────────────────────────────────────────
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_activities(limit: int = 400) -> List[Dict]:
+    from mcp.strava import strava_api
+    return run_async(strava_api.get_activities(limit=limit))
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_athlete_and_stats() -> Tuple[Dict, Dict]:
+    from mcp.strava import strava_api
+    athlete = run_async(strava_api.get_athlete())
+    stats   = run_async(strava_api.get_athlete_stats(athlete["id"]))
+    return athlete, stats
+
+
+# ── Data helpers ──────────────────────────────────────────────────────────────
+
+def to_df(activities: List[Dict]) -> pd.DataFrame:
+    if not activities:
+        return pd.DataFrame()
+    rows = []
+    for a in activities:
+        ds = a.get("start_date", "")
+        try:
+            dt = datetime.strptime(ds, "%Y-%m-%dT%H:%M:%SZ")
+        except (ValueError, TypeError):
+            dt = None
+        spd = a.get("average_speed", 0)
+        rows.append({
+            "id":               a.get("id"),
+            "name":             a.get("name", "Unknown"),
+            "type":             a.get("sport_type") or a.get("type") or "Unknown",
+            "date":             dt,
+            "day":              dt.strftime("%Y-%m-%d") if dt else None,
+            "year":             dt.year  if dt else None,
+            "month":            dt.strftime("%Y-%m") if dt else None,
+            "week":             dt.strftime("%Y-W%W") if dt else None,
+            "distance_km":      round(a.get("distance", 0) / 1000, 2),
+            "moving_time_min":  round(a.get("moving_time", 0) / 60, 1),
+            "elevation_m":      round(a.get("total_elevation_gain", 0), 0),
+            "avg_speed_kmh":    round(spd * 3.6, 2),
+            "avg_hr":           a.get("average_heartrate"),
+            "kudos":            a.get("kudos_count", 0),
+        })
+    return pd.DataFrame(rows)
+
+def _fmt_totals(t: Optional[Dict]) -> Dict:
+    if not t:
+        return {}
+    return {
+        "count":              t.get("count", 0),
+        "distance_km":        round(t.get("distance", 0) / 1000, 1),
+        "moving_time_hours":  round(t.get("moving_time", 0) / 3600, 1),
+        "elevation_gain_m":   round(t.get("elevation_gain", 0), 0),
+    }
+
+def pace_str(avg_speed_kmh: float) -> str:
+    if avg_speed_kmh <= 0:
+        return "-"
+    p = 60 / avg_speed_kmh
+    return f"{int(p)}:{int((p % 1) * 60):02d} /km"
+
+
+# ── Map helpers ───────────────────────────────────────────────────────────────
+
+def decode_route(activity: Dict) -> List[List[float]]:
+    encoded = (activity.get("map") or {}).get("summary_polyline", "")
+    if not encoded:
+        return []
+    try:
+        return [[lat, lon] for lat, lon in pl.decode(encoded)]
+    except Exception:
+        return []
+
+def build_map(
+    activities: List[Dict],
+    selected_id: Optional[int] = None,
+) -> Optional[folium.Map]:
+    routed = [(decode_route(a), a) for a in activities]
+    routed = [(r, a) for r, a in routed if r]
+    if not routed:
+        return None
+
+    all_pts = [pt for r, _ in routed for pt in r]
+    center  = [
+        sum(c[0] for c in all_pts) / len(all_pts),
+        sum(c[1] for c in all_pts) / len(all_pts),
+    ]
+    if selected_id:
+        sel = next((r for r, a in routed if a.get("id") == selected_id), None)
+        if sel:
+            center = [sum(c[0] for c in sel) / len(sel), sum(c[1] for c in sel) / len(sel)]
+
+    m = folium.Map(
+        location=center, zoom_start=14 if selected_id else 12,
+        tiles=DARK_MAP_TILES, attr=DARK_MAP_ATTR,
+        prefer_canvas=True,
+    )
+
+    n = len(routed)
+    for i, (coords, activity) in enumerate(routed):
+        aid    = activity.get("id")
+        is_sel = selected_id == aid
+        is_dim = selected_id is not None and not is_sel
+
+        weight  = 5   if is_sel else 2
+        opacity = 0.95 if is_sel else (0.10 if is_dim else max(0.25, 1.0 - i / max(n, 1) * 0.75))
+
+        dist_km = round(activity.get("distance", 0) / 1000, 1)
+        t_min   = round(activity.get("moving_time", 0) / 60)
+        tooltip = folium.Tooltip(
+            f"<div style='font-family:sans-serif;padding:4px'>"
+            f"<b style='color:{STRAVA_ORANGE}'>{activity.get('name','?')}</b><br>"
+            f"{activity.get('type','?')} &nbsp;·&nbsp; {dist_km} km &nbsp;·&nbsp; {t_min} min"
+            f"</div>"
+        )
+        folium.PolyLine(coords, color=STRAVA_ORANGE, weight=weight, opacity=opacity, tooltip=tooltip).add_to(m)
+
+        if is_sel:
+            folium.CircleMarker(coords[0],  radius=8, color="#2ECC71", fill=True, fill_color="#2ECC71", fill_opacity=1, tooltip="Start").add_to(m)
+            folium.CircleMarker(coords[-1], radius=8, color="#E74C3C", fill=True, fill_color="#E74C3C", fill_opacity=1, tooltip="Finish").add_to(m)
+
+    return m
+
+
+# ── Stats table ───────────────────────────────────────────────────────────────
+
+def _stats_table(data: Dict[str, Dict]) -> None:
+    rows = [
+        {
+            "Sport":         sport,
+            "Activities":    d.get("count", 0),
+            "Distance (km)": d.get("distance_km", 0),
+            "Time (h)":      d.get("moving_time_hours", 0),
+            "Elevation (m)": d.get("elevation_gain_m", 0),
+        }
+        for sport, d in data.items() if d and d.get("count", 0) > 0
+    ]
+    if rows:
+        st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+    else:
+        st.caption("No data recorded yet.")
+
+
+# ── Main render ───────────────────────────────────────────────────────────────
+
+_DASH_PERIODS: Dict[str, int] = {
+    "All time":   0,
+    "1 year":     365,
+    "6 months":   180,
+    "3 months":   90,
+    "30 days":    30,
+    "14 days":    14,
+    "7 days":     7,
+}
+
+
+def render_dashboard(sport_filter: Optional[str] = None) -> None:
+    with st.spinner("Loading Strava data…"):
+        try:
+            activities = load_activities()
+            athlete, stats = load_athlete_and_stats()
+        except Exception as e:
+            st.error(f"Could not load Strava data: {e}")
+            st.info("Make sure your `.env` has `CLIENT_ID` and `CLIENT_SECRET`, then reload.")
+            return
+
+    # Apply optional sport filter
+    if sport_filter and sport_filter != "All":
+        activities = [
+            a for a in activities
+            if (a.get("sport_type") or a.get("type")) == sport_filter
+        ]
+
+    df = to_df(activities)
+
+    # ── Athlete header ────────────────────────────────────────────────────────
+    name  = f"{athlete.get('firstname','')} {athlete.get('lastname','')}".strip()
+    parts = [athlete.get("city"), athlete.get("state"), athlete.get("country")]
+    loc   = ", ".join(p for p in parts if p)
+    since = (athlete.get("created_at") or "")[:4]
+
+    c_pic, c_info = st.columns([1, 8])
+    with c_pic:
+        if url := athlete.get("profile"):
+            st.image(url, width=68)
+    with c_info:
+        st.markdown(f"## {name}")
+        info_parts = []
+        if loc:   info_parts.append(f"📍 {loc}")
+        if since: info_parts.append(f"Member since {since}")
+        if athlete.get("premium"): info_parts.append("⭐ Premium")
+        st.caption("  ·  ".join(info_parts))
+
+    st.divider()
+
+    # ── Period selector ───────────────────────────────────────────────────────
+    period = st.radio(
+        "Period",
+        list(_DASH_PERIODS.keys()),
+        index=4,
+        horizontal=True,
+        key="dash_period",
+        label_visibility="collapsed",
+    )
+    period_days = _DASH_PERIODS[period]
+    if period_days > 0:
+        cutoff = datetime.utcnow() - timedelta(days=period_days)
+        activities = [a for a in activities if a.get("start_date", "") >= cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")]
+        df = to_df(activities)
+
+    st.divider()
+
+    # ── Key metrics ───────────────────────────────────────────────────────────
+    total_dist = df["distance_km"].sum()          if not df.empty else 0
+    total_h    = df["moving_time_min"].sum() / 60 if not df.empty else 0
+    total_elev = df["elevation_m"].sum()          if not df.empty else 0
+    avg_hr     = df["avg_hr"].dropna().mean()     if not df.empty else None
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Activities",      f"{len(df):,}")
+    m2.metric("Total Distance",  f"{total_dist:,.1f} km")
+    m3.metric("Total Time",      f"{total_h:,.0f} h")
+    m4.metric("Total Elevation", f"{total_elev:,.0f} m")
+    m5.metric("Avg Heart Rate",  f"{avg_hr:.0f} bpm" if avg_hr else "—")
+
+    st.divider()
+
+    # ── Activity map ──────────────────────────────────────────────────────────
+    st.markdown("### Activity Map")
+    routed = [a for a in activities if decode_route(a)]
+
+    col_ctrl, col_map = st.columns([1, 3])
+
+    with col_ctrl:
+        options: Dict[str, Optional[int]] = {"All activities": None}
+        for a in sorted(activities, key=lambda a: a.get("start_date", "")):
+            label = f"{activity_icon(a.get('type',''))} {a.get('name','?')}  ({a.get('start_date','')[:10]})"
+            options[label] = a.get("id")
+
+        selected_label = st.selectbox("Focus activity", list(options.keys()), label_visibility="collapsed")
+        selected_id    = options[selected_label]
+
+        if not routed:
+            st.info("No GPS routes found.")
+
+        if selected_id:
+            sel = next((a for a in activities if a.get("id") == selected_id), None)
+            if sel:
+                st.markdown("---")
+                sport = sel.get("type", "")
+                st.markdown(f"**{activity_icon(sport)} {sel.get('name','')}**")
+                st.caption(f"{sport}  ·  {sel.get('start_date','')[:10]}")
+
+                dist_km = round(sel.get("distance", 0) / 1000, 2)
+                t_min   = round(sel.get("moving_time", 0) / 60)
+                elev    = round(sel.get("total_elevation_gain", 0))
+                spd     = sel.get("average_speed", 0) * 3.6
+                hr      = sel.get("average_heartrate")
+
+                st.metric("Distance",  f"{dist_km} km")
+                st.metric("Duration",  f"{int(t_min//60)}h {int(t_min%60)}min" if t_min >= 60 else f"{int(t_min)} min")
+                if sport in ("Run", "Hike", "Walk"):
+                    st.metric("Avg Pace",  pace_str(spd))
+                elif spd > 0:
+                    st.metric("Avg Speed", f"{spd:.1f} km/h")
+                st.metric("Elevation", f"{elev} m")
+                if hr:
+                    st.metric("Avg HR", f"{hr:.0f} bpm")
+
+                if decode_route(sel):
+                    st.markdown("")
+                    if st.button("🎥 3D Flythrough", key="flythrough_btn", type="primary", width='stretch'):
+                        st.session_state["flythrough_id"]   = selected_id
+                        st.session_state["flythrough_name"] = sel.get("name", "")
+
+        else:
+            st.markdown("---")
+            st.caption(f"**{len(routed)}** of {len(activities)} activities have GPS routes.")
+
+    with col_map:
+        fmap = build_map(activities, selected_id=selected_id)
+        if fmap:
+            st_folium(fmap, height=500, width='stretch', returned_objects=[])
+        else:
+            st.info("No GPS route data available.")
+
+    # ── Activity stream analysis ──────────────────────────────────────────────
+    if selected_id and sel and decode_route(sel):
+        st.divider()
+        from ui.activity_analysis import show_analysis
+        show_analysis(selected_id, sel.get("name", ""))
+
+    # ── 3D Flythrough panel ───────────────────────────────────────────────────
+    if st.session_state.get("flythrough_id"):
+        fid   = st.session_state["flythrough_id"]
+        fname = st.session_state.get("flythrough_name", "")
+        c_hdr, c_close = st.columns([9, 1])
+        c_hdr.markdown(f"#### 🎥 3D Flythrough — {fname}")
+        if c_close.button("✕ Close", key="flythrough_close"):
+            del st.session_state["flythrough_id"]
+            del st.session_state["flythrough_name"]
+            st.rerun()
+        else:
+            from ui.flythrough_3d import show_flythrough
+            show_flythrough(fid, fname)
+
+    st.divider()
+
+    # ── Recent activity cards ─────────────────────────────────────────────────
+    if not df.empty:
+        st.markdown("### Recent Activities")
+        for i, (_, row) in enumerate(df.head(9).iterrows()):
+            if i % 3 == 0:
+                cols = st.columns(3)
+            icon = activity_icon(row["type"])
+            date = row["date"].strftime("%d %b %Y") if row["date"] is not None else ""
+            with cols[i % 3]:
+                with st.container(border=True):
+                    st.markdown(f"{icon} **{row['name']}**")
+                    st.caption(f"{row['type']} · {date}")
+                    sc1, sc2 = st.columns(2)
+                    sc1.metric("Distance", f"{row['distance_km']} km")
+                    sc2.metric("Time",     f"{int(row['moving_time_min'])} min")
+                    if row["elevation_m"] > 0:
+                        sc3, sc4 = st.columns(2)
+                        sc3.metric("Elevation", f"{int(row['elevation_m'])} m")
+                        if row["avg_speed_kmh"] > 0:
+                            if row["type"] in ("Run", "Hike", "Walk"):
+                                sc4.metric("Pace", pace_str(row["avg_speed_kmh"]))
+                            else:
+                                sc4.metric("Speed", f"{row['avg_speed_kmh']} km/h")
+
+        st.divider()
+
+    # ── Training charts ───────────────────────────────────────────────────────
+    if not df.empty:
+        st.markdown("### Training Overview")
+
+        df_typed = df.dropna(subset=["type"])
+        df_typed = df_typed[df_typed["type"].str.strip().astype(bool)]
+
+        # Adaptive aggregation: day for ≤30 d, week for ≤180 d, month for longer
+        if 0 < period_days <= 30:
+            agg_col, agg_label = "day", "Day"
+        elif 0 < period_days <= 180:
+            agg_col, agg_label = "week", "Week"
+        else:
+            agg_col, agg_label = "month", "Month"
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f'<p class="chart-label">Distance per {agg_label}</p>', unsafe_allow_html=True)
+            agg_dist = (df_typed.dropna(subset=[agg_col])
+                        .groupby(agg_col)["distance_km"].sum()
+                        .reset_index().sort_values(agg_col))
+            fig = px.bar(agg_dist, x=agg_col, y="distance_km",
+                         labels={agg_col: "", "distance_km": "km"},
+                         color_discrete_sequence=[STRAVA_ORANGE])
+            fig.update_traces(marker_line_width=0)
+            st.plotly_chart(chart_style(fig), width='stretch')
+
+        with c2:
+            st.markdown('<p class="chart-label">Sport Breakdown</p>', unsafe_allow_html=True)
+            tdf = df_typed.groupby("type").agg(count=("id", "count")).reset_index()
+            fig = px.pie(tdf, values="count", names="type",
+                         color_discrete_sequence=CHART_COLORS, hole=0.5)
+            fig.update_traces(textposition="inside", textinfo="percent+label",
+                              textfont_size=11)
+            st.plotly_chart(chart_style(fig), width='stretch')
+
+        c3, c4 = st.columns(2)
+        with c3:
+            st.markdown(f'<p class="chart-label">Training Time per {agg_label}</p>', unsafe_allow_html=True)
+            agg_time = (df_typed.dropna(subset=[agg_col])
+                        .groupby(agg_col)["moving_time_min"].sum()
+                        .reset_index().sort_values(agg_col))
+            agg_time["hours"] = (agg_time["moving_time_min"] / 60).round(2)
+            fig = px.area(agg_time, x=agg_col, y="hours",
+                          labels={agg_col: "", "hours": "h"},
+                          color_discrete_sequence=[STRAVA_ORANGE])
+            fig.update_traces(fill="tozeroy", line_width=2)
+            st.plotly_chart(chart_style(fig), width='stretch')
+
+        with c4:
+            if period_days == 0 or period_days > 90:
+                st.markdown('<p class="chart-label">Year-over-Year Distance</p>', unsafe_allow_html=True)
+                yearly = (df_typed.dropna(subset=["year"])
+                          .groupby(["year", "type"])["distance_km"].sum()
+                          .reset_index())
+                yearly["year"] = yearly["year"].astype(str)
+                fig = px.bar(yearly, x="year", y="distance_km", color="type", barmode="stack",
+                             labels={"year": "", "distance_km": "km", "type": "Sport"},
+                             color_discrete_sequence=CHART_COLORS)
+                fig.update_traces(marker_line_width=0)
+            else:
+                st.markdown(f'<p class="chart-label">Elevation per {agg_label}</p>', unsafe_allow_html=True)
+                agg_elev = (df_typed.dropna(subset=[agg_col])
+                            .groupby(agg_col)["elevation_m"].sum()
+                            .reset_index().sort_values(agg_col))
+                fig = px.bar(agg_elev, x=agg_col, y="elevation_m",
+                             labels={agg_col: "", "elevation_m": "m"},
+                             color_discrete_sequence=["#FCD34D"])
+                fig.update_traces(marker_line_width=0)
+            st.plotly_chart(chart_style(fig), width='stretch')
+
+        st.divider()
+
+    # ── Official Strava stats ─────────────────────────────────────────────────
+    st.markdown("### Official Strava Stats")
+    tab_ytd, tab_4w, tab_all = st.tabs(["Year to Date", "Last 4 Weeks", "All Time"])
+
+    with tab_ytd:
+        _stats_table({
+            "Run":  _fmt_totals(stats.get("ytd_run_totals")),
+            "Ride": _fmt_totals(stats.get("ytd_ride_totals")),
+            "Swim": _fmt_totals(stats.get("ytd_swim_totals")),
+        })
+    with tab_4w:
+        _stats_table({
+            "Run":  _fmt_totals(stats.get("recent_run_totals")),
+            "Ride": _fmt_totals(stats.get("recent_ride_totals")),
+            "Swim": _fmt_totals(stats.get("recent_swim_totals")),
+        })
+    with tab_all:
+        _stats_table({
+            "Run":  _fmt_totals(stats.get("all_run_totals")),
+            "Ride": _fmt_totals(stats.get("all_ride_totals")),
+            "Swim": _fmt_totals(stats.get("all_swim_totals")),
+        })
+        br = round(stats.get("biggest_ride_distance", 0) / 1000, 1)
+        bc = stats.get("biggest_climb_elevation_gain", 0)
+        if br or bc:
+            b1, b2 = st.columns(2)
+            b1.metric("Biggest Ride",  f"{br} km")
+            b2.metric("Biggest Climb", f"{bc} m")

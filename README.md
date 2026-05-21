@@ -1,282 +1,318 @@
-# Strava MCP (Model Context Protocol) Integration
+# FitDash
 
-A simplified implementation of the Model Context Protocol (MCP) for Strava activity data, providing a chatbot interface to analyze your Strava activities using Azure OpenAI.
+FitDash is a Streamlit sports analytics dashboard that unifies Strava activities and Garmin health data behind an agentic chat interface. Every answer comes from live API data — the assistant plans tool calls, executes them in parallel, then synthesises the result. No cached summaries, no hallucinated numbers.
 
-## Features
+## Highlights
 
-- **MCP Protocol**: Simplified JSON-RPC implementation compatible with Python 3.8+
-- **Strava OAuth2**: Complete authentication flow with automatic token refresh
-- **Real-time Data**: Fetches actual Strava activities from 2022-2025 (including all 2024 data)
-- **AI Chat Interface**: Azure OpenAI GPT-4o integration for conversational analysis
-- **Historical Analysis**: Retrieves up to 400+ activities for comprehensive statistics
+- **Dashboard** — activity map, summary metrics, training charts, Strava athlete stats.
+- **Activity Analysis** — stream-based charts (HR, pace, elevation, cadence, power) with colourised route overlays selectable by metric.
+- **3D Flythrough** — cinematic GPS route replay using MapLibre.
+- **Health** — Garmin wellness trends: Body Battery, sleep stages, stress, HR, steps, training metrics, HRV.
+- **Chat** — agentic Q&A: planner → parallel executor → synthesiser, with a live trace panel in the UI.
+- **Sync** — export Garmin activities to Strava as FIT files with preview and selection controls.
 
-## Architecture
+## Project Layout
 
-The project consists of 4 core files implementing a clean MCP architecture:
-
-```bash
-📁 strava-mcp/
-├── server.py           # MCP server - provides Strava tools via JSON-RPC
-├── strava_chatbot.py   # MCP client + chatbot interface with Azure OpenAI
-├── oauth2_manager.py   # OAuth2 authentication manager
-├── start_server.sh     # System launcher
-├── .env               # Environment variables (Strava & Azure credentials)
-└── requirements.txt   # Python dependencies
+```
+fitdash/
+├── app.py                   # Streamlit entry point
+├── requirements.txt
+├── .env                     # credentials (never committed)
+├── .env.example             # template — copy to .env and fill in
+├── .streamlit/config.toml   # Streamlit theme + server config
+│
+├── auth/
+│   ├── strava_oauth.py      # OAuth2 manager: token cache and auto-refresh
+│   └── garmin_setup.py      # One-time Garmin MFA login
+│
+├── mcp/
+│   ├── strava.py            # Strava MCP server (9 tools)
+│   └── garmin.py            # Garmin MCP server (10 tools)
+│
+└── ui/
+    ├── orchestrator.py      # Planner → executor → synthesiser loop
+    ├── shared.py            # MCP singletons, OpenAI client, tool router
+    ├── styles.py            # CSS variables, chart theme, colour constants
+    ├── dashboard.py         # Dashboard tab
+    ├── activity_analysis.py # Stream charts + coloured route overlay
+    ├── flythrough_3d.py     # 3D MapLibre flythrough
+    ├── health.py            # Health tab
+    ├── chat.py              # Chat tab
+    └── sync.py              # Garmin → Strava export tab
 ```
 
-## Quick Start
+## Orchestrator: How the Chat Works
 
-### 1. Environment Setup
+Every user message is processed in three deterministic phases before any text is returned.
 
-Create a `.env` file with your credentials:
-
-```env
-# Strava OAuth2 Configuration  
-CLIENT_ID=your_strava_client_id
-CLIENT_SECRET=your_strava_client_secret
-
-# Azure OpenAI Configuration
-AZURE_OPENAI_KEY=your_azure_openai_key
-AZURE_OPENAI_ENDPOINT=your_azure_endpoint
-AZURE_OPENAI_API_VERSION=2024-10-21
+```
+User question
+      │
+      ▼
+ ┌─────────────────────────────────────────────┐
+ │ 1. Planner                                  │
+ │  LLM → JSON plan: [{tool, args, label}, …]  │
+ │  Rules: explicit dates, one call/day for     │
+ │  intraday data, aggregate tools for ranges,  │
+ │  full-history search for superlatives        │
+ └─────────────────┬───────────────────────────┘
+                   │ plan (list of steps)
+                   ▼
+ ┌─────────────────────────────────────────────┐
+ │ 2. Executor (parallel ThreadPoolExecutor)   │
+ │  Runs all tool calls concurrently           │
+ │  Per-call timeout · collects errors too     │
+ └─────────────────┬───────────────────────────┘
+                   │ tool results
+                   ▼
+ ┌─────────────────────────────────────────────┐
+ │ 3. Synthesiser                              │
+ │  LLM writes answer from results only        │
+ │  No fabrication · handles missing data      │
+ │  Responds in the user's language            │
+ └─────────────────────────────────────────────┘
 ```
 
-### 2. OAuth2 Setup (Required)
+The UI shows a collapsible **Agent trace** after each answer: planned calls, execution status per tool, and phase timings. Every run is also appended to `.logs/agent_interactions.jsonl`.
 
-1. **Create a Strava App:**
-   - Go to [Strava Developers](https://www.strava.com/settings/api)
-   - Create a new application with:
-     - **Authorization Callback Domain**: `localhost`
-     - **Authorization Callback URL**: `http://localhost:8080/callback`
+### Orchestrator Internals
 
-2. **OAuth2 Flow:**
-   - The system uses proper OAuth2 authorization code flow
-   - On first run, it will automatically open your browser for authorization
-   - Tokens are stored securely in `.strava_tokens.json` (excluded from git)
-   - Automatic refresh handling with 5-minute buffer
+The logic lives in [ui/orchestrator.py](ui/orchestrator.py), wired into the chat via [ui/chat.py](ui/chat.py).
 
-### 3. Installation
+| Constant | Default | Purpose |
+|---|---|---|
+| `MAX_PLAN_STEPS` | 60 | Hard cap on planned tool calls per turn |
+| `MAX_WORKERS` | 5 | Parallel threads (kept low for Garmin rate limits) |
+| `TOOL_TIMEOUT` | 45 s | Per-tool call timeout |
+
+Extending the orchestrator typically means adjusting the planner prompt rules in [ui/orchestrator.py](ui/orchestrator.py) or registering new tools in [ui/shared.py](ui/shared.py).
+
+## Dashboard: What It Shows
+
+- **Activity Map** with route overlays and selectable focus activity.
+- **Key Metrics**: total distance, time, elevation, average HR.
+- **Training Overview** with adaptive aggregation (day / week / month).
+- **Recent Activities** cards with pace and elevation.
+- **Activity Analysis** (on selection): coloured route overlays and per-km charts from raw GPS streams.
+- **3D Flythrough**: cinematic GPS route replay at selectable speed.
+
+## Health: What It Tracks
+
+- Sleep stages (deep / REM / light / awake) with score and contextual quality hover tooltip.
+- Body Battery daily highs and lows.
+- Resting HR and daily max HR trends.
+- Steps, stress, and intensity minutes with WHO goal reference lines.
+- Training metrics: VO₂max, readiness score, training load, race predictions.
+- HRV last-night value and personal baseline range.
+
+## Chat: How To Use It
+
+Type any question about your fitness data. The assistant figures out which tools to call, fetches the data, and answers from real numbers only.
+
+### What to ask
+
+**Performance and personal bests**
+
+- *"What is my fastest 5 km pace ever?"*
+- *"Show my top 5 longest rides sorted by elevation."*
+- *"Which run had the highest average heart rate this year?"*
+- *"What gear have I used most this season?"*
+
+**Sleep and recovery**
+
+- *"Compare my average deep sleep and REM sleep last week vs the week before."*
+- *"How many nights did I sleep less than 6 hours in the last 30 days?"*
+- *"What was my sleep score on my hardest training days last month?"*
+- *"Show my Body Battery trend over the last 3 weeks."*
+
+**Training trends and load**
+
+- *"How has my weekly running distance changed over the last 12 weeks?"*
+- *"What is my current VO₂max and training readiness score?"*
+- *"Show my race time predictions for a half marathon."*
+- *"Which week had the highest training load in the last 6 months?"*
+
+**Cross-source correlations**
+
+- *"On days my resting HR was above 60, how did my sleep look?"*
+- *"Show my heart rate timeline yesterday and mark when I was active."*
+- *"Was my stress elevated on days I didn't train last week?"*
+- *"How does my Body Battery at the start of runs correlate with the distance I covered?"*
+
+**Intraday detail**
+
+- *"Show HR peaks before sleep in the last 14 days."*
+- *"What time did my step count peak yesterday?"*
+- *"Show the full heart rate and step timeline for last Tuesday."*
+
+### What the UI shows
+
+After each answer the **Agent trace** expander reveals:
+
+- the planner's reasoning and the exact tool calls it generated,
+- execution status (✅ / ❌) and duration per call,
+- phase timings: plan · exec · synth.
+
+## Sync: Garmin → Strava Export
+
+The Sync tab implements a three-stage workflow:
+
+1. **Fetch** Garmin activities for a selected date range.
+2. **Preview and select** which activities to export.
+3. **Upload** as FIT files to Strava with per-activity progress feedback.
+
+## MCP Servers and Tools
+
+FitDash uses lightweight JSON-RPC MCP servers (in-process by default, stdio-compatible for subprocess transport). Each server exposes a fixed tool set that the planner and the UI both consume.
+
+### MCP Server Design
+
+Both servers in [mcp/strava.py](mcp/strava.py) and [mcp/garmin.py](mcp/garmin.py) implement the same minimal interface:
+
+- `tools/list` — returns tool metadata: name, description, input schema.
+- `tools/call` — invokes a tool by name, returns a JSON string.
+
+Each server defines a `tools` list (schema for the LLM), routes requests in `_dispatch`, and always returns JSON text so results are transport-agnostic.
+
+### Adding a New Tool
+
+Four steps:
+
+1. **Add the schema** to the server's `tools` list.
+2. **Implement the handler** (async method returning JSON text).
+3. **Register it** in `_dispatch`.
+4. **Done** — the planner picks it up automatically via the tool list in [ui/shared.py](ui/shared.py).
+
+```python
+# 1. Schema — in mcp/strava.py SimpleMCPServer.__init__
+self.tools.append({
+    "name": "get_example_metric",
+    "description": "Concise, specific description the LLM can plan with.",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "date": {"type": "string", "description": "YYYY-MM-DD"},
+        },
+        "required": ["date"],
+    },
+})
+
+# 2. Handler
+async def _get_example_metric(self, args: Dict) -> str:
+    data = {"date": args["date"], "value": 42}
+    return json.dumps(data, indent=2)
+
+# 3. Registration — in _dispatch
+"get_example_metric": self._get_example_metric,
+```
+
+### Strava Tools (9)
+
+| Tool | What it returns |
+|---|---|
+| `get_activities` | Recent activities (distance, pace, HR, kudos) with optional sport and limit filters |
+| `get_activity_stats` | Aggregate totals and per-sport breakdown across all synced activities |
+| `get_athlete_profile` | Athlete profile, gear, and Strava's official all-time / YTD / last-4-weeks stats |
+| `get_training_trends` | Per-week training load (distance, time, elevation, sport mix) for the last N weeks |
+| `get_personal_bests` | Top 5 by distance, duration, elevation, and speed; biggest week; longest streak |
+| `get_yearly_breakdown` | Year-over-year totals since 2022 with per-sport breakdown |
+| `get_gear_info` | Registered bikes and shoes with brand, model, and accumulated mileage |
+| `get_activity_detail` | Deep single-activity detail: laps, splits, HR, power, cadence, PRs, gear |
+| `get_activity_streams` | Raw GPS streams (lat/lon, altitude, HR, cadence, velocity, power) for route visualisation |
+
+### Garmin Tools (10)
+
+| Tool | What it returns |
+|---|---|
+| `get_garmin_activities` | Garmin activity list with distance, pace, HR, calories, and training effect |
+| `get_garmin_activity_detail` | Per-lap splits, HR zone breakdown, power zones for one activity |
+| `get_garmin_daily_health` | Steps, calories, resting HR, stress, intensity minutes, Body Battery for one day |
+| `get_garmin_heart_rate_timeline` | Full-day HR in ~15-minute intervals; useful for spotting stress or illness spikes |
+| `get_garmin_sleep` | Sleep stages (deep/REM/light/awake), sleep score, SpO₂, respiration, HRV for one night |
+| `get_garmin_body_battery` | Daily Body Battery highs, lows, and intraday timeline over a date range |
+| `get_garmin_hrv_status` | Last-night HRV, personal baseline range, and readiness status |
+| `get_garmin_training_metrics` | VO₂max, 7- and 28-day training load, training status, readiness score, race predictions |
+| `get_garmin_wellness_trends` | Multi-day rollup of HR, steps, stress, sleep score, and Body Battery — preferred for date-range comparisons |
+| `get_garmin_steps_timeline` | 15-minute step buckets with activity level (sedentary / active / sleeping) for one day |
+
+## Setup
+
+### Prerequisites
+
+- Python 3.10 or later
+- A [Strava API application](https://www.strava.com/settings/api) — set the callback domain to `localhost`
+- An OpenAI-compatible API key (OpenAI, Azure OpenAI, or a local proxy)
+- *(Optional)* A Garmin Connect account for the Health and Sync tabs
+
+### Installation
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
+# Clone and enter the project
+git clone <repo-url>
+cd fitdash
+
+# Create and activate a virtual environment
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# macOS / Linux:
 source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Set up credentials
+cp .env.example .env
+# Then edit .env — see Environment Variables below
 ```
 
-### 4. Launch
+### Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `CLIENT_ID` | Yes | Strava application client ID |
+| `CLIENT_SECRET` | Yes | Strava application client secret |
+| `OPENAI_API_KEY` | Yes | OpenAI (or compatible) API key |
+| `AGENT_MODEL` | Yes | Model name, e.g. `gpt-4o` or `claude-opus-4-7` |
+| `OPENAI_BASE_URL` | No | Custom API base URL — omit for openai.com |
+| `GARMIN_EMAIL` | No | Garmin Connect email (Health and Sync tabs) |
+| `GARMIN_PASSWORD` | No | Garmin Connect password |
+
+## Authentication
+
+### Strava OAuth
+
+Strava OAuth runs automatically on first use. The app opens a browser window to authorise access; tokens are saved to `.tokens/strava.json` and refreshed automatically on subsequent runs.
+
+### Garmin Setup
 
 ```bash
-# Make launcher executable
-chmod +x start_server.sh
-
-# Start the MCP system
-./start_server.sh
+python auth/garmin_setup.py
 ```
 
-**🔐 OAuth2 Flow (Automatic):**
+Run once after filling in `GARMIN_EMAIL` and `GARMIN_PASSWORD`. Tokens are stored in `.tokens/` and persist until they expire. Re-run the script if Garmin login fails.
 
-- **First run:** The system will automatically detect no tokens and start OAuth2 authorization
-- **Browser opens:** Approve the authorization request
-- **Tokens saved:** System stores tokens securely in `.strava_tokens.json`
-- **Future runs:** Automatic token refresh, no manual intervention needed
-
-**Note:** You do NOT need to run `oauth2_manager.py` manually - it's handled automatically by the system!
-
-## Testing & Validation
-
-### 🧪 **System Tests**
-
-**1. OAuth2 Authorization Test (Optional - for troubleshooting only):**
+## Running
 
 ```bash
-# Test OAuth2 flow independently (only if issues occur)
-python oauth2_manager.py
+streamlit run app.py
 ```
 
-**Note:** This is NOT required for normal usage - OAuth2 is handled automatically by `./start_server.sh`
+Open [http://localhost:8501](http://localhost:8501).
 
-Expected output:
+## Caching and Rate Limits
 
-```text
-🚀 Starting Strava OAuth2 authorization...
-🌐 Opening authorization URL: https://www.strava.com/oauth/authorize?...
-⏳ Waiting for authorization (please approve in your browser)...
-✅ OAuth2 authorization completed successfully!
-👋 Hello [Your Name]!
-```
+- Most data loaders use `@st.cache_data` with TTLs ranging from 5 minutes (today's data) to 30 minutes (multi-day trends).
+- Garmin parallel calls are capped at 5 workers to stay within Connect's rate limits.
+- The orchestrator caps plan steps at 60 to prevent runaway tool calls on broad questions.
+- Sleep fields that are `null` in Garmin data mean the device recorded no data for that night; they are excluded from averages and reported explicitly.
 
-**2. MCP Server Test:**
+## Troubleshooting
 
-```bash
-# Test MCP server directly (advanced)
-echo '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}' | python server.py
-```
-
-**3. Full Integration Test:**
-
-```bash
-# Complete system test
-./start_server.sh
-```
-
-### 🔍 **Validation Checklist**
-
-**✅ Environment Setup:**
-
-- [ ] `.env` file exists with valid credentials
-- [ ] Virtual environment activated
-- [ ] All dependencies installed
-
-**✅ OAuth2 Configuration:**
-
-- [ ] Strava app created with correct callback URL
-- [ ] CLIENT_ID and CLIENT_SECRET configured
-- [ ] OAuth2 flow completes successfully
-- [ ] `.strava_tokens.json` created with secure permissions (600)
-
-**✅ System Functionality:**
-
-- [ ] MCP server starts without errors
-- [ ] Chatbot connects to MCP server
-- [ ] Azure OpenAI integration working
-- [ ] Real Strava data retrieved (test with "How many activities do I have?")
-
-### 🐛 **Troubleshooting**
-
-**OAuth2 Issues:**
-
-```bash
-# If authorization fails, delete tokens and retry
-rm .strava_tokens.json
-python oauth2_manager.py
-```
-
-**Python Environment Issues:**
-
-```bash
-# Check Python version (requires 3.8+)
-python --version
-
-# Recreate virtual environment if needed
-rm -rf .venv
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-**Port Conflicts:**
-
-```bash
-# If port 8080 is busy, kill conflicting processes
-lsof -ti:8080 | xargs kill -9
-```
-
-### ✅ **Expected Test Results**
-
-When everything works correctly:
-
-1. **OAuth2 Test:** Browser opens → You authorize → Success message → API test passes
-2. **System Test:** MCP server starts → Chatbot connects → Ask "What's my longest activity?" → Real data returned
-3. **File Security:** `.strava_tokens.json` has 600 permissions → File excluded from git
-
-### 🚀 **Sample Test Session**
-
-```bash
-$ ./start_server.sh
-🚀 Starting Strava MCP System...
-📦 Using configured Python environment...
-🤖 Strava MCP Chatbot ready! Ask me about your activities...
-💡 Available via MCP: get_activities, get_activity_stats
-------------------------------------------------------------
-
-💬 Ask your question: What is my longest activity?
-🔍 Strava-related question detected, fetching MCP data...
-🛠️ Calling MCP tool: get_activities
-📈 Retrieved 250 activities...
-🛠️ Tool called: get_activity_stats
-
-🤖 Bot response:
-Your longest activity is "Swisspeaks 360" - a hike covering 413.18 km on 2024-09-07. 
-This was an impressive 68.8-hour adventure with 21,733m of elevation gain.
-
-Your other notable long activities include:
-- "Niesen" (31.8 km hike)  
-- "Jungfraujoch" (28.4 km hike)
-- "Matterhorn" (26.7 km hike)
-------------------------------------------------------------
-```
-
-## MCP Tools Available
-
-The server provides two main tools accessible via the MCP protocol:
-
-- **`get_activities`**: Retrieve Strava activities with filtering options
-- **`get_activity_stats`**: Get comprehensive activity statistics including longest activities
-
-## Usage Examples
-
-Once the chatbot is running, you can ask questions like:
-
-```bash
-💬 Ask your question: What is my longest activity on Strava?
-💬 Ask your question: How many activities did I do in 2024?
-💬 Ask your question: Show me my running statistics
-💬 Ask your question: What's my total distance this year?
-```
-
-The system will automatically:
-
-1. Detect Strava-related questions
-2. Call appropriate MCP tools to fetch real data
-3. Provide factual, data-driven responses without unnecessary motivational content
-
-## Technical Details
-
-### MCP Implementation
-
-- **Protocol**: Simplified JSON-RPC over subprocess stdin/stdout
-- **Compatibility**: Python 3.8+ (no modern syntax dependencies)
-- **Communication**: Asynchronous message handling with timeout protection
-
-### Strava Integration
-
-- **OAuth2**: Complete authentication flow with token refresh
-- **Data Range**: 2022-2025 to capture all historical activities
-- **Rate Limiting**: Intelligent pagination and request management
-- **Real Data**: Connects to actual Strava API, no demo/mock data
-
-### AI Integration
-
-- **Model**: Azure OpenAI GPT-4o
-- **Approach**: Factual analysis without unnecessary motivational suggestions
-- **Context**: Full activity data provided for accurate responses
-
-## Development
-
-### File Structure
-
-- `server.py`: Core MCP server handling Strava API integration
-- `strava_chatbot.py`: MCP client with subprocess management and AI integration
-- `oauth2_manager.py`: Complete OAuth2 flow with token management
-- `start_server.sh`: Simple launcher that activates venv and starts the chatbot
-
-### Key Classes
-
-- `StravaAPI`: Handles OAuth2 and API interactions
-- `OAuth2Manager`: Complete OAuth2 authorization code flow
-- `SimpleMCPClient`: MCP protocol client implementation
-- `SimpleMCPServer`: JSON-RPC server for tool execution
-
-## Requirements
-
-- Python 3.8+
-- Strava Developer Account (for OAuth2 credentials)
-- Azure OpenAI Account (for GPT-4o access)
-- Active internet connection for API calls
-
-## License
-
-This project demonstrates MCP protocol implementation for educational purposes.
+| Symptom | Fix |
+|---|---|
+| Strava auth fails | Delete `.tokens/strava.json` and reload the app to re-authorise |
+| Garmin tokens expired | Re-run `python auth/garmin_setup.py` |
+| Port 8080 already in use | Kill the process on that port, or change `REDIRECT_URI` in `auth/strava_oauth.py` |
+| No route visible on map | The activity has no GPS stream (indoor workout or Strava privacy zone) |
+| Chat returns "Garmin not connected" | Run `auth/garmin_setup.py` and confirm `.tokens/garmin_tokens.json` exists |
