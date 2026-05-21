@@ -5,7 +5,7 @@ input is always at the bottom (ChatGPT / Claude style).
 """
 
 import json
-from typing import Dict
+from typing import Dict, List
 
 import streamlit as st
 
@@ -69,6 +69,22 @@ def _render_trace(trace: Dict) -> None:
             st.caption("  ·  ".join(parts))
 
 
+# ── Action application (called on Streamlit main thread after orchestrator) ───
+
+def _apply_actions(actions: List[Dict]) -> None:
+    for action in (actions or []):
+        if action.get("type") == "flythrough":
+            st.session_state["chat_flythrough"] = {
+                "activity_id":   action["activity_id"],
+                "activity_name": action.get("activity_name", ""),
+                "orientation":   action.get("orientation", "landscape"),
+                "mode":          action.get("mode", "satellite_3d"),
+                "duration_sec":  int(action.get("duration_sec", 60)),
+                "auto_export":   bool(action.get("auto_export", True)),
+            }
+            break
+
+
 # ── Main render ───────────────────────────────────────────────────────────────
 
 def render_chat() -> None:
@@ -121,6 +137,7 @@ def render_chat() -> None:
             with st.chat_message("assistant", avatar="🏃"):
                 history_before = st.session_state.chat_history[:-1]
                 answer, trace  = orchestrator.run(prompt, history_before, _update_status)
+                _apply_actions(trace.get("actions") or [])
                 status_placeholder.empty()
                 st.markdown(answer)
 
@@ -133,9 +150,33 @@ def render_chat() -> None:
                 st.session_state.chat_history = st.session_state.chat_history[-20:]
                 st.session_state.chat_traces  = st.session_state.chat_traces[-10:]
 
+        # Inline flythrough (agent-triggered) — appears below the latest message
+        ft = st.session_state.get("chat_flythrough")
+        if ft:
+            cols = st.columns([10, 1])
+            cols[0].info(
+                f"**Recording 3D flythrough:** {ft['activity_name']} "
+                f"— MP4 will auto-download when recording completes."
+            )
+            if cols[1].button("✕", key="close_chat_ft", help="Dismiss"):
+                del st.session_state["chat_flythrough"]
+                st.rerun()
+            else:
+                from ui.flythrough_3d import show_flythrough
+                show_flythrough(
+                    ft["activity_id"],
+                    ft["activity_name"],
+                    auto_export=ft.get("auto_export", True),
+                    mode=ft.get("mode", "satellite_3d"),
+                    duration_sec=ft.get("duration_sec", 60),
+                    orientation=ft.get("orientation", "landscape"),
+                    hidden=True,
+                )
+
         # Clear button lives inside the message area, below the last message
         if st.session_state.chat_history:
             if st.button("Clear conversation", type="secondary"):
                 st.session_state.chat_history = []
                 st.session_state.chat_traces  = []
+                st.session_state.pop("chat_flythrough", None)
                 st.rerun()

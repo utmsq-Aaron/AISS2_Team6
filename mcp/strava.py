@@ -54,7 +54,7 @@ class StravaAPI:
         page = 1
         after_ts  = int(_ACTIVITIES_SINCE.timestamp())
         before_ts = int(datetime.now().timestamp())
-        max_fetch = min(400, max(limit * 2, _STRAVA_PER_PAGE))
+        max_fetch = max(limit, _STRAVA_PER_PAGE)
 
         while len(collected) < max_fetch:
             resp = requests.get(
@@ -124,7 +124,7 @@ class StravaAPI:
 
 strava_api = StravaAPI()
 
-_ACTIVITIES_SINCE = datetime(2022, 1, 1)
+_ACTIVITIES_SINCE = datetime(2010, 1, 1)   # Strava launched 2009 — this covers all real history
 _STRAVA_PER_PAGE  = 200
 
 
@@ -249,6 +249,65 @@ class SimpleMCPServer:
                     "required": [],
                 },
             },
+            {
+                "name": "launch_flythrough",
+                "description": (
+                    "Render a 3D cinematic GPS flythrough video for a Strava activity inline in "
+                    "the chat. The video records automatically and the MP4 downloads when done — "
+                    "no navigation required. "
+                    "BEFORE CALLING this tool confirm all of the following with the user — "
+                    "ask for anything not yet specified: "
+                    "(1) ACTIVITY — name or ID. "
+                    "(2) ORIENTATION — infer from context: "
+                    "'mobile'/'phone'/'Instagram'/'Reels'/'TikTok'/'story'/'shorts' → portrait (9:16); "
+                    "'TV'/'desktop'/'widescreen'/'YouTube'/'16:9' → landscape (16:9). Ask if unclear. "
+                    "(3) MAP STYLE — always ask: 'Satellite 3D' (default, real terrain + aerial imagery) "
+                    "or 'Dark Flat' (minimalist dark theme with starfield). Default: satellite_3d. "
+                    "(4) DURATION — always ask: video length 30–120 seconds. "
+                    "Default 60 s. Suggest 30–45 s for short routes, 60–90 s for medium, "
+                    "90–120 s for long hikes/rides. "
+                    "RESOLUTION — always default 2K; never ask unless the user raises it. "
+                    "CONFIRMATION — 'yes'/'ok'/'sure'/confirming defaults → use satellite_3d + 60 s "
+                    "and read activity + orientation from conversation history."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "activity_id": {
+                            "type": "integer",
+                            "description": "Strava numeric activity ID (use if known)",
+                        },
+                        "activity_name": {
+                            "type": "string",
+                            "description": "Case-insensitive name search (e.g. 'Bergen Wandern') — no need to call get_activities first",
+                        },
+                        "orientation": {
+                            "type": "string",
+                            "enum": ["landscape", "portrait"],
+                            "description": "landscape (16:9) or portrait (9:16). Infer from context or ask.",
+                        },
+                        "mode": {
+                            "type": "string",
+                            "enum": ["satellite_3d", "dark"],
+                            "description": "Map style chosen by the user. satellite_3d = real terrain + imagery (default). dark = minimalist starfield.",
+                        },
+                        "duration_sec": {
+                            "type": "integer",
+                            "description": "Video duration in seconds (30–120). Chosen by the user; default 60.",
+                        },
+                        "resolution": {
+                            "type": "string",
+                            "enum": ["HD", "2K", "4K"],
+                            "description": "Default 2K. Only set if user explicitly requests a different resolution.",
+                        },
+                        "auto_export": {
+                            "type": "boolean",
+                            "description": "Auto-start recording when flythrough loads (always true)",
+                        },
+                    },
+                    "required": ["orientation"],
+                },
+            },
         ]
 
     async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -287,6 +346,7 @@ class SimpleMCPServer:
             "get_gear_info":        self._get_gear_info,
             "get_activity_detail":  self._get_activity_detail,
             "get_activity_streams": self._get_activity_streams,
+            "launch_flythrough":    self._launch_flythrough,
         }
         if tool_name not in handlers:
             raise ValueError(f"Unknown Strava tool: {tool_name}")
@@ -639,6 +699,50 @@ class SimpleMCPServer:
             ],
         }, indent=2)
 
+
+    async def _launch_flythrough(self, args: Dict) -> str:
+        activity_id   = args.get("activity_id")
+        name_search   = (args.get("activity_name") or "").strip().lower()
+        orientation   = args.get("orientation", "landscape")
+        mode          = args.get("mode", "satellite_3d")
+        duration_sec  = int(args.get("duration_sec", 60))
+        resolution    = args.get("resolution", "2K")
+        auto_export   = args.get("auto_export", True)  # default: auto-start recording
+
+        if not activity_id and not name_search:
+            return json.dumps({"error": "Provide activity_id or activity_name"})
+
+        # Name-based lookup — no need for the caller to run get_activities first
+        if not activity_id:
+            acts = await strava_api.get_activities(limit=100)
+            matches = [a for a in acts if name_search in a.get("name", "").lower()]
+            if not matches:
+                return json.dumps({"error": f"No activity found matching '{name_search}'"})
+            activity_id = matches[0]["id"]
+
+        try:
+            a = await strava_api.get_activity_by_id(int(activity_id))
+        except Exception as e:
+            return json.dumps({"error": f"Could not load activity {activity_id}: {e}"})
+
+        name = a.get("name", f"Activity {activity_id}")
+        spd  = round(a.get("average_speed", 0) * 3.6, 2)
+        return json.dumps({
+            "action":        "show_flythrough",
+            "activity_id":   int(activity_id),
+            "activity_name": name,
+            "date":          a.get("start_date_local", "")[:10],
+            "type":          a.get("type", ""),
+            "distance_km":   round(a.get("distance", 0) / 1000, 2),
+            "elevation_m":   a.get("total_elevation_gain", 0),
+            "duration_min":  round(a.get("moving_time", 0) / 60, 1),
+            "avg_speed_kmh": spd,
+            "orientation":   orientation,
+            "mode":          mode,
+            "duration_sec":  max(30, min(120, duration_sec)),
+            "resolution":    resolution,
+            "auto_export":   bool(auto_export),
+        })
 
     async def _get_activity_streams(self, args: Dict) -> str:
         activity_id = args.get("activity_id")

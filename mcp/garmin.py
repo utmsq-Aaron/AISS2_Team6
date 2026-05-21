@@ -633,7 +633,7 @@ class GarminMCPServer:
                 pass
             return d, entry
 
-        workers = min(10, days_n)
+        workers = min(15, days_n)  # stay within Garmin's unofficial rate limits
         day_results: Dict[str, Any] = {}
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(_fetch_day, i): i for i in range(days_n)}

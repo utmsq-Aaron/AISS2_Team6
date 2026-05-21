@@ -25,7 +25,7 @@ LOG_FILE = LOG_DIR / "agent_interactions.jsonl"
 
 MAX_PLAN_STEPS = 60   # hard cap on planner output
 MAX_WORKERS    = 5    # parallel tool-call threads (Garmin rate-limit friendly)
-TOOL_TIMEOUT   = 45   # seconds per individual tool call
+TOOL_TIMEOUT   = 120  # seconds per individual tool call (wellness trends over long ranges need time)
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +46,17 @@ sleep, hrv_status, daily_health): generate ONE call per day — do not skip days
 training_trends, yearly_breakdown): use a single call covering the full range.
 - For "fastest/best/furthest/slowest/most/least" superlative queries about \
 activities: always set start_date="2010-01-01" so the full history is searched.
+- For superlative sleep/wellness queries ("worst ever", "best ever", "all-time", \
+"ever" without a specific range): use get_garmin_wellness_trends with \
+start_date="2010-01-01" and end_date=today in a single call — the tool handles \
+large ranges efficiently with parallel fetching.
+- For flythrough/flyover/3D video/route visualization: \
+  (a) When the specific activity still needs to be found, plan get_activities / \
+  get_activity_detail and set "pending_flythrough": true — do NOT add launch_flythrough. \
+  (b) When the activity ID is already known from conversation history AND orientation, \
+  map style, and duration are all present in the current or recent messages, plan \
+  launch_flythrough directly with auto_export=true. \
+  Never block activity-lookup steps waiting for flythrough params.
 - Correlations (e.g. "HR without steps"): include calls for BOTH data sources.
 - Always use explicit YYYY-MM-DD date strings. Never use relative terms.
 - Maximum {max_steps} steps. For ranges > {max_steps} days, prefer aggregate \
@@ -59,11 +70,14 @@ Available tools:
 Reply ONLY with valid JSON, exactly this schema:
 {{
   "reasoning": "<1-2 sentences: what data is needed and why>",
+  "pending_flythrough": false,
   "steps": [
     {{"tool": "<tool_name>", "args": {{}}, "label": "<short human label>"}},
     ...
   ]
 }}
+Set pending_flythrough to true when you plan activity-lookup steps for a flythrough \
+request but are NOT yet calling launch_flythrough (params still needed from user).
 """
 
 _SYNTHESIZER_SYSTEM = """\
@@ -82,6 +96,42 @@ and note them explicitly as "no data".
 - If a tool returned an error or no data, state that plainly.
 - For temporal patterns, call out specific dates and times.
 - Skip motivational filler unless the user explicitly asks for encouragement.
+- Answer in the same language the user wrote in.
+- If a tool result contains "action": "show_flythrough", confirm that the 3D flythrough is \
+rendering inline below this message and the MP4 will auto-download automatically when recording \
+completes — the user does not need to navigate anywhere. Mention the activity name, distance, \
+and date. Do NOT fabricate a video link.
+- When you need to ask the user for flythrough parameters (activity found but launch not yet called): \
+ask ONLY for these three things — (1) orientation: landscape (16:9) or portrait (9:16); \
+(2) map style: Satellite 3D (default) or Dark Flat; (3) duration: 30–120 seconds (default 60 s). \
+Infer orientation from context before asking ("mobile"/"phone"/"vertical" → portrait, \
+"TV"/"wide"/"horizontal" → landscape). \
+NEVER ask about: export format (always MP4), GIF, overlays/timestamps (always included), \
+speed multiplier, camera altitude, or any other setting — those are not configurable.
+- When "(no data fetched)" appears, the "Available tools" section lists every real parameter. \
+Only ask the user for parameters that appear there. Never invent options not listed.
+
+Today is {today}.
+"""
+
+_FLYTHROUGH_CLARIFIER_SYSTEM = """\
+You are a fitness assistant confirming a 3D flythrough request.
+
+An activity has been found. Present it briefly (name, date, distance, elevation gain) \
+and then ask the user for exactly the three parameters required to generate the video:
+
+1. Orientation — landscape (16:9, wide screen) or portrait (9:16, phone/vertical).
+   If the user already implied one (e.g. "phone"/"mobile"/"vertical" → portrait; \
+   "TV"/"wide"/"horizontal" → landscape), state your inference and ask them to confirm.
+2. Map style — Satellite 3D with real terrain (default) or Dark Flat vector map.
+3. Duration — 30 to 120 seconds (default 60 s).
+
+Rules:
+- Show ONLY name, date, distance, and elevation gain from the tool result. Nothing else.
+- Ask for ONLY the three parameters above — nothing more.
+- NEVER ask about: export format (always MP4), GIF, overlays/timestamps (always included), \
+  speed multiplier, camera altitude, resolution, or bitrate.
+- Keep the response concise — one sentence per parameter.
 - Answer in the same language the user wrote in.
 
 Today is {today}.
@@ -146,6 +196,7 @@ class FitDashOrchestrator:
             "answer":     None,
             "timing":     {},
             "error":      None,
+            "actions":    [],
         }
 
         try:
@@ -159,7 +210,7 @@ class FitDashOrchestrator:
                 # No tools needed — go straight to synthesis
                 _cb(progress_cb, "Generating answer…")
                 t0 = time.perf_counter()
-                answer = self._synthesize(client, user_input, history, [], today, trace)
+                answer = self._synthesize(client, user_input, history, [], tools, today, trace)
                 trace["timing"]["synth_ms"] = _ms(t0)
             else:
                 # ── 2. Execute ────────────────────────────────────────────────
@@ -168,10 +219,16 @@ class FitDashOrchestrator:
                 results = self._execute(plan, trace, progress_cb)
                 trace["timing"]["exec_ms"] = _ms(t0)
 
-                # ── 3. Synthesize ─────────────────────────────────────────────
+                trace["actions"] = self._parse_actions(results)
+
+                # ── 3. Synthesize (or collect flythrough params) ──────────────
                 _cb(progress_cb, "Analysing results…")
                 t0 = time.perf_counter()
-                answer = self._synthesize(client, user_input, history, results, today, trace)
+                pending_ft = (trace.get("plan") or {}).get("pending_flythrough", False)
+                if pending_ft and results:
+                    answer = self._clarify_flythrough(client, user_input, history, results, today, trace)
+                else:
+                    answer = self._synthesize(client, user_input, history, results, tools, today, trace)
                 trace["timing"]["synth_ms"] = _ms(t0)
 
         except Exception as exc:
@@ -230,10 +287,11 @@ class FitDashOrchestrator:
         except json.JSONDecodeError:
             parsed = {}
 
-        reasoning = parsed.get("reasoning", "")
-        steps     = (parsed.get("steps") or [])[:MAX_PLAN_STEPS]
+        reasoning          = parsed.get("reasoning", "")
+        steps              = (parsed.get("steps") or [])[:MAX_PLAN_STEPS]
+        pending_flythrough = bool(parsed.get("pending_flythrough", False))
 
-        trace["plan"] = {"reasoning": reasoning, "steps": steps}
+        trace["plan"] = {"reasoning": reasoning, "steps": steps, "pending_flythrough": pending_flythrough}
         return steps
 
     # ── Phase 2: Executor ─────────────────────────────────────────────────────
@@ -293,6 +351,70 @@ class FitDashOrchestrator:
 
         return results
 
+    # ── Actions ───────────────────────────────────────────────────────────────
+
+    def _parse_actions(self, results: List[Dict]) -> List[Dict]:
+        """Extract UI actions from tool results — pure Python, no Streamlit dependency."""
+        actions: List[Dict] = []
+        for rec in results:
+            if rec.get("error"):
+                continue
+            try:
+                data = json.loads(rec.get("result") or "{}")
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if data.get("action") == "show_flythrough":
+                actions.append({
+                    "type":          "flythrough",
+                    "activity_id":   data["activity_id"],
+                    "activity_name": data.get("activity_name", ""),
+                    "orientation":   data.get("orientation", "landscape"),
+                    "mode":          data.get("mode", "satellite_3d"),
+                    "duration_sec":  int(data.get("duration_sec", 60)),
+                    "auto_export":   bool(data.get("auto_export", True)),
+                })
+                break  # one flythrough at a time
+        return actions
+
+    # ── Flythrough param collector ────────────────────────────────────────────
+
+    def _clarify_flythrough(
+        self,
+        client,
+        user_input: str,
+        history: List[Dict],
+        results: List[Dict],
+        today: str,
+        trace: Dict,
+    ) -> str:
+        """Focused LLM call that presents the found activity and asks ONLY for the
+        three flythrough params (orientation, map style, duration). Has no other
+        context so it structurally cannot invent fake options."""
+        system = _FLYTHROUGH_CLARIFIER_SYSTEM.format(today=today)
+
+        tool_sections = []
+        for r in results:
+            header = f"### {r['label']}  [{r['tool']}]"
+            body   = f"ERROR: {r['error']}" if r.get("error") else (r.get("result") or "")
+            tool_sections.append(f"{header}\n{body}")
+        data_block = "\n\n".join(tool_sections) if tool_sections else "(no activity data)"
+
+        messages = [{"role": "system", "content": system}]
+        for msg in history[-6:]:
+            if msg["role"] in ("user", "assistant"):
+                messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({
+            "role": "user",
+            "content": f"{user_input}\n\n---\nActivity data:\n\n{data_block}",
+        })
+
+        resp = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            temperature=0.2,
+        )
+        return resp.choices[0].message.content or ""
+
     # ── Phase 3: Synthesizer ──────────────────────────────────────────────────
 
     def _synthesize(
@@ -301,6 +423,7 @@ class FitDashOrchestrator:
         user_input: str,
         history: List[Dict],
         results: List[Dict],
+        tools: List[Dict],
         today: str,
         trace: Dict,
     ) -> str:
@@ -312,7 +435,12 @@ class FitDashOrchestrator:
             body   = f"ERROR: {r['error']}" if r.get("error") else (r.get("result") or "")
             tool_sections.append(f"{header}\n{body}")
 
-        data_block = "\n\n".join(tool_sections) if tool_sections else "(no data fetched)"
+        if tool_sections:
+            data_block = "\n\n".join(tool_sections)
+        else:
+            # No tools ran — include real tool schemas so the synthesizer only asks for
+            # parameters that actually exist, never inventing options from general knowledge.
+            data_block = f"(no data fetched)\n\nAvailable tools:\n{_tool_descriptions(tools)}"
 
         messages = [{"role": "system", "content": system}]
         for msg in history[-6:]:

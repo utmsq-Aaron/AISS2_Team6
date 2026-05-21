@@ -20,7 +20,7 @@ from ui.styles import (
 # ── Cached data loaders ───────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300, show_spinner=False)
-def load_activities(limit: int = 400) -> List[Dict]:
+def load_activities(limit: int = 2000) -> List[Dict]:
     from mcp.strava import strava_api
     return run_async(strava_api.get_activities(limit=limit))
 
@@ -100,21 +100,24 @@ def build_map(
     if not routed:
         return None
 
-    all_pts = [pt for r, _ in routed for pt in r]
-    center  = [
-        sum(c[0] for c in all_pts) / len(all_pts),
-        sum(c[1] for c in all_pts) / len(all_pts),
-    ]
+    # Fit to the selected activity's route, or to all routes when showing overview
     if selected_id:
-        sel = next((r for r, a in routed if a.get("id") == selected_id), None)
-        if sel:
-            center = [sum(c[0] for c in sel) / len(sel), sum(c[1] for c in sel) / len(sel)]
+        sel_route = next((r for r, a in routed if a.get("id") == selected_id), None)
+        fit_pts = sel_route if sel_route else [pt for r, _ in routed for pt in r]
+    else:
+        fit_pts = [pt for r, _ in routed for pt in r]
+
+    lats   = [p[0] for p in fit_pts]
+    lons   = [p[1] for p in fit_pts]
+    center = [sum(lats) / len(lats), sum(lons) / len(lons)]
+    bounds = [[min(lats), min(lons)], [max(lats), max(lons)]]
 
     m = folium.Map(
-        location=center, zoom_start=14 if selected_id else 12,
+        location=center,
         tiles=DARK_MAP_TILES, attr=DARK_MAP_ATTR,
         prefer_canvas=True,
     )
+    m.fit_bounds(bounds, padding=(30, 30))
 
     n = len(routed)
     for i, (coords, activity) in enumerate(routed):
@@ -322,7 +325,8 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
             st.rerun()
         else:
             from ui.flythrough_3d import show_flythrough
-            show_flythrough(fid, fname)
+            auto_exp = st.session_state.pop("flythrough_auto_export", False)
+            show_flythrough(fid, fname, auto_export=auto_exp)
 
     st.divider()
 
