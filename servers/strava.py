@@ -3,14 +3,17 @@
 Strava MCP Server — JSON-RPC interface for Strava activity data.
 
 Runs as a subprocess (stdio transport) or imported in-process by app.py.
-Provides 8 tools covering activities, stats, training trends, personal bests,
-yearly breakdown, gear, and detailed activity analysis.
+Provides 10 tools covering activities, stats, training trends, personal bests,
+yearly breakdown, gear, detailed activity analysis, GPS streams, and flythrough.
 """
 
 import asyncio
 import json
 import os
+import random
 import sys
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -27,39 +30,94 @@ from auth.strava_oauth import OAuth2Manager  # noqa: E402 (after sys.path fix)
 
 # ── Strava API client ─────────────────────────────────────────────────────────
 
+_STRAVA_HTTP_TIMEOUT = 30   # seconds per Strava API request
+_STRAVA_MAX_RETRIES  = 3    # attempts before giving up on a single endpoint
+
+
 class StravaAPI:
-    """Thin async wrapper around the Strava v3 REST API with OAuth2 token management."""
+    """Thread-safe async wrapper around the Strava v3 REST API with OAuth2 token management.
+
+    Thread-safety note: _ensure_token uses a threading.Lock so that concurrent
+    ThreadPoolExecutor workers don't issue simultaneous token-refresh requests.
+    The OAuth init is deferred to first use so module import never raises.
+    """
 
     BASE = "https://www.strava.com/api/v3"
 
     def __init__(self) -> None:
-        cid = os.getenv("CLIENT_ID")
-        csec = os.getenv("CLIENT_SECRET")
-        if not cid or not csec:
-            raise RuntimeError("CLIENT_ID and CLIENT_SECRET must be set in .env")
-        self._oauth = OAuth2Manager(cid, csec)
+        self._oauth: Optional[OAuth2Manager] = None
         self._token: Optional[str] = None
+        self._lock = threading.Lock()   # guards token refresh
+
+    def _init_oauth(self) -> None:
+        """Lazy OAuth client init — call inside _lock only."""
+        if self._oauth is None:
+            cid  = os.getenv("CLIENT_ID")
+            csec = os.getenv("CLIENT_SECRET")
+            if not cid or not csec:
+                raise RuntimeError(
+                    "CLIENT_ID and CLIENT_SECRET must be set in .env. "
+                    "Copy .env.example to .env and add your Strava API credentials."
+                )
+            self._oauth = OAuth2Manager(cid, csec)
 
     async def _ensure_token(self) -> None:
-        self._token = self._oauth.get_valid_access_token()
+        """Refresh/obtain access token, serialized to prevent thundering herd."""
+        with self._lock:
+            self._init_oauth()
+            self._token = self._oauth.get_valid_access_token()
 
     def _headers(self) -> Dict[str, str]:
         return {"Authorization": f"Bearer {self._token}"}
 
+    def _get(self, url: str, **kwargs) -> requests.Response:
+        """HTTP GET with auth headers, timeout, and retry on 429 / 5xx."""
+        kwargs.setdefault("headers", self._headers())
+        kwargs.setdefault("timeout", _STRAVA_HTTP_TIMEOUT)
+        last_exc: Optional[Exception] = None
+        resp: Optional[requests.Response] = None
+        for attempt in range(_STRAVA_MAX_RETRIES):
+            try:
+                resp = requests.get(url, **kwargs)
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt < _STRAVA_MAX_RETRIES - 1:
+                    time.sleep(2 ** attempt + random.uniform(0, 0.5))
+                continue
+            if resp.status_code == 429:
+                wait = int(resp.headers.get("Retry-After", 2 ** (attempt + 1)))
+                time.sleep(min(wait, 60))
+                continue
+            if resp.status_code >= 500 and attempt < _STRAVA_MAX_RETRIES - 1:
+                time.sleep(2 ** attempt)
+                continue
+            return resp
+        if last_exc:
+            raise RuntimeError(
+                f"Strava HTTP request failed after {_STRAVA_MAX_RETRIES} attempts: {last_exc}"
+            )
+        return resp  # caller checks status
+
     async def get_activities(
-        self, limit: int = 200, sport_type: Optional[str] = None
+        self, limit: int = 200, sport_type: Optional[str] = None,
+        start_date: Optional[str] = None, end_date: Optional[str] = None,
     ) -> List[Dict]:
         await self._ensure_token()
         collected: List[Dict] = []
         page = 1
-        after_ts  = int(_ACTIVITIES_SINCE.timestamp())
-        before_ts = int(datetime.now().timestamp())
+        after_ts = (
+            int(datetime.strptime(start_date, "%Y-%m-%d").timestamp())
+            if start_date else int(_ACTIVITIES_SINCE.timestamp())
+        )
+        before_ts = (
+            int((datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)).timestamp())
+            if end_date else int(datetime.now().timestamp())
+        )
         max_fetch = max(limit, _STRAVA_PER_PAGE)
 
         while len(collected) < max_fetch:
-            resp = requests.get(
+            resp = self._get(
                 f"{self.BASE}/activities",
-                headers=self._headers(),
                 params={
                     "per_page": min(_STRAVA_PER_PAGE, max_fetch - len(collected)),
                     "page": page,
@@ -85,28 +143,27 @@ class StravaAPI:
 
     async def get_athlete(self) -> Dict:
         await self._ensure_token()
-        resp = requests.get(f"{self.BASE}/athlete", headers=self._headers())
+        resp = self._get(f"{self.BASE}/athlete")
         resp.raise_for_status()
         return resp.json()
 
     async def get_athlete_stats(self, athlete_id: int) -> Dict:
         await self._ensure_token()
-        resp = requests.get(f"{self.BASE}/athletes/{athlete_id}/stats", headers=self._headers())
+        resp = self._get(f"{self.BASE}/athletes/{athlete_id}/stats")
         resp.raise_for_status()
         return resp.json()
 
     async def get_activity_by_id(self, activity_id: int) -> Dict:
         await self._ensure_token()
-        resp = requests.get(f"{self.BASE}/activities/{activity_id}", headers=self._headers())
+        resp = self._get(f"{self.BASE}/activities/{activity_id}")
         if not resp.ok:
             raise RuntimeError(f"Activity {activity_id} not found ({resp.status_code})")
         return resp.json()
 
     async def get_activity_streams(self, activity_id: int) -> Dict:
         await self._ensure_token()
-        resp = requests.get(
+        resp = self._get(
             f"{self.BASE}/activities/{activity_id}/streams",
-            headers=self._headers(),
             params={
                 "keys": "latlng,altitude,time,distance,heartrate,cadence,velocity_smooth,watts",
                 "key_by_type": "true",
@@ -118,14 +175,15 @@ class StravaAPI:
 
     async def get_gear(self, gear_id: str) -> Optional[Dict]:
         await self._ensure_token()
-        resp = requests.get(f"{self.BASE}/gear/{gear_id}", headers=self._headers())
+        resp = self._get(f"{self.BASE}/gear/{gear_id}")
         return resp.json() if resp.ok else None
 
 
-strava_api = StravaAPI()
-
 _ACTIVITIES_SINCE = datetime(2010, 1, 1)   # Strava launched 2009 — this covers all real history
 _STRAVA_PER_PAGE  = 200
+
+# Singleton created lazily — module import never raises even if .env is missing.
+strava_api = StravaAPI()
 
 
 def _pace(speed_kmh: float) -> Optional[float]:
@@ -134,10 +192,20 @@ def _pace(speed_kmh: float) -> Optional[float]:
     return round(60.0 / speed_kmh, 2)
 
 
+def _pace_str(speed_kmh: float) -> Optional[str]:
+    """Return pace as M:SS string (e.g. '5:41') from speed in km/h."""
+    if not speed_kmh:
+        return None
+    total_sec = 3600 / speed_kmh
+    mins = int(total_sec // 60)
+    secs = int(total_sec % 60)
+    return f"{mins}:{secs:02d}"
+
+
 # ── MCP Server ────────────────────────────────────────────────────────────────
 
 class SimpleMCPServer:
-    """JSON-RPC MCP server exposing 9 Strava analysis tools."""
+    """JSON-RPC MCP server exposing 10 Strava analysis tools."""
 
     def __init__(self) -> None:
         self.tools = [
@@ -145,14 +213,21 @@ class SimpleMCPServer:
                 "name": "get_activities",
                 "description": (
                     "List the user's Strava activities (most recent first), optionally filtered "
-                    "by sport type (Run, Ride, Hike, Walk, Swim, …). Returns id, name, date, "
-                    "distance, duration, elevation, avg speed, pace (min/km), heart rate, and kudos."
+                    "by sport type (Run, Ride, Hike, Walk, Swim, …) and date range. "
+                    "Returns id, name, date, distance, duration, elevation, avg/max speed, "
+                    "avg/max heart rate, pace (min/km), suffer_score (Strava relative effort, "
+                    "HR-based, often null for non-HR activities), kilojoules (mechanical work "
+                    "output — only meaningful for cycling with a power meter), pr_count "
+                    "(personal records set), and kudos. Each activity's numeric id can be passed "
+                    "to get_activity_detail or get_activity_streams for deeper analysis."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "limit": {"type": "integer", "description": "Max activities to return (default 50)"},
-                        "sport_type": {"type": "string", "description": "Filter by type, e.g. 'Run', 'Ride', 'Hike'"},
+                        "limit":      {"type": "integer", "description": "Max activities to return (default 50)"},
+                        "sport_type": {"type": "string",  "description": "Filter by type, e.g. 'Run', 'Ride', 'Hike'"},
+                        "start_date": {"type": "string",  "description": "Return only activities on or after this date (YYYY-MM-DD)"},
+                        "end_date":   {"type": "string",  "description": "Return only activities on or before this date (YYYY-MM-DD)"},
                     },
                     "required": [],
                 },
@@ -160,8 +235,9 @@ class SimpleMCPServer:
             {
                 "name": "get_activity_stats",
                 "description": (
-                    "Aggregate statistics across all recorded activities: totals, averages, "
-                    "per-sport-type breakdown, and the single longest activity."
+                    "Aggregate statistics across all recorded activities: totals (distance, time, "
+                    "elevation, kilojoules for power-metered rides), averages, per-sport-type "
+                    "breakdown, and the single longest activity."
                 ),
                 "inputSchema": {"type": "object", "properties": {}, "required": []},
             },
@@ -223,14 +299,20 @@ class SimpleMCPServer:
                 "name": "get_activity_streams",
                 "description": (
                     "Raw GPS streams for one activity: lat/lon, altitude (m), elapsed time (s), "
-                    "and cumulative distance. Use for route visualisation or elevation profiling."
+                    "distance, heart rate, cadence, velocity, and power. Also returns activity "
+                    "metadata (name, date, distance, pace, avg HR) so no separate lookup is needed. "
+                    "Use for route visualisation, elevation profiling, or any metric-over-distance chart. "
+                    "Identify the activity by numeric activity_id OR by activity_name substring. "
+                    "When using activity_name, returns the MOST RECENT activity whose name contains "
+                    "the keyword — no prior get_activities call is needed."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "activity_id": {"type": "integer", "description": "Strava numeric activity ID"},
+                        "activity_id":   {"type": "integer", "description": "Strava numeric activity ID"},
+                        "activity_name": {"type": "string",  "description": "Short keyword extracted from the activity name (e.g. 'bergen', 'trail run') — NOT the full user sentence"},
                     },
-                    "required": ["activity_id"],
+                    "required": [],
                 },
             },
             {
@@ -238,13 +320,15 @@ class SimpleMCPServer:
                 "description": (
                     "Deep detail for one activity: per-km splits, lap data, heart rate, power, "
                     "cadence, calories, suffer score, PRs, gear, and location. "
-                    "Identify by numeric ID or by a name substring."
+                    "Identify by numeric ID or by a name substring. "
+                    "When using activity_name, returns the MOST RECENT activity whose name "
+                    "contains the keyword (searches the 100 most recent activities, newest first)."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "activity_id": {"type": "integer", "description": "Strava numeric activity ID"},
-                        "activity_name": {"type": "string", "description": "Case-insensitive name substring"},
+                        "activity_name": {"type": "string", "description": "Short keyword from the activity name (e.g. 'bergen', 'morning run'). Returns the MOST RECENT match. NOT the full user sentence."},
                     },
                     "required": [],
                 },
@@ -252,60 +336,50 @@ class SimpleMCPServer:
             {
                 "name": "launch_flythrough",
                 "description": (
-                    "Render a 3D cinematic GPS flythrough video for a Strava activity inline in "
-                    "the chat. The video records automatically and the MP4 downloads when done — "
-                    "no navigation required. "
-                    "BEFORE CALLING this tool confirm all of the following with the user — "
-                    "ask for anything not yet specified: "
-                    "(1) ACTIVITY — name or ID. "
-                    "(2) ORIENTATION — infer from context: "
-                    "'mobile'/'phone'/'Instagram'/'Reels'/'TikTok'/'story'/'shorts' → portrait (9:16); "
-                    "'TV'/'desktop'/'widescreen'/'YouTube'/'16:9' → landscape (16:9). Ask if unclear. "
-                    "(3) MAP STYLE — always ask: 'Satellite 3D' (default, real terrain + aerial imagery) "
-                    "or 'Dark Flat' (minimalist dark theme with starfield). Default: satellite_3d. "
-                    "(4) DURATION — always ask: video length 30–120 seconds. "
-                    "Default 60 s. Suggest 30–45 s for short routes, 60–90 s for medium, "
-                    "90–120 s for long hikes/rides. "
-                    "RESOLUTION — always default 2K; never ask unless the user raises it. "
-                    "CONFIRMATION — 'yes'/'ok'/'sure'/confirming defaults → use satellite_3d + 60 s "
-                    "and read activity + orientation from conversation history."
+                    "Render a 3D cinematic GPS flythrough MP4 for a Strava activity. "
+                    "The video animates the GPS route over a satellite or dark map from a moving camera perspective. "
+                    "The video contains ONLY the animated route — no HR data, no pace display, "
+                    "no split markers, no elevation graph, and no text overlays of any kind. "
+                    "When using activity_name, matches the MOST RECENT activity containing that keyword. "
+                    "STRICT RULE: DO NOT call this tool until the user has EXPLICITLY stated ALL THREE of: "
+                    "(1) ORIENTATION — the user must say 'landscape' or 'portrait'. Never infer from device type. "
+                    "(2) MAP STYLE — the user must say 'Satellite 3D' or 'Dark Flat'. Never assume a default. "
+                    "(3) DURATION — the user must state a number of seconds or minutes (30–120 s). Never guess. "
+                    "If any of these three are missing, do NOT call this tool. "
+                    "RESOLUTION defaults to 2K — only set when the user explicitly requests HD or 4K."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "activity_id": {
                             "type": "integer",
-                            "description": "Strava numeric activity ID (use if known)",
+                            "description": "Strava numeric activity ID (use if known from conversation history)",
                         },
                         "activity_name": {
                             "type": "string",
-                            "description": "Case-insensitive name search (e.g. 'Bergen Wandern') — no need to call get_activities first",
+                            "description": "Short keyword extracted from the activity name (e.g. 'bergen', 'trail run') — NOT the full user sentence",
                         },
                         "orientation": {
                             "type": "string",
                             "enum": ["landscape", "portrait"],
-                            "description": "landscape (16:9) or portrait (9:16). Infer from context or ask.",
+                            "description": "REQUIRED. landscape (16:9) or portrait (9:16) — must be confirmed by user.",
                         },
                         "mode": {
                             "type": "string",
                             "enum": ["satellite_3d", "dark"],
-                            "description": "Map style chosen by the user. satellite_3d = real terrain + imagery (default). dark = minimalist starfield.",
+                            "description": "REQUIRED. satellite_3d = real terrain + imagery. dark = minimalist starfield.",
                         },
                         "duration_sec": {
                             "type": "integer",
-                            "description": "Video duration in seconds (30–120). Chosen by the user; default 60.",
+                            "description": "REQUIRED. Video length in seconds (30–120) — must be confirmed by user.",
                         },
                         "resolution": {
                             "type": "string",
                             "enum": ["HD", "2K", "4K"],
-                            "description": "Default 2K. Only set if user explicitly requests a different resolution.",
-                        },
-                        "auto_export": {
-                            "type": "boolean",
-                            "description": "Auto-start recording when flythrough loads (always true)",
+                            "description": "Default 2K. Only set when the user explicitly requests a different resolution.",
                         },
                     },
-                    "required": ["orientation"],
+                    "required": ["orientation", "mode", "duration_sec"],
                 },
             },
         ]
@@ -358,6 +432,8 @@ class SimpleMCPServer:
         activities = await strava_api.get_activities(
             limit=args.get("limit", 50),
             sport_type=args.get("sport_type"),
+            start_date=args.get("start_date"),
+            end_date=args.get("end_date"),
         )
         rows = []
         for a in activities:
@@ -372,7 +448,12 @@ class SimpleMCPServer:
                 "elevation_gain_m":  a.get("total_elevation_gain", 0),
                 "avg_speed_kmh":     spd,
                 "pace_min_per_km":   _pace(spd),
+                "pace_display":      _pace_str(spd),
                 "avg_heart_rate":    a.get("average_heartrate"),
+                "max_heart_rate":    a.get("max_heartrate"),
+                "suffer_score":      a.get("suffer_score"),
+                "kilojoules":        a.get("kilojoules"),
+                "pr_count":          a.get("pr_count", 0),
                 "kudos":             a.get("kudos_count", 0),
                 "gear_id":           a.get("gear_id"),
             })
@@ -383,6 +464,7 @@ class SimpleMCPServer:
         total_dist = sum(a.get("distance", 0) for a in activities) / 1000
         total_time = sum(a.get("moving_time", 0) for a in activities) / 3600
         total_elev = sum(a.get("total_elevation_gain", 0) for a in activities)
+        total_kj   = sum(a.get("kilojoules") or 0 for a in activities)
 
         breakdown: Dict[str, Dict] = {}
         for a in activities:
@@ -401,6 +483,7 @@ class SimpleMCPServer:
             "total_time_hours":            round(total_time, 1),
             "total_elevation_gain_m":      round(total_elev, 0),
             "avg_distance_per_activity_km": round(total_dist / len(activities), 1) if activities else 0,
+            "total_kilojoules":            round(total_kj, 0),
             "sport_breakdown":             breakdown,
             "longest_activity": {
                 "id":               longest.get("id"),
@@ -529,6 +612,7 @@ class SimpleMCPServer:
                 "elevation_gain_m": a.get("total_elevation_gain", 0),
                 "avg_speed_kmh":   spd_kmh,
                 "pace_min_per_km": _pace(spd_kmh),
+                "pace_display":    _pace_str(spd_kmh),
             }
 
         week_dist: Dict[str, float] = {}
@@ -651,6 +735,7 @@ class SimpleMCPServer:
                 "time_min":        round(lap.get("moving_time", 0) / 60, 1),
                 "avg_speed_kmh":   lap_spd,
                 "pace_min_per_km": _pace(lap_spd),
+                "pace_display":    _pace_str(lap_spd),
                 "avg_hr":          lap.get("average_heartrate"),
                 "elevation_m":     lap.get("total_elevation_gain"),
             })
@@ -670,6 +755,7 @@ class SimpleMCPServer:
             "elevation_low_m":      a.get("elev_low"),
             "avg_speed_kmh":        avg_spd,
             "pace_min_per_km":      _pace(avg_spd),
+            "pace_display":         _pace_str(avg_spd),
             "max_speed_kmh":        round(a.get("max_speed", 0) * 3.6, 2),
             "avg_heart_rate_bpm":   a.get("average_heartrate"),
             "max_heart_rate_bpm":   a.get("max_heartrate"),
@@ -718,7 +804,7 @@ class SimpleMCPServer:
             matches = [a for a in acts if name_search in a.get("name", "").lower()]
             if not matches:
                 return json.dumps({"error": f"No activity found matching '{name_search}'"})
-            activity_id = matches[0]["id"]
+            activity_id = int(matches[0]["id"])
 
         try:
             a = await strava_api.get_activity_by_id(int(activity_id))
@@ -745,10 +831,42 @@ class SimpleMCPServer:
         })
 
     async def _get_activity_streams(self, args: Dict) -> str:
-        activity_id = args.get("activity_id")
+        activity_id   = args.get("activity_id")
+        name_search   = (args.get("activity_name") or "").strip().lower()
+
+        if not activity_id and not name_search:
+            return json.dumps({"error": "Provide activity_id or activity_name"})
+
+        # Name-based lookup — mirrors the pattern in _get_activity_detail
+        act_meta = None
         if not activity_id:
-            return json.dumps({"error": "activity_id is required"})
+            acts = await strava_api.get_activities(limit=100)
+            matches = [a for a in acts if name_search in a.get("name", "").lower()]
+            if not matches:
+                return json.dumps({"error": f"No activity found matching '{name_search}'"})
+            act_meta    = matches[0]
+            activity_id = int(act_meta["id"])
+
+        # Fetch stream data
         raw = await strava_api.get_activity_streams(int(activity_id))
+
+        # Fetch activity metadata when we only had an ID (no prior list lookup)
+        if act_meta is None:
+            try:
+                act_meta = await strava_api.get_activity_by_id(int(activity_id))
+            except Exception:
+                act_meta = {}
+
+        spd = round((act_meta.get("average_speed") or 0) * 3.6, 2)
+        metadata = {
+            "name":         act_meta.get("name", ""),
+            "date":         (act_meta.get("start_date") or "")[:10],
+            "distance_km":  round((act_meta.get("distance") or 0) / 1000, 2),
+            "avg_speed_kmh": spd,
+            "pace_display": _pace_str(spd),
+            "avg_hr":       act_meta.get("average_heartrate"),
+        }
+
         latlng    = (raw.get("latlng")          or {}).get("data", [])
         altitude  = (raw.get("altitude")        or {}).get("data", [])
         time_s    = (raw.get("time")            or {}).get("data", [])
@@ -772,6 +890,7 @@ class SimpleMCPServer:
             })
         return json.dumps({
             "activity_id":    activity_id,
+            "activity":       metadata,
             "total":          len(points),
             "has_hr":         bool(heartrate),
             "has_cadence":    bool(cadence),

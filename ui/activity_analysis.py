@@ -217,7 +217,7 @@ def _stream_charts(df: pd.DataFrame) -> None:
 # high is always red (top of legend), low is always green (bottom) — no exceptions
 _METRIC_DEFS = {
     "hr":       ("Heart Rate", False, "High HR",       "Low HR"),
-    "velocity": ("Pace",       False, "Fast",          "Slow"),
+    "velocity": ("Pace",       True,  "Slow",          "Fast"),   # invert: fast (high vel) = green
     "ele":      ("Elevation",  False, "High Elev.",    "Low Elev."),
     "cadence":  ("Cadence",    False, "High Cadence",  "Low Cadence"),
     "watts":    ("Power",      False, "High Power",    "Low Power"),

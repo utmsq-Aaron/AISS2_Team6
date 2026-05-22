@@ -21,12 +21,12 @@ from ui.styles import (
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_activities(limit: int = 2000) -> List[Dict]:
-    from mcp.strava import strava_api
+    from servers.strava import strava_api
     return run_async(strava_api.get_activities(limit=limit))
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_athlete_and_stats() -> Tuple[Dict, Dict]:
-    from mcp.strava import strava_api
+    from servers.strava import strava_api
     athlete = run_async(strava_api.get_athlete())
     stats   = run_async(strava_api.get_athlete_stats(athlete["id"]))
     return athlete, stats
@@ -256,7 +256,7 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
 
     with col_ctrl:
         options: Dict[str, Optional[int]] = {"All activities": None}
-        for a in sorted(activities, key=lambda a: a.get("start_date", "")):
+        for a in sorted(activities, key=lambda a: a.get("start_date", ""), reverse=True):
             label = f"{activity_icon(a.get('type',''))} {a.get('name','?')}  ({a.get('start_date','')[:10]})"
             options[label] = a.get("id")
 
@@ -325,8 +325,7 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
             st.rerun()
         else:
             from ui.flythrough_3d import show_flythrough
-            auto_exp = st.session_state.pop("flythrough_auto_export", False)
-            show_flythrough(fid, fname, auto_export=auto_exp)
+            show_flythrough(fid, fname)
 
     st.divider()
 

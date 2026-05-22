@@ -22,37 +22,86 @@ load_dotenv()
 # ── Async bridge ──────────────────────────────────────────────────────────────
 
 def run_async(coro) -> Any:
-    """Run an async coroutine from synchronous Streamlit code."""
+    """Run an async coroutine from synchronous Streamlit/thread code.
+
+    Creates a fresh event loop per call (required when called from
+    ThreadPoolExecutor workers — each thread must own its loop).
+    Cancels any lingering tasks before closing to avoid ResourceWarning.
+    """
     loop = asyncio.new_event_loop()
     try:
         return loop.run_until_complete(coro)
     finally:
-        loop.close()
+        try:
+            pending = asyncio.all_tasks(loop)
+            if pending:
+                for task in pending:
+                    task.cancel()
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+        finally:
+            loop.close()
 
 
 # ── MCP server singletons ─────────────────────────────────────────────────────
 
 @st.cache_resource(show_spinner=False)
 def get_strava_mcp():
-    from mcp.strava import SimpleMCPServer
+    from servers.strava import SimpleMCPServer
     return SimpleMCPServer()
 
 @st.cache_resource(show_spinner=False)
 def get_garmin_mcp():
     try:
-        from mcp.garmin import GarminMCPServer
+        from servers.garmin import GarminMCPServer
         return GarminMCPServer()
     except Exception:
         return None
 
 
+# ── Config validation ─────────────────────────────────────────────────────────
+
+def validate_config() -> list[str]:
+    """Return a list of missing/invalid configuration items.
+
+    Called at app startup. Returns empty list when everything is properly configured.
+    Does NOT raise — callers decide how to surface warnings.
+    """
+    issues = []
+    if not os.getenv("CLIENT_ID"):
+        issues.append("CLIENT_ID not set — Strava data unavailable")
+    if not os.getenv("CLIENT_SECRET"):
+        issues.append("CLIENT_SECRET not set — Strava data unavailable")
+    if not os.getenv("OPENAI_API_KEY"):
+        issues.append("OPENAI_API_KEY not set — AI features unavailable")
+    if not os.getenv("AGENT_MODEL"):
+        issues.append("AGENT_MODEL not set — using default gpt-4o (may be wrong for your provider)")
+    return issues
+
+
 # ── Connection checks ─────────────────────────────────────────────────────────
 
 def strava_connected() -> bool:
-    return Path(".tokens/strava.json").exists()
+    """True only if the Strava token file exists and contains an access_token."""
+    token_path = Path(".tokens/strava.json")
+    if not token_path.is_file():
+        return False
+    try:
+        import json as _json
+        data = _json.loads(token_path.read_text())
+        return bool(data.get("access_token"))
+    except Exception:
+        return False
 
 def garmin_connected() -> bool:
-    return Path(".tokens/garmin_tokens.json").exists()
+    """True only if Garmin token directory contains at least one token file."""
+    token_dir = Path(".tokens")
+    if not token_dir.is_dir():
+        return False
+    # garminconnect stores tokens as files inside .tokens/
+    return any(
+        f.is_file() and f.suffix in (".json", ".txt", "") and f.name != "strava.json"
+        for f in token_dir.iterdir()
+    )
 
 
 # ── Tool dispatcher ───────────────────────────────────────────────────────────

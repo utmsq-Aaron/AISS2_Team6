@@ -1,28 +1,23 @@
 """3D Activity Flythrough — MapLibre GL JS cinematic camera animation.
 
 Two modes:
-  dark         — dark vector basemap with star-field fog (original style)
+  dark         — dark vector basemap with star-field fog
   satellite_3d — ESRI satellite imagery + terrain DEM, real 3D mountains
 
 Animation engine:
-  - Continuous 60 fps rAF loop with sub-point interpolation
-  - Speed follows actual GPS timing (fast sections = fast camera, slow = slow)
-  - Speed-adaptive EMA bearing: no jarky turns
-  - Dynamic pitch and zoom: tilt up on climbs, zoom out at speed
+  - Speed follows actual GPS timing; speed-adaptive EMA bearing
+  - Dynamic pitch and zoom: tilts up on climbs, zooms out at speed
 
-Tile caching:
-  - Pre-warms all route tiles at 10 keyframes before animation starts
-  - Eliminates empty-tile artefacts on first pass
-
-Video export:
-  - 🎬 Export Full: pre-warms, auto-plays, auto-stops, downloads
-  - ⏺ Record: manual start/stop recording from any point
-  - Landscape 16:9 and Portrait 9:16 — both via centre-cropped offscreen canvas
-  - Rendered at 2× pixel-ratio for high quality output
-  - Downloads as .webm (VP9, 12 Mbps)
+Video export (WebCodecs + mp4-muxer):
+  - Deterministic frame-by-frame encoding — no real-time capture, no frame drops
+  - H.264 hardware acceleration via VideoEncoder; MP4 container via mp4-muxer
+  - Landscape 16:9 or Portrait 9:16 at HD / 2K / 4K
+  - map.once('idle') per frame guarantees all tiles are loaded before capture
+  - Auto-downloads as .mp4; double-click Export to cancel mid-encoding
 """
 
 import json
+import threading
 from typing import List, Optional
 
 import streamlit as st
@@ -196,22 +191,6 @@ html,body{width:100%;height:100%;background:#080812;overflow:hidden}
 .ctrl-val{color:#FC4C02;font-weight:700;font-size:11px}
 input[type=range]{width:76px;accent-color:#FC4C02;cursor:pointer}
 
-/* ── Record controls (bottom-right) ────────────────────────────────────── */
-#rec-controls{
-  position:fixed;bottom:12px;right:12px;
-  background:rgba(6,6,18,0.90);backdrop-filter:blur(18px);
-  border:1px solid rgba(252,76,2,0.30);border-radius:14px;
-  padding:8px 12px;display:flex;align-items:center;gap:9px;z-index:60
-}
-.ctrl-select{
-  background:rgba(16,16,32,0.92);border:1px solid rgba(252,76,2,.35);
-  color:#9BA3C8;border-radius:7px;padding:4px 8px;
-  font:11px system-ui,sans-serif;cursor:pointer;outline:none
-}
-.ctrl-select:hover{border-color:rgba(252,76,2,.7)}
-.btn-export{background:#1d4ed8}
-.btn-export:hover:not(.btn-recording){background:#1e3a8a!important}
-.btn-recording{background:#b91c1c!important}
 
 .maplibregl-ctrl-bottom-right,.maplibregl-ctrl-bottom-left{display:none!important}
 </style>
@@ -263,20 +242,10 @@ input[type=range]{width:76px;accent-color:#FC4C02;cursor:pointer}
   </label>
 </div>
 
-<div id="rec-controls">
-  <select id="rec-format" class="ctrl-select">
-    <option value="landscape">🖥&nbsp;16:9</option>
-    <option value="portrait">📱&nbsp;9:16</option>
-  </select>
-  <select id="rec-res" class="ctrl-select">
-    <option value="HD">HD</option>
-    <option value="2K" selected>2K</option>
-    <option value="4K">4K</option>
-  </select>
-  <button class="ctrl-btn btn-export" id="export-btn">&#127916; Export</button>
-</div>
+
 
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@4.3.3/build/mp4-muxer.min.js"></script>
 <script>
 'use strict';
 
@@ -285,8 +254,8 @@ const TRACK       = TRACK_JSON;
 const N           = TRACK.length;
 const MAP_MODE    = 'MAP_MODE_INIT';
 const ROUTE_NAME  = 'ACT_NAME';
-const AUTO_EXPORT = 'AUTO_EXPORT_INIT' === 'true';  // set by Python for agent-triggered export
-const HIDDEN      = 'HIDDEN_INIT' === 'true';        // suppress all visible UI when called from chat/server
+const AUTO_EXPORT = 'AUTO_EXPORT_INIT' === 'true';
+const RES_INIT    = 'RES_INIT_PY';   // HD | 2K | 4K — injected by Python
 
 const elevations = TRACK.map(p => p[2] || 0);
 const minElev    = Math.min(...elevations);
@@ -356,7 +325,9 @@ function calcBearing(lon1,lat1,lon2,lat2) {
 const bearings = new Float32Array(N);
 for (let i = 0; i < N; i++) {
   const a = Math.min(i+20, N-1);
-  bearings[i] = calcBearing(TRACK[i][0],TRACK[i][1],TRACK[a][0],TRACK[a][1]);
+  bearings[i] = a > i
+    ? calcBearing(TRACK[i][0],TRACK[i][1],TRACK[a][0],TRACK[a][1])
+    : i > 0 ? bearings[i-1] : 0;
 }
 // 3 passes of angular running-average — eliminates GPS jitter while preserving real turns
 for (let pass = 0; pass < 3; pass++) {
@@ -380,6 +351,7 @@ const map = new maplibregl.Map({
   attributionControl:    false,
   preserveDrawingBuffer: true,   // required for video capture
   pixelRatio:            Math.min(2, window.devicePixelRatio || 1),
+  maxTileCacheSize:      3000,   // must hold all pre-warmed tiles (~70 tiles/position × 90 positions)
 });
 
 // ── UI refs ──────────────────────────────────────────────────────────────────
@@ -415,11 +387,14 @@ document.getElementById('speed-lbl').textContent = durLabel(initDur);
 // Maps to fractional track index via timeToIndex().
 let playbackTime  = 0;
 let smoothBearing = bearings[0];
+// Encode-phase EMA state — null means raw/prewarm mode, set before the encode loop.
+let _encSmBearing = null;
+let _encSmPitch   = null;
+let _encSmZoom    = null;
 let lastTime      = null;
 let playing       = true;
 let animId        = null;
-let autoStopOnComplete = false;
-let _origMapDims = null;  // saved before portrait resize, restored after
+let _exportHwFailed = false;  // set true after a hw encode failure; forces software on retry
 
 function lerp(a, b, t) { return a + (b-a)*t; }
 
@@ -448,16 +423,7 @@ function animStep(time) {
 
   playbackTime += (dt/1000) * speedVal / totalDurationSec;
 
-  if (playbackTime >= 1) {
-    playbackTime = 0;
-    if (autoStopOnComplete) {
-      autoStopOnComplete = false;
-      playing = false;
-      document.getElementById('play-btn').innerHTML = '&#9654; Play';
-      stopRecording();
-      return;
-    }
-  }
+  if (playbackTime >= 1) playbackTime = 0;
 
   const progress  = timeToIndex(playbackTime);
   const idx       = Math.floor(progress);
@@ -692,374 +658,443 @@ map.on('load', () => {
   lastTime = null;
   animId   = requestAnimationFrame(animStep);
 
+  console.log('[ft] map loaded  mode=' + MAP_MODE + '  points=' + N + '  auto_export=' + AUTO_EXPORT);
+
   // Agent-triggered auto-export: starts recording immediately after map loads
   if (AUTO_EXPORT) setTimeout(() => exportFull(), 1500);
 });
 
-// ── Tile pre-warming ─────────────────────────────────────────────────────────
-// Two-pass strategy:
-//   Pass 1 (60%): visit numFrames keyframes at playback zoom — warms base tiles.
-//   Pass 2 (40%): spot-check 10 positions at zoom+1.5 — warms close-up tiles.
-// Per-frame timeout is 3.5 s; a 150 ms poll avoids the flaky map.once('idle').
-async function prewarmTiles(numFrames = 20) {
-  const solay = document.getElementById('status-overlay');
-  solay.style.display = 'flex'; solay.style.opacity = '1';
-  document.getElementById('status-msg').textContent = 'Pre-loading map tiles…';
-  const fillEl = document.getElementById('status-fill');
-
-  const isSatMode = MAP_MODE === 'satellite_3d';
-  async function waitIdle(maxMs) {
-    // map.once('idle') fires after all tiles are loaded AND the frame is fully rendered
-    // (including terrain DEM mesh generation). More reliable than polling areTilesLoaded().
-    await new Promise(resolve => {
-      let settled = false;
-      const done = () => { if (!settled) { settled = true; resolve(); } };
-      setTimeout(done, maxMs);
-      map.once('idle', done);
-      map.triggerRepaint();  // ensure idle fires even if map is already idle
-    });
-    // Extra settle: satellite terrain GPU mesh finalises slightly after idle fires
-    await new Promise(r => setTimeout(r, isSatMode ? 900 : 250));
-  }
-
-  // Pass 1 — all keyframes at playback zoom
-  for (let i = 0; i < numFrames; i++) {
-    const idx = Math.floor(i * (N-1) / Math.max(numFrames-1, 1));
-    map.jumpTo({center:[TRACK[idx][0],TRACK[idx][1]],bearing:bearings[idx],pitch:pitchVal,zoom:zoomVal});
-    await waitIdle(isSatMode ? 5000 : 3500);
-    fillEl.style.width = ((i+1)/numFrames * 60) + '%';
-  }
-
-  // Pass 2 — 10 spot-checks at zoom+1.5 to warm close-up satellite/terrain tiles
-  const zoomIn = Math.min(zoomVal + 1.5, 17.5);
-  const p2n = Math.min(numFrames, 10);
-  for (let i = 0; i < p2n; i++) {
-    const idx = Math.floor(i * (N-1) / Math.max(p2n-1, 1));
-    map.jumpTo({center:[TRACK[idx][0],TRACK[idx][1]],bearing:bearings[idx],pitch:pitchVal,zoom:zoomIn});
-    await waitIdle(2000);
-    fillEl.style.width = (60 + (i+1)/p2n * 40) + '%';
-  }
-
-  // Return to start
-  map.jumpTo({center:[TRACK[0][0],TRACK[0][1]],bearing:bearings[0],pitch:pitchVal,zoom:zoomVal});
-  await new Promise(r => setTimeout(r, 500));
-
-  solay.style.opacity = '0';
-  await new Promise(r => setTimeout(r, 450));
-  solay.style.display = 'none';
-  solay.style.opacity = '1';
-  fillEl.style.width = '0%';
-}
-
-// ── Error handling ────────────────────────────────────────────────────────────
-// Only disable terrain on terrain-source errors — never replace the style.
-// Replacing the style (setStyle) wipes all GeoJSON sources and layers.
-// status:0 fires on every cancelled tile request (e.g. during prewarm jumps)
-// so any broader error handler would destroy the route layers constantly.
-map.on('error', e => {
-  if ((e.sourceId||'').includes('terrain')) {
-    // Cancelled tile requests (status:0, AbortError) fire continuously during prewarm
-    // jumps — NEVER disable terrain for those, only for genuine network failures.
-    const status = e.error?.status ?? 0;
-    if (status > 0 && e.error?.name !== 'AbortError') {
-      try { map.setTerrain(null); } catch(_) {}
-    }
-  }
-});
-
-// ── Video recording ──────────────────────────────────────────────────────────
-let recorder     = null;
-let recChunks    = [];
-let isRecording  = false;
-let portCanvas   = null;
-let portCtx      = null;
-let copyFrame    = null;
+// ── WebCodecs video export ────────────────────────────────────────────────────
+let isEncoding   = false;
+let _origMapDims = null;
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
-  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y);
-  ctx.arcTo(x+w, y, x+w, y+r, r); ctx.lineTo(x+w, y+h-r);
-  ctx.arcTo(x+w, y+h, x+w-r, y+h, r); ctx.lineTo(x+r, y+h);
-  ctx.arcTo(x, y+h, x, y+h-r, r); ctx.lineTo(x, y+r);
-  ctx.arcTo(x, y, x+r, y, r); ctx.closePath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
 }
 
-function getCropDims(format) {
-  // Map is pre-sized to the exact target resolution before recording starts.
-  const src = map.getCanvas();
-  return { w: src.width, h: src.height, sx: 0, sy: 0 };
+// Waits for MapLibre 'idle' — used during pre-warm where full quality matters.
+// 'idle' fires only after ALL pending ops (including background prefetches) complete.
+function waitForIdle(maxMs = 6000) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    setTimeout(finish, maxMs);
+    map.once('idle', finish);
+    map.triggerRepaint();
+  });
 }
 
-function startRecording(format) {
-  if (isRecording) return;
-  const mapCanvas = map.getCanvas();
-  const nW = mapCanvas.width, nH = mapCanvas.height;
-  const { w: outW, h: outH, sx, sy } = getCropDims(format);
+// Faster alternative used in the encode loop.
+// Polls map.areTilesLoaded() — returns true as soon as all VISIBLE tiles are
+// ready, WITHOUT waiting for off-screen background prefetches that 'idle' would.
+// With a pre-warmed cache this resolves in one poll interval (~30–60 ms/frame).
+// Initial delay is one rAF so MapLibre has had a render cycle to discover which
+// tiles the new camera position needs before we query the loaded state.
+// Wait for all visible tiles to finish loading, resolving on the render event that
+// fires AFTER MapLibre has completed drawing to its WebGL canvas — so the canvas is
+// guaranteed up-to-date when we resolve.  Uses map.on('render') instead of double-rAF
+// so it costs one GPU frame (5–8 ms at 2K with vsync off) instead of two rAF ticks.
+// A hard setTimeout fallback handles the rare case where no render event fires.
+function waitForTiles(maxMs) {
+  return new Promise(resolve => {
+    const deadline = Date.now() + maxMs;
+    let done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      map.off('render', afterRender);
+      clearTimeout(timer);
+      resolve();
+    }
+    function afterRender() {
+      if (map.areTilesLoaded() || Date.now() >= deadline) {
+        finish();
+      } else {
+        map.triggerRepaint();  // tiles still loading — ask for another render
+      }
+    }
+    const timer = setTimeout(finish, maxMs);
+    map.on('render', afterRender);
+    map.triggerRepaint();
+  });
+}
 
-  portCanvas = document.createElement('canvas');
-  portCanvas.width = outW; portCanvas.height = outH;
-  portCtx = portCanvas.getContext('2d');
+// Advance animation to normalised time t ∈ [0,1] without the rAF loop.
+// During export (_encSmBearing !== null) applies the same EMA smoothing as animStep
+// so bearing/pitch/zoom transitions are glitch-free across every encoded frame.
+// During prewarm (_encSmBearing === null) uses raw values for accurate tile loading.
+function advanceToTime(t) {
+  playbackTime = Math.max(0, Math.min(1, t));
+  const progress = timeToIndex(playbackTime);
+  const idx  = Math.floor(progress);
+  const frac = progress - idx;
+  const nxt  = Math.min(idx + 1, N - 1);
+  const lon = lerp(TRACK[idx][0], TRACK[nxt][0], frac);
+  const lat = lerp(TRACK[idx][1], TRACK[nxt][1], frac);
+  const win = Math.min(16, Math.max(1, Math.round(N * 0.02)));
+  const slopeAdj    = Math.max(-5, Math.min(5,
+    (elevations[Math.min(idx+win,N-1)] - elevations[Math.max(idx-win,0)]) * 0.18));
+  const pitchTarget   = Math.max(22, Math.min(83, pitchVal + slopeAdj));
+  const zoomTarget    = zoomVal + (localSpeeds[idx] - 0.5) * -0.55;
+  const bearingTarget = bearings[idx];
+  let bearing, pitch, zoom;
+  if (_encSmBearing !== null) {
+    // EMA alphas scaled for encFps (2× the ~60 fps live-view values for 30 fps;
+    // bear slightly more aggressive to match perceived animStep responsiveness).
+    _encSmBearing = (_encSmBearing + bearingDiff(_encSmBearing, bearingTarget) * 0.07 + 360) % 360;
+    _encSmPitch  += (pitchTarget - _encSmPitch) * 0.07;
+    _encSmZoom   += (zoomTarget  - _encSmZoom)  * 0.05;
+    bearing = _encSmBearing; pitch = _encSmPitch; zoom = _encSmZoom;
+  } else {
+    bearing = bearingTarget; pitch = pitchTarget; zoom = zoomTarget;
+  }
+  map.jumpTo({ center:[lon,lat], bearing, pitch, zoom });
+  updateSources(idx, frac);
+  updateStats(idx, frac);
+}
 
-  copyFrame = () => {
-    if (!portCtx) return;
+// Draw elevation widget + progress bar + info card onto ctx at output resolution.
+function compositeOverlays(ctx, t, W, H) {
+  const curIdx = timeToIndex(t);
+  const iLo = Math.floor(curIdx), iFrac = curIdx - iLo;
+  const iHi = Math.min(iLo+1, N-1);
 
-    // 1. Map WebGL frame (native physical pixels, no resize)
-    portCtx.drawImage(mapCanvas, sx, sy, outW, outH, 0, 0, outW, outH);
+  const elW   = Math.min(Math.round(W*0.22), 380);
+  const elH   = Math.max(52, Math.round(elW*0.30));
+  const elPad = Math.round(W*0.012);
+  ctx.save();
+  ctx.translate(W - elW - elPad, H - elH - Math.round(H*0.025));
+  drawElevToCtx(ctx, t, elW, elH);
+  ctx.restore();
 
-    // 2. Compact elevation widget — bottom-right corner, proportional to video width
-    //    Max 22% of video width (capped at 380 px) to prevent horizontal stretch.
-    const elW    = Math.min(Math.round(outW * 0.22), 380);
-    const elH    = Math.max(52, Math.round(elW * 0.30));
-    const elPad  = Math.round(outW * 0.012);
-    const elX    = outW - elW - elPad;
-    const elY    = outH - elH - Math.round(outH * 0.025);
-    portCtx.save();
-    portCtx.translate(elX, elY);
-    drawElevToCtx(portCtx, playbackTime, elW, elH);
-    portCtx.restore();
+  const barH = Math.max(3, Math.round(W/400));
+  const pg = ctx.createLinearGradient(0,0,W*t,0);
+  pg.addColorStop(0,'#FC4C02'); pg.addColorStop(1,'#FF8C61');
+  ctx.fillStyle = pg; ctx.fillRect(0,0,W*t,barH);
 
-    // 3. Orange progress bar
-    const barH = Math.max(3, Math.round(nW / 400));
-    const pg = portCtx.createLinearGradient(0, 0, outW * playbackTime, 0);
-    pg.addColorStop(0, '#FC4C02'); pg.addColorStop(1, '#FF8C61');
-    portCtx.fillStyle = pg;
-    portCtx.fillRect(0, 0, outW * playbackTime, barH);
+  const s   = Math.max(0.6, Math.min(3.0, W/700));
+  const pad = Math.round(12*s);
+  ctx.fillStyle = 'rgba(6,6,18,0.82)';
+  roundRect(ctx, pad, pad+barH, Math.round(220*s), Math.round(64*s), Math.round(9*s));
+  ctx.fill();
 
-    // 4. Info card (top-left) — scales with output resolution
-    const s = Math.max(0.6, Math.min(3.0, outW / 700));
-    const pad = Math.round(12 * s);
-    const cW = Math.round(220 * s), cH = Math.round(64 * s);
-    portCtx.fillStyle = 'rgba(6,6,18,0.82)';
-    roundRect(portCtx, pad, pad + barH, cW, cH, Math.round(9 * s));
-    portCtx.fill();
+  const curElev = Math.round(lerp(elevations[iLo], elevations[iHi], iFrac));
+  const tx  = pad + Math.round(10*s);
+  const ty0 = pad + barH + Math.round(18*s);
+  ctx.fillStyle = '#EEEEFF';
+  ctx.font = `700 ${Math.round(12*s)}px system-ui,sans-serif`;
+  ctx.fillText(ROUTE_NAME.substring(0,26), tx, ty0);
+  const ty1 = ty0 + Math.round(20*s);
+  ctx.fillStyle = '#FC4C02';
+  ctx.font = `700 ${Math.round(13*s)}px system-ui,sans-serif`;
+  ctx.fillText((t*totalDistKm).toFixed(2)+' km', tx,                    ty1);
+  ctx.fillText(curElev+' m',                     tx+Math.round(90*s),   ty1);
+  ctx.fillText(Math.round(t*100)+'%',            tx+Math.round(168*s),  ty1);
+  const ty2 = ty1 + Math.round(13*s);
+  ctx.fillStyle = '#9BA3C8';
+  ctx.font = `${Math.round(9*s)}px system-ui,sans-serif`;
+  ctx.fillText('Distance',  tx,                   ty2);
+  ctx.fillText('Elevation', tx+Math.round(90*s),  ty2);
+  ctx.fillText('Progress',  tx+Math.round(168*s), ty2);
+}
 
-    const curIdx  = timeToIndex(playbackTime);
-    const iLo     = Math.floor(curIdx);
-    const iFrac   = curIdx - iLo;
-    const iHi     = Math.min(iLo + 1, N - 1);
-    const curElev = Math.round(lerp(elevations[iLo], elevations[iHi], iFrac));
-    const curDist = (playbackTime * totalDistKm).toFixed(2) + ' km';
-    const curProg = Math.round(playbackTime * 100) + '%';
+// ── Full export: deterministic H.264 frame-by-frame encode via WebCodecs ─────
+async function exportFull() {
+  if (isEncoding) { isEncoding = false; return; }  // second click = cancel
+  isEncoding = true;
 
-    const tx = pad + Math.round(10 * s);
-    const ty0 = pad + barH + Math.round(18 * s);
-    portCtx.fillStyle = '#EEEEFF';
-    portCtx.font = `700 ${Math.round(12*s)}px system-ui,sans-serif`;
-    portCtx.fillText(ROUTE_NAME.substring(0, 26), tx, ty0);
-
-    const ty1 = ty0 + Math.round(20 * s);
-    portCtx.fillStyle = '#FC4C02';
-    portCtx.font = `700 ${Math.round(13*s)}px system-ui,sans-serif`;
-    portCtx.fillText(curDist,           tx,                        ty1);
-    portCtx.fillText(curElev + ' m',    tx + Math.round(90*s),     ty1);
-    portCtx.fillText(curProg,           tx + Math.round(168*s),    ty1);
-
-    const ty2 = ty1 + Math.round(13 * s);
-    portCtx.fillStyle = '#9BA3C8';
-    portCtx.font = `${Math.round(9*s)}px system-ui,sans-serif`;
-    portCtx.fillText('Distance',  tx,                     ty2);
-    portCtx.fillText('Elevation', tx + Math.round(90*s),  ty2);
-    portCtx.fillText('Progress',  tx + Math.round(168*s), ty2);
+  // Format and resolution come from Python-injected JS constants (no UI panel)
+  const fmt    = 'ORIENTATION_INIT';
+  const recRes = RES_INIT;
+  const resMap = {
+    landscape: { HD:[1920,1080], '2K':[2560,1440], '4K':[3840,2160] },
+    portrait:  { HD:[1080,1920], '2K':[1440,2560], '4K':[2160,3840] },
   };
+  const [physW, physH] = resMap[fmt][recRes];
 
-  map.on('render', copyFrame);
-  copyFrame();
+  // Pause live animation
+  playing = false;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
 
-  const mime = [
-    'video/mp4;codecs=avc1,mp4a.40.2',
-    'video/mp4;codecs=avc1',
-    'video/mp4',
-    'video/webm;codecs=vp9',
-    'video/webm',
-  ].find(t => MediaRecorder.isTypeSupported(t)) || '';
-  const bitrateByRes = { HD: 15_000_000, '2K': 30_000_000, '4K': 80_000_000 };
-  const recRes2 = document.getElementById('rec-res').value;
-  const recOpts = { videoBitsPerSecond: bitrateByRes[recRes2] || 30_000_000 };
-  if (mime) recOpts.mimeType = mime;
-  recorder = new MediaRecorder(portCanvas.captureStream(60), recOpts);
-  recChunks = [];
-  const recStart = performance.now();
-  recorder.ondataavailable = e => { if(e.data.size>0) recChunks.push(e.data); };
-  recorder.onstop = () => downloadVideo(format, mime, (performance.now() - recStart) / 1000);
-  recorder.start(500);  // 500 ms chunks → less fragmentation → better MP4 compat
+  // Resize map canvas to target resolution.
+  // Portrait DPR=3: narrow CSS width would otherwise load fewer tile columns;
+  // forcing 3× makes MapLibre load tiles as if it were an ultra-retina display.
+  const EXPORT_DPR = fmt === 'portrait' ? 3 : 2;
+  const cssW = Math.round(physW / EXPORT_DPR);
+  const cssH = Math.round(physH / EXPORT_DPR);
 
-  isRecording = true;
-  recBadge.style.display = 'flex';
-  const eb = document.getElementById('export-btn');
-  eb.innerHTML = '&#9209; Stop Export';
-  eb.classList.add('btn-recording');
-}
+  const mapEl      = document.getElementById('map');
+  const mapWrapper = document.getElementById('map-wrapper');
+  _origMapDims = {
+    mapCssText:     mapEl.style.cssText,
+    wrapperCssText: mapWrapper.style.cssText,
+    pixelRatio:     map.getPixelRatio ? map.getPixelRatio() : Math.min(2, window.devicePixelRatio||1),
+  };
+  map.setPixelRatio(EXPORT_DPR);
+  mapEl.style.cssText = `position:absolute;top:0;left:0;width:${cssW}px;height:${cssH}px;`;
+  map.resize();
 
-function stopRecording() {
-  if (!recorder && !isRecording) return;
-  if (copyFrame) { map.off('render', copyFrame); copyFrame = null; }
-  portCanvas = null; portCtx = null;
-  if (recorder) { recorder.stop(); recorder = null; }
-  isRecording = false;
-  smoothZoom  = zoomVal;
-  // Restore map canvas after export
-  if (_origMapDims !== null) {
-    const mapEl      = document.getElementById('map');
-    const mapWrapper = document.getElementById('map-wrapper');
+  const viewW    = window.innerWidth, viewH = window.innerHeight;
+  const fitScale = Math.min(viewW/cssW, viewH/cssH, 1.0);
+  const offsetX  = Math.round((viewW - cssW*fitScale)/2);
+  const offsetY  = Math.round((viewH - cssH*fitScale)/2);
+  mapWrapper.style.cssText = `position:fixed;top:0;left:0;width:${cssW}px;height:${cssH}px;`+
+    `transform:translate(${offsetX}px,${offsetY}px) scale(${fitScale});transform-origin:top left;z-index:50;`;
+  if (MAP_MODE === 'satellite_3d') {
+    try { map.setTerrain({ source:'terrain_dem', exaggeration: fmt==='portrait' ? 2.2 : 1.6 }); } catch(_) {}
+  }
+
+  // Status overlay
+  const solay      = document.getElementById('status-overlay');
+  const statusMsg  = document.getElementById('status-msg');
+  const statusFill = document.getElementById('status-fill');
+  solay.style.display = 'flex'; solay.style.opacity = '1';
+  statusMsg.textContent = 'Preparing…'; statusFill.style.width = '0%';
+  document.getElementById('rec-badge').style.display = 'flex';
+
+  console.log('[ft] exportFull start  fmt=' + fmt + '  res=' + recRes + '  ' + physW + 'x' + physH);
+
+  // Jump to start and wait for full tile + terrain load at export resolution
+  map.jumpTo({ center:[TRACK[0][0],TRACK[0][1]], bearing:bearings[0], pitch:pitchVal, zoom:zoomVal });
+  console.log('[ft] waiting for initial idle (12 s budget)…');
+  await waitForIdle(12000);
+  console.log('[ft] initial idle done');
+
+  // ── Tile pre-warm: step through the full route before recording ───────────
+  // Visits 91 evenly-spaced positions (t=0 … t=1) so tiles for the ENTIRE
+  // route — including the start — are in MapLibre's 3000-tile in-memory cache
+  // before the encode loop begins.  waitForTiles is used (not waitForIdle) so
+  // we only wait for visible tiles, not off-screen prefetches.
+  const PREWARM_STEPS = 90;
+  const _pwT0 = Date.now();
+  console.log('[ft] prewarm start  steps=' + PREWARM_STEPS + '  cacheSize=3000');
+  for (let s = 0; s <= PREWARM_STEPS && isEncoding; s++) {
+    advanceToTime(s / PREWARM_STEPS);
+    await waitForTiles(4000);
+    const pp = Math.round((s / PREWARM_STEPS) * 40);
+    statusMsg.textContent  = `Pre-loading tiles… ${pp}%`;
+    statusFill.style.width = pp + '%';
+    if (s % 15 === 0 || s === PREWARM_STEPS) {
+      console.log('[ft] prewarm ' + s + '/' + PREWARM_STEPS
+        + '  areTilesLoaded=' + map.areTilesLoaded()
+        + '  elapsed=' + ((Date.now()-_pwT0)/1000).toFixed(1) + 's');
+    }
+  }
+  if (!isEncoding) {
+    if (_origMapDims) {
+      mapEl.style.cssText      = _origMapDims.mapCssText;
+      mapWrapper.style.cssText = _origMapDims.wrapperCssText;
+      map.setPixelRatio(_origMapDims.pixelRatio); map.resize();
+      if (MAP_MODE === 'satellite_3d') try { map.setTerrain({source:'terrain_dem',exaggeration:1.6}); } catch(_) {}
+      _origMapDims = null;
+    }
+    solay.style.opacity = '0';
+    setTimeout(() => { solay.style.display='none'; solay.style.opacity='1'; statusFill.style.width='0%'; }, 450);
+    document.getElementById('rec-badge').style.display = 'none';
+    playing = true; lastTime = null; animId = requestAnimationFrame(animStep);
+    return;
+  }
+  console.log('[ft] prewarm done  total=' + ((Date.now()-_pwT0)/1000).toFixed(1) + 's');
+
+  // Return to start — tiles are warm from prewarm step s=0, so waitForTiles suffices
+  advanceToTime(0);
+  await waitForTiles(5000);
+
+  // Setup VideoEncoder + mp4-muxer
+  // Hardware (NVENC) easily sustains 60 fps capture; software path stays at 15 fps
+  // to finish in a reasonable time (halved frame count vs 30 fps).
+  const targetFps  = 60;
+  const durSec     = parseInt(document.getElementById('speed').value);
+  const bitrateMap = { HD:8_000_000, '2K':16_000_000, '4K':40_000_000 };
+  const bitrate    = bitrateMap[recRes] || 16_000_000;
+
+  // Two-stage hardware probe:
+  //   Stage 1 — create a throwaway VideoEncoder (not connected to any muxer) and
+  //             actually call configure() with prefer-hardware.  Wait 250 ms for
+  //             the async error callback.  This is the only reliable way to know
+  //             if NVENC/AMF/QuickSync will accept the resolution — isConfigSupported
+  //             is documented as a hint and can lie.
+  //   Stage 2 — now that we know the real hw availability, pick fps:
+  //             hardware → targetFps (60 fps — NVENC handles it easily);
+  //             software → 15 fps (half the frames vs 30, completes in ~300 s
+  //             for a 30 s video; the per-frame MapLibre cost dominates anyway).
+  //   Then create the muxer with the confirmed fps and the real encoder.
+  const _hwTestConfig = {
+    codec: 'avc1.640033', width: physW, height: physH,
+    bitrate, framerate: targetFps, hardwareAcceleration: 'prefer-hardware',
+    latencyMode: 'quality',
+  };
+  let hwAvailable = false;
+  if (_exportHwFailed) {
+    // A prior attempt already confirmed hw encode fails at this resolution — skip probe.
+    console.log('[ft] hw probe skipped — previous hw failure flagged, using software');
+  } else {
+    let _hwFailed = false;
+    const _testEnc = new VideoEncoder({
+      output: () => {},
+      error:  () => { _hwFailed = true; },
+    });
+    _testEnc.configure(_hwTestConfig);
+    // Also encode a 1-pixel test frame: configure() alone can return OK on some
+    // drivers (e.g. NVENC on portrait-4K) even when encode() will later fail.
+    try {
+      const _ptc = new OffscreenCanvas(physW, physH);
+      _ptc.getContext('2d').fillRect(0, 0, 1, 1);
+      const _ptf = new VideoFrame(_ptc, { timestamp: 0 });
+      _testEnc.encode(_ptf);
+      _ptf.close();
+    } catch (_) { _hwFailed = true; }
+    await new Promise(r => setTimeout(r, 1000));  // 1 s: wider window for async encoder error
+    hwAvailable = !_hwFailed;
+    try { _testEnc.close(); } catch(_) {}
+    console.log('[ft] hw probe done  hwAvailable=' + hwAvailable);
+  }
+
+  const encFps      = hwAvailable ? targetFps : 15;
+  const totalFrames = Math.round(durSec * encFps);
+  console.log('[ft] encode start  frames=' + totalFrames + '  fps=' + encFps
+    + '  durSec=' + durSec + '  hw=' + hwAvailable);
+
+  const muxTarget = new Mp4Muxer.ArrayBufferTarget();
+  const muxer = new Mp4Muxer.Muxer({
+    target: muxTarget,
+    video:  { codec:'avc', width:physW, height:physH, frameRate:encFps },
+    fastStart: 'in-memory',
+  });
+  let encError = null;
+  let encoder  = null;
+  const enc = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error:  e => { encError = e; console.error('[flythrough] encode error', e); },
+  });
+  enc.configure({
+    codec:                'avc1.640033',
+    width:                physW,
+    height:               physH,
+    bitrate,
+    framerate:            encFps,
+    hardwareAcceleration: hwAvailable ? 'prefer-hardware' : 'prefer-software',
+    latencyMode:          'quality',
+  });
+  await new Promise(r => setTimeout(r, 250));
+  if (!encError) {
+    encoder = enc;
+    console.log('[ft] VideoEncoder ready  hw=' + (hwAvailable ? 'prefer-hardware' : 'prefer-software')
+      + '  ' + physW + 'x' + physH + '  bitrate=' + (bitrate/1e6).toFixed(0) + 'Mbps'
+      + '  fps=' + encFps);
+  } else {
+    console.error('[flythrough] real encoder configure failed — aborting');
+    try { enc.close(); } catch(_) {}
+    isEncoding = false;
+  }
+
+  // Seed encode-phase EMA at the exact frame-0 camera state so advanceToTime
+  // starts smooth from the very first frame, with no cold-start drift.
+  {
+    const _i0  = Math.floor(timeToIndex(0));
+    const _win = Math.min(16, Math.max(1, Math.round(N * 0.02)));
+    const _sa  = Math.max(-5, Math.min(5,
+      (elevations[Math.min(_i0+_win,N-1)] - elevations[Math.max(_i0-_win,0)]) * 0.18));
+    _encSmBearing = bearings[_i0];
+    _encSmPitch   = Math.max(22, Math.min(83, pitchVal + _sa));
+    _encSmZoom    = zoomVal + (localSpeeds[_i0] - 0.5) * -0.55;
+  }
+
+  const outCanvas = new OffscreenCanvas(physW, physH);
+  const outCtx    = outCanvas.getContext('2d');
+  const _encT0    = Date.now();
+
+  // Frame render loop — each frame waits for MapLibre idle before capture.
+  // Pauses automatically when the tab is hidden (WebGL render loop is throttled
+  // in background tabs, which would stall waitForIdle and corrupt frames).
+  for (let i = 0; i <= totalFrames && isEncoding && encoder && !encError; i++) {
+    // Pause while tab is hidden — resume automatically when user returns
+    while (document.hidden && isEncoding) {
+      statusMsg.textContent = 'Tab hidden — waiting for you to return…';
+      await new Promise(r => setTimeout(r, 400));
+    }
+    if (!isEncoding) break;
+
+    const t = i / totalFrames;
+    advanceToTime(t);
+    await waitForTiles(2000);  // cache-hit resolves in ~30–100 ms; 2 s fallback for edge tiles
+
+    outCtx.drawImage(map.getCanvas(), 0, 0, physW, physH);
+    compositeOverlays(outCtx, t, physW, physH);
+
+    const vf = new VideoFrame(outCanvas, { timestamp: Math.round(i * 1_000_000 / encFps) });
+    encoder.encode(vf, { keyFrame: i % Math.round(encFps) === 0 });
+    vf.close();
+
+    const pct = Math.round(40 + t * 60);  // 40–100%: pre-warm occupied 0–40%
+    statusMsg.textContent  = `Encoding… ${pct}%`;
+    statusFill.style.width = pct + '%';
+    if (i % 90 === 0) {
+      const fps_actual = i > 0 ? (i / ((Date.now() - _encT0) / 1000)).toFixed(1) : '—';
+      console.log('[ft] frame ' + i + '/' + totalFrames
+        + '  ' + pct + '%'
+        + '  fps=' + fps_actual
+        + '  elapsed=' + ((Date.now()-_encT0)/1000).toFixed(1) + 's');
+    }
+    if (i % 120 === 0) await new Promise(r => setTimeout(r, 0));  // drain NVENC output queue
+  }
+
+  if (!encError && isEncoding && encoder) {
+    const encElapsed = ((Date.now() - _encT0) / 1000).toFixed(1);
+    const avgFps     = (totalFrames / ((Date.now() - _encT0) / 1000)).toFixed(1);
+    console.log('[ft] encode loop done  elapsed=' + encElapsed + 's  avg=' + avgFps + ' fps');
+    statusMsg.textContent = 'Finalizing…';
+    await encoder.flush();
+    encoder.close();
+    console.log('[ft] encoder flushed+closed');
+    muxer.finalize();
+    const mb = (muxTarget.buffer.byteLength / 1e6).toFixed(1);
+    console.log('[ft] muxer finalized  size=' + mb + ' MB — triggering download');
+    const blob = new Blob([muxTarget.buffer], { type:'video/mp4' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `flythrough_${fmt}_${Date.now()}.mp4`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+    console.log('[ft] download link clicked');
+  } else {
+    console.log('[ft] encode aborted  encError=' + !!encError + '  isEncoding=' + isEncoding + '  hasEncoder=' + !!encoder);
+    try { if (encoder) encoder.close(); } catch(_) {}
+    // If hw encoder failed mid-encode (not a user cancel), flag it and auto-retry with software.
+    if (encError && isEncoding && hwAvailable) {
+      _exportHwFailed = true;
+      console.log('[ft] hw encode failed — retrying with software encoder');
+      setTimeout(exportFull, 200);
+    }
+  }
+
+  // Disable encode EMA so live playback resumes with its own animStep EMA
+  _encSmBearing = null; _encSmPitch = null; _encSmZoom = null;
+
+  // Restore map
+  if (_origMapDims) {
     mapEl.style.cssText      = _origMapDims.mapCssText;
     mapWrapper.style.cssText = _origMapDims.wrapperCssText;
-    if (_origMapDims.pixelRatio) map.setPixelRatio(_origMapDims.pixelRatio);
+    map.setPixelRatio(_origMapDims.pixelRatio);
     map.resize();
     if (MAP_MODE === 'satellite_3d') {
       try { map.setTerrain({ source:'terrain_dem', exaggeration:1.6 }); } catch(_) {}
     }
     _origMapDims = null;
   }
-  recBadge.style.display = 'none';
-  const eb = document.getElementById('export-btn');
-  eb.innerHTML = '&#127916; Export';
-  eb.classList.remove('btn-recording');
-}
+  solay.style.opacity = '0';
+  setTimeout(() => { solay.style.display='none'; solay.style.opacity='1'; statusFill.style.width='0%'; }, 450);
+  document.getElementById('rec-badge').style.display = 'none';
+  isEncoding = false;
 
-// Patches the `duration` field in an fMP4 moov/mvhd box so players show elapsed time.
-// Chrome's MediaRecorder writes duration=0 in the mvhd atom; this corrects it in-place.
-async function fixMp4Duration(blob, durationSecs) {
-  const buf = await blob.arrayBuffer();
-  const dv  = new DataView(buf);
-  let off = 0;
-  while (off < buf.byteLength - 8) {
-    const sz   = dv.getUint32(off);
-    const type = String.fromCharCode(dv.getUint8(off+4),dv.getUint8(off+5),
-                                     dv.getUint8(off+6),dv.getUint8(off+7));
-    if (type === 'moov') {
-      let inner = off + 8;
-      while (inner < off + sz - 8) {
-        const iSz   = dv.getUint32(inner);
-        const iType = String.fromCharCode(dv.getUint8(inner+4),dv.getUint8(inner+5),
-                                          dv.getUint8(inner+6),dv.getUint8(inner+7));
-        if (iType === 'mvhd') {
-          const ver = dv.getUint8(inner + 8);
-          if (ver === 1) {
-            // version 1: timescale at +28 (4 bytes), duration at +32 (8 bytes)
-            const ts = dv.getUint32(inner + 28);
-            dv.setBigUint64(inner + 32, BigInt(Math.round(durationSecs * ts)));
-          } else {
-            // version 0: timescale at +20 (4 bytes), duration at +24 (4 bytes)
-            const ts = dv.getUint32(inner + 20);
-            dv.setUint32(inner + 24, Math.round(durationSecs * ts));
-          }
-          break;
-        }
-        inner += iSz || 8;
-      }
-      break;
-    }
-    off += sz || 8;
-  }
-  return new Blob([buf], { type: blob.type });
-}
-
-async function downloadVideo(format, mime, durationSecs) {
-  let blob = new Blob(recChunks, { type: mime || 'video/webm' });
-  const ext = (mime || '').startsWith('video/mp4') ? 'mp4' : 'webm';
-  if (ext === 'mp4' && durationSecs > 0) {
-    try { blob = await fixMp4Duration(blob, durationSecs); } catch(e) {
-      console.warn('[flythrough] fixMp4Duration failed:', e);
-    }
-  }
-  const url = URL.createObjectURL(blob);
-  const a   = document.createElement('a');
-  a.href = url; a.download = `flythrough_${format}_${Date.now()}.${ext}`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 8000);
-  if (HIDDEN) {
-    try { if (window.frameElement) { window.frameElement.style.height = '0px'; window.frameElement.style.display = 'none'; } } catch(_) {}
-  }
-}
-
-// ── Full export: pre-warm → reset → record → auto-stop ───────────────────────
-async function exportFull() {
-  if (isRecording) { stopRecording(); return; }
-  const fmt = document.getElementById('rec-format').value;
-
-  // Pause main animation
-  playing = false;
-  if (animId) { cancelAnimationFrame(animId); animId = null; }
-
-  // Resize map to the exact recording resolution using fixed-position overlay.
-  // Covers the iframe without touching the iframe height → no Streamlit layout break.
-  {
-    const solay = document.getElementById('status-overlay');
-    solay.style.display = 'flex'; solay.style.opacity = '1';
-    document.getElementById('status-msg').textContent = 'Preparing view…';
-    document.getElementById('status-fill').style.width = '0%';
-
-    const recRes = document.getElementById('rec-res').value;
-    const resMap = {
-      landscape: { HD:[1920,1080], '2K':[2560,1440], '4K':[3840,2160] },
-      portrait:  { HD:[1080,1920], '2K':[1440,2560], '4K':[2160,3840] },
-    };
-    const [physW, physH] = resMap[fmt][recRes];
-
-    // Use an explicit export pixelRatio independent of screen DPR so that:
-    //   1. Canvas allocation is always physW × physH regardless of screen type.
-    //   2. MapLibre loads tiles at this ratio's zoom level — higher ratio = richer tiles.
-    // Portrait uses 3× because its narrower CSS viewport would otherwise get fewer tile
-    // columns than landscape; forcing 3× makes MapLibre load tiles as if it's an
-    // ultra-retina display, compensating for the narrower view with much higher detail.
-    const EXPORT_DPR = fmt === 'portrait' ? 3 : 2;
-    map.setPixelRatio(EXPORT_DPR);
-    const cssW = Math.round(physW / EXPORT_DPR);
-    const cssH = Math.round(physH / EXPORT_DPR);
-
-    const mapEl      = document.getElementById('map');
-    const mapWrapper = document.getElementById('map-wrapper');
-    const origPixelRatio = Math.min(2, window.devicePixelRatio || 1);
-    _origMapDims = { mapCssText: mapEl.style.cssText, wrapperCssText: mapWrapper.style.cssText, pixelRatio: origPixelRatio };
-
-    // Resize map element — canvas is now exactly physW × physH (cssW * EXPORT_DPR).
-    mapEl.style.cssText = `position:absolute;top:0;left:0;width:${cssW}px;height:${cssH}px;`;
-    map.resize();
-
-    // Hidden mode: position off-screen so WebGL still renders but the user sees nothing.
-    // Visible mode: scale wrapper to fit viewport for a preview of the recording frame.
-    if (HIDDEN) {
-      mapWrapper.style.cssText = `position:fixed;left:${-(cssW+500)}px;top:0;width:${cssW}px;height:${cssH}px;z-index:-100;`;
-    } else {
-      // Transform is on the wrapper only — MapLibre watches #map whose layout dimensions
-      // stay at cssW×cssH, so the canvas is unaffected by this visual-only scaling.
-      const viewW    = window.innerWidth;
-      const viewH    = window.innerHeight;
-      const fitScale = Math.min(viewW / cssW, viewH / cssH, 1.0);
-      const offsetX  = Math.round((viewW - cssW * fitScale) / 2);
-      const offsetY  = Math.round((viewH - cssH * fitScale) / 2);
-      mapWrapper.style.cssText = `position:fixed;top:0;left:0;width:${cssW}px;height:${cssH}px;transform:translate(${offsetX}px,${offsetY}px) scale(${fitScale});transform-origin:top left;z-index:50;`;
-    }
-
-    if (MAP_MODE === 'satellite_3d') {
-      const exag = fmt === 'portrait' ? 2.2 : 1.6;
-      try { map.setTerrain({ source:'terrain_dem', exaggeration:exag }); } catch(_) {}
-    }
-    await new Promise(r => setTimeout(r, 400));
-  }
-
-  smoothZoom  = zoomVal;
-  smoothPitch = pitchVal;
-
-  // 1. Pre-warm tiles
-  await prewarmTiles(MAP_MODE === 'satellite_3d' ? 30 : 20);
-
-  // 2. Reset to start
-  playbackTime  = 0;
-  smoothBearing = bearings[0];
-  smoothZoom    = zoomVal;
-  smoothPitch   = pitchVal;
-  map.jumpTo({center:[TRACK[0][0],TRACK[0][1]],bearing:bearings[0],pitch:pitchVal,zoom:zoomVal});
-  await new Promise(r => setTimeout(r, 400));
-
-  // 3. Start recording
-  startRecording(fmt);
-
-  // 4. Play — will auto-stop when route complete
-  autoStopOnComplete = true;
-  playing   = true;
-  lastTime  = null;
-  animId    = requestAnimationFrame(animStep);
+  // Restart live animation from beginning
+  smoothZoom = zoomVal; smoothPitch = pitchVal; smoothBearing = bearings[0];
+  playbackTime = 0; playing = true; lastTime = null;
+  animId = requestAnimationFrame(animStep);
 }
 
 // ── Controls ─────────────────────────────────────────────────────────────────
@@ -1098,11 +1133,7 @@ document.getElementById('zoom').addEventListener('input', e => {
   map.easeTo({zoom:zoomVal, duration:180});
 });
 
-document.getElementById('export-btn').addEventListener('click', exportFull);
-document.getElementById('rec-format').value = 'ORIENTATION_INIT';
-if (!HIDDEN) {
-  try { window.frameElement && window.frameElement.scrollIntoView({behavior:'smooth',block:'start'}); } catch(_){}
-}
+try { window.frameElement && window.frameElement.scrollIntoView({behavior:'smooth',block:'start'}); } catch(_){}
 </script>
 </body>
 </html>"""
@@ -1117,9 +1148,19 @@ def _build_html(
     auto_export: bool = False,
     duration_sec: int = 0,
     orientation: str = "landscape",
-    hidden: bool = False,
+    resolution: str = "2K",
 ) -> str:
-    safe_name = name.replace('"', '\\"').replace("<", "").replace(">", "")
+    """Build the self-contained HTML page for the flythrough animation.
+
+    `auto_export=True` is used by the server-side renderer (Playwright) to start
+    encoding automatically.  For the interactive preview iframe, pass False.
+    """
+    safe_name = (name.replace("\\", "\\\\")
+                      .replace("'", "\\'")
+                      .replace('"', '\\"')
+                      .replace("<", "")
+                      .replace(">", ""))
+    valid_res = resolution if resolution in ("HD", "2K", "4K") else "2K"
 
     if mode == "satellite_3d":
         style_js   = _SAT3D_STYLE_JS
@@ -1141,7 +1182,7 @@ def _build_html(
         .replace("AUTO_EXPORT_INIT",  "true" if auto_export else "false")
         .replace("DURATION_INIT_SEC", str(max(0, int(duration_sec))))
         .replace("ORIENTATION_INIT",  "portrait" if orientation == "portrait" else "landscape")
-        .replace("HIDDEN_INIT",       "true" if hidden else "false")
+        .replace("RES_INIT_PY",       valid_res)
     )
 
 
@@ -1150,29 +1191,22 @@ def _build_html(
 def show_flythrough(
     activity_id: int,
     activity_name: str = "",
-    auto_export: bool = False,
     mode: Optional[str] = None,
     duration_sec: int = 0,
     orientation: str = "landscape",
     hidden: bool = False,
+    resolution: str = "2K",
 ) -> None:
+    """Render a 3D flythrough for an activity.
+
+    hidden=True  — server-side render via Playwright; emits a download button.
+    hidden=False — interactive preview iframe + Python export controls below.
+    """
+    import time as _time
+
     name = activity_name or f"Activity {activity_id}"
 
-    if mode is None:
-        if hidden:
-            mode = "satellite_3d"
-        else:
-            # ── Mode selector (dashboard / manual use only) ──
-            mode_label = st.radio(
-                "Map style",
-                ["Satellite 3D", "Dark Flat"],
-                index=0,
-                horizontal=True,
-                key=f"flythrough_mode_{activity_id}",
-                label_visibility="collapsed",
-            )
-            mode = "satellite_3d" if mode_label == "Satellite 3D" else "dark"
-
+    # ── Load GPS track ────────────────────────────────────────────────────────
     try:
         if hidden:
             raw   = _fetch_track(activity_id)
@@ -1182,29 +1216,194 @@ def show_flythrough(
                 raw   = _fetch_track(activity_id)
                 track = _prepare_track(raw)
     except Exception as e:
-        if not hidden:
-            st.error(f"Could not load GPS data: {e}")
+        st.error(f"Could not load GPS data: {e}")
         return
 
-    if not hidden:
-        ele_values = [p[2] for p in track if p[2]]
-        has_timing = any(p[3] is not None for p in track if len(p) > 3)
-        ele_range  = f"{min(ele_values):.0f} – {max(ele_values):.0f} m" if ele_values else "—"
-
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("GPS Points",      f"{len(track):,}")
-        c2.metric("Elevation Range", ele_range)
-        c3.metric("Speed Data",      "✓ GPS timing" if has_timing else "uniform")
-        c4.metric("Render Quality",  "2× (HD)")
-
-        mode_label_str = "Satellite 3D · real terrain" if mode == "satellite_3d" else "Dark flat · star-field"
-        st.caption(
-            f"{'🌍' if mode == 'satellite_3d' else '🗺'} {mode_label_str} · "
-            "🎬 Export = select 16:9 or 9:16, pick HD/2K/4K, click Export — "
-            "pre-warms tiles, renders at native resolution, auto-downloads as MP4"
+    # ── Mode ──────────────────────────────────────────────────────────────────
+    if mode is None:
+        mode_label = st.radio(
+            "Map style",
+            ["Satellite 3D", "Dark Flat"],
+            index=0,
+            horizontal=True,
+            key=f"flythrough_mode_{activity_id}",
+            label_visibility="collapsed",
         )
+        mode = "satellite_3d" if mode_label == "Satellite 3D" else "dark"
+
+    # ── Hidden / agent-triggered: non-blocking server-side render ────────────
+    if hidden:
+        render_key = f"ft_video_{activity_id}_{orientation}_{resolution}"
+        thread_key = render_key + "_thread"
+
+        # Promote a completed background render into the permanent cache
+        ti = st.session_state.get(thread_key)
+        if ti and ti["status"] == "done":
+            st.session_state[render_key] = ti["data"]
+            del st.session_state[thread_key]
+            ti = None
+
+        video_bytes = st.session_state.get(render_key)
+
+        if video_bytes is None:
+            if ti is None:
+                # First call — kick off background thread
+                ti = {"status": "running", "data": None, "error": None}
+                st.session_state[thread_key] = ti
+
+                def _run(ti=ti):
+                    try:
+                        from ui.video_renderer import render_flythrough
+                        ti["data"] = render_flythrough(
+                            track, name,
+                            mode=mode,
+                            duration_sec=duration_sec,
+                            orientation=orientation,
+                            resolution=resolution,
+                        )
+                        ti["status"] = "done"
+                    except Exception as exc:
+                        ti["error"] = str(exc)
+                        ti["status"] = "error"
+
+                threading.Thread(target=_run, daemon=True).start()
+
+            if ti["status"] == "error":
+                st.error(f"Render failed: {ti['error']}")
+                del st.session_state[thread_key]
+                return
+
+            # Still running — show status and poll every 3 s
+            st.info(
+                f"🎬 Rendering **{name}** "
+                f"({duration_sec} s · {orientation} · {resolution}) in the background — "
+                "keep chatting or exploring the dashboard!"
+            )
+            _time.sleep(3)
+            st.rerun()
+            return
+
+        # ── Video ready ───────────────────────────────────────────────────────
+        safe_fn = name.replace(" ", "_").replace("/", "-")[:40]
+        # Constrain preview via column width — st.video fills its container and the
+        # browser scales height proportionally, so a narrow column keeps portrait-4K
+        # from filling the screen.  Download delivers the full-resolution file.
+        # Portrait 9:16  → 28 % col  ≈ 336 px wide → ~597 px tall
+        # Landscape 16:9 → 55 % col  ≈ 660 px wide → ~371 px tall
+        if orientation == "portrait":
+            vid_col, _ = st.columns([5, 13])
+        else:
+            vid_col, _ = st.columns([6, 5])
+        with vid_col:
+            st.video(video_bytes, format="video/mp4")
+        st.download_button(
+            label=f"⬇ Download full-quality MP4 — {name}",
+            data=video_bytes,
+            file_name=f"flythrough_{safe_fn}.mp4",
+            mime="video/mp4",
+            type="primary",
+            key=f"ft_dl_{render_key}",
+        )
+        return
+
+    # ── Visible: interactive preview iframe ───────────────────────────────────
+    ele_values = [p[2] for p in track if p[2]]
+    has_timing = any(p[3] is not None for p in track if len(p) > 3)
+    ele_range  = f"{min(ele_values):.0f} – {max(ele_values):.0f} m" if ele_values else "—"
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("GPS Points",      f"{len(track):,}")
+    c2.metric("Elevation Range", ele_range)
+    c3.metric("Speed Data",      "✓ GPS timing" if has_timing else "uniform")
+    c4.metric("Mode",            "Satellite 3D" if mode == "satellite_3d" else "Dark Flat")
+
+    mode_str = "Satellite 3D · real terrain" if mode == "satellite_3d" else "Dark flat · star-field"
+    st.caption(f"{'🌍' if mode == 'satellite_3d' else '🗺'} {mode_str} · "
+               "Adjust pitch / zoom / duration in the preview, then export below.")
 
     st.iframe(
-        _build_html(track, name, mode=mode, auto_export=auto_export, duration_sec=duration_sec, orientation=orientation, hidden=hidden),
-        height=1 if hidden else 630,
+        _build_html(track, name, mode=mode, duration_sec=duration_sec),
+        height=630,
     )
+
+    # ── Export controls (Python-level, below the preview) ────────────────────
+    st.markdown("**Export video**")
+    ec1, ec2, ec3 = st.columns(3)
+    exp_orient = ec1.radio(
+        "Orientation", ["Landscape", "Portrait"],
+        horizontal=True, key=f"ft_orient_{activity_id}",
+    )
+    exp_res = ec2.radio(
+        "Resolution", ["HD", "2K", "4K"],
+        horizontal=True, index=1, key=f"ft_res_{activity_id}",
+    )
+    exp_dur = ec3.slider(
+        "Duration (s)", 30, 120, max(30, min(120, duration_sec or 60)),
+        step=5, key=f"ft_dur_{activity_id}",
+    )
+
+    render_key = f"ft_video_{activity_id}_{exp_orient}_{exp_res}_{exp_dur}"
+    thread_key = render_key + "_thread"
+
+    # Promote completed background render into permanent cache
+    ti = st.session_state.get(thread_key)
+    if ti and ti["status"] == "done":
+        st.session_state[render_key] = ti["data"]
+        del st.session_state[thread_key]
+        ti = None
+
+    if st.button("Render & Export", type="primary", key=f"ft_render_{activity_id}",
+                 disabled=bool(st.session_state.get(thread_key))):
+        if render_key not in st.session_state and not st.session_state.get(thread_key):
+            ti = {"status": "running", "data": None, "error": None}
+            st.session_state[thread_key] = ti
+
+            def _run(ti=ti):
+                try:
+                    from ui.video_renderer import render_flythrough
+                    ti["data"] = render_flythrough(
+                        track, name,
+                        mode=mode,
+                        duration_sec=exp_dur,
+                        orientation=exp_orient.lower(),
+                        resolution=exp_res,
+                    )
+                    ti["status"] = "done"
+                except Exception as exc:
+                    ti["error"] = str(exc)
+                    ti["status"] = "error"
+
+            threading.Thread(target=_run, daemon=True).start()
+            st.rerun()
+
+    # Status / result
+    ti = st.session_state.get(thread_key)
+    if ti:
+        if ti["status"] == "error":
+            st.error(f"Render failed: {ti['error']}")
+            del st.session_state[thread_key]
+        else:
+            st.info(
+                f"🎬 Rendering **{exp_dur} s · {exp_orient} · {exp_res}** in the background — "
+                "keep exploring the dashboard!"
+            )
+            _time.sleep(3)
+            st.rerun()
+
+    if render_key in st.session_state:
+        safe_fn = name.replace(" ", "_").replace("/", "-")[:40]
+        # Same column constraint as the chat path — prevents portrait-4K from filling the screen
+        if exp_orient == "Portrait":
+            _vcol, _ = st.columns([5, 13])
+        else:
+            _vcol, _ = st.columns([6, 5])
+        with _vcol:
+            st.video(st.session_state[render_key], format="video/mp4")
+        st.download_button(
+            label=f"⬇ Download — {exp_orient} {exp_res} {exp_dur}s",
+            data=st.session_state[render_key],
+            file_name=f"flythrough_{safe_fn}_{exp_orient.lower()}_{exp_res}.mp4",
+            mime="video/mp4",
+            type="primary",
+            key=f"ft_dl_{activity_id}_{render_key}",
+        )
