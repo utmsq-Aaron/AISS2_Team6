@@ -1,14 +1,18 @@
 """Health tab — Garmin wellness: Body Battery, sleep stages, HR, steps, stress, HRV, training."""
 
-from __future__ import annotations
-
 import json
 from typing import Dict, List, Optional
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from ui.shared import garmin_connected, get_garmin_mcp, run_async
+from ui.styles import (
+    C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_PURPLE, C_ROSE, ACCENT,
+    TEXT_MUTED, TEXT_PRIMARY, BORDER, BG_CARD, chart_style,
+)
 
 # ── Sleep stage colours ───────────────────────────────────────────────────────
 C_SLEEP_DEEP  = "#1E40AF"
@@ -36,6 +40,8 @@ _PERIODS: Dict[str, int] = {
     "3 months": 90,
     "6 months": 180,
     "1 year":   365,
+    "2 years":  730,
+    "3 years":  1095,
 }
 
 
@@ -456,14 +462,6 @@ def render_health() -> None:
         )
         return
 
-    # Heavy imports only when Garmin is actually connected
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-    from ui.styles import (
-        C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_PURPLE, C_ROSE, ACCENT,
-        TEXT_MUTED, TEXT_PRIMARY, BORDER, BG_CARD, chart_style,
-    )
-
     # ── Period selector ───────────────────────────────────────────────────────
     period = st.radio(
         "Period",
@@ -583,7 +581,7 @@ def render_health() -> None:
         st.info("No wellness trend data. Make sure `auth/garmin_setup.py` has been run.")
         return
 
-    _section("Sleep  ·  Deep / REM / Light / Awake  ·  score line (right axis)")
+    _section("Sleep")
     fig = _sleep_stages_chart(df)
     if fig:
         st.plotly_chart(fig, width='stretch')
@@ -592,14 +590,14 @@ def render_health() -> None:
 
     c1, c2 = st.columns(2)
     with c1:
-        _section("Body Battery — daily peak / low")
+        _section("Body Battery")
         fig = _body_battery_chart(df)
         if fig:
             st.plotly_chart(fig, width='stretch')
         else:
             st.caption("No Body Battery data.")
     with c2:
-        _section("Resting Heart Rate")
+        _section("Heart Rate")
         fig = _hr_chart(df)
         if fig:
             st.plotly_chart(fig, width='stretch')
@@ -608,14 +606,14 @@ def render_health() -> None:
 
     c3, c4 = st.columns(2)
     with c3:
-        _section("Daily Steps  ·  cyan < 10 k  ·  green ≥ 10 k")
+        _section("Daily Steps")
         fig = _steps_chart(df)
         if fig:
             st.plotly_chart(fig, width='stretch')
         else:
             st.caption("No step data.")
     with c4:
-        _section("Average Stress  ·  green → amber → red")
+        _section("Average Stress")
         fig = _stress_chart(df)
         if fig:
             st.plotly_chart(fig, width='stretch')
@@ -633,7 +631,7 @@ def render_health() -> None:
             else:
                 st.caption("No intensity data.")
         with c6:
-            _section("Calories  ·  amber = total  ·  orange = active")
+            _section("Calories")
             if cal_fig:
                 st.plotly_chart(cal_fig, width='stretch')
             else:

@@ -171,6 +171,14 @@ hr {{ border-color: {BORDER} !important; margin: 1.2rem 0 !important; }}
     border-radius: 8px !important;
     color        : #fff !important;
 }}
+[data-testid="baseButton-primary"] p,
+[data-testid="baseButton-primary"] span,
+[data-testid="baseButton-primary"] div {{
+    color: #fff !important;
+}}
+[data-testid="baseButton-primary"] svg {{
+    fill: #fff !important;
+}}
 [data-testid="baseButton-primary"]:hover {{
     background  : #e04400 !important;
     border-color: #e04400 !important;

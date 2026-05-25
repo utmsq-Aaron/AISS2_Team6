@@ -96,9 +96,9 @@ class OAuth2Manager:
             "client_secret": self.client_secret,
             "code": code,
             "grant_type": "authorization_code",
-        })
+        }, timeout=15)
         if resp.status_code != 200:
-            raise RuntimeError(f"Token exchange failed: {resp.status_code} — {resp.text}")
+            raise RuntimeError(f"Token exchange failed: {resp.status_code}")
         return resp.json()
 
     def _refresh(self, refresh_token: str) -> dict:
@@ -107,9 +107,9 @@ class OAuth2Manager:
             "client_secret": self.client_secret,
             "refresh_token": refresh_token,
             "grant_type": "refresh_token",
-        })
+        }, timeout=15)
         if resp.status_code != 200:
-            raise RuntimeError(f"Token refresh failed: {resp.status_code} — {resp.text}")
+            raise RuntimeError(f"Token refresh failed: {resp.status_code}")
         return resp.json()
 
     # ── Persistence ───────────────────────────────────────────────────────────

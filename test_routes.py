@@ -31,7 +31,7 @@ def info(msg): print(f"  {YELLOW}→{RESET} {msg}")
 
 
 async def run_tests():
-    from mcp.routes import RoutesMCPServer
+    from servers.routes import RoutesMCPServer
     server = RoutesMCPServer()
 
     total = passed = 0

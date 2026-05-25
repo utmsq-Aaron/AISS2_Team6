@@ -4,8 +4,6 @@ Stage 1 (setup):   Pick a date range, click Fetch. Zero API calls until then.
 Stage 2 (preview): See all activities, select/deselect, then export.
 """
 
-from __future__ import annotations
-
 import io
 import math
 import os
@@ -448,8 +446,8 @@ def _render_preview(activities: List[Dict]) -> None:
 
     if counts["ok"]:
         st.info(
-            "Activities uploaded — the Dashboard tab caches Strava data for 10 min. "
-            "Use the **⋮ menu → Clear cache** to see them immediately.",
+            "Activities uploaded — the Dashboard tab caches Strava data for 5 min. "
+            "Use the **🔄 Refresh data** button in the sidebar to see them immediately.",
             icon="ℹ️",
         )
 

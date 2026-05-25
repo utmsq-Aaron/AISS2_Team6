@@ -12,6 +12,7 @@ import asyncio
 import json
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -58,12 +59,23 @@ class GarminAPI:
                         ) from e
         return self._client
 
+    _TRANSIENT_SIGNALS = ("timeout", "connection", "429", "503", "502", "reset", "eof")
+    _MAX_RETRIES = 3
+
     def _call(self, fn, *args, **kwargs):
-        """Call a garminconnect method, wrapping any exception."""
-        try:
-            return fn(*args, **kwargs)
-        except Exception as e:
-            raise RuntimeError(f"Garmin API error: {e}") from e
+        """Call a garminconnect method with retry on transient network errors."""
+        last_exc: Optional[Exception] = None
+        for attempt in range(self._MAX_RETRIES):
+            try:
+                return fn(*args, **kwargs)
+            except Exception as e:
+                last_exc = e
+                err_lower = str(e).lower()
+                if any(sig in err_lower for sig in self._TRANSIENT_SIGNALS):
+                    time.sleep(2 ** attempt)
+                    continue
+                break   # non-transient — fail immediately
+        raise RuntimeError(f"Garmin API error: {last_exc}") from last_exc
 
 
 garmin_api = GarminAPI()
@@ -81,6 +93,15 @@ def _pace(speed_kmh: float) -> Optional[float]:
         return None
     return round(60.0 / speed_kmh, 2)
 
+def _pace_str(speed_kmh: float) -> Optional[str]:
+    """Return pace as M:SS string (e.g. '5:41') from speed in km/h."""
+    if not speed_kmh:
+        return None
+    total_sec = 3600 / speed_kmh
+    mins = int(total_sec // 60)
+    secs = int(total_sec % 60)
+    return f"{mins}:{secs:02d}"
+
 def _h(seconds: int) -> float:
     return round(seconds / 3600, 2)
 
@@ -88,7 +109,7 @@ def _h(seconds: int) -> float:
 # ── MCP Server ────────────────────────────────────────────────────────────────
 
 class GarminMCPServer:
-    """JSON-RPC MCP server exposing 9 Garmin health and activity tools."""
+    """JSON-RPC MCP server exposing 12 Garmin health and activity tools."""
 
     def __init__(self) -> None:
         self.tools = [
@@ -243,6 +264,43 @@ class GarminMCPServer:
                     "required": [],
                 },
             },
+            {
+                "name": "get_garmin_stress_timeline",
+                "description": (
+                    "Intraday stress levels throughout the day in ~3-minute intervals. "
+                    "Stress values: 1–25 low, 26–50 medium, 51–75 high, 76–100 very high. "
+                    "Values of -1 (sleep/no measurement) are excluded from the timeline. "
+                    "Returns avg_stress, max_stress, max_stress_time, and a full timeline. "
+                    "Use for 'when was I most stressed?', 'stress pattern before/after a workout', "
+                    "or correlating stress with heart rate and steps on the same day."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "date": {"type": "string", "description": "YYYY-MM-DD (default today)"},
+                    },
+                    "required": [],
+                },
+            },
+            {
+                "name": "get_garmin_body_composition",
+                "description": (
+                    "Weight, BMI, body fat %, and muscle mass measurements from Garmin Connect "
+                    "over a date range. Only available when the user has a Garmin-compatible "
+                    "scale or manually logs weight. Returns an empty measurements list when no "
+                    "data exists — do not retry with a different range in that case. "
+                    "Also returns the latest measurement and the weight change (trend_kg) "
+                    "across the requested period."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "start_date": {"type": "string", "description": "YYYY-MM-DD (default 30 days ago)"},
+                        "end_date":   {"type": "string", "description": "YYYY-MM-DD (default today)"},
+                    },
+                    "required": [],
+                },
+            },
         ]
 
     async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -282,6 +340,8 @@ class GarminMCPServer:
             "get_garmin_training_metrics":    self._get_training_metrics,
             "get_garmin_wellness_trends":     self._get_wellness_trends,
             "get_garmin_steps_timeline":      self._get_steps_timeline,
+            "get_garmin_stress_timeline":     self._get_stress_timeline,
+            "get_garmin_body_composition":    self._get_body_composition,
         }
         if tool_name not in handlers:
             raise ValueError(f"Unknown Garmin tool: {tool_name}")
@@ -320,6 +380,7 @@ class GarminMCPServer:
                 "elevation_gain_m": a.get("elevationGain"),
                 "avg_speed_kmh":    spd,
                 "pace_min_per_km":  _pace(spd),
+                "pace_display":     _pace_str(spd),
                 "training_effect":  a.get("aerobicTrainingEffect"),
                 "steps":            a.get("steps"),
             })
@@ -348,6 +409,7 @@ class GarminMCPServer:
                     "time_min":       round((lap.get("duration") or 0) / 60, 1),
                     "avg_speed_kmh":  spd,
                     "pace_min_per_km": _pace(spd),
+                    "pace_display":   _pace_str(spd),
                     "avg_hr":         lap.get("averageHR"),
                     "elevation_m":    lap.get("elevationGain"),
                 })
@@ -367,6 +429,7 @@ class GarminMCPServer:
             "elevation_gain_m": summary.get("elevationGain"),
             "avg_speed_kmh":    spd,
             "pace_min_per_km":  _pace(spd),
+            "pace_display":     _pace_str(spd),
             "training_effect":  summary.get("aerobicTrainingEffect"),
             "anaerobic_effect": summary.get("anaerobicTrainingEffect"),
             "steps":            summary.get("steps"),
@@ -477,10 +540,26 @@ class GarminMCPServer:
             datetime.strptime(end, "%Y-%m-%d") - timedelta(days=13)
         ).strftime("%Y-%m-%d")
         g = garmin_api.client()
-        raw = garmin_api._call(g.get_body_battery, start, end)
+
+        # Chunk requests — Garmin rejects date ranges larger than _BB_CHUNK_DAYS
+        raw: list = []
+        chunk_start_dt = datetime.strptime(start, "%Y-%m-%d")
+        end_dt         = datetime.strptime(end, "%Y-%m-%d")
+        while chunk_start_dt <= end_dt:
+            chunk_end_dt = min(chunk_start_dt + timedelta(days=_BB_CHUNK_DAYS - 1), end_dt)
+            try:
+                chunk = garmin_api._call(
+                    g.get_body_battery,
+                    chunk_start_dt.strftime("%Y-%m-%d"),
+                    chunk_end_dt.strftime("%Y-%m-%d"),
+                ) or []
+                raw.extend(chunk)
+            except Exception:
+                pass
+            chunk_start_dt = chunk_end_dt + timedelta(days=1)
 
         days = []
-        for d in (raw or []):
+        for d in raw:
             timeline = []
             for pt in (d.get("bodyBatteryValuesArray") or []):
                 if pt and len(pt) >= 2:
@@ -489,12 +568,14 @@ class GarminMCPServer:
                     except Exception:
                         t = str(pt[0])
                     timeline.append({"time": t, "value": pt[1]})
+            # Extract high/low from timeline (API has no highestValue/lowestValue)
+            vals = [pt["value"] for pt in timeline if pt["value"] is not None]
             days.append({
                 "date":    d.get("calendarDate"),
                 "charged": d.get("charged"),
                 "drained": d.get("drained"),
-                "highest": d.get("highestValue"),
-                "lowest":  d.get("lowestValue"),
+                "highest": max(vals) if vals else None,
+                "lowest":  min(vals) if vals else None,
                 "timeline": timeline,
             })
 
@@ -633,7 +714,7 @@ class GarminMCPServer:
                 pass
             return d, entry
 
-        workers = min(10, days_n)
+        workers = min(15, days_n)  # stay within Garmin's unofficial rate limits
         day_results: Dict[str, Any] = {}
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(_fetch_day, i): i for i in range(days_n)}
@@ -655,7 +736,23 @@ class GarminMCPServer:
                     entry["body_battery_low"]  = min(bb_arr)
             trend.append(entry)
 
-        return json.dumps({"days": days_n, "trend": trend}, indent=2)
+        def _mean(gen):
+            nums = [v for v in gen if v is not None]
+            return round(sum(nums) / len(nums), 1) if nums else None
+
+        summary = {
+            "avg_sleep_score":       _mean(e.get("sleep_score")       for e in trend),
+            "avg_total_sleep_h":     _mean(e.get("total_sleep_h")     for e in trend),
+            "avg_deep_h":            _mean(e.get("deep_h")            for e in trend),
+            "avg_rem_h":             _mean(e.get("rem_h")             for e in trend),
+            "avg_light_h":           _mean(e.get("light_h")           for e in trend),
+            "avg_steps":             _mean(e.get("steps")             for e in trend),
+            "avg_stress":            _mean(e.get("avg_stress")        for e in trend),
+            "avg_resting_hr":        _mean(e.get("resting_hr")        for e in trend),
+            "avg_body_battery_high": _mean(e.get("body_battery_high") for e in trend),
+        }
+        # summary is placed BEFORE trend so it survives truncation in downstream agents
+        return json.dumps({"days": days_n, "summary": summary, "trend": trend}, indent=2)
 
     async def _get_steps_timeline(self, args: Dict) -> str:
         date = _date(args.get("date"))
@@ -677,6 +774,109 @@ class GarminMCPServer:
                 "activity_level": level,
             })
         return json.dumps({"date": date, "buckets_15min": buckets}, indent=2)
+
+    async def _get_stress_timeline(self, args: Dict) -> str:
+        date = _date(args.get("date"))
+        g = garmin_api.client()
+        raw = garmin_api._call(g.get_stress_data, date) or {}
+
+        timeline = []
+        stress_values: List[int] = []
+        max_stress = 0
+        max_stress_time: Optional[str] = None
+
+        for entry in (raw.get("stressValuesArray") or []):
+            if not entry or len(entry) < 2 or entry[1] is None or entry[1] < 0:
+                continue
+            stress = int(entry[1])
+            if stress <= 0:
+                continue
+            try:
+                t = datetime.fromtimestamp(entry[0] / 1000).strftime("%H:%M")
+            except Exception:
+                t = str(entry[0])
+            stress_values.append(stress)
+            if stress > max_stress:
+                max_stress = stress
+                max_stress_time = t
+            if stress <= 25:
+                category = "low"
+            elif stress <= 50:
+                category = "medium"
+            elif stress <= 75:
+                category = "high"
+            else:
+                category = "very_high"
+            timeline.append({"time": t, "stress": stress, "category": category})
+
+        avg_stress = round(sum(stress_values) / len(stress_values)) if stress_values else None
+
+        return json.dumps({
+            "date":            date,
+            "avg_stress":      avg_stress,
+            "max_stress":      max_stress if max_stress > 0 else None,
+            "max_stress_time": max_stress_time,
+            "data_points":     len(timeline),
+            "timeline":        timeline,
+        }, indent=2)
+
+    async def _get_body_composition(self, args: Dict) -> str:
+        end = _date(args.get("end_date"))
+        start = args.get("start_date") or (
+            datetime.strptime(end, "%Y-%m-%d") - timedelta(days=29)
+        ).strftime("%Y-%m-%d")
+        g = garmin_api.client()
+
+        try:
+            raw = garmin_api._call(g.get_body_composition, start, end)
+        except Exception as exc:
+            return json.dumps({
+                "start_date": start, "end_date": end,
+                "measurements": [], "latest": None, "trend_kg": None,
+                "message": f"Body composition data unavailable: {exc}",
+            }, indent=2)
+
+        # API returns a dict with dateWeightList; handle unexpected shapes gracefully
+        items = (
+            raw.get("dateWeightList")
+            if isinstance(raw, dict)
+            else (raw if isinstance(raw, list) else [])
+        ) or []
+
+        entries = []
+        for item in items:
+            date_str  = item.get("calendarDate") or item.get("date")
+            weight_g  = item.get("weight")
+            if not date_str or not weight_g:
+                continue
+            entries.append({
+                "date":           date_str,
+                "weight_kg":      round(weight_g / 1000, 2),
+                "bmi":            item.get("bmi"),
+                "body_fat_pct":   item.get("bodyFat"),
+                "muscle_mass_kg": round(item.get("muscleMass") / 1000, 2) if item.get("muscleMass") else None,
+                "bone_mass_kg":   round(item.get("boneMass") / 1000, 2) if item.get("boneMass") else None,
+            })
+
+        entries.sort(key=lambda x: x["date"])
+
+        if not entries:
+            return json.dumps({
+                "start_date": start, "end_date": end,
+                "measurements": [], "latest": None, "trend_kg": None,
+                "message": "No body composition data found for this period.",
+            }, indent=2)
+
+        trend_kg = round(entries[-1]["weight_kg"] - entries[0]["weight_kg"], 2) if len(entries) >= 2 else None
+
+        return json.dumps({
+            "start_date":   start,
+            "end_date":     end,
+            "measurements": entries,
+            "latest":       entries[-1],
+            "trend_kg":     trend_kg,
+            "count":        len(entries),
+        }, indent=2)
 
 
 # ── Subprocess entry point ────────────────────────────────────────────────────

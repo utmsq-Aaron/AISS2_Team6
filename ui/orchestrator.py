@@ -1,125 +1,71 @@
-"""FitDash Orchestrator — three-phase agentic engine.
+"""FitDash Multi-Agent Orchestrator.
 
-Flow for every user message:
-  1. Planner  — LLM produces a structured JSON execution plan
-  2. Executor — all tool calls run in parallel (ThreadPoolExecutor)
-  3. Synthesizer — LLM analyses all results and writes the final answer
+Agent pipeline — 4 specialized agents in 3 phases:
 
-Interactions are appended to .logs/agent_interactions.jsonl for debugging.
+  Phase 1 — FetchingAgent (sequential, always runs first):
+      • Receives: user query, today's date, conversation history
+      • Calls Strava and Garmin MCP tools to retrieve the required data
+      • Returns: structured JSON with results, reasoning, key findings
+      • MUST NOT do: write responses, select charts, trigger flythrough render
+
+  Phase 2 — VisualizationAgent + FlyoverAgent (parallel, after Phase 1):
+      VisualizationAgent:
+        • Receives: user query, FetchingAgent results
+        • Selects which fetched results to render as charts
+        • Returns: ordered list of viz_actions
+        • MUST NOT do: fetch data, write responses, handle flythrough
+      FlyoverAgent:
+        • Receives: user query, FetchingAgent results
+        • Detects if a flythrough was triggered (fast path) or can be triggered (LLM path)
+        • Returns: flyover_action dict or null
+        • MUST NOT do: fetch data, write responses, ask the user for missing params
+
+  Phase 3 — ChatAgent (sequential, always runs last):
+      • Receives: query, FetchingAgent results, viz context, flyover context, history
+      • Writes the final natural-language answer
+      • Knows what will auto-render below (charts + flythrough) from the context
+      • MUST NOT do: call MCP tools, re-describe chart contents in detail
+
+Routing rules:
+  • Flythrough queries (keywords or launch_flythrough in results) skip VisualizationAgent
+    and run FlyoverAgent exclusively — avoids LLM burst and conflicting UI actions.
+  • Clarification-needed or all-fetches-failed → skip Phase 2 entirely; ChatAgent handles.
+
+Inter-agent communication: structured JSON strings (MCP tool-call contract).
+Traces appended to .logs/agent_interactions.jsonl.
 """
 
 import json
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from ui.shared import MODEL, call_tool, get_all_openai_tools, get_openai_client
+from servers.agents._base import FLYTHROUGH_KEYWORDS
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
 LOG_DIR  = Path(".logs")
 LOG_FILE = LOG_DIR / "agent_interactions.jsonl"
 
-MAX_PLAN_STEPS = 60   # hard cap on planner output
-MAX_WORKERS    = 5    # parallel tool-call threads (Garmin rate-limit friendly)
-TOOL_TIMEOUT   = 45   # seconds per individual tool call
-
 ROUTE_TOOLS = {"plan_route", "plan_circular_route", "explore_trails", "get_isochrone"}
 
-# ── Prompts ───────────────────────────────────────────────────────────────────
-
-_PLANNER_SYSTEM = """\
-You are a data-retrieval planner for a fitness analytics assistant.
-Your ONLY job: produce the minimal complete list of tool calls needed to \
-fully answer the user question.
-
-Today is {today}.
-
-Rules:
-- For sleep trends, multi-day comparisons, or any sleep question spanning > 3 days: \
-prefer get_garmin_wellness_trends with start_date/end_date over individual \
-get_garmin_sleep calls per day.
-- For intraday data over a date range (heart_rate_timeline, steps_timeline, \
-sleep, hrv_status, daily_health): generate ONE call per day — do not skip days.
-- For range-based tools (wellness_trends, body_battery, activities, \
-training_trends, yearly_breakdown): use a single call covering the full range.
-- For "fastest/best/furthest/slowest/most/least" superlative queries about \
-activities: always set start_date="2010-01-01" so the full history is searched.
-- Correlations (e.g. "HR without steps"): include calls for BOTH data sources.
-- Always use explicit YYYY-MM-DD date strings. Never use relative terms.
-- Maximum {max_steps} steps. For ranges > {max_steps} days, prefer aggregate \
-tools or reduce to the most relevant days.
-- If the question needs no data (greeting, clarification, math), return an \
-empty steps list.
-
-Available tools:
-{tool_descriptions}
-
-Reply ONLY with valid JSON, exactly this schema:
-{{
-  "reasoning": "<1-2 sentences: what data is needed and why>",
-  "steps": [
-    {{"tool": "<tool_name>", "args": {{}}, "label": "<short human label>"}},
-    ...
-  ]
-}}
-"""
-
-_SYNTHESIZER_SYSTEM = """\
-You are a precise sports and health data analyst.
-You have been given results from multiple data-retrieval calls about the user's \
-fitness data.
-
-Rules:
-- Be concise and data-driven. Include units and clear rounding.
-- For running activities, always show pace (min/km) formatted as M:SS — \
-use the pace_min_per_km field if present, otherwise compute from avg_speed_kmh.
-- Only reference figures present in the tool results. Never fabricate data.
-- null/None sleep fields (total_sleep_h, deep_h, rem_h, etc.) mean no tracking data \
-for that night — do NOT treat them as zero hours. Exclude those nights from averages \
-and note them explicitly as "no data".
-- If a tool returned an error or no data, state that plainly.
-- For temporal patterns, call out specific dates and times.
-- Skip motivational filler unless the user explicitly asks for encouragement.
-- Answer in the same language the user wrote in.
-
-Today is {today}.
-"""
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _tool_descriptions(tools: List[Dict]) -> str:
-    lines = []
-    for t in tools:
-        fn    = t["function"]
-        props = fn.get("parameters", {}).get("properties", {})
-        param_str = ", ".join(
-            f'{k} ({v.get("type", "any")}): {v.get("description", "")}'
-            for k, v in props.items()
-        ) or "none"
-        lines.append(f'- {fn["name"]}: {fn["description"]}\n  params: {param_str}')
-    return "\n".join(lines)
-
-
-def _truncate(text: Optional[str], limit: int = 600) -> Optional[str]:
-    if text and len(text) > limit:
-        return text[:limit] + "…"
-    return text
 
 
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 class FitDashOrchestrator:
-    """Stateless orchestrator — create once (e.g. via st.cache_resource), call run() per message."""
+    """
+    Stateless multi-agent orchestrator.
+
+    Create once (e.g. via st.cache_resource) and call run() per message.
+    Internally coordinates FetchingAgent → (VisualizationAgent ∥ FlyoverAgent) → ChatAgent.
+    """
 
     def __init__(self) -> None:
         LOG_DIR.mkdir(exist_ok=True)
-
-    # ── Public API ────────────────────────────────────────────────────────────
 
     def run(
         self,
@@ -132,10 +78,14 @@ class FitDashOrchestrator:
 
         Returns:
             answer  — final assistant reply string
-            trace   — full execution record (logged + available for UI debug panel)
+            trace   — full execution record (logged + used by UI debug panel)
         """
-        client = get_openai_client()
-        tools  = get_all_openai_tools()
+        # Lazy-import agents to avoid circular imports at module load time.
+        from servers.agents.fetching      import call_sync as fetch
+        from servers.agents.visualization import call_sync as visualize
+        from servers.agents.flyover       import call_sync as flyover
+        from servers.agents.chat          import call_sync as chat
+
         today  = datetime.now().strftime("%Y-%m-%d")
         run_id = str(uuid.uuid4())[:8]
 
@@ -148,227 +98,205 @@ class FitDashOrchestrator:
             "answer":     None,
             "timing":     {},
             "error":      None,
+            "actions":    [],
+            "agents":     [],   # per-agent phase records for the debug panel
         }
 
         try:
-            # ── 1. Plan ───────────────────────────────────────────────────────
+            # ── Phase 1: FetchingAgent ────────────────────────────────────────
             _cb(progress_cb, "Planning data retrieval…")
             t0 = time.perf_counter()
-            plan = self._plan(client, tools, user_input, history, today, trace)
-            trace["timing"]["plan_ms"] = _ms(t0)
+            data_json = fetch(
+                query       = user_input,
+                today       = today,
+                history     = history[-10:],
+                progress_cb = progress_cb,
+            )
+            fetch_ms = _ms(t0)
+            trace["timing"]["fetch_ms"] = fetch_ms
 
-            if not plan:
-                # No tools needed — go straight to synthesis
-                _cb(progress_cb, "Generating answer…")
-                t0 = time.perf_counter()
-                answer = self._synthesize(client, user_input, history, [], today, trace)
-                trace["timing"]["synth_ms"] = _ms(t0)
+            # Populate trace fields that the debug panel expects
+            clarification_needed   = False
+            clarification_question = ""
+            data_summary           = ""
+            fetched_tools: set     = set()
+            fetch_data: Dict[str, Any] = {}
+            try:
+                fetch_data = json.loads(data_json)
+                clarification_needed   = bool(fetch_data.get("clarification_needed", False))
+                clarification_question = fetch_data.get("clarification_question", "")
+                data_summary           = fetch_data.get("data_summary", "")
+                fetched_tools          = {
+                    r["tool"] for r in fetch_data.get("results", []) if not r.get("error")
+                }
+                trace["plan"] = {
+                    "reasoning": fetch_data.get("reasoning", ""),
+                    "steps": [
+                        {"tool": r["tool"], "args": r.get("args", {}), "label": r["label"]}
+                        for r in fetch_data.get("results", [])
+                    ],
+                }
+                trace["tool_calls"] = fetch_data.get("results", [])
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            trace["agents"].append({
+                "agent": "FetchingAgent",
+                "phase": 1,
+                "duration_ms": fetch_ms,
+                "clarification_needed": clarification_needed,
+                "data_summary": data_summary,
+            })
+
+            # ── Phase 2: VisualizationAgent + FlyoverAgent ───────────────────
+            # Routing rules (evaluated in order):
+            #
+            #   1. clarification_needed or all_fetches_failed
+            #      → skip Phase 2 entirely; ChatAgent handles both cases.
+            #
+            #   2. is_flythrough_query (launch_flythrough succeeded OR user
+            #      mentioned a flythrough keyword in their message)
+            #      → FlyoverAgent ONLY. VisualizationAgent is skipped to avoid
+            #        running two LLM calls in parallel (rate-limit risk) and to
+            #        prevent charts appearing alongside a flythrough response.
+            #
+            #   3. Normal analytics query
+            #      → both agents in parallel. FlyoverAgent exits quickly when
+            #        no flythrough keyword is present.
+            t0 = time.perf_counter()
+
+            flythrough_resolved = "launch_flythrough" in fetched_tools
+            flythrough_mentioned = any(k in user_input.lower() for k in FLYTHROUGH_KEYWORDS)
+            is_flythrough_query  = flythrough_resolved or flythrough_mentioned
+
+            all_fetches_failed = (
+                bool(fetch_data.get("results"))
+                and all(r.get("error") for r in fetch_data.get("results", []))
+            )
+
+            if clarification_needed or all_fetches_failed:
+                viz_json     = '{"viz_actions": []}'
+                fly_json     = '{"flyover_action": null}'
+                phase2_label = "skipped (clarification needed or all sources failed)"
+            elif is_flythrough_query:
+                _cb(progress_cb, "Resolving flythrough…")
+                viz_json     = '{"viz_actions": []}'
+                try:
+                    fly_json = flyover(query=user_input, data_results=data_json)
+                except Exception:
+                    fly_json = '{"flyover_action": null}'
+                phase2_label = "FlyoverAgent only (flythrough query)"
             else:
-                # ── 2. Execute ────────────────────────────────────────────────
-                _cb(progress_cb, f"Fetching {len(plan)} data source(s) in parallel…")
-                t0 = time.perf_counter()
-                results = self._execute(plan, trace, progress_cb)
-                trace["timing"]["exec_ms"] = _ms(t0)
-                trace["route_data"] = _extract_route_data(results)
+                _cb(progress_cb, "Selecting charts and checking for flythrough…")
+                trace["route_data"] = _extract_route_data(fetch_data.get("results", []))
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    viz_fut = pool.submit(visualize, query=user_input, data_results=data_json)
+                    fly_fut = pool.submit(flyover,   query=user_input, data_results=data_json)
+                    try:
+                        viz_json = viz_fut.result(timeout=45)
+                    except Exception:
+                        viz_json = '{"viz_actions": []}'
+                    try:
+                        fly_json = fly_fut.result(timeout=45)
+                    except Exception:
+                        fly_json = '{"flyover_action": null}'
+                phase2_label = "VisualizationAgent + FlyoverAgent (parallel)"
 
-                # ── 3. Synthesize ─────────────────────────────────────────────
-                _cb(progress_cb, "Analysing results…")
-                t0 = time.perf_counter()
-                answer = self._synthesize(client, user_input, history, results, today, trace)
-                trace["timing"]["synth_ms"] = _ms(t0)
+            analysis_ms = _ms(t0)
+            trace["timing"]["analysis_ms"] = analysis_ms
+
+            trace["agents"].append({
+                "agent": phase2_label,
+                "phase": 2,
+                "duration_ms": analysis_ms,
+            })
+
+            # Parse UI actions from both Phase 2 agents
+            trace["actions"] = _parse_actions(viz_json, fly_json)
+
+            # ── Phase 3: ChatAgent ─────────────────────────────────────────────
+            _cb(progress_cb, "Composing answer…")
+            t0 = time.perf_counter()
+            answer = chat(
+                query                  = user_input,
+                data_results           = data_json,
+                viz_context            = viz_json,
+                flyover_context        = fly_json,
+                history                = history[-10:],
+                today                  = today,
+                clarification_question = clarification_question,
+            )
+            chat_ms = _ms(t0)
+            trace["timing"]["chat_ms"] = chat_ms
+
+            trace["agents"].append({
+                "agent": "ChatAgent",
+                "phase": 3,
+                "duration_ms": chat_ms,
+            })
 
         except Exception as exc:
             trace["error"] = str(exc)
             answer = f"Orchestrator error: {exc}"
 
         trace["answer"] = answer
-        self._write_log(trace)
+        _write_log(trace)
         return answer, trace
 
-    # ── Phase 1: Planner ──────────────────────────────────────────────────────
 
-    def _plan(
-        self,
-        client,
-        tools: List[Dict],
-        user_input: str,
-        history: List[Dict],
-        today: str,
-        trace: Dict,
-    ) -> List[Dict]:
-        system = _PLANNER_SYSTEM.format(
-            today=today,
-            max_steps=MAX_PLAN_STEPS,
-            tool_descriptions=_tool_descriptions(tools),
-        )
-        messages = [{"role": "system", "content": system}]
-        for msg in history[-6:]:  # last 6 messages (3 turns)
-            if msg["role"] in ("user", "assistant"):
-                messages.append({"role": msg["role"], "content": msg["content"]})
-        messages.append({"role": "user", "content": user_input})
+# ── Action parsing ────────────────────────────────────────────────────────────
 
+def _parse_actions(viz_json: str, fly_json: str) -> List[Dict]:
+    """Merge UI actions from VisualizationAgent and FlyoverAgent."""
+    actions: List[Dict] = []
+
+    # Flyover action (at most one, flyover takes precedence at top)
+    try:
+        fly = json.loads(fly_json)
+        fa  = fly.get("flyover_action")
+        if fa and fa.get("type") == "flythrough":
+            actions.append(fa)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # Viz actions from VisualizationAgent — suppressed when a flythrough is active
+    # (charts alongside a map render add noise, not insight)
+    has_flythrough = any(a.get("type") == "flythrough" for a in actions)
+    if not has_flythrough:
         try:
-            resp = client.chat.completions.create(
-                model=MODEL,
-                messages=messages,
-                response_format={"type": "json_object"},
-                temperature=0,
-            )
-        except Exception:
-            # Fallback for models that don't support response_format
-            resp = client.chat.completions.create(
-                model=MODEL,
-                messages=messages,
-                temperature=0,
-            )
-        raw = resp.choices[0].message.content or "{}"
-        # Extract the JSON object even if the model wrapped it in code fences
-        raw = raw.strip()
-        start = raw.find('{')
-        end   = raw.rfind('}')
-        if start != -1 and end != -1 and end > start:
-            raw = raw[start:end + 1]
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError:
-            parsed = {}
+            viz = json.loads(viz_json)
+            for va in (viz.get("viz_actions") or []):
+                if va.get("type") == "viz":
+                    actions.append(va)
+        except (json.JSONDecodeError, TypeError):
+            pass
 
-        reasoning = parsed.get("reasoning", "")
-        steps     = (parsed.get("steps") or [])[:MAX_PLAN_STEPS]
-
-        trace["plan"] = {"reasoning": reasoning, "steps": steps}
-        return steps
-
-    # ── Phase 2: Executor ─────────────────────────────────────────────────────
-
-    def _execute(
-        self,
-        plan: List[Dict],
-        trace: Dict,
-        progress_cb: Optional[Callable[[str], None]],
-    ) -> List[Dict]:
-        total     = len(plan)
-        completed = 0
-        results: List[Dict] = []
-
-        def _run_one(step: Dict) -> Dict:
-            t0    = time.perf_counter()
-            tool  = step.get("tool", "")
-            args  = step.get("args") or {}
-            label = step.get("label", tool)
-            try:
-                result_text = call_tool(tool, args)
-                error = None
-            except Exception as exc:
-                result_text = f"Error: {exc}"
-                error = str(exc)
-            return {
-                "label":       label,
-                "tool":        tool,
-                "args":        args,
-                "result":      result_text,
-                "result_len":  len(result_text) if result_text else 0,
-                "duration_ms": _ms(t0),
-                "error":       error,
-            }
-
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-            future_map = {pool.submit(_run_one, step): step for step in plan}
-            for future in as_completed(future_map):
-                try:
-                    rec = future.result(timeout=TOOL_TIMEOUT)
-                except Exception as exc:
-                    step = future_map[future]
-                    rec = {
-                        "label":       step.get("label", step.get("tool", "?")),
-                        "tool":        step.get("tool", ""),
-                        "args":        step.get("args") or {},
-                        "result":      f"Timeout/error: {exc}",
-                        "result_len":  0,
-                        "duration_ms": TOOL_TIMEOUT * 1000,
-                        "error":       str(exc),
-                    }
-                # as_completed yields on the main thread — no lock needed
-                results.append(rec)
-                trace["tool_calls"].append(rec)
-                completed += 1
-                _cb(progress_cb, f"Fetching data — {completed}/{total} done…")
-
-        return results
-
-    # ── Phase 3: Synthesizer ──────────────────────────────────────────────────
-
-    def _synthesize(
-        self,
-        client,
-        user_input: str,
-        history: List[Dict],
-        results: List[Dict],
-        today: str,
-        trace: Dict,
-    ) -> str:
-        system = _SYNTHESIZER_SYSTEM.format(today=today)
-
-        tool_sections = []
-        for r in results:
-            header = f"### {r['label']}  [{r['tool']}]"
-            body   = f"ERROR: {r['error']}" if r.get("error") else (r.get("result") or "")
-            tool_sections.append(f"{header}\n{body}")
-
-        data_block = "\n\n".join(tool_sections) if tool_sections else "(no data fetched)"
-
-        messages = [{"role": "system", "content": system}]
-        for msg in history[-6:]:
-            if msg["role"] in ("user", "assistant"):
-                messages.append({"role": msg["role"], "content": msg["content"]})
-        messages.append({
-            "role": "user",
-            "content": f"{user_input}\n\n---\nData retrieved:\n\n{data_block}",
-        })
-
-        resp = client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            temperature=0.3,
-        )
-        return resp.choices[0].message.content or ""
-
-    # ── Logging ───────────────────────────────────────────────────────────────
-
-    def _write_log(self, trace: Dict) -> None:
-        """Append a lean trace record to the JSONL log file. Never raises."""
-        try:
-            log_entry = {
-                "run_id":     trace["run_id"],
-                "ts":         trace["ts"],
-                "user_input": trace["user_input"],
-                "plan": {
-                    "reasoning": (trace.get("plan") or {}).get("reasoning", ""),
-                    "steps":     (trace.get("plan") or {}).get("steps", []),
-                },
-                "tool_calls": [
-                    {
-                        "label":       c["label"],
-                        "tool":        c["tool"],
-                        "args":        c["args"],
-                        "duration_ms": c["duration_ms"],
-                        "error":       c.get("error"),
-                        # Truncate result body to keep log files manageable
-                        "result_preview": _truncate(c.get("result"), 500),
-                    }
-                    for c in trace.get("tool_calls", [])
-                ],
-                "timing":  trace.get("timing", {}),
-                "error":   trace.get("error"),
-                "answer_preview": _truncate(trace.get("answer"), 300),
-            }
-            with open(LOG_FILE, "a", encoding="utf-8") as fh:
-                fh.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
-        except Exception:
-            pass  # logging must never crash the main flow
+    return actions
 
 
-# ── Small utilities ───────────────────────────────────────────────────────────
+# ── Logging ───────────────────────────────────────────────────────────────────
+
+def _write_log(trace: Dict) -> None:
+    """Append a lean trace record to the JSONL log. Never raises."""
+    try:
+        entry = {
+            "run_id":     trace["run_id"],
+            "ts":         trace["ts"],
+            "user_input": trace["user_input"],
+            "agents":     trace.get("agents", []),
+            "timing":     trace.get("timing", {}),
+            "n_tool_calls": len(trace.get("tool_calls", [])),
+            "n_actions":    len(trace.get("actions", [])),
+            "error":        trace.get("error"),
+            "answer_preview": (trace.get("answer") or "")[:300],
+        }
+        with open(LOG_FILE, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
 
 def _extract_route_data(results: List[Dict]) -> Optional[Dict]:
     """Return the first successful route-tool result, parsed from JSON."""
@@ -383,6 +311,7 @@ def _extract_route_data(results: List[Dict]) -> Optional[Dict]:
 
 def _ms(t0: float) -> int:
     return int((time.perf_counter() - t0) * 1000)
+
 
 def _cb(fn: Optional[Callable], msg: str) -> None:
     if fn:

@@ -1,26 +1,32 @@
 """Dashboard tab — activity map, key metrics, charts, and official Strava stats."""
 
-from __future__ import annotations
-
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+import folium
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import polyline as pl
 import streamlit as st
+from streamlit_folium import st_folium
 
-from ui.shared import run_async
-from ui.styles import STRAVA_ORANGE, activity_icon
+from ui.shared import run_async, strava_connected
+from ui.styles import (
+    ACTIVITY_ICONS, CHART_COLORS, DARK_MAP_ATTR, DARK_MAP_TILES,
+    STRAVA_ORANGE, activity_icon, chart_style,
+)
 
 # ── Cached data loaders ───────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300, show_spinner=False)
-def load_activities(limit: int = 400) -> List[Dict]:
-    from mcp.strava import strava_api
+def load_activities(limit: int = 2000) -> List[Dict]:
+    from servers.strava import strava_api
     return run_async(strava_api.get_activities(limit=limit))
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_athlete_and_stats() -> Tuple[Dict, Dict]:
-    from mcp.strava import strava_api
+    from servers.strava import strava_api
     athlete = run_async(strava_api.get_athlete())
     stats   = run_async(strava_api.get_athlete_stats(athlete["id"]))
     return athlete, stats
@@ -94,21 +100,24 @@ def build_map(
     if not routed:
         return None
 
-    all_pts = [pt for r, _ in routed for pt in r]
-    center  = [
-        sum(c[0] for c in all_pts) / len(all_pts),
-        sum(c[1] for c in all_pts) / len(all_pts),
-    ]
+    # Fit to the selected activity's route, or to all routes when showing overview
     if selected_id:
-        sel = next((r for r, a in routed if a.get("id") == selected_id), None)
-        if sel:
-            center = [sum(c[0] for c in sel) / len(sel), sum(c[1] for c in sel) / len(sel)]
+        sel_route = next((r for r, a in routed if a.get("id") == selected_id), None)
+        fit_pts = sel_route if sel_route else [pt for r, _ in routed for pt in r]
+    else:
+        fit_pts = [pt for r, _ in routed for pt in r]
+
+    lats   = [p[0] for p in fit_pts]
+    lons   = [p[1] for p in fit_pts]
+    center = [sum(lats) / len(lats), sum(lons) / len(lons)]
+    bounds = [[min(lats), min(lons)], [max(lats), max(lons)]]
 
     m = folium.Map(
-        location=center, zoom_start=14 if selected_id else 12,
+        location=center,
         tiles=DARK_MAP_TILES, attr=DARK_MAP_ATTR,
         prefer_canvas=True,
     )
+    m.fit_bounds(bounds, padding=(30, 30))
 
     n = len(routed)
     for i, (coords, activity) in enumerate(routed):
@@ -169,18 +178,9 @@ _DASH_PERIODS: Dict[str, int] = {
 
 
 def render_dashboard(sport_filter: Optional[str] = None) -> None:
-    from ui.shared import strava_connected
     if not strava_connected():
         st.info("Strava ist nicht verbunden. Starte die Autorisierung über den **Sync**-Tab.")
         return
-
-    # Heavy imports only when Strava is actually connected
-    import folium
-    import plotly.express as px
-    import plotly.graph_objects as go
-    import polyline as pl
-    from streamlit_folium import st_folium
-    from ui.styles import ACTIVITY_ICONS, CHART_COLORS, DARK_MAP_ATTR, DARK_MAP_TILES
 
     with st.spinner("Loading Strava data…"):
         try:
@@ -260,7 +260,7 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
 
     with col_ctrl:
         options: Dict[str, Optional[int]] = {"All activities": None}
-        for a in sorted(activities, key=lambda a: a.get("start_date", "")):
+        for a in sorted(activities, key=lambda a: a.get("start_date", ""), reverse=True):
             label = f"{activity_icon(a.get('type',''))} {a.get('name','?')}  ({a.get('start_date','')[:10]})"
             options[label] = a.get("id")
 
