@@ -27,6 +27,8 @@ MAX_PLAN_STEPS = 60   # hard cap on planner output
 MAX_WORKERS    = 5    # parallel tool-call threads (Garmin rate-limit friendly)
 TOOL_TIMEOUT   = 45   # seconds per individual tool call
 
+ROUTE_TOOLS = {"plan_route", "plan_circular_route", "explore_trails", "get_isochrone"}
+
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
 _PLANNER_SYSTEM = """\
@@ -167,6 +169,7 @@ class FitDashOrchestrator:
                 t0 = time.perf_counter()
                 results = self._execute(plan, trace, progress_cb)
                 trace["timing"]["exec_ms"] = _ms(t0)
+                trace["route_data"] = _extract_route_data(results)
 
                 # ── 3. Synthesize ─────────────────────────────────────────────
                 _cb(progress_cb, "Analysing results…")
@@ -366,6 +369,17 @@ class FitDashOrchestrator:
 
 
 # ── Small utilities ───────────────────────────────────────────────────────────
+
+def _extract_route_data(results: List[Dict]) -> Optional[Dict]:
+    """Return the first successful route-tool result, parsed from JSON."""
+    for r in results:
+        if r.get("tool") in ROUTE_TOOLS and not r.get("error") and r.get("result"):
+            try:
+                return {"tool": r["tool"], "data": json.loads(r["result"])}
+            except Exception:
+                pass
+    return None
+
 
 def _ms(t0: float) -> int:
     return int((time.perf_counter() - t0) * 1000)

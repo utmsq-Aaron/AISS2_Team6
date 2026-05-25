@@ -1,18 +1,14 @@
 """Health tab — Garmin wellness: Body Battery, sleep stages, HR, steps, stress, HRV, training."""
 
+from __future__ import annotations
+
 import json
 from typing import Dict, List, Optional
 
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
 
 from ui.shared import garmin_connected, get_garmin_mcp, run_async
-from ui.styles import (
-    C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_PURPLE, C_ROSE, ACCENT,
-    TEXT_MUTED, TEXT_PRIMARY, BORDER, BG_CARD, chart_style,
-)
 
 # ── Sleep stage colours ───────────────────────────────────────────────────────
 C_SLEEP_DEEP  = "#1E40AF"
@@ -459,6 +455,14 @@ def render_health() -> None:
             "3. Refresh this page"
         )
         return
+
+    # Heavy imports only when Garmin is actually connected
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    from ui.styles import (
+        C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_PURPLE, C_ROSE, ACCENT,
+        TEXT_MUTED, TEXT_PRIMARY, BORDER, BG_CARD, chart_style,
+    )
 
     # ── Period selector ───────────────────────────────────────────────────────
     period = st.radio(

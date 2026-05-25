@@ -4,6 +4,8 @@ Stage 1 (setup):   Pick a date range, click Fetch. Zero API calls until then.
 Stage 2 (preview): See all activities, select/deselect, then export.
 """
 
+from __future__ import annotations
+
 import io
 import math
 import os
@@ -12,13 +14,10 @@ import zipfile
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
-import plotly.graph_objects as go
-import requests
 import streamlit as st
 from dotenv import load_dotenv
 
 from ui.shared import garmin_connected, strava_connected
-from ui.styles import ACCENT, BORDER, TEXT_MUTED, activity_icon
 
 load_dotenv()
 
@@ -477,6 +476,11 @@ def render_sync() -> None:
     if not strava_connected():
         st.warning("Strava not connected. Open the Dashboard tab to authorize.")
         return
+
+    # Heavy imports only when both services are connected
+    import requests
+    import plotly.graph_objects as go
+    from ui.styles import ACCENT, BORDER, TEXT_MUTED, activity_icon
 
     activities: List[Dict] = st.session_state.get("sync_activities", [])
 

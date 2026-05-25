@@ -66,8 +66,8 @@ with st.sidebar:
     st.caption("AISS2 Team 6  ·  v2.0")
 
 # ── Tab layout ────────────────────────────────────────────────────────────────
-tab_dash, tab_health, tab_chat, tab_sync = st.tabs(
-    ["📊  Dashboard", "🏥  Health", "💬  Chat", "🔁  Sync"]
+tab_dash, tab_health, tab_routes, tab_chat, tab_sync = st.tabs(
+    ["📊  Dashboard", "🏥  Health", "🗺️  Routen", "💬  Chat", "🔁  Sync"]
 )
 
 with tab_dash:
@@ -77,6 +77,10 @@ with tab_dash:
 with tab_health:
     from ui.health import render_health
     render_health()
+
+with tab_routes:
+    from ui.routes_explorer import render_routes_explorer
+    render_routes_explorer()
 
 with tab_chat:
     from ui.chat import render_chat

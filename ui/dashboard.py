@@ -1,21 +1,15 @@
 """Dashboard tab — activity map, key metrics, charts, and official Strava stats."""
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
-import folium
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import polyline as pl
 import streamlit as st
-from streamlit_folium import st_folium
 
-from ui.shared import get_strava_mcp, run_async
-from ui.styles import (
-    ACTIVITY_ICONS, CHART_COLORS, DARK_MAP_ATTR, DARK_MAP_TILES,
-    STRAVA_ORANGE, activity_icon, chart_style,
-)
+from ui.shared import run_async
+from ui.styles import STRAVA_ORANGE, activity_icon
 
 # ── Cached data loaders ───────────────────────────────────────────────────────
 
@@ -175,6 +169,19 @@ _DASH_PERIODS: Dict[str, int] = {
 
 
 def render_dashboard(sport_filter: Optional[str] = None) -> None:
+    from ui.shared import strava_connected
+    if not strava_connected():
+        st.info("Strava ist nicht verbunden. Starte die Autorisierung über den **Sync**-Tab.")
+        return
+
+    # Heavy imports only when Strava is actually connected
+    import folium
+    import plotly.express as px
+    import plotly.graph_objects as go
+    import polyline as pl
+    from streamlit_folium import st_folium
+    from ui.styles import ACTIVITY_ICONS, CHART_COLORS, DARK_MAP_ATTR, DARK_MAP_TILES
+
     with st.spinner("Loading Strava data…"):
         try:
             activities = load_activities()
