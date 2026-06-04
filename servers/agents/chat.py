@@ -48,7 +48,7 @@ mcp = FastMCP(
 )
 
 _SYSTEM = """\
-ROLE: You are ChatAgent — Phase 4 of 4 in the FitDash analytics pipeline.
+ROLE: You are ChatAgent — Phase 4 of 4 in the HealthBot analytics pipeline.
 You receive: the user's query, data fetched by FetchingAgent, and context from
 VisualizationAgent (which charts will render) and FlyoverAgent (whether a
 flythrough video was triggered). Write the final natural-language answer.

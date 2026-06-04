@@ -1,6 +1,6 @@
-# FitDash
+# HealthBot
 
-FitDash is a Streamlit sports analytics dashboard that unifies Strava activities and Garmin health data behind an agentic chat interface. Every answer comes from live API data — a four-agent pipeline plans tool calls, executes them in parallel, selects visualisations, and synthesises the result. No cached summaries, no hallucinated numbers.
+HealthBot is a Streamlit sports analytics dashboard that unifies Strava activities and Garmin health data behind an agentic chat interface. Every answer comes from live API data — a four-agent pipeline plans tool calls, executes them in parallel, selects visualisations, and synthesises the result. No cached summaries, no hallucinated numbers.
 
 ## Highlights
 

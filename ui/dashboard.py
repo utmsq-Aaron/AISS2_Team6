@@ -179,7 +179,7 @@ _DASH_PERIODS: Dict[str, int] = {
 
 def render_dashboard(sport_filter: Optional[str] = None) -> None:
     if not strava_connected():
-        st.info("Strava ist nicht verbunden. Starte die Autorisierung über den **Sync**-Tab.")
+        st.info("Strava ist nicht verbunden. Gehe zum **🛠️ Setup**-Tab für eine Schritt-für-Schritt-Anleitung.")
         return
 
     with st.spinner("Loading Strava data…"):
@@ -215,7 +215,6 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
         info_parts = []
         if loc:   info_parts.append(f"📍 {loc}")
         if since: info_parts.append(f"Member since {since}")
-        if athlete.get("premium"): info_parts.append("⭐ Premium")
         st.caption("  ·  ".join(info_parts))
 
     st.divider()

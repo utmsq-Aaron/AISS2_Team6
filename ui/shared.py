@@ -1,5 +1,5 @@
 """
-Shared utilities for the FitDash UI:
+Shared utilities for the HealthBot UI:
   - Async bridge (run_async)
   - Cached MCP server instances
   - Cached OpenAI client
@@ -101,7 +101,9 @@ def strava_connected() -> bool:
         return False
 
 def garmin_connected() -> bool:
-    """True only if Garmin token directory contains at least one token file."""
+    """True when Garmin mock mode is active, or real token files exist."""
+    if os.getenv("GARMIN_MOCK_HEALTH", "").lower() in ("1", "true"):
+        return True
     token_dir = Path(".tokens")
     if not token_dir.is_dir():
         return False
@@ -114,6 +116,10 @@ def garmin_connected() -> bool:
 def routes_connected() -> bool:
     return bool(os.getenv("ORS_API_KEY", ""))
 
+def is_locked() -> bool:
+    """True when DO_LOCK=true in .env — blocks all UI access."""
+    return os.getenv("DO_LOCK", "").lower() in ("1", "true")
+
 
 # ── Tool dispatcher ───────────────────────────────────────────────────────────
 
@@ -124,7 +130,7 @@ def call_tool(name: str, args: dict) -> str:
     if name.startswith("get_garmin_"):
         garmin = get_garmin_mcp()
         if garmin is None:
-            return json.dumps({"error": "Garmin not connected. Run: python auth/garmin_setup.py"})
+            return json.dumps({"error": "Garmin not connected. See the Setup tab for instructions."})
         return run_async(garmin._dispatch(name, args))
     if name in _ROUTES_TOOLS:
         routes = get_routes_mcp()

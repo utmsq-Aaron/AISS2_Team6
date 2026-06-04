@@ -1,4 +1,4 @@
-"""Visual constants, activity icons, and CSS injection for FitDash."""
+"""Visual constants, activity icons, and CSS injection for HealthBot."""
 
 from typing import Dict
 
@@ -201,7 +201,7 @@ caption, small {{ color: {TEXT_MUTED} !important; }}
 # ── Plotly chart theme ────────────────────────────────────────────────────────
 
 def chart_style(fig: go.Figure, title: str = "") -> go.Figure:
-    """Apply FitDash dark theme to a Plotly figure."""
+    """Apply HealthBot dark theme to a Plotly figure."""
     fig.update_layout(
         title        = dict(text=title, font=dict(size=13, color=TEXT_MUTED), pad=dict(t=0)),
         plot_bgcolor = "rgba(0,0,0,0)",

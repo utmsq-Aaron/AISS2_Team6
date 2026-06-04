@@ -455,10 +455,8 @@ def render_health() -> None:
     if not garmin_connected():
         st.markdown("### Health & Wellness")
         st.warning(
-            "**Garmin not connected.**\n\n"
-            "1. Add `GARMIN_EMAIL` and `GARMIN_PASSWORD` to `.env`\n"
-            "2. Run: `python auth/garmin_setup.py`\n"
-            "3. Refresh this page"
+            "**Garmin nicht verbunden.**\n\n"
+            "Gehe zum **🛠️ Setup**-Tab für eine Schritt-für-Schritt-Anleitung."
         )
         return
 
@@ -578,7 +576,7 @@ def render_health() -> None:
     st.markdown(f"### {period} Trends")
 
     if df.empty:
-        st.info("No wellness trend data. Make sure `auth/garmin_setup.py` has been run.")
+        st.info("Keine Wellness-Daten. Garmin-Verbindung im **🛠️ Setup**-Tab einrichten.")
         return
 
     _section("Sleep")

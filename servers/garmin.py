@@ -10,6 +10,7 @@ Prerequisites: run `python auth/garmin_setup.py` once to cache credentials.
 
 import asyncio
 import json
+import os
 import sys
 import threading
 import time
@@ -79,6 +80,13 @@ class GarminAPI:
 
 
 garmin_api = GarminAPI()
+
+# Mock mode: synthetic health data, no real Garmin account needed.
+# Activate by setting GARMIN_MOCK_HEALTH=true in .env
+if os.getenv("GARMIN_MOCK_HEALTH", "").lower() in ("1", "true"):
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from tests.fixtures.garmin_health_mock import MockGarminClient  # noqa: E402
+    garmin_api._client = MockGarminClient()
 
 
 def _today() -> str:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FitDash — AI-powered sports analytics dashboard.
+HealthBot — AI-powered sports analytics dashboard.
 
 Entry point:
     streamlit run app.py
@@ -10,12 +10,12 @@ import os
 
 import streamlit as st
 
-from ui.shared import garmin_connected, strava_connected, validate_config
+from ui.shared import garmin_connected, is_locked, strava_connected, validate_config
 from ui.styles import STRAVA_ORANGE, inject_css
 
 # ── Page config (must be first Streamlit call) ────────────────────────────────
 st.set_page_config(
-    page_title="FitDash",
+    page_title="HealthBot",
     page_icon="🏃",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -31,62 +31,32 @@ def _check_config() -> list:
 for _warn in _check_config():
     st.sidebar.warning(_warn, icon="⚠️")
 
-# ── PIN gate ──────────────────────────────────────────────────────────────────
-
-def _pin_gate() -> None:
-    """Block the app until the correct PIN is entered.
-
-    Set APP_PIN in .streamlit/secrets.toml (or as env var APP_PIN).
-    If APP_PIN is not configured the gate is bypassed (local dev convenience).
-    """
-    expected = (
-        st.secrets.get("APP_PIN")
-        if hasattr(st, "secrets") and "APP_PIN" in st.secrets
-        else os.getenv("APP_PIN", "")
-    )
-    if not expected:
-        return  # no PIN configured — open access
-
-    if st.session_state.get("authenticated"):
-        return
-
-    # ── Login screen ──────────────────────────────────────────────────────────
-    st.markdown(
-        """
-        <style>
-        [data-testid="stSidebar"] {display: none}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    _, col, _ = st.columns([1, 2, 1])
-    with col:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("## 🏃 FitDash")
-        st.caption("Enter your PIN to continue")
-        pin = st.text_input(
-            "PIN",
-            type="password",
-            placeholder="••••",
-            label_visibility="collapsed",
-            key="pin_input",
+# ── Lock gate ─────────────────────────────────────────────────────────────────
+if is_locked():
+    if not st.session_state.get("unlocked"):
+        st.markdown(
+            "<style>[data-testid='stSidebar']{display:none}</style>",
+            unsafe_allow_html=True,
         )
-        if st.button("Unlock", type="primary", width='stretch'):
-            if pin == expected:
-                st.session_state.authenticated = True
-                st.rerun()
-            else:
-                st.error("Incorrect PIN")
-
-    st.stop()
-
-
-_pin_gate()
+        _, col, _ = st.columns([1, 2, 1])
+        with col:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            st.markdown("## 🔒 HealthBot")
+            st.caption("App ist gesperrt. PIN eingeben um fortzufahren.")
+            pin = st.text_input("PIN", type="password", placeholder="••••",
+                                label_visibility="collapsed", key="lock_pin")
+            if st.button("Entsperren", type="primary", width='stretch'):
+                expected = os.getenv("APP_PIN", "")
+                if expected and pin == expected:
+                    st.session_state.unlocked = True
+                    st.rerun()
+                else:
+                    st.error("Falscher PIN")
+        st.stop()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown(f"# 🏃 FitDash")
+    st.markdown(f"# 🏃 HealthBot")
     st.caption("AI-powered sports analytics")
     st.divider()
 
@@ -128,14 +98,10 @@ with st.sidebar:
     st.divider()
     st.caption("AISS2 Team 6  ·  v2.0")
 
-    if st.session_state.get("authenticated"):
-        if st.button("🔒  Lock", width='stretch'):
-            st.session_state.authenticated = False
-            st.rerun()
 
 # ── Tab layout ────────────────────────────────────────────────────────────────
-tab_dash, tab_health, tab_routes, tab_chat, tab_sync = st.tabs(
-    ["📊  Dashboard", "🏥  Health", "🗺️  Routen", "💬  Chat", "🔁  Sync"]
+tab_dash, tab_health, tab_routes, tab_chat, tab_sync, tab_setup = st.tabs(
+    ["📊  Dashboard", "🏥  Health", "🗺️  Routen", "💬  Chat", "🔁  Sync", "🛠️  Setup"]
 )
 
 with tab_dash:
@@ -157,3 +123,7 @@ with tab_chat:
 with tab_sync:
     from ui.sync import render_sync
     render_sync()
+
+with tab_setup:
+    from ui.setup import render_setup
+    render_setup()

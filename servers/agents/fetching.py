@@ -35,7 +35,7 @@ mcp = FastMCP(
 # constraints; the planner's job is to think about the question, not memorise paths.
 
 _PLANNER_SYSTEM = """\
-ROLE: You are FetchingAgent — Phase 1 of 4 in the FitDash analytics pipeline.
+ROLE: You are FetchingAgent — Phase 1 of 4 in the HealthBot analytics pipeline.
 Your sole responsibility: decide what data to retrieve and output a validated \
 call plan. Downstream agents depend on your structured results.
 Today is {today}.

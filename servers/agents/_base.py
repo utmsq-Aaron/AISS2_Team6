@@ -1,4 +1,4 @@
-"""Shared utilities for FitDash sub-agents.
+"""Shared utilities for HealthBot sub-agents.
 
 Agents import from here instead of ui.shared so they can run standalone
 (without a Streamlit context) as well as in-process inside the Streamlit app.

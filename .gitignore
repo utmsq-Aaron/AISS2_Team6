@@ -24,8 +24,9 @@ __pycache__/
 logs/
 .logs/
 
-# Test files (cleanup)
-tests/
+# Test caches only — source files in tests/ are tracked
+tests/**/__pycache__/
+tests/**/*.pyc
 
 # OAuth2 tokens - NEVER commit these!
 .tokens/

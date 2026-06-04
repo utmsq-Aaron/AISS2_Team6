@@ -1,4 +1,4 @@
-"""FitDash Multi-Agent Orchestrator.
+"""HealthBot Multi-Agent Orchestrator.
 
 Agent pipeline — 4 specialized agents in 3 phases:
 
@@ -56,7 +56,7 @@ ROUTE_TOOLS = {"plan_route", "plan_circular_route", "explore_trails", "get_isoch
 
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
-class FitDashOrchestrator:
+class HealthBotOrchestrator:
     """
     Stateless multi-agent orchestrator.
 

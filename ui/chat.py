@@ -12,8 +12,8 @@ import streamlit as st
 
 @st.cache_resource(show_spinner=False)
 def _get_orchestrator():
-    from ui.orchestrator import FitDashOrchestrator
-    return FitDashOrchestrator()
+    from ui.orchestrator import HealthBotOrchestrator
+    return HealthBotOrchestrator()
 
 
 # ── Route map ────────────────────────────────────────────────────────────────

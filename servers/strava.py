@@ -30,8 +30,9 @@ from auth.strava_oauth import OAuth2Manager  # noqa: E402 (after sys.path fix)
 
 # ── Strava API client ─────────────────────────────────────────────────────────
 
-_STRAVA_HTTP_TIMEOUT = 30   # seconds per Strava API request
-_STRAVA_MAX_RETRIES  = 3    # attempts before giving up on a single endpoint
+_STRAVA_HTTP_TIMEOUT  = 30   # seconds per Strava API request
+_STRAVA_MAX_RETRIES   = 3    # attempts before giving up on a single endpoint
+_STRAVA_BASE_FALLBACK = "https://www.api-v3.strava.com"  # new domain (live June 2027)
 
 
 class StravaAPI:
@@ -71,27 +72,42 @@ class StravaAPI:
         return {"Authorization": f"Bearer {self._token}"}
 
     def _get(self, url: str, **kwargs) -> requests.Response:
-        """HTTP GET with auth headers, timeout, and retry on 429 / 5xx."""
+        """HTTP GET with auth headers, timeout, retry on 429/5xx, and base-URL fallback."""
         kwargs.setdefault("headers", self._headers())
         kwargs.setdefault("timeout", _STRAVA_HTTP_TIMEOUT)
+        candidates = [url]
+        if url.startswith(self.BASE):
+            candidates.append(url.replace(self.BASE, _STRAVA_BASE_FALLBACK, 1))
         last_exc: Optional[Exception] = None
         resp: Optional[requests.Response] = None
-        for attempt in range(_STRAVA_MAX_RETRIES):
-            try:
-                resp = requests.get(url, **kwargs)
-            except requests.RequestException as exc:
-                last_exc = exc
-                if attempt < _STRAVA_MAX_RETRIES - 1:
-                    time.sleep(2 ** attempt + random.uniform(0, 0.5))
-                continue
-            if resp.status_code == 429:
-                wait = int(resp.headers.get("Retry-After", 2 ** (attempt + 1)))
-                time.sleep(min(wait, 60))
-                continue
-            if resp.status_code >= 500 and attempt < _STRAVA_MAX_RETRIES - 1:
-                time.sleep(2 ** attempt)
-                continue
-            return resp
+        for candidate in candidates:
+            resp = None
+            conn_errors = 0
+            for attempt in range(_STRAVA_MAX_RETRIES):
+                try:
+                    resp = requests.get(candidate, **kwargs)
+                except requests.exceptions.ConnectionError as exc:
+                    last_exc = exc
+                    conn_errors += 1
+                    if attempt < _STRAVA_MAX_RETRIES - 1:
+                        time.sleep(2 ** attempt + random.uniform(0, 0.5))
+                    continue
+                except requests.RequestException as exc:
+                    last_exc = exc
+                    if attempt < _STRAVA_MAX_RETRIES - 1:
+                        time.sleep(2 ** attempt + random.uniform(0, 0.5))
+                    continue
+                if resp.status_code == 429:
+                    wait = int(resp.headers.get("Retry-After", 2 ** (attempt + 1)))
+                    time.sleep(min(wait, 60))
+                    continue
+                if resp.status_code >= 500 and attempt < _STRAVA_MAX_RETRIES - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+                return resp
+            # Only try the fallback if every attempt was a connection/DNS error
+            if conn_errors < _STRAVA_MAX_RETRIES:
+                break
         if last_exc:
             raise RuntimeError(
                 f"Strava HTTP request failed after {_STRAVA_MAX_RETRIES} attempts: {last_exc}"

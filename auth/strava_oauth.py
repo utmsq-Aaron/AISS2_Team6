@@ -182,11 +182,18 @@ if __name__ == "__main__":
         print("Removed existing token — starting fresh authorization...")
     mgr = OAuth2Manager(cid, csec)
     token = mgr._authorize()
-    resp = requests.get(
-        "https://www.strava.com/api/v3/athlete",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    if resp.ok:
+    headers = {"Authorization": f"Bearer {token}"}
+    last_exc: Optional[Exception] = None
+    resp = None
+    for _base in ("https://www.strava.com/api/v3", "https://www.api-v3.strava.com"):
+        try:
+            resp = requests.get(f"{_base}/athlete", headers=headers)
+            break
+        except requests.exceptions.ConnectionError as _exc:
+            last_exc = _exc
+    if resp is None:
+        print(f"API test failed: {last_exc}")
+    elif resp.ok:
         a = resp.json()
         print(f"Logged in as: {a['firstname']} {a['lastname']}")
     else:

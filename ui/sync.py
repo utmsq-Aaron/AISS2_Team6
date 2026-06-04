@@ -9,9 +9,12 @@ import math
 import os
 import time
 import zipfile
+
+import requests
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+import plotly.graph_objects as go
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -20,6 +23,22 @@ from ui.shared import garmin_connected, strava_connected
 load_dotenv()
 
 TOKEN_STORE = ".tokens"
+
+_STRAVA_BASE_URLS = (
+    "https://www.strava.com/api/v3",
+    "https://www.api-v3.strava.com",  # new domain (live June 2027)
+)
+
+
+def _strava_request(method: str, path: str, **kwargs) -> requests.Response:
+    """Try primary Strava base URL; fall back to new domain on DNS/connection failure."""
+    last_exc: Exception = RuntimeError("no candidates")
+    for base in _STRAVA_BASE_URLS:
+        try:
+            return requests.request(method, f"{base}{path}", **kwargs)
+        except requests.exceptions.ConnectionError as exc:
+            last_exc = exc
+    raise last_exc
 
 # ── Preset date-range options ─────────────────────────────────────────────────
 
@@ -66,8 +85,8 @@ def _download_fit(garmin, activity_id: int) -> Optional[bytes]:
 
 
 def _upload_to_strava(token: str, fit_bytes: bytes, name: str) -> Dict:
-    resp = requests.post(
-        "https://www.strava.com/api/v3/uploads",
+    resp = _strava_request(
+        "POST", "/uploads",
         headers={"Authorization": f"Bearer {token}"},
         files={"file": ("activity.fit", fit_bytes, "application/octet-stream")},
         data={"data_type": "fit", "name": name},
@@ -91,8 +110,8 @@ def _poll_upload(token: str, upload_id: int, timeout: int = 60) -> Dict:
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            resp = requests.get(
-                f"https://www.strava.com/api/v3/uploads/{upload_id}",
+            resp = _strava_request(
+                "GET", f"/uploads/{upload_id}",
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=10,
             ).json()
@@ -469,10 +488,10 @@ def render_sync() -> None:
     )
 
     if not garmin_connected():
-        st.warning("Garmin not connected. Run `python auth/garmin_setup.py` first.")
+        st.warning("Garmin nicht verbunden. Gehe zum **🛠️ Setup**-Tab für die Einrichtung.")
         return
     if not strava_connected():
-        st.warning("Strava not connected. Open the Dashboard tab to authorize.")
+        st.warning("Strava nicht verbunden. Gehe zum **🛠️ Setup**-Tab für die Einrichtung.")
         return
 
     # Heavy imports only when both services are connected
