@@ -10,3 +10,4 @@ streamlit-folium>=0.22.0
 polyline>=2.0.0
 garminconnect>=0.3.0
 playwright>=1.44.0
+aiohttp

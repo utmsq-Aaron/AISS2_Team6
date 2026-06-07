@@ -1,4 +1,4 @@
-"""FetchingAgent — plans and executes all Strava/Garmin MCP data fetches.
+"""FetchingAgent — plans and executes all Strava/Garmin/Google Calendar MCP data fetches.
 
 Multi-agent role: data retrieval specialist.
   - Receives the user query and today's date
@@ -15,8 +15,11 @@ Standalone usage:
 """
 
 import json
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import Dict, List
 
 from mcp.server.fastmcp import FastMCP
@@ -25,7 +28,7 @@ from servers.agents._base import llm_call, truncate, extract_json, FLYTHROUGH_KE
 
 mcp = FastMCP(
     "FetchingAgent",
-    instructions="Plans and executes all fitness data retrievals via Strava/Garmin MCP tools.",
+    instructions="Plans and executes fitness and calendar data retrievals via MCP tools.",
 )
 
 # ── Planner prompt ────────────────────────────────────────────────────────────
@@ -82,11 +85,23 @@ RULES:
      call launch_flythrough with the identified activity and the new params.
      Resolve the activity name from history via get_activity_detail if needed.
   8. CORRELATIONS — fetch both data sources when the query spans two metrics.
-  9. NO DATA NEEDED — greetings, math, direct replies: return steps=[].
-  10. CLARIFICATION — only ask when the query is genuinely ambiguous AND history
+  9. CALENDAR QUERIES — for schedules, appointments, meetings, events, availability,
+     or "what is on my calendar", use the hosted Google Calendar MCP tools:
+     - list_events for event lookup. Use calendarId="primary" unless the user named
+       a specific calendar. Use explicit ISO 8601 startTime/endTime bounds.
+       For a whole day in Europe/Berlin, use startTime="{today}T00:00:00+02:00"
+       style timestamps after computing the requested date, and endTime as the
+       following day at 00:00:00 with the same offset.
+       Use pageSize=10 unless the user asks for more.
+     - list_calendars only when the user asks which calendars exist or names a
+       calendar that needs discovery.
+     - get_event only when an eventId is already known from list_events/history.
+     - suggest_time for availability/scheduling questions.
+  10. NO DATA NEEDED — greetings, math, direct replies: return steps=[].
+  11. CLARIFICATION — only ask when the query is genuinely ambiguous AND history
       does not resolve it AND no clarification on this topic was already asked.
       Default to fetching. Write exactly ONE specific question.
-  11. MAX STEPS — maximum {max_steps} steps.
+  12. MAX STEPS — maximum {max_steps} steps.
 
 Available tools:
 {tool_descriptions}
@@ -199,11 +214,13 @@ def call_sync(query: str, today: str, history: list = None, progress_cb=None) ->
     valid_names = {t["function"]["name"] for t in tools}
 
     # ── Plan ──────────────────────────────────────────────────────────────────
-    system = _PLANNER_SYSTEM.format(
-        today=today, max_steps=MAX_STEPS, tool_descriptions=tool_desc
-    )
-    raw  = llm_call(system, query, json_mode=True, history=history)
-    plan = extract_json(raw)
+    plan = _calendar_direct_plan(query, today, valid_names)
+    if not plan:
+        system = _PLANNER_SYSTEM.format(
+            today=today, max_steps=MAX_STEPS, tool_descriptions=tool_desc
+        )
+        raw  = llm_call(system, query, json_mode=True, history=history)
+        plan = extract_json(raw)
 
     # Unparseable planner output → ask the user to rephrase
     if not plan:
@@ -282,6 +299,12 @@ def call_sync(query: str, today: str, history: list = None, progress_cb=None) ->
         try:
             result_text = call_tool(tool, args)
             error = None
+            try:
+                parsed_result = json.loads(result_text)
+                if isinstance(parsed_result, dict) and parsed_result.get("error"):
+                    error = str(parsed_result["error"])
+            except (json.JSONDecodeError, TypeError):
+                pass
         except Exception as exc:
             from servers.agents._base import sanitize_error
             safe_msg = sanitize_error(str(exc))
@@ -668,6 +691,69 @@ def _describe_tools(tools: list) -> str:
         ) or "none"
         lines.append(f'- {fn["name"]}: {fn["description"]}\n  params: {param_str}')
     return "\n".join(lines)
+
+
+def _calendar_direct_plan(query: str, today: str, valid_names: set) -> Dict:
+    """Deterministically route obvious calendar lookups to hosted Google MCP."""
+    q = (query or "").lower()
+    calendar_terms = (
+        "calendar", "calender", "appointment", "appointments", "meeting",
+        "meetings", "event", "events", "schedule", "agenda",
+    )
+    if not any(term in q for term in calendar_terms):
+        return {}
+
+    if "list_calendars" in valid_names and (
+        "which calendar" in q or "what calendars" in q or "list calendars" in q
+    ):
+        return {
+            "reasoning": (
+                "GOAL: List available Google calendars. DATA: Calendar list. "
+                "TOOLS: list_calendars returns calendars from hosted Google Calendar MCP. "
+                "HISTORY: none. PLAN: Call list_calendars."
+            ),
+            "clarification_needed": False,
+            "clarification_question": "",
+            "steps": [{"tool": "list_calendars", "args": {"pageSize": 50}, "label": "Google calendars"}],
+        }
+
+    if "list_events" not in valid_names:
+        return {}
+
+    day = _extract_calendar_day(query, today)
+    tz = ZoneInfo("Europe/Berlin")
+    start = datetime.combine(day, datetime.min.time(), tzinfo=tz)
+    end = start + timedelta(days=1)
+    args = {
+        "calendarId": "primary",
+        "startTime": start.isoformat(),
+        "endTime": end.isoformat(),
+        "pageSize": 10,
+    }
+    return {
+        "reasoning": (
+            f"GOAL: Retrieve Google Calendar events for {day.isoformat()}. "
+            "DATA: Events in that day's time window. "
+            "TOOLS: list_events returns events from hosted Google Calendar MCP. "
+            "HISTORY: none. PLAN: Call list_events for primary calendar with explicit bounds."
+        ),
+        "clarification_needed": False,
+        "clarification_question": "",
+        "steps": [{"tool": "list_events", "args": args, "label": f"Calendar events {day.isoformat()}"}],
+    }
+
+
+def _extract_calendar_day(query: str, today: str):
+    q = (query or "").lower()
+    base = datetime.strptime(today, "%Y-%m-%d").date()
+    explicit = re.search(r"\b(20\d{2}-\d{2}-\d{2})\b", query or "")
+    if explicit:
+        return datetime.strptime(explicit.group(1), "%Y-%m-%d").date()
+    if "tomorrow" in q:
+        return base + timedelta(days=1)
+    if "yesterday" in q:
+        return base - timedelta(days=1)
+    return base
 
 
 # ── Standalone MCP server entry point ────────────────────────────────────────

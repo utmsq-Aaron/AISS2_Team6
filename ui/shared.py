@@ -65,6 +65,17 @@ def get_routes_mcp():
     except Exception:
         return None
 
+@st.cache_resource(show_spinner=False)
+def get_google_mcp():
+    if not google_connected():
+        return None
+    try:
+        from servers.google_cal import GoogleCalendarMCPServer
+        print("Using hosted Google Calendar MCP server.")
+        return GoogleCalendarMCPServer()
+    except Exception:
+        return None
+
 
 # ── Config validation ─────────────────────────────────────────────────────────
 
@@ -116,6 +127,11 @@ def garmin_connected() -> bool:
 def routes_connected() -> bool:
     return bool(os.getenv("ORS_API_KEY", ""))
 
+def google_connected() -> bool:
+    """True if Google token file exists."""
+    token_path = Path(".tokens/google.json")
+    return token_path.is_file()
+
 def is_locked() -> bool:
     """True when DO_LOCK=true in .env — blocks all UI access."""
     return os.getenv("DO_LOCK", "").lower() in ("1", "true")
@@ -127,6 +143,12 @@ _ROUTES_TOOLS = {"plan_route", "plan_circular_route", "get_elevation_profile", "
 
 def call_tool(name: str, args: dict) -> str:
     """Route a tool call to the correct MCP server and return its JSON result."""
+    google = get_google_mcp()
+    if google and not google.tools:
+        run_async(google.initialize())
+    if google and name in [t["name"] for t in google.tools]:
+        return run_async(google._dispatch(name, args))
+
     if name.startswith("get_garmin_"):
         garmin = get_garmin_mcp()
         if garmin is None:
@@ -173,4 +195,9 @@ def get_all_openai_tools() -> List[Dict]:
     routes = get_routes_mcp()
     if routes:
         tools += [_to_openai_tool(t) for t in routes.tools]
+    google = get_google_mcp()
+    if google:
+        if not google.tools:
+            run_async(google.initialize())
+        tools += [_to_openai_tool(t) for t in google.tools]
     return tools

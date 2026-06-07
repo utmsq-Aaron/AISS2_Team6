@@ -8,7 +8,7 @@ import urllib.parse
 import streamlit as st
 from dotenv import load_dotenv
 
-from ui.shared import garmin_connected, strava_connected
+from ui.shared import garmin_connected, strava_connected, google_connected
 from ui.styles import ACCENT, BG_CARD, BORDER, C_AMBER, C_GREEN, TEXT_MUTED, TEXT_PRIMARY
 
 load_dotenv()
@@ -38,8 +38,12 @@ def _step2_done() -> bool:
 def _step3_done() -> bool:
     return _mock() or garmin_connected()
 
+def _step4_done() -> bool:
+    from ui.shared import google_connected
+    return google_connected()
+
 def _all_done() -> bool:
-    return _step1_done() and _step2_done() and _step3_done()
+    return _step1_done() and _step2_done() and _step3_done() and _step4_done()
 
 
 # ── Visual helpers ─────────────────────────────────────────────────────────────
@@ -132,6 +136,7 @@ def render_setup() -> None:
         (".env",   _step1_done()),
         ("Strava", _step2_done()),
         ("Garmin", _step3_done()),
+        ("Google Calendar", _step4_done()),
     ]
     _progress_bar(steps)
 
@@ -180,6 +185,16 @@ def render_setup() -> None:
         else:
             _env_row("GARMIN_EMAIL",    "GARMIN_EMAIL",    "Garmin-Konto E-Mail")
             _env_row("GARMIN_PASSWORD", "GARMIN_PASSWORD", "Garmin-Konto Passwort")
+
+        st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
+        st.markdown(
+            f'<p style="font-size:11px;font-weight:600;color:{TEXT_MUTED};'
+            f'text-transform:uppercase;letter-spacing:.7px;margin:0 0 4px 0">Google Calendar</p>',
+            unsafe_allow_html=True,
+        )
+        _env_row("GOOGLE_CLIENT_ID",     "GOOGLE_CLIENT_ID",     "Google App ID")
+        _env_row("GOOGLE_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET", "Google App Secret")
+        _env_row("GOOGLE_REDIRECT_URI",  "GOOGLE_REDIRECT_URI",  "http://localhost:8080/google_callback")
 
         if not _step1_done():
             st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
@@ -374,20 +389,55 @@ python auth/garmin_setup.py
 Das Script liest die Credentials aus `.env`, speichert den Token lokal und fragt
 bei aktivem MFA nach einem OTP-Code. Danach ist der Health-Tab dauerhaft aktiv.
 """)
-                    if st.button("🔄  Token-Status prüfen", key="check_garmin"):
+                    if st.button("🔄  Token-Status prfen", key="check_garmin"):
                         st.rerun()
+
+    # ── Schritt 4: Google Calendar ────────────────────────────────────────────
+    with st.container(border=True):
+        _step_header(4, "Google Calendar verbinden (optional)", _step4_done())
+        st.caption("Aktiviert die Integration von Terminen.")
+
+        if _step4_done():
+            st.markdown(
+                f'<div style="margin-top:10px;padding:10px 14px;'
+                f'background:rgba(34,197,94,.08);border-left:3px solid {C_GREEN};'
+                f'border-radius:6px">'
+                f'<b>Google Calendar verbunden</b> — Token gefunden.</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            has_google_creds = _ok("GOOGLE_CLIENT_ID") and _ok("GOOGLE_CLIENT_SECRET")
+            if not has_google_creds:
+                st.warning(
+                    "`GOOGLE_CLIENT_ID` und `GOOGLE_CLIENT_SECRET` in `.env` eintragen.",
+                    icon="⚠️",
+                )
+            else:
+                st.markdown("""
+**Einmalig im Terminal ausfhren** (aus dem Projektverzeichnis):
+
+```
+python auth/google_oauth.py
+```
+
+Das Script ffnet automatisch einen Browser, in dem du HealthBot für den Google Kalender autorisierst.
+Danach ist Google Calendar verbunden.
+""")
+                if st.button("🔄  Token-Status prfen", key="check_google"):
+                    st.rerun()
 
     # ── Abschluss ─────────────────────────────────────────────────────────────
     if _all_done():
         st.divider()
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         col1.metric("Schritt 1", "✅ .env")
         col2.metric("Schritt 2", "✅ Strava")
         col3.metric("Schritt 3", "✅ Garmin")
+        col4.metric("Schritt 4", "✅ Google")
     else:
-        done_n = sum([_step1_done(), _step2_done(), _step3_done()])
+        done_n = sum([_step1_done(), _step2_done(), _step3_done(), _step4_done()])
         st.markdown(
             f'<p style="text-align:center;color:{TEXT_MUTED};font-size:13px;margin-top:16px">'
-            f'{done_n} von 3 Schritten abgeschlossen</p>',
+            f'{done_n} von 4 Schritten abgeschlossen</p>',
             unsafe_allow_html=True,
         )
