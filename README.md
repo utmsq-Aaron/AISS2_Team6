@@ -4,13 +4,17 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
 
 ## Highlights
 
-- **Dashboard** — activity map, summary metrics, training charts, Strava athlete stats.
+- **Dashboard** — activity map, summary metrics, training charts, live weather widget (temperature, wind, UV, pollen).
 - **Activity Analysis** — stream-based charts (HR, pace, elevation, cadence, power) with colourised route overlays selectable by metric.
 - **3D Flythrough** — cinematic GPS route replay with server-side MP4 export (Playwright + WebCodecs, frame-by-frame deterministic encoding).
 - **Health** — Garmin wellness trends: Body Battery, sleep stages, stress, HR, steps, training metrics, HRV.
 - **Chat** — four-agent Q&A: FetchingAgent → (VisualizationAgent ∥ FlyoverAgent) → ChatAgent, with inline charts, 3D flythrough video pinned to the message, and a live trace panel.
+- **Routes** — natural-language route planning powered by OpenRouteService: circular routes, A→B routes, trail search, isochrone maps.
 - **Sync** — export Garmin activities to Strava as FIT files with preview and selection controls.
+- **Settings** — configure all API connections (LLM key, Strava OAuth, Garmin, ORS) directly in the app.
 - **PIN barrier** — optional access PIN stored in `.streamlit/secrets.toml` blocks the entire app until authenticated.
+
+> **Note:** Strava's API became a paid service in May 2025. The app is fully functional without Strava — Garmin, Weather, and Routes work out of the box.
 
 ## Project Layout
 
@@ -29,8 +33,13 @@ fitdash/
 │   └── garmin_setup.py          # One-time Garmin MFA login
 │
 ├── servers/
-│   ├── strava.py                # Strava MCP server (SimpleMCPServer, 10 tools)
-│   ├── garmin.py                # Garmin MCP server (GarminMCPServer, 10 tools)
+│   ├── registry.py              # Central server registry — register once, auto-discovered everywhere
+│   ├── _base_server.py          # BaseMCPServer abstract base class
+│   ├── _template.py             # Copy this to create a new MCP server
+│   ├── strava.py                # Strava MCP server (10 tools)
+│   ├── garmin.py                # Garmin MCP server (12 tools)
+│   ├── routes.py                # OpenRouteService MCP server (4 tools)
+│   ├── weather.py               # Open-Meteo MCP server (3 tools, no API key required)
 │   └── agents/
 │       ├── _base.py             # Shared LLM utils (get_llm_client, llm_call, truncate, extract_json)
 │       ├── fetching.py          # FetchingAgent — plans + executes all data fetches
@@ -49,6 +58,8 @@ fitdash/
     ├── video_renderer.py        # Server-side MP4 renderer (Playwright + headless Chromium)
     ├── health.py                # Health tab
     ├── chat.py                  # Chat tab
+    ├── routes_explorer.py       # Routes tab
+    ├── settings.py              # Settings tab (API key management, OAuth flows)
     └── sync.py                  # Garmin → Strava export tab
 ```
 
@@ -356,10 +367,11 @@ To also render it as a chart in Chat, add a `@register("get_example_metric")` re
 
 ### Prerequisites
 
-- Python 3.10 or later
-- A [Strava API application](https://www.strava.com/settings/api) (callback domain: `localhost`)
-- An OpenAI-compatible API key (OpenAI, Azure OpenAI, or a local proxy)
-- *(Optional)* A Garmin Connect account for the Health and Sync tabs
+- Python 3.11 or later
+- A KIT Gateway API key (from the Übungsleitung / DSI portal) — or any OpenAI-compatible key
+- *(Optional)* A Garmin Connect account for the Health tab and activity data in Chat
+- *(Optional)* An [OpenRouteService](https://openrouteservice.org/dev/#/signup) key for route planning (free, no credit card)
+- *(Optional)* A Strava API application — note: Strava requires a paid subscription since May 2025
 
 ### Installation
 
@@ -390,13 +402,16 @@ cp .env.example .env
 
 | Variable | Required | Description |
 |---|---|---|
-| `CLIENT_ID` | Yes | Strava application client ID |
-| `CLIENT_SECRET` | Yes | Strava application client secret |
-| `OPENAI_API_KEY` | Yes | OpenAI (or compatible) API key |
-| `AGENT_MODEL` | Yes | Model name, e.g. `gpt-4o` or `claude-opus-4-7` |
-| `OPENAI_BASE_URL` | No | Custom API base URL — omit for openai.com |
-| `GARMIN_EMAIL` | No | Garmin Connect email (Health and Sync tabs) |
+| `OPENAI_API_KEY` | Yes | KIT Gateway key or any OpenAI-compatible key |
+| `OPENAI_BASE_URL` | Yes | `https://ai-gateway.dsi-experimente.de/v1` for KIT |
+| `AGENT_MODEL` | Yes | `kit.gpt-4.1` (recommended), or any model from `/v1/models` |
+| `GARMIN_EMAIL` | No | Garmin Connect email — enables Health tab and Chat |
 | `GARMIN_PASSWORD` | No | Garmin Connect password |
+| `ORS_API_KEY` | No | OpenRouteService key — enables Routes tab |
+| `CLIENT_ID` | No | Strava app client ID (paid API since May 2025) |
+| `CLIENT_SECRET` | No | Strava app client secret |
+
+All settings can also be configured at runtime in the **⚙️ Settings** tab — no need to edit `.env` manually.
 
 ### Access PIN (optional)
 
@@ -442,6 +457,9 @@ Open [http://localhost:8501](http://localhost:8501). For phone/remote access, se
 
 | Symptom | Fix |
 |---|---|
+| `LLM call failed: 400 AuthenticationError` | Check `OPENAI_API_KEY` in Settings tab — placeholder values starting with `your_` are rejected. Ensure you are connected to the KIT network or VPN. |
+| `LLM call failed: 400 invalid subscription key` | The model name is wrong — use `kit.gpt-4.1`. Check available models at `https://ai-gateway.dsi-experimente.de/v1/models`. |
+| Chat response takes 30–60 s | Normal for `kit.gpt-4.1` under gateway load. Weather queries use a fast-path (< 1 s planning). |
 | Strava auth fails | Delete `.tokens/strava.json` and reload the app to re-authorise |
 | Garmin tokens expired | Re-run `python auth/garmin_setup.py` |
 | Port 8080 already in use | Kill the process or change `REDIRECT_URI` in `auth/strava_oauth.py` |

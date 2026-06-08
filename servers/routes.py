@@ -26,6 +26,8 @@ from typing import Any, Dict, List, Optional
 import requests
 from dotenv import load_dotenv
 
+from servers._base_server import BaseMCPServer
+
 load_dotenv()
 
 ORS_BASE = "https://api.openrouteservice.org"
@@ -109,11 +111,11 @@ def _elevation_stats(elevations: List[float]) -> Dict[str, Any]:
 
 # ── MCP Server ────────────────────────────────────────────────────────────────
 
-class RoutesMCPServer:
-    """JSON-RPC MCP server exposing 5 route-planning tools."""
+class RoutesMCPServer(BaseMCPServer):
+    """Route planning and trail discovery via OpenRouteService + OpenStreetMap."""
 
-    def __init__(self) -> None:
-        self.tools = [
+    def list_tools(self) -> list:
+        return [
             {
                 "name": "plan_route",
                 "description": (
@@ -276,17 +278,15 @@ class RoutesMCPServer:
         except Exception as e:
             return {"jsonrpc": "2.0", "id": rid, "error": {"code": -1, "message": str(e)}}
 
-    async def _dispatch(self, tool_name: str, args: Dict[str, Any]) -> str:
+    async def call_tool(self, tool_name: str, args: Dict[str, Any]) -> str:
         print(f"[routes] {tool_name}({json.dumps(args)})", file=sys.stderr)
         handlers = {
-            "plan_route":           self._plan_route,
-            "plan_circular_route":  self._plan_circular_route,
+            "plan_route":            self._plan_route,
+            "plan_circular_route":   self._plan_circular_route,
             "get_elevation_profile": self._get_elevation_profile,
-            "explore_trails":       self._explore_trails,
-            "get_isochrone":        self._get_isochrone,
+            "explore_trails":        self._explore_trails,
+            "get_isochrone":         self._get_isochrone,
         }
-        if tool_name not in handlers:
-            raise ValueError(f"Unknown routes tool: {tool_name}")
         return await handlers[tool_name](args)
 
     # ── Tool implementations ──────────────────────────────────────────────────

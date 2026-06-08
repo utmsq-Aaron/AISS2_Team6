@@ -12,6 +12,7 @@ import zipfile
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+import plotly.graph_objects as go
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -477,7 +478,6 @@ def render_sync() -> None:
 
     # Heavy imports only when both services are connected
     import requests
-    import plotly.graph_objects as go
     from ui.styles import ACCENT, BORDER, TEXT_MUTED, activity_icon
 
     activities: List[Dict] = st.session_state.get("sync_activities", [])

@@ -69,20 +69,15 @@ def get_routes_mcp():
 # ── Config validation ─────────────────────────────────────────────────────────
 
 def validate_config() -> list[str]:
-    """Return a list of missing/invalid configuration items.
-
-    Called at app startup. Returns empty list when everything is properly configured.
-    Does NOT raise — callers decide how to surface warnings.
-    """
+    """Return warnings for missing config. Driven by the server registry."""
+    from servers.registry import config_status
     issues = []
-    if not os.getenv("CLIENT_ID"):
-        issues.append("CLIENT_ID not set — Strava data unavailable")
-    if not os.getenv("CLIENT_SECRET"):
-        issues.append("CLIENT_SECRET not set — Strava data unavailable")
+    for entry in config_status():
+        if not entry["available"]:
+            missing = ", ".join(entry["missing_env"])
+            issues.append(f"{entry['key'].capitalize()} nicht verfügbar — fehlende Env-Vars: {missing}")
     if not os.getenv("OPENAI_API_KEY"):
-        issues.append("OPENAI_API_KEY not set — AI features unavailable")
-    if not os.getenv("AGENT_MODEL"):
-        issues.append("AGENT_MODEL not set — using default gpt-4o (may be wrong for your provider)")
+        issues.append("OPENAI_API_KEY nicht gesetzt — KI-Features deaktiviert")
     return issues
 
 
@@ -117,21 +112,10 @@ def routes_connected() -> bool:
 
 # ── Tool dispatcher ───────────────────────────────────────────────────────────
 
-_ROUTES_TOOLS = {"plan_route", "plan_circular_route", "get_elevation_profile", "explore_trails", "get_isochrone"}
-
 def call_tool(name: str, args: dict) -> str:
-    """Route a tool call to the correct MCP server and return its JSON result."""
-    if name.startswith("get_garmin_"):
-        garmin = get_garmin_mcp()
-        if garmin is None:
-            return json.dumps({"error": "Garmin not connected. Run: python auth/garmin_setup.py"})
-        return run_async(garmin._dispatch(name, args))
-    if name in _ROUTES_TOOLS:
-        routes = get_routes_mcp()
-        if routes is None:
-            return json.dumps({"error": "Routes server unavailable. Check ORS_API_KEY in .env"})
-        return run_async(routes._dispatch(name, args))
-    return run_async(get_strava_mcp()._dispatch(name, args))
+    """Route a tool call to the correct MCP server via the registry."""
+    from servers.registry import dispatch
+    return run_async(dispatch(name, args))
 
 
 # ── OpenAI client ─────────────────────────────────────────────────────────────
@@ -148,23 +132,7 @@ MODEL: str = os.getenv("AGENT_MODEL") or "gpt-4o"
 
 # ── OpenAI tool-spec builder ──────────────────────────────────────────────────
 
-def _to_openai_tool(mcp_tool: Dict) -> Dict:
-    return {
-        "type": "function",
-        "function": {
-            "name":        mcp_tool["name"],
-            "description": mcp_tool.get("description", ""),
-            "parameters":  mcp_tool.get("inputSchema", {"type": "object", "properties": {}, "required": []}),
-        },
-    }
-
 def get_all_openai_tools() -> List[Dict]:
-    """Return combined Strava + Garmin + Routes tool specs in OpenAI function-calling format."""
-    tools = [_to_openai_tool(t) for t in get_strava_mcp().tools]
-    garmin = get_garmin_mcp()
-    if garmin:
-        tools += [_to_openai_tool(t) for t in garmin.tools]
-    routes = get_routes_mcp()
-    if routes:
-        tools += [_to_openai_tool(t) for t in routes.tools]
-    return tools
+    """Return all tool specs from every registered & available MCP server."""
+    from servers.registry import all_openai_tools
+    return all_openai_tools()

@@ -369,15 +369,44 @@ def render_chat() -> None:
             with st.chat_message("user"):
                 st.markdown(prompt)
 
-            status_placeholder = st.empty()
-
-            def _update_status(msg: str) -> None:
-                status_placeholder.caption(f"⏳ {msg}")
-
             with st.chat_message("assistant", avatar="🏃"):
                 history_before = st.session_state.chat_history[:-1]
-                answer, trace  = orchestrator.run(prompt, history_before, _update_status)
-                status_placeholder.empty()
+
+                # ── Live progress via st.status ───────────────────────────────
+                _phase_icons = {
+                    "1": "🔍", "2": "📊", "3": "💬",
+                }
+                _status_box  = st.status("⏳ Analysiere Anfrage…", expanded=True)
+                _status_steps: list = []
+
+                def _update_status(msg: str) -> None:
+                    # Extract phase number for icon
+                    icon = "⏳"
+                    for k, v in _phase_icons.items():
+                        if f"Phase {k}" in msg:
+                            icon = v
+                            break
+                    _status_steps.append(f"{icon} {msg}")
+                    with _status_box:
+                        for step in _status_steps:
+                            st.write(step)
+
+                answer, trace = orchestrator.run(prompt, history_before, _update_status)
+
+                # Close status box — green checkmark on success, red on error
+                if trace.get("error"):
+                    _status_box.update(
+                        label=f"❌ Fehler nach {sum(trace.get('timing', {}).values())} ms",
+                        state="error",
+                        expanded=True,
+                    )
+                else:
+                    total_ms = sum(trace.get("timing", {}).values())
+                    _status_box.update(
+                        label=f"✅ Fertig in {total_ms / 1000:.1f}s",
+                        state="complete",
+                        expanded=False,
+                    )
 
                 is_flythrough = any(
                     a.get("type") == "flythrough"

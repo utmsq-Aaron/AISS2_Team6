@@ -104,7 +104,7 @@ class FitDashOrchestrator:
 
         try:
             # ── Phase 1: FetchingAgent ────────────────────────────────────────
-            _cb(progress_cb, "Planning data retrieval…")
+            _cb(progress_cb, "Phase 1/3 — Daten planen & abrufen…")
             t0 = time.perf_counter()
             data_json = fetch(
                 query       = user_input,
@@ -179,7 +179,7 @@ class FitDashOrchestrator:
                 fly_json     = '{"flyover_action": null}'
                 phase2_label = "skipped (clarification needed or all sources failed)"
             elif is_flythrough_query:
-                _cb(progress_cb, "Resolving flythrough…")
+                _cb(progress_cb, "Phase 2/3 — Flythrough wird aufgelöst…")
                 viz_json     = '{"viz_actions": []}'
                 try:
                     fly_json = flyover(query=user_input, data_results=data_json)
@@ -187,7 +187,7 @@ class FitDashOrchestrator:
                     fly_json = '{"flyover_action": null}'
                 phase2_label = "FlyoverAgent only (flythrough query)"
             else:
-                _cb(progress_cb, "Selecting charts and checking for flythrough…")
+                _cb(progress_cb, "Phase 2/3 — Charts & Flythrough auswählen…")
                 trace["route_data"] = _extract_route_data(fetch_data.get("results", []))
                 with ThreadPoolExecutor(max_workers=2) as pool:
                     viz_fut = pool.submit(visualize, query=user_input, data_results=data_json)
@@ -215,7 +215,7 @@ class FitDashOrchestrator:
             trace["actions"] = _parse_actions(viz_json, fly_json)
 
             # ── Phase 3: ChatAgent ─────────────────────────────────────────────
-            _cb(progress_cb, "Composing answer…")
+            _cb(progress_cb, "Phase 3/3 — Antwort wird formuliert…")
             t0 = time.perf_counter()
             answer = chat(
                 query                  = user_input,

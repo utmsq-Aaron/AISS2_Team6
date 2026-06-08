@@ -1,4 +1,4 @@
-"""FetchingAgent — plans and executes all Strava/Garmin MCP data fetches.
+"""FetchingAgent — plans and executes all MCP data fetches (Strava, Garmin, Weather, Routes).
 
 Multi-agent role: data retrieval specialist.
   - Receives the user query and today's date
@@ -25,7 +25,7 @@ from servers.agents._base import llm_call, truncate, extract_json, FLYTHROUGH_KE
 
 mcp = FastMCP(
     "FetchingAgent",
-    instructions="Plans and executes all fitness data retrievals via Strava/Garmin MCP tools.",
+    instructions="Plans and executes all fitness and environment data retrievals via MCP tools.",
 )
 
 # ── Planner prompt ────────────────────────────────────────────────────────────
@@ -87,6 +87,11 @@ RULES:
       does not resolve it AND no clarification on this topic was already asked.
       Default to fetching. Write exactly ONE specific question.
   11. MAX STEPS — maximum {max_steps} steps.
+  12. WEATHER TOOLS — use get_current_weather, get_pollen_levels, or get_uv_index when the
+      user asks about weather, temperature, wind, pollen/allergy, or UV index.
+      These tools require no arguments. Combine with fitness data if the question
+      links both (e.g. "is today good for a run?"). Never fabricate forecasts —
+      only current conditions are available from these tools.
 
 Available tools:
 {tool_descriptions}
@@ -190,13 +195,93 @@ def fetch_data(query: str, today: str, history: str = "[]") -> str:
 
 # ── In-process entry point (called by orchestrator, no transport overhead) ────
 
+_WEATHER_KEYWORDS = frozenset({
+    "wetter", "weather", "temperatur", "temperature", "regen", "rain", "sonne", "sun",
+    "wolken", "cloud", "wind", "schnee", "snow", "pollen", "allergie", "allergy",
+    "uv", "uv-index", "uvindex", "luftqualität", "air quality",
+})
+
+_WEATHER_FAST_PATH = {
+    # keyword → (tool_name, label)
+    "pollen":    ("get_pollen_levels",   "Pollenwerte Karlsruhe"),
+    "allergie":  ("get_pollen_levels",   "Pollenwerte Karlsruhe"),
+    "allergy":   ("get_pollen_levels",   "Pollenwerte Karlsruhe"),
+    "uv":        ("get_uv_index",        "UV-Index Karlsruhe"),
+}
+
+
+def _weather_fast_path(query: str, progress_cb=None) -> str | None:
+    """Bypass LLM planning for pure weather/pollen/UV questions.
+
+    Returns a FetchingAgent-compatible JSON string if the query is a simple
+    weather question, or None if it needs full LLM planning.
+    """
+    import json as _json
+    from ui.shared import call_tool
+
+    q = query.lower()
+    if not any(kw in q for kw in _WEATHER_KEYWORDS):
+        return None
+
+    # Determine which tool(s) to call
+    steps = []
+    if any(kw in q for kw in ("pollen", "allergie", "allergy")):
+        steps.append(("get_pollen_levels", "Pollenwerte Karlsruhe"))
+    if any(kw in q for kw in ("uv", "uv-index", "uvindex")):
+        steps.append(("get_uv_index", "UV-Index Karlsruhe"))
+    if not steps:
+        steps.append(("get_current_weather", "Aktuelles Wetter Karlsruhe"))
+
+    if progress_cb:
+        try:
+            tool_names = ", ".join(s[0] for s in steps)
+            progress_cb(f"Fast-Path: {tool_names}")
+        except Exception:
+            pass
+
+    results = []
+    for tool_name, label in steps:
+        try:
+            raw = call_tool(tool_name, {})
+            results.append({"tool": tool_name, "label": label, "result": raw})
+        except Exception as e:
+            results.append({"tool": tool_name, "label": label, "error": str(e)})
+
+    return _json.dumps({
+        "reasoning":            f"Fast-path: weather query detected, skipped LLM planner.",
+        "clarification_needed": False,
+        "clarification_question": "",
+        "steps":                [{"tool": t, "args": {}, "label": l} for t, l in steps],
+        "results":              results,
+        "data_summary":         f"{len(results)} weather tool(s) called directly",
+        "key_findings":         [],
+        "total_ms":             0,
+    })
+
+
+def _get_cached_tools():
+    """Return (tools, tool_desc, valid_names) — built once per process, never rebuilt."""
+    from ui.shared import get_all_openai_tools
+    if not hasattr(_get_cached_tools, "_cache"):
+        tools = get_all_openai_tools()
+        _get_cached_tools._cache = (
+            tools,
+            _describe_tools(tools),
+            {t["function"]["name"] for t in tools},
+        )
+    return _get_cached_tools._cache
+
+
 def call_sync(query: str, today: str, history: list = None, progress_cb=None) -> str:
     """Callable directly in-process by the orchestrator (bypasses MCP transport)."""
-    from ui.shared import call_tool, get_all_openai_tools
+    from ui.shared import call_tool
 
-    tools      = get_all_openai_tools()
-    tool_desc  = _describe_tools(tools)
-    valid_names = {t["function"]["name"] for t in tools}
+    # ── Fast-path: weather/pollen/UV queries skip LLM planning entirely ────────
+    fast = _weather_fast_path(query, progress_cb)
+    if fast is not None:
+        return fast
+
+    tools, tool_desc, valid_names = _get_cached_tools()
 
     # ── Plan ──────────────────────────────────────────────────────────────────
     system = _PLANNER_SYSTEM.format(
@@ -225,10 +310,17 @@ def call_sync(query: str, today: str, history: list = None, progress_cb=None) ->
     if clarification_needed and not clarification_question:
         clarification_question = "Could you be more specific about what you'd like to see?"
 
-    # Surface plan reasoning immediately
-    if progress_cb and reasoning:
+    # Surface plan as a short readable status (not the full GOAL/DATA/TOOLS block)
+    if progress_cb and raw_steps:
         try:
-            progress_cb(f"Plan: {reasoning}")
+            tool_names = ", ".join(s.get("tool", "?") for s in raw_steps[:4])
+            suffix = f" +{len(raw_steps)-4} mehr" if len(raw_steps) > 4 else ""
+            progress_cb(f"Plan: {len(raw_steps)} Tool-Call(s) — {tool_names}{suffix}")
+        except Exception:
+            pass
+    elif progress_cb and clarification_needed:
+        try:
+            progress_cb("Brauche mehr Infos…")
         except Exception:
             pass
 

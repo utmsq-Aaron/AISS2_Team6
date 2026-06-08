@@ -39,11 +39,10 @@ def _pin_gate() -> None:
     Set APP_PIN in .streamlit/secrets.toml (or as env var APP_PIN).
     If APP_PIN is not configured the gate is bypassed (local dev convenience).
     """
-    expected = (
-        st.secrets.get("APP_PIN")
-        if hasattr(st, "secrets") and "APP_PIN" in st.secrets
-        else os.getenv("APP_PIN", "")
-    )
+    try:
+        expected = st.secrets.get("APP_PIN") or os.getenv("APP_PIN", "")
+    except Exception:
+        expected = os.getenv("APP_PIN", "")
     if not expected:
         return  # no PIN configured — open access
 
@@ -90,22 +89,33 @@ with st.sidebar:
     st.caption("AI-powered sports analytics")
     st.divider()
 
-    # Connection status
-    st.markdown("### Connections")
-    _strava_ok = strava_connected()
-    _garmin_ok = garmin_connected()
+    # Connection status — colored dots only
+    from servers.registry import config_status
+    from ui.shared import strava_connected, garmin_connected, routes_connected
 
-    if _strava_ok:
-        st.markdown('<span class="badge-ok">✅ Strava connected</span>', unsafe_allow_html=True)
-    else:
-        st.markdown('<span class="badge-err">❌ Strava — not authorized</span>', unsafe_allow_html=True)
-        st.caption("Strava auth happens automatically on first data load.")
+    _labels = {"strava": "Strava", "garmin": "Garmin", "routes": "Routes", "weather": "Open-Meteo"}
 
-    if _garmin_ok:
-        st.markdown('<span class="badge-ok">✅ Garmin connected</span>', unsafe_allow_html=True)
-    else:
-        st.markdown('<span class="badge-warn">⚠️ Garmin — not configured</span>', unsafe_allow_html=True)
-        st.caption("`python auth/garmin_setup.py`")
+    def _is_truly_connected(key: str) -> bool:
+        if key == "weather": return True
+        if key == "strava":  return strava_connected()
+        if key == "garmin":  return garmin_connected()
+        if key == "routes":  return routes_connected()
+        return False
+
+    dots_html = ""
+    for _srv in config_status():
+        _key   = _srv["key"]
+        _label = _labels.get(_key, _key.capitalize())
+        _color = "#22c55e" if _is_truly_connected(_key) else "#ef4444"
+        dots_html += (
+            f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0">'
+            f'<span style="width:10px;height:10px;border-radius:50%;'
+            f'background:{_color};display:inline-block;flex-shrink:0"></span>'
+            f'<span style="font-size:0.85rem;color:#ccc">{_label}</span>'
+            f'</div>'
+        )
+    st.markdown(dots_html, unsafe_allow_html=True)
+    st.caption("⚙️ Settings")
 
     st.divider()
 
@@ -134,8 +144,8 @@ with st.sidebar:
             st.rerun()
 
 # ── Tab layout ────────────────────────────────────────────────────────────────
-tab_dash, tab_health, tab_routes, tab_chat, tab_sync = st.tabs(
-    ["📊  Dashboard", "🏥  Health", "🗺️  Routen", "💬  Chat", "🔁  Sync"]
+tab_dash, tab_health, tab_routes, tab_chat, tab_sync, tab_settings = st.tabs(
+    ["📊  Dashboard", "🏥  Health", "🗺️  Routen", "💬  Chat", "🔁  Sync", "⚙️  Settings"]
 )
 
 with tab_dash:
@@ -157,3 +167,7 @@ with tab_chat:
 with tab_sync:
     from ui.sync import render_sync
     render_sync()
+
+with tab_settings:
+    from ui.settings import render_settings
+    render_settings()

@@ -20,6 +20,35 @@ from ui.styles import (
 # ── Cached data loaders ───────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300, show_spinner=False)
+def load_weather() -> Dict:
+    """Fetch weather, pollen and UV in parallel — single network round-trip budget."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from servers.registry import dispatch
+    from ui.shared import run_async
+    import json
+
+    calls = {
+        "weather": ("get_current_weather", {}),
+        "pollen":  ("get_pollen_levels",   {}),
+        "uv":      ("get_uv_index",        {}),
+    }
+
+    def _fetch(key, tool, args):
+        return key, json.loads(run_async(dispatch(tool, args)))
+
+    result = {}
+    try:
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = {pool.submit(_fetch, k, t, a): k for k, (t, a) in calls.items()}
+            for fut in as_completed(futures, timeout=12):
+                key, data = fut.result()
+                result[key] = data
+        result["error"] = None
+    except Exception as e:
+        result["error"] = str(e)
+    return result
+
+@st.cache_data(ttl=300, show_spinner=False)
 def load_activities(limit: int = 2000) -> List[Dict]:
     from servers.strava import strava_api
     return run_async(strava_api.get_activities(limit=limit))
@@ -217,6 +246,50 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
         if since: info_parts.append(f"Member since {since}")
         if athlete.get("premium"): info_parts.append("⭐ Premium")
         st.caption("  ·  ".join(info_parts))
+
+    # ── Weather widget ────────────────────────────────────────────────────────
+    wd = load_weather()
+    if not wd.get("error"):
+        w  = wd.get("weather", {})
+        uv = wd.get("uv", {})
+        p  = wd.get("pollen", {}).get("pollen", {})
+
+        _WMO = {
+            0: "☀️ Clear", 1: "🌤️ Mainly clear", 2: "⛅ Partly cloudy", 3: "☁️ Overcast",
+            45: "🌫️ Foggy", 48: "🌫️ Foggy",
+            51: "🌦️ Light drizzle", 53: "🌦️ Drizzle", 55: "🌧️ Dense drizzle",
+            61: "🌧️ Light rain", 63: "🌧️ Rain", 65: "🌧️ Heavy rain",
+            71: "🌨️ Light snow", 73: "🌨️ Snow", 75: "❄️ Heavy snow",
+            80: "🌦️ Rain showers", 81: "🌧️ Rain showers", 82: "⛈️ Violent showers",
+            95: "⛈️ Thunderstorm", 96: "⛈️ Thunderstorm", 99: "⛈️ Thunderstorm",
+        }
+        _UV_RISK = {
+            "low": "🟢", "moderate": "🟡", "high": "🟠", "very high": "🔴", "extreme": "🟣"
+        }
+        _POL_RISK = {"none": "🟢", "low": "🟡", "moderate": "🟠", "high": "🔴", "very high": "🟣"}
+
+        condition = _WMO.get(w.get("weather_code", -1), "🌡️")
+        uv_risk   = uv.get("risk", "?")
+        uv_icon   = _UV_RISK.get(uv_risk, "")
+
+        # Highest pollen type
+        top_pollen = max(
+            p.items(),
+            key=lambda kv: kv[1].get("value_grains_m3", 0),
+            default=(None, {}),
+        ) if p else (None, {})
+        pol_level = top_pollen[1].get("level", "none") if top_pollen[0] else "none"
+        pol_icon  = _POL_RISK.get(pol_level, "")
+
+        wc1, wc2, wc3, wc4 = st.columns(4)
+        wc1.metric("Wetter Karlsruhe", f"{condition}", f"{w.get('temperature_c', '?')} °C")
+        wc2.metric("Wind",             f"{w.get('wind_speed_kmh', '?')} km/h")
+        wc3.metric("UV Index",         f"{uv_icon} {uv.get('uv_index', '?')}", uv_risk)
+        wc4.metric(
+            "Pollen",
+            f"{pol_icon} {pol_level.title()}",
+            top_pollen[0].replace("_pollen", "").title() if top_pollen[0] else "—",
+        )
 
     st.divider()
 

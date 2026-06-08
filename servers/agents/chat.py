@@ -117,6 +117,19 @@ FLYTHROUGH NEVER:
     it was found by search criteria rather than exact name from the user.
   • Never re-ask for a parameter the user has already provided.
 
+WEATHER RESPONSES — apply whenever weather, pollen, or UV data appears in results:
+  • Weather: translate weather_code to plain language. Mention temperature and wind
+    naturally. Keep it 2–3 sentences.
+    Codes: 0=clear sky, 1–3=mainly clear→overcast, 45/48=fog, 51–57=drizzle,
+    61–67=rain, 71–77=snow, 80–82=rain showers, 95–99=thunderstorm.
+  • Pollen: classify each type — none (0), low (1–10), moderate (11–30), high (31–100),
+    very high (>100) Grains/m³. Highlight elevated types. Add one practical tip for
+    allergy sufferers when any type is moderate or higher.
+  • UV Index: use the WHO scale — low (<3), moderate (3–5), high (6–7),
+    very high (8–10), extreme (11+). State value, category, and one recommendation.
+  • Never fabricate forecasts — only current conditions are available; say so clearly
+    if the user asks about tomorrow or future weather.
+
 Today is {today}.
 """
 
@@ -279,7 +292,13 @@ def call_sync(
         "content": f"{query}\n\n---\nData retrieved:\n\n{data_block}",
     })
 
-    resp = client.chat.completions.create(model=model, messages=messages, temperature=0.3)
+    resp = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=0.3,
+        max_tokens=1024,
+        timeout=45,
+    )
     return resp.choices[0].message.content or ""
 
 

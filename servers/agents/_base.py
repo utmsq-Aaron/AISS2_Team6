@@ -33,7 +33,8 @@ def llm_call(
     temperature: float = 0,
     json_mode: bool = False,
     history: Optional[list] = None,
-    max_retries: int = 4,
+    max_retries: int = 2,
+    timeout: int = 60,
 ) -> str:
     """Single LLM call with exponential backoff for rate-limit and transient errors."""
     client, model = get_llm_client()
@@ -47,7 +48,7 @@ def llm_call(
             messages.append({"role": msg["role"], "content": content})
     messages.append({"role": "user", "content": user})
 
-    kwargs = dict(model=model, messages=messages, temperature=temperature)
+    kwargs = dict(model=model, messages=messages, temperature=temperature, timeout=timeout)
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
 
@@ -59,14 +60,14 @@ def llm_call(
         except Exception as exc:
             last_exc = exc
             status = getattr(getattr(exc, "response", None), "status_code", None)
-            # Retry on rate-limit (429), server errors (5xx), and transient 404s
-            if status in (429, 500, 502, 503, 504) or (status == 404 and attempt < 2):
+            # Hard-fail immediately on 400/401 — wrong model name, bad key, etc.
+            # Never retry these: they won't get better, they just waste time.
+            if status in (400, 401):
+                break
+            # Retry on rate-limit (429) or transient server errors (5xx)
+            if status in (429, 500, 502, 503, 504):
                 delay = (2 ** attempt) + random.uniform(0, 1)
                 time.sleep(delay)
-                continue
-            # For json_mode failures, retry without it (some providers don't support it)
-            if json_mode and attempt == 0:
-                kwargs.pop("response_format", None)
                 continue
             break
 
