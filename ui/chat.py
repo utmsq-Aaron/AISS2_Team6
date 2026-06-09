@@ -12,7 +12,8 @@ import streamlit as st
 
 @st.cache_resource(show_spinner=False)
 def _get_orchestrator():
-    from ui.orchestrator import FitDashOrchestrator
+    # New engine: tool-agnostic tool-use loop over the MCP servers (core/).
+    from core.orchestrator import FitDashOrchestrator
     return FitDashOrchestrator()
 
 
