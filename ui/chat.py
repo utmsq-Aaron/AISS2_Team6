@@ -79,7 +79,7 @@ def _render_route_map(route_data: Dict, key_suffix: str = "") -> None:
         if data.get("has_more") and col_btn.button("Mehr laden ▶", key=f"more_{key_suffix}"):
             from ui.shared import call_tool
             new_offset = st.session_state[page_key] + len(cached_trails)
-            raw = call_tool("explore_trails", {
+            raw = call_tool("routes__explore_trails", {
                 "lat":        data["search_centre"]["lat"],
                 "lon":        data["search_centre"]["lon"],
                 "radius_km":  data["radius_km"],

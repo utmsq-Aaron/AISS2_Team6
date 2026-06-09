@@ -110,7 +110,7 @@ def _render_map(tool: str, data: dict, key: str) -> None:
             if st.button("Mehr laden ▶", key=f"more_{key}"):
                 next_offset = data.get("offset", 0) + data.get("page_size", 5)
                 with st.spinner("Lade nächste Seite…"):
-                    new_raw = call_tool("explore_trails", {
+                    new_raw = call_tool("routes__explore_trails", {
                         "lat":        centre.get("lat"),
                         "lon":        centre.get("lon"),
                         "radius_km":  data.get("radius_km", 15),
@@ -255,7 +255,7 @@ def render_routes_explorer() -> None:
     if st.button(run_label, type="primary", use_container_width=True):
         with st.spinner(f"Rufe {tool_choice} auf…"):
             try:
-                raw = call_tool(tool_choice, args)
+                raw = call_tool(f"routes__{tool_choice}", args)
                 result = json.loads(raw)
                 st.session_state["rex_result"] = result
                 st.session_state["rex_tool"]   = tool_choice

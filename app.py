@@ -89,24 +89,23 @@ with st.sidebar:
     st.caption("AI-powered sports analytics")
     st.divider()
 
-    # Connection status — colored dots only
-    from servers.registry import config_status
+    # Connection status — colored dots from core.config.MCP_SERVERS
+    from core.config import MCP_SERVERS
     from ui.shared import strava_connected, garmin_connected, routes_connected
 
-    _labels = {"strava": "Strava", "garmin": "Garmin", "routes": "Routes", "weather": "Open-Meteo"}
+    _labels = {"strava": "Strava", "garmin": "Garmin", "routes": "Routes", "weather": "Open-Meteo", "calendar": "Calendar"}
 
-    def _is_truly_connected(key: str) -> bool:
-        if key == "weather": return True
+    def _is_connected(key: str) -> bool:
+        if key in ("weather", "calendar"): return True
         if key == "strava":  return strava_connected()
         if key == "garmin":  return garmin_connected()
         if key == "routes":  return routes_connected()
         return False
 
     dots_html = ""
-    for _srv in config_status():
-        _key   = _srv["key"]
+    for _key in MCP_SERVERS:
         _label = _labels.get(_key, _key.capitalize())
-        _color = "#22c55e" if _is_truly_connected(_key) else "#ef4444"
+        _color = "#22c55e" if _is_connected(_key) else "#ef4444"
         dots_html += (
             f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0">'
             f'<span style="width:10px;height:10px;border-radius:50%;'

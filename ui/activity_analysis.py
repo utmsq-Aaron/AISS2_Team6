@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from streamlit_folium import st_folium
 
-from ui.shared import get_strava_mcp, run_async
+from ui.shared import call_tool
 from ui.styles import (
     ACCENT, C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_ROSE,
     DARK_MAP_ATTR, DARK_MAP_TILES, TEXT_MUTED, chart_style,
@@ -24,9 +24,7 @@ _MAX_PACE_OUTLIER_MIN_KM = 20   # pace values above this are GPS noise, not real
 
 @st.cache_data(ttl=600, show_spinner=False)
 def _load_streams(activity_id: int) -> Dict:
-    mcp = get_strava_mcp()
-    raw = run_async(mcp._dispatch("get_activity_streams", {"activity_id": activity_id}))
-    return json.loads(raw)
+    return json.loads(call_tool("strava__get_activity_streams", {"activity_id": activity_id}))
 
 
 # ── Colour helpers ────────────────────────────────────────────────────────────

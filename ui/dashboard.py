@@ -11,7 +11,7 @@ import polyline as pl
 import streamlit as st
 from streamlit_folium import st_folium
 
-from ui.shared import run_async, strava_connected
+from ui.shared import call_tool, strava_connected
 from ui.styles import (
     ACTIVITY_ICONS, CHART_COLORS, DARK_MAP_ATTR, DARK_MAP_TILES,
     STRAVA_ORANGE, activity_icon, chart_style,
@@ -21,25 +21,23 @@ from ui.styles import (
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_weather() -> Dict:
-    """Fetch weather, pollen and UV in parallel — single network round-trip budget."""
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    from servers.registry import dispatch
-    from ui.shared import run_async
+    """Fetch weather, pollen and UV in parallel via ToolHost."""
     import json
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     calls = {
-        "weather": ("get_current_weather", {}),
-        "pollen":  ("get_pollen_levels",   {}),
-        "uv":      ("get_uv_index",        {}),
+        "weather": "weather__get_current_weather",
+        "pollen":  "weather__get_pollen_levels",
+        "uv":      "weather__get_uv_index",
     }
 
-    def _fetch(key, tool, args):
-        return key, json.loads(run_async(dispatch(tool, args)))
+    def _fetch(key, tool_name):
+        return key, json.loads(call_tool(tool_name, {}))
 
-    result = {}
+    result: Dict = {}
     try:
         with ThreadPoolExecutor(max_workers=3) as pool:
-            futures = {pool.submit(_fetch, k, t, a): k for k, (t, a) in calls.items()}
+            futures = {pool.submit(_fetch, k, t): k for k, t in calls.items()}
             for fut in as_completed(futures, timeout=12):
                 key, data = fut.result()
                 result[key] = data
@@ -48,17 +46,19 @@ def load_weather() -> Dict:
         result["error"] = str(e)
     return result
 
+
 @st.cache_data(ttl=300, show_spinner=False)
 def load_activities(limit: int = 2000) -> List[Dict]:
-    from servers.strava import strava_api
-    return run_async(strava_api.get_activities(limit=limit))
+    import json
+    raw = json.loads(call_tool("strava__get_activities", {"limit": limit}))
+    return raw.get("activities", [])
+
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_athlete_and_stats() -> Tuple[Dict, Dict]:
-    from servers.strava import strava_api
-    athlete = run_async(strava_api.get_athlete())
-    stats   = run_async(strava_api.get_athlete_stats(athlete["id"]))
-    return athlete, stats
+    import json
+    data = json.loads(call_tool("strava__get_athlete_profile", {}))
+    return data.get("profile", {}), data.get("official_stats", {})
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -68,12 +68,12 @@ def to_df(activities: List[Dict]) -> pd.DataFrame:
         return pd.DataFrame()
     rows = []
     for a in activities:
-        ds = a.get("start_date", "")
+        # Tool returns "date" as YYYY-MM-DD string
+        ds = a.get("date") or a.get("start_date", "")[:10]
         try:
-            dt = datetime.strptime(ds, "%Y-%m-%dT%H:%M:%SZ")
+            dt = datetime.strptime(ds, "%Y-%m-%d") if ds else None
         except (ValueError, TypeError):
             dt = None
-        spd = a.get("average_speed", 0)
         rows.append({
             "id":               a.get("id"),
             "name":             a.get("name", "Unknown"),
@@ -83,23 +83,33 @@ def to_df(activities: List[Dict]) -> pd.DataFrame:
             "year":             dt.year  if dt else None,
             "month":            dt.strftime("%Y-%m") if dt else None,
             "week":             dt.strftime("%Y-W%W") if dt else None,
-            "distance_km":      round(a.get("distance", 0) / 1000, 2),
-            "moving_time_min":  round(a.get("moving_time", 0) / 60, 1),
-            "elevation_m":      round(a.get("total_elevation_gain", 0), 0),
-            "avg_speed_kmh":    round(spd * 3.6, 2),
-            "avg_hr":           a.get("average_heartrate"),
-            "kudos":            a.get("kudos_count", 0),
+            "distance_km":      a.get("distance_km", 0),
+            "moving_time_min":  round(a.get("moving_time_hours", 0) * 60, 1),
+            "elevation_m":      round(a.get("elevation_gain_m", 0), 0),
+            "avg_speed_kmh":    a.get("avg_speed_kmh", 0),
+            "avg_hr":           a.get("avg_heart_rate"),
+            "kudos":            a.get("kudos", 0),
         })
     return pd.DataFrame(rows)
 
 def _fmt_totals(t: Optional[Dict]) -> Dict:
+    """Normalise a totals dict — handles both raw Strava API and pre-formatted tool output."""
     if not t:
         return {}
+    # Pre-formatted tool output already has distance_km, moving_time_hours, elevation_gain_m
+    if "distance_km" in t:
+        return {
+            "count":             t.get("count", 0),
+            "distance_km":       t.get("distance_km", 0),
+            "moving_time_hours": t.get("moving_time_hours", 0),
+            "elevation_gain_m":  t.get("elevation_gain_m", 0),
+        }
+    # Raw Strava API response (distance in meters, time in seconds, elevation in meters)
     return {
-        "count":              t.get("count", 0),
-        "distance_km":        round(t.get("distance", 0) / 1000, 1),
-        "moving_time_hours":  round(t.get("moving_time", 0) / 3600, 1),
-        "elevation_gain_m":   round(t.get("elevation_gain", 0), 0),
+        "count":             t.get("count", 0),
+        "distance_km":       round(t.get("distance", 0) / 1000, 1),
+        "moving_time_hours": round(t.get("moving_time", 0) / 3600, 1),
+        "elevation_gain_m":  round(t.get("elevation_gain", 0), 0),
     }
 
 def pace_str(avg_speed_kmh: float) -> str:
@@ -112,7 +122,8 @@ def pace_str(avg_speed_kmh: float) -> str:
 # ── Map helpers ───────────────────────────────────────────────────────────────
 
 def decode_route(activity: Dict) -> List[List[float]]:
-    encoded = (activity.get("map") or {}).get("summary_polyline", "")
+    # Tool returns map_polyline; fall back to nested map dict for raw API data
+    encoded = activity.get("map_polyline") or (activity.get("map") or {}).get("summary_polyline", "")
     if not encoded:
         return []
     try:
@@ -230,14 +241,15 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
     df = to_df(activities)
 
     # ── Athlete header ────────────────────────────────────────────────────────
-    name  = f"{athlete.get('firstname','')} {athlete.get('lastname','')}".strip()
+    name  = athlete.get("name") or f"{athlete.get('firstname','')} {athlete.get('lastname','')}".strip()
     parts = [athlete.get("city"), athlete.get("state"), athlete.get("country")]
     loc   = ", ".join(p for p in parts if p)
-    since = (athlete.get("created_at") or "")[:4]
+    since = (athlete.get("member_since") or athlete.get("created_at") or "")[:4]
 
     c_pic, c_info = st.columns([1, 8])
     with c_pic:
-        if url := athlete.get("profile"):
+        url = athlete.get("profile_url") or athlete.get("profile") or ""
+        if url.startswith("http"):
             st.image(url, width=68)
     with c_info:
         st.markdown(f"## {name}")
@@ -305,7 +317,12 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
     period_days = _DASH_PERIODS[period]
     if period_days > 0:
         cutoff = datetime.utcnow() - timedelta(days=period_days)
-        activities = [a for a in activities if a.get("start_date", "") >= cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")]
+        cutoff_str = cutoff.strftime("%Y-%m-%d")
+        # Tool returns "date" as YYYY-MM-DD; fall back to "start_date" ISO prefix
+        activities = [
+            a for a in activities
+            if (a.get("date") or a.get("start_date", "")[:10] or "") >= cutoff_str
+        ]
         df = to_df(activities)
 
     st.divider()
@@ -351,11 +368,11 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
                 st.markdown(f"**{activity_icon(sport)} {sel.get('name','')}**")
                 st.caption(f"{sport}  ·  {sel.get('start_date','')[:10]}")
 
-                dist_km = round(sel.get("distance", 0) / 1000, 2)
-                t_min   = round(sel.get("moving_time", 0) / 60)
-                elev    = round(sel.get("total_elevation_gain", 0))
-                spd     = sel.get("average_speed", 0) * 3.6
-                hr      = sel.get("average_heartrate")
+                dist_km = sel.get("distance_km", 0)
+                t_min   = round(sel.get("moving_time_hours", 0) * 60)
+                elev    = round(sel.get("elevation_gain_m", 0))
+                spd     = sel.get("avg_speed_kmh", 0)
+                hr      = sel.get("avg_heart_rate")
 
                 st.metric("Distance",  f"{dist_km} km")
                 st.metric("Duration",  f"{int(t_min//60)}h {int(t_min%60)}min" if t_min >= 60 else f"{int(t_min)} min")
@@ -509,26 +526,31 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
     st.markdown("### Official Strava Stats")
     tab_ytd, tab_4w, tab_all = st.tabs(["Year to Date", "Last 4 Weeks", "All Time"])
 
+    # stats is the official_stats dict from get_athlete_profile tool
+    ytd = stats.get("year_to_date", {})
+    lfw = stats.get("last_4_weeks", {})
+    alt = stats.get("all_time", {})
+
     with tab_ytd:
         _stats_table({
-            "Run":  _fmt_totals(stats.get("ytd_run_totals")),
-            "Ride": _fmt_totals(stats.get("ytd_ride_totals")),
-            "Swim": _fmt_totals(stats.get("ytd_swim_totals")),
+            "Run":  _fmt_totals(ytd.get("run") or stats.get("ytd_run_totals")),
+            "Ride": _fmt_totals(ytd.get("ride") or stats.get("ytd_ride_totals")),
+            "Swim": _fmt_totals(ytd.get("swim") or stats.get("ytd_swim_totals")),
         })
     with tab_4w:
         _stats_table({
-            "Run":  _fmt_totals(stats.get("recent_run_totals")),
-            "Ride": _fmt_totals(stats.get("recent_ride_totals")),
-            "Swim": _fmt_totals(stats.get("recent_swim_totals")),
+            "Run":  _fmt_totals(lfw.get("run") or stats.get("recent_run_totals")),
+            "Ride": _fmt_totals(lfw.get("ride") or stats.get("recent_ride_totals")),
+            "Swim": _fmt_totals(lfw.get("swim") or stats.get("recent_swim_totals")),
         })
     with tab_all:
         _stats_table({
-            "Run":  _fmt_totals(stats.get("all_run_totals")),
-            "Ride": _fmt_totals(stats.get("all_ride_totals")),
-            "Swim": _fmt_totals(stats.get("all_swim_totals")),
+            "Run":  _fmt_totals(alt.get("run") or stats.get("all_run_totals")),
+            "Ride": _fmt_totals(alt.get("ride") or stats.get("all_ride_totals")),
+            "Swim": _fmt_totals(alt.get("swim") or stats.get("all_swim_totals")),
         })
-        br = round(stats.get("biggest_ride_distance", 0) / 1000, 1)
-        bc = stats.get("biggest_climb_elevation_gain", 0)
+        br = stats.get("biggest_ride_distance_km") or round(stats.get("biggest_ride_distance", 0) / 1000, 1)
+        bc = stats.get("biggest_climb_elevation_gain_m") or stats.get("biggest_climb_elevation_gain", 0)
         if br or bc:
             b1, b2 = st.columns(2)
             b1.metric("Biggest Ride",  f"{br} km")

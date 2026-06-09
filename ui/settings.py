@@ -511,21 +511,8 @@ def _setup_api_key(key: str, meta: Dict, is_connected: bool) -> None:
 # ── Unknown registry servers ──────────────────────────────────────────────────
 
 def _render_unknown_servers() -> None:
-    """Show any registry server that's not in INTEGRATION_META."""
-    try:
-        from servers.registry import config_status
-        known = set(INTEGRATION_META.keys())
-        extras = [s for s in config_status() if s["key"] not in known]
-        if not extras:
-            return
-        st.markdown("### Weitere Server")
-        for s in extras:
-            icon = "✅" if s["available"] else "⚠️"
-            st.markdown(f"**{icon} {s['key'].capitalize()}** — {s['description']}")
-            if s["missing_env"]:
-                st.caption(f"Fehlende Env-Vars: `{'`, `'.join(s['missing_env'])}`")
-    except Exception:
-        pass
+    """Placeholder — server registry removed in favour of core.config.MCP_SERVERS."""
+    pass
 
 
 # ── .env persistence ──────────────────────────────────────────────────────────

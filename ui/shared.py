@@ -1,17 +1,17 @@
-"""
-Shared utilities for the FitDash UI:
-  - Async bridge (run_async)
-  - Cached MCP server instances
-  - Cached OpenAI client
-  - Unified tool dispatcher (call_tool)
-  - OpenAI tool-spec builder
+"""Shared utilities for the FitDash UI.
+
+  - run_async   : sync bridge for coroutines (ThreadPoolExecutor-safe)
+  - get_host    : cached ToolHost singleton (single MCP client for all servers)
+  - call_tool   : convenience wrapper — ``call_tool("server__tool", {args})``
+  - Connection checks: strava_connected, garmin_connected, routes_connected
+  - validate_config  : startup warnings
+  - get_openai_client: cached OpenAI client for direct LLM calls in the UI
 """
 
-import asyncio
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -19,15 +19,16 @@ from openai import OpenAI
 
 load_dotenv()
 
+
 # ── Async bridge ──────────────────────────────────────────────────────────────
 
 def run_async(coro) -> Any:
-    """Run an async coroutine from synchronous Streamlit/thread code.
+    """Run an async coroutine from synchronous Streamlit / thread code.
 
-    Creates a fresh event loop per call (required when called from
-    ThreadPoolExecutor workers — each thread must own its loop).
-    Cancels any lingering tasks before closing to avoid ResourceWarning.
+    Creates a fresh event loop per call — required when called from
+    ThreadPoolExecutor workers (each thread must own its loop).
     """
+    import asyncio
     loop = asyncio.new_event_loop()
     try:
         return loop.run_until_complete(coro)
@@ -42,43 +43,21 @@ def run_async(coro) -> Any:
             loop.close()
 
 
-# ── MCP server singletons ─────────────────────────────────────────────────────
+# ── ToolHost singleton ────────────────────────────────────────────────────────
 
 @st.cache_resource(show_spinner=False)
-def get_strava_mcp():
-    from servers.strava import SimpleMCPServer
-    return SimpleMCPServer()
-
-@st.cache_resource(show_spinner=False)
-def get_garmin_mcp():
-    try:
-        from servers.garmin import GarminMCPServer
-        return GarminMCPServer()
-    except Exception:
-        return None
-
-@st.cache_resource(show_spinner=False)
-def get_routes_mcp():
-    try:
-        from servers.routes import RoutesMCPServer
-        return RoutesMCPServer()
-    except Exception:
-        return None
+def get_host():
+    """Return the process-wide ToolHost (MCP client for all servers)."""
+    from core.host import ToolHost
+    return ToolHost()
 
 
-# ── Config validation ─────────────────────────────────────────────────────────
+def call_tool(name: str, args: dict) -> str:
+    """Call a tool by its namespaced name ``server__tool_name``.
 
-def validate_config() -> list[str]:
-    """Return warnings for missing config. Driven by the server registry."""
-    from servers.registry import config_status
-    issues = []
-    for entry in config_status():
-        if not entry["available"]:
-            missing = ", ".join(entry["missing_env"])
-            issues.append(f"{entry['key'].capitalize()} nicht verfügbar — fehlende Env-Vars: {missing}")
-    if not os.getenv("OPENAI_API_KEY"):
-        issues.append("OPENAI_API_KEY nicht gesetzt — KI-Features deaktiviert")
-    return issues
+    Routes through ToolHost; unreachable servers return a JSON error string.
+    """
+    return get_host().call_tool(name, args)
 
 
 # ── Connection checks ─────────────────────────────────────────────────────────
@@ -89,36 +68,42 @@ def strava_connected() -> bool:
     if not token_path.is_file():
         return False
     try:
-        import json as _json
-        data = _json.loads(token_path.read_text())
+        data = json.loads(token_path.read_text())
         return bool(data.get("access_token"))
     except Exception:
         return False
 
+
 def garmin_connected() -> bool:
-    """True only if Garmin token directory contains at least one token file."""
+    """True only if the Garmin token directory contains at least one token file."""
     token_dir = Path(".tokens")
     if not token_dir.is_dir():
         return False
-    # garminconnect stores tokens as files inside .tokens/
     return any(
         f.is_file() and f.suffix in (".json", ".txt", "") and f.name != "strava.json"
         for f in token_dir.iterdir()
     )
 
+
 def routes_connected() -> bool:
     return bool(os.getenv("ORS_API_KEY", ""))
 
 
-# ── Tool dispatcher ───────────────────────────────────────────────────────────
+# ── Config validation ─────────────────────────────────────────────────────────
 
-def call_tool(name: str, args: dict) -> str:
-    """Route a tool call to the correct MCP server via the registry."""
-    from servers.registry import dispatch
-    return run_async(dispatch(name, args))
+def validate_config() -> List[str]:
+    """Return human-readable warnings for missing or incomplete configuration."""
+    issues = []
+    if not strava_connected():
+        issues.append("Strava nicht verbunden — öffne den Settings-Tab um dich zu verbinden")
+    if not garmin_connected():
+        issues.append("Garmin nicht verbunden — führe python auth/garmin_setup.py aus")
+    if not os.getenv("OPENAI_API_KEY"):
+        issues.append("OPENAI_API_KEY nicht gesetzt — KI-Features deaktiviert")
+    return issues
 
 
-# ── OpenAI client ─────────────────────────────────────────────────────────────
+# ── OpenAI client (for direct LLM calls in UI components) ────────────────────
 
 @st.cache_resource(show_spinner=False)
 def get_openai_client() -> OpenAI:
@@ -127,12 +112,5 @@ def get_openai_client() -> OpenAI:
         base_url = os.getenv("OPENAI_BASE_URL") or None,
     )
 
+
 MODEL: str = os.getenv("AGENT_MODEL") or "gpt-4o"
-
-
-# ── OpenAI tool-spec builder ──────────────────────────────────────────────────
-
-def get_all_openai_tools() -> List[Dict]:
-    """Return all tool specs from every registered & available MCP server."""
-    from servers.registry import all_openai_tools
-    return all_openai_tools()

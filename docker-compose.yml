@@ -10,7 +10,7 @@
 # protection without any server-side change). To run the app *inside* compose too,
 # point *_MCP_URL at the service names and widen each server's allowed_hosts.
 #
-#   docker compose up --build weather-mcp routes-mcp calendar-mcp
+#   docker compose up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
 
 services:
   weather-mcp:
@@ -42,10 +42,22 @@ services:
     ports: ["8105:8105"]
     restart: unless-stopped
 
-  # strava-mcp / garmin-mcp — added once their native FastMCP servers are built
-  # and per-user credentials are provisioned (blocked on tokens today).
-  # strava-mcp:
-  #   build: .
-  #   env_file: .env          # CLIENT_ID / CLIENT_SECRET + token vault
-  #   environment: { SERVER: servers.strava_mcp, STRAVA_MCP_HOST: 0.0.0.0, STRAVA_MCP_PORT: "8103" }
-  #   ports: ["8103:8103"]
+  strava-mcp:
+    build: .
+    env_file: .env            # CLIENT_ID / CLIENT_SECRET + .tokens/strava.json
+    environment:
+      SERVER: servers.strava_mcp
+      STRAVA_MCP_HOST: 0.0.0.0
+      STRAVA_MCP_PORT: "8103"
+    ports: ["8103:8103"]
+    restart: unless-stopped
+
+  garmin-mcp:
+    build: .
+    env_file: .env
+    environment:
+      SERVER: servers.garmin_mcp
+      GARMIN_MCP_HOST: 0.0.0.0
+      GARMIN_MCP_PORT: "8104"
+    ports: ["8104:8104"]
+    restart: unless-stopped

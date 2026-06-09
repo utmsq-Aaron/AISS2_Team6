@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from ui.shared import garmin_connected, get_garmin_mcp, run_async
+from ui.shared import call_tool, garmin_connected
 from ui.styles import (
     C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_PURPLE, C_ROSE, ACCENT,
     TEXT_MUTED, TEXT_PRIMARY, BORDER, BG_CARD, chart_style,
@@ -56,31 +56,27 @@ def _safe_load(fn):
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def load_wellness(days: int = 14) -> Dict:
-    garmin = get_garmin_mcp()
-    if garmin is None:
+    if not garmin_connected():
         return {}
-    return json.loads(run_async(garmin._dispatch("get_garmin_wellness_trends", {"days": days})))
+    return json.loads(call_tool("garmin__get_garmin_wellness_trends", {"days": days}))
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_training_metrics() -> Dict:
-    garmin = get_garmin_mcp()
-    if garmin is None:
+    if not garmin_connected():
         return {}
-    return json.loads(run_async(garmin._dispatch("get_garmin_training_metrics", {})))
+    return json.loads(call_tool("garmin__get_garmin_training_metrics", {}))
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_hrv() -> Dict:
-    garmin = get_garmin_mcp()
-    if garmin is None:
+    if not garmin_connected():
         return {}
-    return json.loads(run_async(garmin._dispatch("get_garmin_hrv_status", {})))
+    return json.loads(call_tool("garmin__get_garmin_hrv_status", {}))
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_today() -> Dict:
-    garmin = get_garmin_mcp()
-    if garmin is None:
+    if not garmin_connected():
         return {}
-    return json.loads(run_async(garmin._dispatch("get_garmin_daily_health", {})))
+    return json.loads(call_tool("garmin__get_garmin_daily_health", {}))
 
 
 # ── Chart builders ────────────────────────────────────────────────────────────
