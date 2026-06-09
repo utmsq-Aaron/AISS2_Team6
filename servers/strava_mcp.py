@@ -217,8 +217,10 @@ async def get_activities(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """List the user's Strava activities (most recent first), optionally filtered
-    by sport type and date range.
+    """List the user's Strava-recorded activities (most recent first), optionally
+    filtered by sport type and date range. May return 0 results if Strava is not
+    connected or the account has no activities — in that case ALWAYS also call
+    garmin__get_garmin_activities as the alternative source.
 
     Returns id, name, date, distance, duration, elevation, avg/max speed,
     avg/max heart rate, pace (min/km), suffer_score (HR-based relative effort,

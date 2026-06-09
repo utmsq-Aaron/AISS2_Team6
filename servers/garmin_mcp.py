@@ -134,8 +134,12 @@ def get_garmin_activities(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """List Garmin activities (runs, hikes, rides, …) with distance, duration,
-    avg/max HR, calories, elevation, pace, and training effect.
+    """List Garmin-recorded activities (runs, hikes, rides, swims, …) with
+    distance, duration, avg/max HR, calories, elevation, pace, and training effect.
+
+    Use this tool — together with strava__get_activities — whenever the user asks
+    about their workouts, runs, rides or training history. Garmin and Strava are
+    independent sources; always query both so no activity is missed.
 
     Args:
         limit: Max activities to return (default 50).
