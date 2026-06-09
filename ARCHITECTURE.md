@@ -1,5 +1,14 @@
 # FitDash — Architektur & Entwicklungsguide
 
+> ⚠️ **LEGACY (alte Architektur).** Dieses Dokument beschreibt das ursprüngliche
+> `BaseMCPServer` + Registry-Muster (Server in-process, eigener Dispatch). Auf der
+> Branch `feature/mcp-standard-architecture` ist das abgelöst durch **native FastMCP-
+> Server über Streamable HTTP** + einen **uniformen MCP-Client** (`core/host.ToolHost`)
+> und einen **tool-agnostischen Loop** (`core/orchestrator`). Für neue Server **nicht**
+> mehr diesem Guide folgen, sondern dem `*_mcp.py`-Muster (z. B. `servers/weather_mcp.py`).
+> Dieses Dokument bleibt als Referenz für den noch nicht migrierten Alt-Pfad (FastAPI
+> `/chat`, Daten-Tabs).
+
 ## Übersicht
 
 Das System ist in drei unabhängige Schichten aufgebaut.
@@ -76,10 +85,17 @@ Die Basisklasse stellt kostenlos bereit:
 
 ### Neuen Server erstellen — Schritt für Schritt
 
-**Schritt 1:** Datei kopieren
+**Schritt 1:** Datei anlegen
+
+> ℹ️ Die frühere Vorlage `servers/_template.py` wurde entfernt (siehe Git-Historie).
+> Für **neue** Server bitte nicht mehr diesem Legacy-Muster folgen, sondern dem
+> nativen FastMCP-Muster — siehe [`docs/mcp-architecture.md`](docs/mcp-architecture.md)
+> und `servers/weather_mcp.py`. Der Rest dieses Abschnitts bleibt als Referenz für
+> den noch nicht migrierten `BaseMCPServer`-Pfad erhalten.
 
 ```bash
-cp servers/_template.py servers/calendar.py
+# Legacy-Pfad: an einem bestehenden BaseMCPServer orientieren, z. B.
+cp servers/weather.py servers/calendar.py
 ```
 
 **Schritt 2:** Klasse implementieren

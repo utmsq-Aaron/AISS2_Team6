@@ -1,4 +1,8 @@
-"""Chat tab — AI sports analyst backed by a three-phase orchestrator.
+"""Chat tab — AI sports analyst backed by the tool-agnostic core engine.
+
+Runs on ``core.orchestrator.FitDashOrchestrator``: a native tool-use loop over
+the MCP servers (``core.host.ToolHost``); the model discovers and calls tools
+itself — no tool names are hard-coded here. See ``docs/mcp-architecture.md``.
 
 Layout: messages fill a container that sits above st.chat_input, so the
 input is always at the bottom (ChatGPT / Claude style).

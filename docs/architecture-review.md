@@ -2,7 +2,9 @@
 
 **Reviewer-Perspektive:** extern, kritisch
 **Bewertungsmaßstab (Zielbild):** öffentliche Website · mehrere Nutzer · nutzer-erweiterbare MCP-Server · domänenübergreifender Lifestyle-Assistent (Training × Wetter × Kalender …)
-**Bewerteter Stand:** Branch `main`
+**Bewerteter Stand:** Branch `main` (Stand *vor* dem Umbau)
+
+> **Status-Hinweis:** Dieses Review bewertet die **alte** `main`-Architektur und begründet den Umbau. Auf der Branch `feature/mcp-standard-architecture` sind inzwischen umgesetzt: **uniformer MCP-Host** (`core/host.ToolHost`), **tool-agnostischer Kern** (`core/orchestrator`, native Tool-Use-Loop), **eigene Server als native FastMCP-Services** (weather/routes/calendar) und die **vendor-neutrale LLM-Naht** (`core/llm`). **Noch offen:** Mandanten-/Sicherheitsschicht (Backend-Auth, Pro-Nutzer-Vault), `strava`/`garmin` als FastMCP, Frontend-Split. Dieses Dokument bleibt als „Warum"/Vorher-Referenz erhalten.
 
 ---
 

@@ -1,6 +1,18 @@
 # FitDash
 
-FitDash is a Streamlit sports analytics dashboard that unifies Strava activities and Garmin health data behind an agentic chat interface. Every answer comes from live API data — a four-agent pipeline plans tool calls, executes them in parallel, selects visualisations, and synthesises the result. No cached summaries, no hallucinated numbers.
+FitDash is a Streamlit sports analytics dashboard that unifies Strava activities and Garmin health data behind an agentic chat interface. Every answer comes from live API data — no cached summaries, no hallucinated numbers.
+
+> ⚠️ **Architecture update (`feature/mcp-standard-architecture`).** The Chat now runs on a new,
+> standardized stack: native **FastMCP servers over Streamable HTTP** (`servers/*_mcp.py`),
+> a uniform **MCP client** (`core/host.ToolHost`), a vendor-neutral **LLM seam** (`core/llm`),
+> and a **tool-agnostic tool-use loop** (`core/orchestrator`) — the model discovers and calls
+> tools itself; no hardcoded tool names. The **"Multi-Agent Architecture"** and **"Adding a New
+> Tool"** sections below describe the **legacy** path (4-agent pipeline + `BaseMCPServer`/registry),
+> still wired to the FastAPI `/chat` endpoint and the non-chat tabs. New servers follow
+> `servers/weather_mcp.py`, not the old guide.
+>
+> 📖 **Full write-up:** [`docs/mcp-architecture.md`](docs/mcp-architecture.md) — the new MCP
+> structure (Anthropic standard), how to add an own server, and how to extend with external MCP.
 
 ## Highlights
 
@@ -32,14 +44,22 @@ fitdash/
 │   ├── strava_oauth.py          # OAuth2 manager: token cache and auto-refresh
 │   └── garmin_setup.py          # One-time Garmin MFA login
 │
+├── core/                        # NEW MCP-standard engine (Streamlit-free, vendor-neutral)
+│   ├── config.py                # Declarative registry: server name → MCP URL (+ env override)
+│   ├── host.py                  # ToolHost — the single MCP client (list_tools / call_tool)
+│   ├── llm.py                   # Vendor-neutral LLM seam (provider/model from config)
+│   └── orchestrator.py          # Tool-agnostic tool-use loop (drives the Chat tab)
+│
 ├── servers/
-│   ├── registry.py              # Central server registry — register once, auto-discovered everywhere
-│   ├── _base_server.py          # BaseMCPServer abstract base class
-│   ├── _template.py             # Copy this to create a new MCP server
-│   ├── strava.py                # Strava MCP server (10 tools)
-│   ├── garmin.py                # Garmin MCP server (12 tools)
-│   ├── routes.py                # OpenRouteService MCP server (4 tools)
-│   ├── weather.py               # Open-Meteo MCP server (3 tools, no API key required)
+│   ├── weather_mcp.py           # NEW native FastMCP server — weather (port 8101)
+│   ├── routes_mcp.py            # NEW native FastMCP server — routes (port 8102)
+│   ├── calendar_mcp.py          # NEW native FastMCP server — Google Calendar, read-only (port 8105)
+│   ├── registry.py              # LEGACY central server registry (still wired to FastAPI /chat + data tabs)
+│   ├── _base_server.py          # LEGACY BaseMCPServer abstract base class
+│   ├── strava.py                # LEGACY Strava MCP server (10 tools)
+│   ├── garmin.py                # LEGACY Garmin MCP server (12 tools)
+│   ├── routes.py                # LEGACY OpenRouteService MCP server (4 tools)
+│   ├── weather.py               # LEGACY Open-Meteo MCP server (3 tools, no API key required)
 │   └── agents/
 │       ├── _base.py             # Shared LLM utils (get_llm_client, llm_call, truncate, extract_json)
 │       ├── fetching.py          # FetchingAgent — plans + executes all data fetches
@@ -48,7 +68,7 @@ fitdash/
 │       └── chat.py              # ChatAgent — synthesises the final answer
 │
 └── ui/
-    ├── orchestrator.py          # 3-phase coordinator: FetchingAgent → (Viz ∥ Flyover) → Chat
+    ├── orchestrator.py          # LEGACY 3-phase coordinator: FetchingAgent → (Viz ∥ Flyover) → Chat
     ├── viz.py                   # Visualization registry (@register, can_render, render)
     ├── shared.py                # MCP singletons, OpenAI client, tool router (call_tool)
     ├── styles.py                # CSS variables, chart theme, colour constants
