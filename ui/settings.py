@@ -69,6 +69,13 @@ INTEGRATION_META: Dict[str, Dict[str, Any]] = {
         "description": "Wetter, Pollen, UV-Index — kein API-Key nötig",
         "docs_url": "https://open-meteo.com",
     },
+    "telegram": {
+        "label":    "Telegram",
+        "icon":     "✈️",
+        "type":     "telegram",
+        "description": "Chats, Nachrichten, Kontakte (über externen telegram-mcp)",
+        "docs_url": "https://my.telegram.org/apps",
+    },
     # ── Future providers — uncomment and implement _setup_<key>() ─────────────
     # "google": {
     #     "label":    "Google Calendar",
@@ -86,7 +93,7 @@ INTEGRATION_META: Dict[str, Dict[str, Any]] = {
     # },
 }
 
-DISPLAY_ORDER = ["strava", "garmin", "openai", "routes", "weather"]
+DISPLAY_ORDER = ["strava", "garmin", "openai", "routes", "weather", "telegram"]
 
 ENV_FILE = Path(".env")
 
@@ -137,6 +144,8 @@ def _render_card(key: str, meta: Dict) -> None:
             _setup_credentials(key, meta, is_connected)
         elif kind == "api_key":
             _setup_api_key(key, meta, is_connected)
+        elif kind == "telegram":
+            _setup_telegram(is_connected)
         else:
             st.success("Aktiv — kein Setup nötig")
 
@@ -176,6 +185,9 @@ def _is_connected(key: str, meta: Dict) -> bool:
         if not val or val.startswith("your_") or val == "sk-...":
             return False
         return True
+    if kind == "telegram":
+        from ui.shared import telegram_connected
+        return telegram_connected()
     return False
 
 
@@ -506,6 +518,223 @@ def _setup_api_key(key: str, meta: Dict, is_connected: bool) -> None:
             st.rerun()
         else:
             st.error("Bitte einen gültigen Key eingeben.")
+
+
+# ── Telegram setup (external telegram-mcp proxy) ──────────────────────────────
+
+def _setup_telegram(is_connected: bool) -> None:
+    load_dotenv(override=True)
+    api_id   = os.getenv("TELEGRAM_API_ID", "")
+    api_hash = os.getenv("TELEGRAM_API_HASH", "")
+    if api_id.startswith("your_"):   api_id = ""
+    if api_hash.startswith("your_"): api_hash = ""
+
+    # ── Connected: offer regenerate / disconnect ──────────────────────────────
+    if is_connected:
+        st.caption("Tools laufen über den Telegram-Server (`python -m servers.telegram_mcp`, :8106).")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Session neu erzeugen", key="tg_regen", use_container_width=True):
+                _tg_reset_session()
+                st.rerun()
+        with col2:
+            if st.button("🔌 Trennen", key="tg_disconnect", use_container_width=True):
+                _tg_reset_session()
+                st.rerun()
+        return
+
+    # ── Step 1: API ID + hash ─────────────────────────────────────────────────
+    with st.expander("🔑 API ID & Hash", expanded=not (api_id and api_hash)):
+        st.caption("Erstelle eine App unter my.telegram.org/apps")
+        new_id   = st.text_input("API ID",   value=api_id,   key="tg_api_id")
+        new_hash = st.text_input("API Hash", value=api_hash, type="password", key="tg_api_hash")
+        if st.button("Speichern & weiter", key="tg_save_creds", use_container_width=True):
+            _save_env("TELEGRAM_API_ID", new_id.strip())
+            _save_env("TELEGRAM_API_HASH", new_hash.strip())
+            os.environ["TELEGRAM_API_ID"]   = new_id.strip()
+            os.environ["TELEGRAM_API_HASH"] = new_hash.strip()
+            st.rerun()
+
+    if not (api_id and api_hash):
+        st.info("Zuerst API ID und Hash eingeben.")
+        return
+
+    # ── Step 2: generate a session string ─────────────────────────────────────
+    try:
+        import telethon  # noqa: F401
+        have_telethon = True
+    except Exception:
+        have_telethon = False
+
+    if have_telethon:
+        _telegram_session_flow(api_id, api_hash)
+    else:
+        st.warning("`telethon` nicht installiert — In-App-Login nicht verfügbar. "
+                   "Installiere es (`pip install telethon`) oder füge den String unten manuell ein.")
+
+    with st.expander("✍️ Session-String manuell einfügen", expanded=not have_telethon):
+        st.caption("Alternativ per CLI erzeugen:  "
+                   "`uv run --directory external/telegram-mcp session_string_generator.py`")
+        manual = st.text_input("TELEGRAM_SESSION_STRING", type="password", key="tg_manual")
+        if st.button("String speichern", key="tg_manual_save", use_container_width=True):
+            if manual.strip():
+                _tg_save_session(manual.strip())
+                st.success("✅ Session gespeichert!")
+                time.sleep(0.8)
+                st.rerun()
+            else:
+                st.error("Bitte einen Session-String eingeben.")
+
+    st.caption("ℹ️ Nach dem Speichern den Telegram-Server (neu) starten: `python -m servers.telegram_mcp`")
+
+
+def _telegram_session_flow(api_id: str, api_hash: str) -> None:
+    """Phone-number login → code → (optional) 2FA password → session string."""
+    flow = st.session_state.get("tg_flow", "idle")
+    st.markdown("**Per Telefonnummer anmelden**")
+
+    if flow == "idle":
+        phone = st.text_input("Telefonnummer (mit Vorwahl, z. B. +49…)", key="tg_phone_in")
+        if st.button("📲 Code anfordern", key="tg_send_code", use_container_width=True, type="primary"):
+            if not phone.strip():
+                st.error("Bitte eine Telefonnummer eingeben.")
+                return
+            try:
+                with st.spinner("Sende Code…"):
+                    inter, code_hash = _run_tg(_tg_send_code(api_id, api_hash, phone.strip()))
+                st.session_state.update(
+                    tg_flow="code_sent", tg_inter=inter,
+                    tg_phone=phone.strip(), tg_code_hash=code_hash,
+                )
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Fehler beim Senden des Codes: {exc}")
+
+    elif flow == "code_sent":
+        st.caption(f"Code an {st.session_state.get('tg_phone')} gesendet (siehe Telegram-App).")
+        code = st.text_input("Bestätigungscode", key="tg_code_in")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Anmelden", key="tg_signin", use_container_width=True, type="primary"):
+                try:
+                    with st.spinner("Melde an…"):
+                        status, result = _run_tg(_tg_sign_in(
+                            api_id, api_hash, st.session_state["tg_inter"],
+                            st.session_state["tg_phone"], code.strip(),
+                            st.session_state["tg_code_hash"],
+                        ))
+                    if status == "ok":
+                        _tg_save_session(result)
+                        _tg_clear_flow()
+                        st.success("✅ Telegram verbunden!")
+                        time.sleep(0.8)
+                        st.rerun()
+                    else:  # 2FA password required
+                        st.session_state.update(tg_flow="password", tg_inter=result)
+                        st.rerun()
+                except Exception as exc:
+                    st.error(f"Anmeldung fehlgeschlagen: {exc}")
+        with col2:
+            if st.button("↩︎ Abbrechen", key="tg_cancel", use_container_width=True):
+                _tg_clear_flow()
+                st.rerun()
+
+    elif flow == "password":
+        st.warning("🔐 Zwei-Faktor-Authentifizierung aktiv — Passwort erforderlich")
+        pw = st.text_input("2FA-Passwort", type="password", key="tg_pw_in")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔓 Bestätigen", key="tg_pw_btn", use_container_width=True, type="primary"):
+                try:
+                    with st.spinner("Prüfe Passwort…"):
+                        result = _run_tg(_tg_password(
+                            api_id, api_hash, st.session_state["tg_inter"], pw,
+                        ))
+                    _tg_save_session(result)
+                    _tg_clear_flow()
+                    st.success("✅ Telegram verbunden!")
+                    time.sleep(0.8)
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Passwort falsch oder Fehler: {exc}")
+        with col2:
+            if st.button("↩︎ Abbrechen", key="tg_pw_cancel", use_container_width=True):
+                _tg_clear_flow()
+                st.rerun()
+
+
+# ── Telegram session helpers ──────────────────────────────────────────────────
+
+def _tg_save_session(session_string: str) -> None:
+    _save_env("TELEGRAM_SESSION_STRING", session_string)
+    os.environ["TELEGRAM_SESSION_STRING"] = session_string
+    st.cache_resource.clear()
+
+
+def _tg_reset_session() -> None:
+    _save_env("TELEGRAM_SESSION_STRING", "")
+    os.environ["TELEGRAM_SESSION_STRING"] = ""
+    _tg_clear_flow()
+    st.cache_resource.clear()
+
+
+def _tg_clear_flow() -> None:
+    for k in ("tg_flow", "tg_inter", "tg_phone", "tg_code_hash"):
+        st.session_state.pop(k, None)
+
+
+def _run_tg(coro):
+    """Run a Telethon coroutine on a fresh event loop bound to the current thread."""
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        try:
+            asyncio.set_event_loop(None)
+        finally:
+            loop.close()
+
+
+async def _tg_send_code(api_id: str, api_hash: str, phone: str):
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+    client = TelegramClient(StringSession(), int(api_id), api_hash)
+    await client.connect()
+    try:
+        sent = await client.send_code_request(phone)
+        return StringSession.save(client.session), sent.phone_code_hash
+    finally:
+        await client.disconnect()
+
+
+async def _tg_sign_in(api_id: str, api_hash: str, inter: str, phone: str, code: str, code_hash: str):
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+    from telethon.errors import SessionPasswordNeededError
+    client = TelegramClient(StringSession(inter), int(api_id), api_hash)
+    await client.connect()
+    try:
+        try:
+            await client.sign_in(phone=phone, code=code, phone_code_hash=code_hash)
+            return "ok", StringSession.save(client.session)
+        except SessionPasswordNeededError:
+            return "password", StringSession.save(client.session)
+    finally:
+        await client.disconnect()
+
+
+async def _tg_password(api_id: str, api_hash: str, inter: str, password: str):
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+    client = TelegramClient(StringSession(inter), int(api_id), api_hash)
+    await client.connect()
+    try:
+        await client.sign_in(password=password)
+        return StringSession.save(client.session)
+    finally:
+        await client.disconnect()
 
 
 # ── Unknown registry servers ──────────────────────────────────────────────────

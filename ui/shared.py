@@ -89,6 +89,27 @@ def routes_connected() -> bool:
     return bool(os.getenv("ORS_API_KEY", ""))
 
 
+def telegram_connected() -> bool:
+    """True when Telegram API credentials AND a session string are configured.
+
+    Like the other sidebar dots this reflects *configuration*, not a live ping:
+    the telegram proxy (servers/telegram_mcp.py) reads these env vars on start.
+    Reads `.env` fresh (merged with the process env) so it reflects edits made
+    after the app started — e.g. via the Settings tab.
+    """
+    from dotenv import dotenv_values
+    file_vals = dotenv_values(".env")
+
+    def _real(v: str) -> bool:
+        return bool(v) and not v.startswith("your_")
+
+    def _get(k: str) -> str:
+        return os.getenv(k) or file_vals.get(k) or ""
+
+    return all(_real(_get(k)) for k in
+               ("TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_SESSION_STRING"))
+
+
 # ── Config validation ─────────────────────────────────────────────────────────
 
 def validate_config() -> List[str]:

@@ -245,6 +245,8 @@ Run once after filling in `GARMIN_EMAIL` and `GARMIN_PASSWORD`. Tokens persist i
 
 Optional. The Telegram tools come from the external [telegram-mcp](https://github.com/chigwell/telegram-mcp), which runs unmodified in its own `uv` environment behind `servers/telegram_mcp.py`.
 
+**Easiest:** open **⚙️ Settings → Telegram** in the running app — enter your API ID & hash, then sign in with your phone number to generate and save the session string automatically (2FA supported). Afterwards (re)start the server: `python -m servers.telegram_mcp`. The manual / CLI route does the same thing:
+
 ```bash
 # 1. The upstream server is vendored in this repo at external/telegram-mcp
 #    (if missing: git clone https://github.com/chigwell/telegram-mcp external/telegram-mcp)
@@ -259,6 +261,27 @@ uv run --directory external/telegram-mcp session_string_generator.py
 ```
 
 The session string grants full access to your Telegram account — treat it like a password; it lives only in `.env` (gitignored). The first `python -m servers.telegram_mcp` will have `uv` install the upstream's dependencies (one-time).
+
+### Telegram chat — talk to the agent *from* Telegram (optional)
+
+Separate from the Telegram *tools* above (which let the agent act on your account), the **agent bridge** ([`telegram_bridge.py`](telegram_bridge.py)) lets you chat *with* the agent from Telegram: every message you receive is forwarded to the same engine as the **💬 Chat** tab, and the answer is sent back. You can also send **voice memos** — they're transcribed locally with Whisper (German/English, auto-detected) and handled like a typed message. A planned route arrives three ways: a **static map image**, a tappable **Google Maps** link in the caption (opens the Maps app — approximate, since Google re-routes between points), and a **GPX** file with the exact track (open in OsmAnd, Komoot, Organic Maps, Garmin, Strava, …). Per-chat history replaces the web UI's interactive widgets (the agent lists options as text; you pick one by replying).
+
+It runs as a **userbot** (it replies *as you*) in its own long-running process:
+
+```bash
+# Reuses TELEGRAM_API_ID/HASH + TELEGRAM_SESSION_STRING from .env
+python telegram_bridge.py
+```
+
+By default it answers **DMs only** and is open to **anyone** who messages you; restrict with `TELEGRAM_ALLOWED_USERS`, allow groups with `TELEGRAM_BRIDGE_ALLOW_GROUPS=true` (see `.env.example`). ⚠️ Over Telegram the agent keeps **all** its tools — including the ones that read/send messages on your own account — so anyone you allow effectively controls them.
+
+Reusing your existing session string is fine. Only if you run the bridge **and** the `telegram_mcp` proxy at the same time, give the bridge its own login so Telegram doesn't revoke the shared key:
+
+```bash
+python telegram_bridge.py --login   # prints a TELEGRAM_BRIDGE_SESSION_STRING for .env
+```
+
+**Voice memos** need a local Whisper engine. `faster-whisper` (in `requirements.txt`) runs everywhere with no system `ffmpeg`. On **Apple Silicon** you can opt into the faster GPU engine with `pip install mlx-whisper` **and** `brew install ffmpeg` — the bridge auto-detects it; otherwise it uses faster-whisper. The model (`small` ≈ 0.5 GB) downloads on first use; pick another with `WHISPER_MODEL` (bigger = better German, slower).
 
 ## Running
 
@@ -276,6 +299,9 @@ python -m servers.telegram_mcp &
 
 # Terminal 2 — start the UI
 streamlit run app.py
+
+# Terminal 3 (optional) — talk to the agent FROM Telegram (userbot bridge)
+python telegram_bridge.py
 ```
 
 Or with Docker Compose:
@@ -301,4 +327,7 @@ Open [http://localhost:8501](http://localhost:8501).
 | Chat returns "Garmin not connected" | Run `auth/garmin_setup.py` and confirm `.tokens/garmin_tokens.json` exists. |
 | MCP server not reachable | Confirm the server process is running: `curl http://127.0.0.1:8103/mcp` should return 200. |
 | Telegram tools missing / server exits | Check `external/telegram-mcp` exists, `uv` is installed, and `TELEGRAM_SESSION_STRING` is valid (regenerate with `session_string_generator.py`). Watch its stderr for `[telegram] N tool(s) ready`. |
+| Telegram bridge: `AuthKeyDuplicatedError` | The bridge and the `telegram_mcp` proxy are on the same session at once. Give the bridge its own login: `python telegram_bridge.py --login` → `TELEGRAM_BRIDGE_SESSION_STRING`. |
+| Telegram bridge silent / no reply | Confirm the MCP servers are up (it logs `Agent ready — N tools`), the message is a **DM** (groups are off unless `TELEGRAM_BRIDGE_ALLOW_GROUPS=true`), and the sender is allowed (`TELEGRAM_ALLOWED_USERS`). |
+| Voice memo not transcribed | First memo downloads the Whisper model (wait a bit); the bridge logs `🎤 transcribed via … (lang=…)`. Ensure `faster-whisper` is installed. The mlx engine additionally needs `brew install ffmpeg`. |
 | New activities not visible | Use **🔄 Refresh data** in the sidebar to clear the cache. |

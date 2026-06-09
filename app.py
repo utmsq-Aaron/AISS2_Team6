@@ -91,15 +91,16 @@ with st.sidebar:
 
     # Connection status — colored dots from core.config.MCP_SERVERS
     from core.config import MCP_SERVERS
-    from ui.shared import strava_connected, garmin_connected, routes_connected
+    from ui.shared import strava_connected, garmin_connected, routes_connected, telegram_connected
 
-    _labels = {"strava": "Strava", "garmin": "Garmin", "routes": "Routes", "weather": "Open-Meteo", "calendar": "Calendar"}
+    _labels = {"strava": "Strava", "garmin": "Garmin", "routes": "Routes", "weather": "Open-Meteo", "calendar": "Calendar", "telegram": "Telegram"}
 
     def _is_connected(key: str) -> bool:
         if key in ("weather", "calendar"): return True
         if key == "strava":  return strava_connected()
         if key == "garmin":  return garmin_connected()
         if key == "routes":  return routes_connected()
+        if key == "telegram": return telegram_connected()
         return False
 
     dots_html = ""

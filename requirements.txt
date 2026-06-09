@@ -8,8 +8,13 @@ pandas>=2.0.0
 folium>=0.17.0
 streamlit-folium>=0.22.0
 polyline>=2.0.0
+staticmap>=0.5.7           # static route-map PNGs for the Telegram bridge (no browser)
 garminconnect>=0.3.0
+telethon>=1.42.0          # Settings-tab Telegram session-string generation
 playwright>=1.44.0
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 starlette                 # telegram_mcp proxy ASGI app (also a transitive mcp dep)
+faster-whisper>=1.0.0     # local voice-memo transcription (portable CPU engine, no ffmpeg needed)
+# Apple Silicon GPU speedup (optional, Mac-only — also needs `brew install ffmpeg`):
+#   pip install mlx-whisper
