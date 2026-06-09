@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 520" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#5b6b7d"/>
+    </marker>
+    <style>
+      .box  { rx:9; ry:9; stroke-width:1.5; }
+      .lbl  { font-size:12.5px; fill:#0f1722; text-anchor:middle; }
+      .sub  { font-size:10.5px; fill:#33414f; text-anchor:middle; }
+      .edge { stroke:#5b6b7d; stroke-width:1.7; fill:none; marker-end:url(#ar); }
+      .flow { font-size:13px; font-weight:700; letter-spacing:.5px; }
+      .title{ font-size:20px; font-weight:700; fill:#0f1722; }
+      .note { font-size:12px; fill:#0f1722; }
+    </style>
+  </defs>
+
+  <rect width="1040" height="520" fill="#ffffff"/>
+  <text x="40" y="42" class="title">FitDash — Registry-Mechanik</text>
+
+  <!-- Discovery flow -->
+  <text x="40" y="92" class="flow" fill="#2980b9">① TOOL-ERKENNUNG (automatisch)</text>
+  <rect class="box" x="40"  y="106" width="170" height="52" fill="#e4f0fa" stroke="#2980b9"/>
+  <text x="125" y="129" class="lbl">Agent fragt</text><text x="125" y="145" class="sub">„Welche Tools gibt es?"</text>
+  <rect class="box" x="270" y="106" width="190" height="52" fill="#dff3ee" stroke="#16a085"/>
+  <text x="365" y="129" class="lbl">all_openai_tools()</text><text x="365" y="145" class="sub">registry.py</text>
+  <rect class="box" x="520" y="106" width="190" height="52" fill="#fdf0e0" stroke="#e67e22"/>
+  <text x="615" y="128" class="lbl">Filter</text><text x="615" y="144" class="sub">nur verfügbare Server (env gesetzt?)</text>
+  <rect class="box" x="770" y="106" width="220" height="52" fill="#eef0f2" stroke="#7f8c8d"/>
+  <text x="880" y="129" class="lbl">aggregierte Tool-Specs</text><text x="880" y="145" class="sub">→ an LLM (tool_choice)</text>
+
+  <path class="edge" d="M210,132 L268,132"/>
+  <path class="edge" d="M460,132 L518,132"/>
+  <path class="edge" d="M710,132 L768,132"/>
+
+  <!-- Dispatch flow -->
+  <text x="40" y="222" class="flow" fill="#16a085">② TOOL-CALL (Routing)</text>
+  <rect class="box" x="40"  y="236" width="180" height="52" fill="#e4f0fa" stroke="#2980b9"/>
+  <text x="130" y="259" class="lbl">call_tool(name, args)</text><text x="130" y="275" class="sub">ui/shared.py</text>
+  <rect class="box" x="280" y="236" width="170" height="52" fill="#dff3ee" stroke="#16a085"/>
+  <text x="365" y="259" class="lbl">dispatch(name, args)</text><text x="365" y="275" class="sub">registry.py</text>
+  <rect class="box" x="510" y="236" width="190" height="52" fill="#fdf0e0" stroke="#e67e22"/>
+  <text x="605" y="258" class="lbl">findet zuständigen Server</text><text x="605" y="274" class="sub">über Tool-Name</text>
+  <rect class="box" x="760" y="236" width="160" height="52" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="840" y="259" class="lbl">server._dispatch()</text><text x="840" y="275" class="sub">→ JSON-Ergebnis</text>
+
+  <path class="edge" d="M220,262 L278,262"/>
+  <path class="edge" d="M450,262 L508,262"/>
+  <path class="edge" d="M700,262 L758,262"/>
+
+  <!-- Servers strip -->
+  <rect class="box" x="510" y="320" width="100" height="36" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="560" y="343" class="lbl">strava</text>
+  <rect class="box" x="620" y="320" width="100" height="36" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="670" y="343" class="lbl">garmin</text>
+  <rect class="box" x="730" y="320" width="100" height="36" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="780" y="343" class="lbl">routes</text>
+  <rect class="box" x="840" y="320" width="100" height="36" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="890" y="343" class="lbl">weather</text>
+  <path class="edge" d="M840,288 L620,320"/>
+  <path class="edge" d="M850,288 L780,320"/>
+
+  <!-- Principle note -->
+  <rect class="box" x="40" y="404" width="950" height="76" fill="#f3e6f8" stroke="#8e44ad"/>
+  <text x="60" y="432" class="note" font-weight="700">Prinzip — automatische Erkennung</text>
+  <text x="60" y="454" class="note">Neuer Server = Datei in servers/ + EINE Zeile  register("key", Klasse, required_env=[…])  in registry.py.</text>
+  <text x="60" y="472" class="note">Agent und UI entdecken ihn automatisch — kein Eintrag in shared.py, orchestrator.py oder der UI nötig.</text>
+</svg>

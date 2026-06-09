@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 720" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#34495e"/>
+    </marker>
+    <style>
+      .head { rx:8; ry:8; stroke-width:1.5; }
+      .hlbl { font-size:12.5px; font-weight:600; fill:#0f1722; text-anchor:middle; }
+      .life { stroke:#9aa7b4; stroke-width:1.3; stroke-dasharray:4 4; }
+      .msg  { stroke:#34495e; stroke-width:1.6; marker-end:url(#a); }
+      .ret  { stroke:#7f8c8d; stroke-width:1.4; stroke-dasharray:5 4; marker-end:url(#a); }
+      .mlbl { font-size:11.5px; fill:#0f1722; text-anchor:middle; }
+      .band { rx:8; ry:8; opacity:0.13; }
+      .blbl { font-size:11px; font-weight:700; letter-spacing:.5px; }
+      .title{ font-size:20px; font-weight:700; fill:#0f1722; }
+    </style>
+  </defs>
+
+  <rect width="980" height="720" fill="#ffffff"/>
+  <text x="40" y="40" class="title">FitDash — Chat-Ablauf (3 Phasen)</text>
+
+  <!-- Phase bands (behind lifelines) -->
+  <rect class="band" x="40"  y="188" width="900" height="150" fill="#2980b9"/>
+  <rect class="band" x="40"  y="346" width="900" height="80"  fill="#16a085"/>
+  <rect class="band" x="40"  y="434" width="900" height="110" fill="#e67e22"/>
+  <text x="52" y="206" class="blbl" fill="#2980b9">PHASE 1 · DATEN PLANEN &amp; ABRUFEN</text>
+  <text x="52" y="364" class="blbl" fill="#16a085">PHASE 2 · CHARTS &amp; FLYTHROUGH (PARALLEL)</text>
+  <text x="52" y="452" class="blbl" fill="#e67e22">PHASE 3 · ANTWORT FORMULIEREN</text>
+
+  <!-- Lifelines -->
+  <line class="life" x1="95"  y1="100" x2="95"  y2="660"/>
+  <line class="life" x1="290" y1="100" x2="290" y2="660"/>
+  <line class="life" x1="490" y1="100" x2="490" y2="660"/>
+  <line class="life" x1="700" y1="100" x2="700" y2="660"/>
+  <line class="life" x1="885" y1="100" x2="885" y2="660"/>
+
+  <!-- Heads -->
+  <rect class="head" x="45"  y="60" width="100" height="40" fill="#f3e6f8" stroke="#8e44ad"/>
+  <text x="95"  y="84" class="hlbl">Nutzer</text>
+  <rect class="head" x="225" y="60" width="130" height="40" fill="#e4f0fa" stroke="#2980b9"/>
+  <text x="290" y="84" class="hlbl">Chat-UI</text>
+  <rect class="head" x="410" y="60" width="160" height="40" fill="#dff3ee" stroke="#16a085"/>
+  <text x="490" y="84" class="hlbl">Orchestrator</text>
+  <rect class="head" x="640" y="60" width="120" height="40" fill="#e7e0ef" stroke="#8e44ad"/>
+  <text x="700" y="84" class="hlbl">LLM-Gateway</text>
+  <rect class="head" x="815" y="60" width="140" height="40" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="885" y="84" class="hlbl">Registry → MCP</text>
+
+  <!-- Messages -->
+  <text x="192" y="138" class="mlbl">Frage</text>
+  <line class="msg" x1="95" y1="146" x2="288" y2="146"/>
+
+  <text x="390" y="170" class="mlbl">run(query, history)</text>
+  <line class="msg" x1="290" y1="178" x2="488" y2="178"/>
+
+  <!-- Phase 1 -->
+  <text x="595" y="224" class="mlbl">Planner-Prompt (alle Tools)</text>
+  <line class="msg" x1="490" y1="232" x2="698" y2="232"/>
+  <text x="595" y="256" class="mlbl">Tool-Plan (JSON)</text>
+  <line class="ret" x1="700" y1="264" x2="492" y2="264"/>
+
+  <text x="688" y="292" class="mlbl">Tool-Calls (parallel)</text>
+  <line class="msg" x1="490" y1="300" x2="883" y2="300"/>
+  <text x="688" y="324" class="mlbl">Daten (JSON)</text>
+  <line class="ret" x1="885" y1="332" x2="492" y2="332"/>
+
+  <!-- Phase 2: self action on orchestrator -->
+  <path class="msg" fill="none" d="M490,386 L560,386 L560,406 L498,406"/>
+  <text x="640" y="392" class="mlbl" text-anchor="start">visualize ∥ flyover — regelbasiert,</text>
+  <text x="640" y="408" class="mlbl" text-anchor="start">LLM nur bei 3+ Charts / Flythrough</text>
+
+  <!-- Phase 3 -->
+  <text x="595" y="478" class="mlbl">Antwort-Prompt (Daten + Kontext)</text>
+  <line class="msg" x1="490" y1="486" x2="698" y2="486"/>
+  <text x="595" y="510" class="mlbl">Antworttext</text>
+  <line class="ret" x1="700" y1="518" x2="492" y2="518"/>
+
+  <!-- Return to user -->
+  <text x="390" y="576" class="mlbl">answer + trace</text>
+  <line class="ret" x1="490" y1="584" x2="292" y2="584"/>
+  <text x="192" y="614" class="mlbl">Antwort + Charts / Karte / 3D-Video</text>
+  <line class="ret" x1="290" y1="622" x2="97" y2="622"/>
+</svg>

@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 820" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7d"/>
+    </marker>
+    <style>
+      .band   { rx:14; ry:14; opacity:0.16; }
+      .bandlbl{ font-size:13px; font-weight:700; letter-spacing:1px; }
+      .box    { rx:9; ry:9; stroke-width:1.5; }
+      .lbl    { font-size:13px; fill:#0f1722; text-anchor:middle; }
+      .sub    { font-size:11px; fill:#33414f; text-anchor:middle; }
+      .edge   { stroke:#5b6b7d; stroke-width:1.6; fill:none; marker-end:url(#arrow); }
+      .title  { font-size:20px; font-weight:700; fill:#0f1722; }
+    </style>
+  </defs>
+
+  <rect width="1160" height="820" fill="#ffffff"/>
+  <text x="40" y="44" class="title">FitDash — Systemübersicht</text>
+
+  <!-- Layer bands -->
+  <rect class="band" x="40" y="64"  width="1080" height="80"  fill="#8e44ad"/>
+  <rect class="band" x="40" y="160" width="1080" height="110" fill="#2980b9"/>
+  <rect class="band" x="40" y="286" width="1080" height="210" fill="#16a085"/>
+  <rect class="band" x="40" y="512" width="1080" height="138" fill="#e67e22"/>
+  <rect class="band" x="40" y="666" width="1080" height="120" fill="#7f8c8d"/>
+
+  <text x="56" y="84"  class="bandlbl" fill="#8e44ad">EINSTIEGSPUNKTE</text>
+  <text x="56" y="180" class="bandlbl" fill="#2980b9">SCHICHT 3 · UI (ui/)</text>
+  <text x="56" y="306" class="bandlbl" fill="#16a085">SCHICHT 2 · ORCHESTRATOR &amp; AGENTEN</text>
+  <text x="56" y="532" class="bandlbl" fill="#e67e22">SCHICHT 1 · REGISTRY &amp; MCP-SERVER (servers/)</text>
+  <text x="56" y="686" class="bandlbl" fill="#7f8c8d">EXTERNE DIENSTE</text>
+
+  <!-- Entry -->
+  <rect class="box" x="400" y="92" width="160" height="44" fill="#f3e6f8" stroke="#8e44ad"/>
+  <text x="480" y="111" class="lbl">app.py</text><text x="480" y="127" class="sub">Streamlit-UI</text>
+  <rect class="box" x="600" y="92" width="160" height="44" fill="#f3e6f8" stroke="#8e44ad"/>
+  <text x="680" y="111" class="lbl">api.py</text><text x="680" y="127" class="sub">FastAPI + Swagger</text>
+
+  <!-- Layer 3 UI -->
+  <rect class="box" x="120" y="196" width="220" height="56" fill="#e4f0fa" stroke="#2980b9"/>
+  <text x="230" y="218" class="lbl">Tabs</text><text x="230" y="235" class="sub">chat · dashboard · health · routes · sync</text>
+  <rect class="box" x="470" y="196" width="220" height="56" fill="#e4f0fa" stroke="#2980b9"/>
+  <text x="580" y="216" class="lbl">shared.py</text><text x="580" y="233" class="sub">call_tool · get_openai_client</text>
+  <rect class="box" x="820" y="196" width="220" height="56" fill="#e4f0fa" stroke="#2980b9"/>
+  <text x="930" y="216" class="lbl">viz.py · flythrough_3d.py</text><text x="930" y="233" class="sub">Charts · Karten · 3D-Video</text>
+
+  <!-- Layer 2 -->
+  <rect class="box" x="430" y="318" width="300" height="48" fill="#dff3ee" stroke="#16a085"/>
+  <text x="580" y="338" class="lbl">orchestrator.py</text><text x="580" y="354" class="sub">FitDashOrchestrator · 3 Phasen</text>
+
+  <rect class="box" x="100" y="398" width="190" height="50" fill="#dff3ee" stroke="#16a085"/>
+  <text x="195" y="419" class="lbl">FetchingAgent</text><text x="195" y="435" class="sub">Planner + Refinement</text>
+  <rect class="box" x="310" y="398" width="190" height="50" fill="#dff3ee" stroke="#16a085"/>
+  <text x="405" y="419" class="lbl">VisualizationAgent</text><text x="405" y="435" class="sub">Chart-Auswahl</text>
+  <rect class="box" x="520" y="398" width="170" height="50" fill="#dff3ee" stroke="#16a085"/>
+  <text x="605" y="419" class="lbl">FlyoverAgent</text><text x="605" y="435" class="sub">Flythrough</text>
+  <rect class="box" x="710" y="398" width="170" height="50" fill="#dff3ee" stroke="#16a085"/>
+  <text x="795" y="419" class="lbl">ChatAgent</text><text x="795" y="435" class="sub">Antwort-Text</text>
+  <rect class="box" x="900" y="398" width="170" height="50" fill="#cde9e1" stroke="#16a085"/>
+  <text x="985" y="419" class="lbl">_base.py</text><text x="985" y="435" class="sub">get_llm_client</text>
+
+  <!-- Layer 1: registry above servers -->
+  <rect class="box" x="390" y="524" width="380" height="46" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="580" y="544" class="lbl">registry.py</text><text x="580" y="560" class="sub">dispatch · all_openai_tools · config_status</text>
+
+  <rect class="box" x="120" y="592" width="150" height="44" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="195" y="619" class="lbl">strava.py</text>
+  <rect class="box" x="320" y="592" width="150" height="44" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="395" y="619" class="lbl">routes.py</text>
+  <rect class="box" x="690" y="592" width="150" height="44" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="765" y="619" class="lbl">garmin.py</text>
+  <rect class="box" x="890" y="592" width="150" height="44" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="965" y="619" class="lbl">weather.py</text>
+
+  <!-- External -->
+  <rect class="box" x="120" y="700" width="150" height="44" fill="#ecedee" stroke="#7f8c8d"/>
+  <text x="195" y="727" class="lbl">Strava API</text>
+  <rect class="box" x="320" y="700" width="150" height="44" fill="#ecedee" stroke="#7f8c8d"/>
+  <text x="395" y="727" class="lbl">OpenRouteService</text>
+  <rect class="box" x="690" y="700" width="150" height="44" fill="#ecedee" stroke="#7f8c8d"/>
+  <text x="765" y="727" class="lbl">Garmin Connect</text>
+  <rect class="box" x="890" y="700" width="150" height="44" fill="#ecedee" stroke="#7f8c8d"/>
+  <text x="965" y="727" class="lbl">Open-Meteo</text>
+  <rect class="box" x="488" y="700" width="200" height="44" fill="#e7e0ef" stroke="#8e44ad"/>
+  <text x="588" y="721" class="lbl">KIT DSI Gateway · LiteLLM</text><text x="588" y="736" class="sub">glm-4.7 / kit.gpt-4.1</text>
+
+  <!-- Entry edges -->
+  <path class="edge" d="M480,136 L480,172 L230,172 L230,196"/>
+  <path class="edge" d="M680,136 L740,172 L740,300 L700,318"/>
+
+  <!-- UI edges -->
+  <path class="edge" d="M230,252 L230,300 L430,350"/>
+  <path class="edge" d="M340,224 L470,224"/>
+  <path class="edge" d="M580,252 L580,318"/>
+
+  <!-- L2 pipeline -->
+  <path class="edge" d="M460,366 L290,398"/>
+  <path class="edge" d="M290,418 L310,418"/>
+  <path class="edge" d="M195,448 L195,478 L605,478 L605,448"/>
+  <path class="edge" d="M690,418 L710,418"/>
+  <path class="edge" d="M405,448 L405,488 L795,488 L795,448"/>
+  <path class="edge" d="M880,423 L900,423"/>
+
+  <!-- L2 -> L1 (agent layer accesses registry via shared.call_tool) -->
+  <path class="edge" d="M560,366 L505,392 L505,524"/>
+
+  <!-- _base -> gateway -->
+  <path class="edge" d="M985,448 L985,684 L588,684 L588,700"/>
+
+  <!-- registry -> servers -->
+  <path class="edge" d="M470,570 L195,592"/>
+  <path class="edge" d="M500,570 L395,592"/>
+  <path class="edge" d="M660,570 L765,592"/>
+  <path class="edge" d="M690,570 L965,592"/>
+
+  <!-- servers -> external apis -->
+  <path class="edge" d="M195,636 L195,700"/>
+  <path class="edge" d="M395,636 L395,700"/>
+  <path class="edge" d="M765,636 L765,700"/>
+  <path class="edge" d="M965,636 L965,700"/>
+</svg>
