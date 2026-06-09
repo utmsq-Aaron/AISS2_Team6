@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 700" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#5b6b7d"/>
+    </marker>
+    <style>
+      .panel { rx:16; ry:16; }
+      .ptitle{ font-size:17px; font-weight:700; }
+      .psub  { font-size:12px; fill:#33414f; }
+      .box   { rx:9; ry:9; stroke-width:1.5; }
+      .lbl   { font-size:12.5px; fill:#0f1722; text-anchor:middle; }
+      .sub   { font-size:10.5px; fill:#33414f; text-anchor:middle; }
+      .step  { font-size:11.5px; fill:#0f1722; }
+      .num   { font-size:12px; font-weight:700; fill:#ffffff; text-anchor:middle; }
+      .edge  { stroke:#5b6b7d; stroke-width:1.7; fill:none; marker-end:url(#ar); }
+      .title { font-size:21px; font-weight:700; fill:#0f1722; }
+      .note  { font-size:12.5px; fill:#0f1722; }
+      .who   { font-size:11px; font-weight:700; letter-spacing:.5px; }
+    </style>
+  </defs>
+
+  <rect width="1180" height="700" fill="#ffffff"/>
+  <text x="40" y="44" class="title">Wer macht die Tool-Schleife? — Anthropic-Connector vs. unser ToolHost</text>
+
+  <!-- ════════ PANEL A — Anthropic ════════ -->
+  <rect class="panel" x="40" y="70" width="540" height="540" fill="#8e44ad" opacity="0.07"/>
+  <text x="64" y="104" class="ptitle" fill="#8e44ad">A · Anthropic-Connector</text>
+  <text x="64" y="124" class="psub">echte Anthropic-API · 1 Aufruf, Anthropic macht alles</text>
+
+  <!-- Backend -->
+  <rect class="box" x="200" y="146" width="220" height="48" fill="#dff3ee" stroke="#16a085"/>
+  <text x="310" y="166" class="lbl">Backend</text><text x="310" y="182" class="sub">Auth + Vault</text>
+
+  <!-- Anthropic big box -->
+  <rect class="box" x="120" y="262" width="380" height="150" fill="#f3e6f8" stroke="#8e44ad"/>
+  <text x="310" y="286" class="lbl" font-weight="700">Anthropic-API  (mcp_servers=[…])</text>
+  <text x="310" y="307" class="sub">macht intern, in einem Rutsch:</text>
+  <text x="310" y="328" class="sub">① Modell läuft  →  ② Modell wählt Tool</text>
+  <text x="310" y="345" class="sub">③ verbindet sich SELBST zum MCP-Server</text>
+  <text x="310" y="362" class="sub">④ Ergebnis zurück ins Modell → Antwort</text>
+  <text x="135" y="396" class="who" fill="#8e44ad">⟵ alles in Anthropics Box</text>
+
+  <!-- MCP + Google -->
+  <rect class="box" x="220" y="452" width="180" height="42" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="310" y="478" class="lbl">calendar_mcp</text>
+  <rect class="box" x="220" y="524" width="180" height="42" fill="#ecedee" stroke="#7f8c8d"/>
+  <text x="310" y="550" class="lbl">Google API</text>
+
+  <!-- edges A -->
+  <path class="edge" d="M310,194 L310,262"/>
+  <text x="322" y="232" class="step">1 Call (mcp_servers)</text>
+  <path class="edge" d="M360,412 L360,452"/>
+  <text x="372" y="438" class="step">Anthropic verbindet</text>
+  <path class="edge" d="M310,494 L310,524"/>
+  <path class="edge" d="M255,262 L255,210 L200,180" />
+  <text x="120" y="232" class="step">Antwort ⟵</text>
+
+  <!-- ════════ PANEL B — ours ════════ -->
+  <rect class="panel" x="600" y="70" width="540" height="540" fill="#16a085" opacity="0.07"/>
+  <text x="624" y="104" class="ptitle" fill="#16a085">B · unser ToolHost</text>
+  <text x="624" y="124" class="psub">KIT-Gateway (glm-4.7) · glm entscheidet nur, WIR machen die Schleife</text>
+
+  <!-- Backend/ToolHost + glm -->
+  <rect class="box" x="630" y="150" width="230" height="56" fill="#dff3ee" stroke="#16a085"/>
+  <text x="745" y="172" class="lbl">Backend · ToolHost</text><text x="745" y="190" class="sub">Loop + MCP-Client + Vault</text>
+  <rect class="box" x="960" y="156" width="150" height="44" fill="#e7e0ef" stroke="#8e44ad"/>
+  <text x="1035" y="182" class="lbl">glm (Modell)</text>
+
+  <!-- arrows backend <-> glm -->
+  <path class="edge" d="M860,168 L958,168"/>
+  <text x="868" y="160" class="step">① „hier sind die Tools"</text>
+  <path class="edge" d="M960,190 L862,190"/>
+  <text x="868" y="204" class="step">② „ruf calendar"</text>
+
+  <!-- MCP + Google (ours) -->
+  <rect class="box" x="660" y="300" width="180" height="42" fill="#fbe9d7" stroke="#e67e22"/>
+  <text x="750" y="326" class="lbl">calendar_mcp</text>
+  <rect class="box" x="660" y="372" width="180" height="42" fill="#ecedee" stroke="#7f8c8d"/>
+  <text x="750" y="398" class="lbl">Google API</text>
+
+  <path class="edge" d="M745,206 L745,300"/>
+  <text x="757" y="258" class="step who" fill="#16a085">③ WIR verbinden</text>
+  <path class="edge" d="M750,342 L750,372"/>
+
+  <!-- back to glm for answer -->
+  <path class="edge" d="M860,196 L920,196 L1010,200 L1010,200" opacity="0"/>
+  <path class="edge" d="M845,310 L1035,310 L1035,200"/>
+  <text x="900" y="302" class="step">④ Ergebnis ⟶ glm</text>
+  <path class="edge" d="M1035,200 L1035,250 L862,250 L862,206" opacity="0"/>
+  <rect x="630" y="440" width="480" height="70" rx="8" fill="#dff3ee" stroke="#16a085" stroke-width="1.2"/>
+  <text x="648" y="466" class="step" font-weight="700">⑤ glm → „Antwort: Freitag bist du frei"</text>
+  <text x="648" y="488" class="sub" text-anchor="start">Mehrere Aufrufe an glm; ToolHost wiederholt die Schleife,</text>
+  <text x="648" y="503" class="sub" text-anchor="start">bis das Modell fertig ist. glm fasst die Tools NIE an.</text>
+
+  <!-- ════════ bottom note ════════ -->
+  <rect x="40" y="630" width="1100" height="54" rx="10" fill="#eef2f5"/>
+  <text x="60" y="654" class="note" font-weight="700">Gleiches Ergebnis — Unterschied = wer die Schleife + MCP-Verbindung macht.</text>
+  <text x="60" y="674" class="note">Umschaltbar: weil ToolHost ein sauberer MCP-Client ist, ersetzt ein Wechsel auf die echte Anthropic-API unsere Schleife durch den mcp_servers-Param. MCP-Server, Vault &amp; Frontend bleiben gleich.</text>
+</svg>
