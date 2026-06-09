@@ -1,12 +1,11 @@
-# FitDash — MCP-Architektur (Zielbild, umgesetzt)
+# FitDash — MCP-Architektur
 
-**Stand:** Branch `feature/mcp-standard-architecture`
-**Zweck dieses Dokuments:** Die *neue*, standardisierte Architektur sauber beschreiben — wie sie heute im Code steht, warum sie dem Anthropic-/MCP-Standard folgt und wie sie sich um **externe MCP-Server** erweitern lässt.
+**Zweck dieses Dokuments:** Die aktuelle Architektur sauber beschreiben — wie sie heute im Code steht, warum sie dem Anthropic-/MCP-Standard folgt und wie sie sich um **externe MCP-Server** erweitern lässt.
 
 > **Verhältnis zu den anderen Docs**
-> - [`docs/architecture-review.md`](architecture-review.md) — das *Warum* (kritisches Review der alten `main`-Architektur, das den Umbau begründet).
-> - [`ARCHITECTURE.md`](../ARCHITECTURE.md) — **Legacy.** Beschreibt das abgelöste `BaseMCPServer`+Registry-Muster (noch am FastAPI-`/chat` und an den Daten-Tabs).
-> - **Dieses Dokument** — das *Was/Wie* der neuen Architektur. Für neue Server gilt dieses Dokument.
+> - [`docs/architecture-review.md`](architecture-review.md) — das *Warum* (kritisches Review der alten Architektur, das den Umbau begründet). Dient als historische Referenz.
+> - [`ARCHITECTURE.md`](../ARCHITECTURE.md) — Kurzübersicht / Redirect auf dieses Dokument.
+> - **Dieses Dokument** — das maßgebliche *Was/Wie*. Für alle neuen Server gilt dieses Dokument.
 
 ---
 
@@ -45,7 +44,8 @@ Die Architektur folgt bewusst dem Modell, das Anthropic für MCP-Hosts beschreib
         ┌─────────────────────────────┼─────────────────────────────┐
         ▼                             ▼                             ▼
   servers/weather_mcp.py     servers/routes_mcp.py        externe MCP-Server
-  servers/calendar_mcp.py    (eigene FastMCP-Services)     (Nutzer, gleich behandelt)
+  servers/strava_mcp.py      servers/garmin_mcp.py         (Nutzer, gleich behandelt)
+  servers/calendar_mcp.py    (eigene FastMCP-Services)
 ```
 
 ### `core/config.py` — die Registry
@@ -55,7 +55,7 @@ Eine deklarative Tabelle `name → URL`. Eigene und externe Server haben dieselb
 MCP_SERVERS = {
     "weather":  _url("weather",  8101),
     "routes":   _url("routes",   8102),
-    "strava":   _url("strava",   8103),   # noch Legacy-Server, sobald als FastMCP migriert hier erreichbar
+    "strava":   _url("strava",   8103),
     "garmin":   _url("garmin",   8104),
     "calendar": _url("calendar", 8105),
 }
@@ -154,10 +154,12 @@ Jeder eigene Server ist ein eigenständiger FastMCP-Service — heute auf einem 
 # Lokal, jeder Server in eigenem Prozess
 python -m servers.weather_mcp     # :8101
 python -m servers.routes_mcp      # :8102   (braucht ORS_API_KEY)
+python -m servers.strava_mcp      # :8103   (braucht CLIENT_ID + CLIENT_SECRET)
+python -m servers.garmin_mcp      # :8104   (braucht GARMIN_EMAIL + GARMIN_PASSWORD)
 python -m servers.calendar_mcp    # :8105   (Google read-only)
 
-# Oder containerisiert: ein Image, SERVER-Env wählt das Modul
-docker compose up --build weather-mcp routes-mcp calendar-mcp
+# Oder containerisiert:
+docker compose up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
 ```
 
 Die App (`ToolHost`) läuft auf dem Host und erreicht die Server über die veröffentlichten `localhost`-Ports. Um die App *innerhalb* von compose zu betreiben, die `*_MCP_URL` auf die Servicenamen zeigen und `allowed_hosts` der Server weiten (siehe Kommentare in [`docker-compose.yml`](../docker-compose.yml)).
@@ -166,17 +168,17 @@ Die App (`ToolHost`) läuft auf dem Host und erreicht die Server über die verö
 |---|---|---|---|
 | `weather` | 8101 | Open-Meteo | keine (kostenlos) |
 | `routes` | 8102 | OpenRouteService + Overpass | `ORS_API_KEY` |
+| `strava` | 8103 | Strava v3 REST API | OAuth2 (`.tokens/strava.json`) |
+| `garmin` | 8104 | Garmin Connect (garminconnect) | Session-Token (`.tokens/`) |
 | `calendar` | 8105 | Google Calendar (read-only) | Bearer (Header oder Token-Datei) |
-| `strava` / `garmin` | 8103 / 8104 | noch Legacy-Server | Token-Vault (offen) |
 
 ---
 
 ## 6. Status & nächste Schritte
 
-**Umgesetzt:** uniformer MCP-Host (`ToolHost`), tool-agnostischer Kern (`orchestrator`), eigene Server als native FastMCP-Services (weather/routes/calendar), vendor-neutrale LLM-Naht, Tool-Namespacing, One-Host-Deployment.
+**Umgesetzt:** uniformer MCP-Host (`ToolHost`), tool-agnostischer Kern (`orchestrator`), alle fünf Server als native FastMCP-Services (weather/routes/strava/garmin/calendar), vendor-neutrale LLM-Naht, Tool-Namespacing, One-Host-Deployment, vollständige Legacy-Entfernung (Registry, BaseMCPServer, agents-Pipeline).
 
-**Noch offen** (Details in [`docs/architecture-review.md`](architecture-review.md) §5):
-- `strava` / `garmin` von Legacy-`BaseMCPServer` auf native FastMCP migrieren.
+**Noch offen** (Details in [`docs/architecture-review.md`](architecture-review.md) §5 Phase 4–5):
 - Mandanten-/Sicherheitsschicht (Pro-Nutzer-Identität, verschlüsselter Token-/Secret-Vault, Session-Isolation).
 - Sandboxing/Allowlist/Egress-Kontrolle für nutzer-hinzugefügte Server; Tool-Output als untrusted behandeln.
-- Frontend-Split: FastAPI-`/chat` und die Daten-Tabs hängen noch am Legacy-Pfad (`servers/registry.py`).
+- Logging statt `except: pass` an einigen Stellen; Contract-Tests an den Nähten.
