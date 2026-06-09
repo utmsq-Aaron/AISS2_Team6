@@ -31,13 +31,14 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
      ┌───────────────┼───────────────┐
      ▼               ▼               ▼
  :8101 weather   :8103 strava    :8104 garmin
- :8102 routes    :8105 calendar
+ :8102 routes    :8105 calendar  :8106 telegram*
  (native FastMCP servers — each an independent process)
+ (* telegram = Streamable-HTTP proxy to the external stdio telegram-mcp, optional)
 ```
 
 All data flows through the MCP servers — the UI never calls Strava or Garmin APIs directly. Each server handles auth, retries, and data formatting; the UI receives clean, ready-to-display JSON.
 
-The **Chat** tab uses a tool-agnostic tool-use loop (`core/orchestrator.py`): the LLM discovers all 31 tools via `ToolHost.list_tools()` and decides itself which to call — no tool names are hardcoded anywhere.
+The **Chat** tab uses a tool-agnostic tool-use loop (`core/orchestrator.py`): the LLM discovers every available tool via `ToolHost.list_tools()` (the 31 built-in tools, plus the Telegram set when that optional server is running) and decides itself which to call — no tool names are hardcoded anywhere.
 
 ## Project Layout
 
@@ -67,7 +68,8 @@ fitdash/
 │   ├── routes_mcp.py            # FastMCP server — routes via OpenRouteService (port 8102)
 │   ├── strava_mcp.py            # FastMCP server — Strava v3 API, OAuth2 (port 8103)
 │   ├── garmin_mcp.py            # FastMCP server — Garmin Connect (port 8104)
-│   └── calendar_mcp.py          # FastMCP server — Google Calendar, read-only (port 8105)
+│   ├── calendar_mcp.py          # FastMCP server — Google Calendar, read-only (port 8105)
+│   └── telegram_mcp.py          # Proxy → external stdio telegram-mcp (port 8106, optional)
 │
 └── ui/
     ├── shared.py                # ToolHost singleton, call_tool(), connection checks
@@ -137,6 +139,10 @@ Each server is a self-contained FastMCP service. The UI calls every tool via `ca
 | `garmin__get_garmin_body_composition` | Weight, BMI, body fat %, muscle mass over a date range |
 | `garmin__get_activity_gps_track` | Full GPS track (lat/lon/ele/time) for one Garmin activity |
 
+### Telegram (port 8106) — optional, 116 tools
+
+Unlike the others, this is **not** a native FastMCP server. [`servers/telegram_mcp.py`](servers/telegram_mcp.py) is a thin proxy that runs the external [chigwell/telegram-mcp](https://github.com/chigwell/telegram-mcp) (stdio-only) unmodified in its own `uv` environment and re-exposes its tools over Streamable HTTP, so `ToolHost` reaches them like any other server. Tools are discovered live (`telegram__send_message`, `telegram__list_chats`, `telegram__search_messages`, …) — send/edit/delete/forward/pin messages, manage chats, contacts, media and drafts. Set `TELEGRAM_EXPOSED_TOOLS=read-only` to expose only read tools. See [Telegram Setup](#telegram-setup).
+
 ## Adding a New Server
 
 One file + one line — see [`docs/mcp-architecture.md`](docs/mcp-architecture.md) §3 for the full walkthrough.
@@ -147,7 +153,7 @@ import os
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("example", host="127.0.0.1",
-              port=int(os.getenv("EXAMPLE_MCP_PORT", "8106")), stateless_http=True)
+              port=int(os.getenv("EXAMPLE_MCP_PORT", "8107")), stateless_http=True)
 
 @mcp.tool()
 def my_tool(param: str) -> dict:
@@ -160,7 +166,7 @@ if __name__ == "__main__":
 
 Then one line in `core/config.py`:
 ```python
-"example": _url("example", 8106),
+"example": _url("example", 8107),
 ```
 
 Start with `python -m servers.example_mcp`. `ToolHost` discovers the new tools automatically; the Chat agent can call them immediately — no other file needs to change.
@@ -174,6 +180,7 @@ Start with `python -m servers.example_mcp`. `ToolHost` discovers the new tools a
 - *(Optional)* A Garmin Connect account for the Health tab and activity data in Chat
 - *(Optional)* An [OpenRouteService](https://openrouteservice.org/dev/#/signup) key for route planning (free, no credit card)
 - *(Optional)* A Strava API application — note: Strava requires a paid subscription since May 2025
+- *(Optional, for Telegram)* [`uv`](https://docs.astral.sh/uv/) and Telegram API credentials from [my.telegram.org/apps](https://my.telegram.org/apps). The [telegram-mcp](https://github.com/chigwell/telegram-mcp) upstream is vendored in `./external/`.
 
 ### Installation
 
@@ -206,6 +213,9 @@ cp .env.example .env
 | `ORS_API_KEY` | No | OpenRouteService key — enables Routes tab |
 | `CLIENT_ID` | No | Strava app client ID (paid API since May 2025) |
 | `CLIENT_SECRET` | No | Strava app client secret |
+| `TELEGRAM_API_ID` | No | Telegram API ID — enables the Telegram server |
+| `TELEGRAM_API_HASH` | No | Telegram API hash |
+| `TELEGRAM_SESSION_STRING` | No | Telegram session string (see Telegram Setup) |
 
 All settings can also be configured at runtime in the **⚙️ Settings** tab.
 
@@ -231,6 +241,25 @@ python auth/garmin_setup.py
 
 Run once after filling in `GARMIN_EMAIL` and `GARMIN_PASSWORD`. Tokens persist in `.tokens/` until they expire; re-run if login fails.
 
+### Telegram Setup
+
+Optional. The Telegram tools come from the external [telegram-mcp](https://github.com/chigwell/telegram-mcp), which runs unmodified in its own `uv` environment behind `servers/telegram_mcp.py`.
+
+```bash
+# 1. The upstream server is vendored in this repo at external/telegram-mcp
+#    (if missing: git clone https://github.com/chigwell/telegram-mcp external/telegram-mcp)
+
+# 2. Put TELEGRAM_API_ID / TELEGRAM_API_HASH in .env (from my.telegram.org/apps)
+
+# 3. Generate a session string ONCE — interactive (QR scan or phone code),
+#    because login is disabled when the server runs headless:
+uv run --directory external/telegram-mcp session_string_generator.py
+#    Copy the printed string into .env as:  TELEGRAM_SESSION_STRING=...
+#    (answer "N" to its auto-update prompt — it would write to the wrong .env)
+```
+
+The session string grants full access to your Telegram account — treat it like a password; it lives only in `.env` (gitignored). The first `python -m servers.telegram_mcp` will have `uv` install the upstream's dependencies (one-time).
+
 ## Running
 
 Start the MCP servers, then the Streamlit app:
@@ -243,6 +272,7 @@ python -m servers.routes_mcp &
 python -m servers.strava_mcp &
 python -m servers.garmin_mcp &
 python -m servers.calendar_mcp &
+python -m servers.telegram_mcp &  
 
 # Terminal 2 — start the UI
 streamlit run app.py
@@ -253,6 +283,7 @@ Or with Docker Compose:
 docker compose up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
 streamlit run app.py
 ```
+(The Telegram proxy shells out to `uv` and isn't part of the shared image — run it on the host as above.)
 
 Open [http://localhost:8501](http://localhost:8501).
 
@@ -269,4 +300,5 @@ Open [http://localhost:8501](http://localhost:8501).
 | No route visible on map | Activity has no GPS stream (indoor workout or Strava privacy zone). |
 | Chat returns "Garmin not connected" | Run `auth/garmin_setup.py` and confirm `.tokens/garmin_tokens.json` exists. |
 | MCP server not reachable | Confirm the server process is running: `curl http://127.0.0.1:8103/mcp` should return 200. |
+| Telegram tools missing / server exits | Check `external/telegram-mcp` exists, `uv` is installed, and `TELEGRAM_SESSION_STRING` is valid (regenerate with `session_string_generator.py`). Watch its stderr for `[telegram] N tool(s) ready`. |
 | New activities not visible | Use **🔄 Refresh data** in the sidebar to clear the cache. |

@@ -61,3 +61,10 @@ services:
       GARMIN_MCP_PORT: "8104"
     ports: ["8104:8104"]
     restart: unless-stopped
+
+  # telegram-mcp is NOT a native FastMCP server: servers/telegram_mcp.py is a proxy
+  # that shells out to `uv run` against the external github.com/chigwell/telegram-mcp
+  # checkout. That needs `uv` + the cloned repo, which the shared python:3.11-slim
+  # image above does not provide — so run it on the HOST instead:
+  #     TELEGRAM_MCP_HOST=0.0.0.0 python -m servers.telegram_mcp   # :8106
+  # (or build a dedicated image that installs uv and clones external/telegram-mcp).
