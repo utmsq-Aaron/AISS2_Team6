@@ -13,10 +13,12 @@ from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import plotly.graph_objects as go
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 
 from ui.shared import garmin_connected, strava_connected
+from ui.styles import ACCENT, BORDER, TEXT_MUTED, activity_icon
 
 load_dotenv()
 
@@ -39,9 +41,20 @@ _PRESETS: Dict[str, int] = {
 
 def _garmin_client():
     from garminconnect import Garmin
-    g = Garmin()
-    g.login(tokenstore=TOKEN_STORE)
-    return g
+    email    = os.getenv("GARMIN_EMAIL", "") or ""
+    password = os.getenv("GARMIN_PASSWORD", "") or ""
+    try:
+        g = Garmin(email=email, password=password)
+        g.login(tokenstore=TOKEN_STORE)
+        return g
+    except Exception as exc:
+        msg = str(exc)
+        if "username and password" in msg.lower() or "401" in msg.lower():
+            raise RuntimeError(
+                "Garmin tokens are missing or expired. "
+                "Set GARMIN_EMAIL / GARMIN_PASSWORD in ⚙️ Settings and reconnect."
+            ) from exc
+        raise
 
 
 def _strava_token() -> str:
@@ -79,10 +92,16 @@ def _upload_to_strava(token: str, fit_bytes: bytes, name: str) -> Dict:
     except Exception:
         body = {}
     if not resp.ok:
-        # Surface the real HTTP error so the caller can show it
-        detail = (body.get("message") or body.get("error")
-                  or f"HTTP {resp.status_code}")
-        body["error"] = detail
+        msg = body.get("message") or body.get("error") or f"HTTP {resp.status_code}"
+        # Enrich with field-level detail from Strava's errors array
+        errs = body.get("errors", [])
+        if errs:
+            fields = ", ".join(e.get("field", "") for e in errs if e.get("field"))
+            if fields:
+                msg = f"{msg} ({fields})"
+        if resp.status_code == 401 or "authorization" in msg.lower():
+            msg += " — reconnect Strava in ⚙️ Settings to grant activity:write scope"
+        body["error"] = msg
     return body
 
 
@@ -470,15 +489,11 @@ def render_sync() -> None:
     )
 
     if not garmin_connected():
-        st.warning("Garmin not connected. Run `python auth/garmin_setup.py` first.")
+        st.warning("Garmin not connected. Open ⚙️ **Settings** to connect.")
         return
     if not strava_connected():
-        st.warning("Strava not connected. Open the Dashboard tab to authorize.")
+        st.warning("Strava not connected. Open ⚙️ **Settings** to connect.")
         return
-
-    # Heavy imports only when both services are connected
-    import requests
-    from ui.styles import ACCENT, BORDER, TEXT_MUTED, activity_icon
 
     activities: List[Dict] = st.session_state.get("sync_activities", [])
 

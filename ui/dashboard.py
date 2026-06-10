@@ -41,17 +41,22 @@ def load_weather() -> Dict:
             for fut in as_completed(futures, timeout=12):
                 key, data = fut.result()
                 result[key] = data
-        result["error"] = None
+        # Treat any sub-result that is itself an error as a top-level error
+        sub_errors = [v.get("error") for v in result.values() if isinstance(v, dict) and v.get("error")]
+        result["error"] = sub_errors[0] if sub_errors else None
     except Exception as e:
         result["error"] = str(e)
     return result
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def load_activities(limit: int = 2000) -> List[Dict]:
+def load_activities(limit: int = 2000) -> Tuple[List[Dict], str]:
+    """Returns (activities, error_message). error_message is '' on success."""
     import json
     raw = json.loads(call_tool("strava__get_activities", {"limit": limit}))
-    return raw.get("activities", [])
+    if raw.get("error"):
+        return [], raw["error"]
+    return raw.get("activities", []), ""
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -219,17 +224,30 @@ _DASH_PERIODS: Dict[str, int] = {
 
 def render_dashboard(sport_filter: Optional[str] = None) -> None:
     if not strava_connected():
-        st.info("Strava ist nicht verbunden. Starte die Autorisierung über den **Sync**-Tab.")
+        st.warning("**Strava not connected.** Open the ⚙️ Settings tab to connect your Strava account.")
         return
 
     with st.spinner("Loading Strava data…"):
         try:
-            activities = load_activities()
+            activities, act_error = load_activities()
             athlete, stats = load_athlete_and_stats()
         except Exception as e:
             st.error(f"Could not load Strava data: {e}")
             st.info("Make sure your `.env` has `CLIENT_ID` and `CLIENT_SECRET`, then reload.")
             return
+
+    if not activities:
+        if act_error and "activity:read_permission" in act_error:
+            st.warning(
+                "**Missing activity scope.** Your Strava token was authorized without "
+                "`activity:read` permission.\n\n"
+                "**Fix:** Go to ⚙️ **Settings → Strava → Disconnect**, then reconnect "
+                "via the Strava OAuth button to grant the full activity access scope."
+            )
+        elif act_error:
+            st.error(f"**Strava activities error:** {act_error}")
+        else:
+            st.info("**No Strava activities found** — your account has no recorded activities yet.")
 
     # Apply optional sport filter
     if sport_filter and sport_filter != "All":
@@ -261,6 +279,8 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
 
     # ── Weather widget ────────────────────────────────────────────────────────
     wd = load_weather()
+    if wd.get("error"):
+        st.caption(f"⚠️ Weather unavailable: {wd['error']} — make sure the weather MCP server is running.")
     if not wd.get("error"):
         w  = wd.get("weather", {})
         uv = wd.get("uv", {})
@@ -294,7 +314,7 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
         pol_icon  = _POL_RISK.get(pol_level, "")
 
         wc1, wc2, wc3, wc4 = st.columns(4)
-        wc1.metric("Wetter Karlsruhe", f"{condition}", f"{w.get('temperature_c', '?')} °C")
+        wc1.metric("Weather Karlsruhe", f"{condition}", f"{w.get('temperature_c', '?')} °C")
         wc2.metric("Wind",             f"{w.get('wind_speed_kmh', '?')} km/h")
         wc3.metric("UV Index",         f"{uv_icon} {uv.get('uv_index', '?')}", uv_risk)
         wc4.metric(

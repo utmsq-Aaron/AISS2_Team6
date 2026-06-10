@@ -30,8 +30,9 @@ HISTORY_WINDOW = 10
 LARGE_ARRAY_KEYS = {"points", "waypoints", "segments", "timeline", "buckets_15min", "trails", "instructions"}
 ROUTE_TOOLS = {"plan_route", "plan_circular_route", "explore_trails", "get_isochrone"}
 
+
 _SYSTEM = """\
-You are FitDash, an AI assistant for fitness, route planning, weather and calendar.
+You are Training Copilot, an AI assistant for fitness, route planning, weather and calendar.
 Today is {today}.
 
 You have tools that fetch the user's REAL data. Use them whenever the question needs
@@ -94,7 +95,7 @@ class FitDashOrchestrator:
 
         try:
             for rnd in range(MAX_ROUNDS):
-                _cb(progress_cb, f"Phase {rnd + 1} — Modell denkt…")
+                _cb(progress_cb, f"Phase {rnd + 1} — Model thinking…")
                 resp = client.chat.completions.create(
                     model=model, messages=messages,
                     tools=tools or None, tool_choice=("auto" if tools else "none"),
@@ -114,7 +115,7 @@ class FitDashOrchestrator:
                         for tc in tcs
                     ],
                 })
-                _cb(progress_cb, "Rufe Daten ab: " + ", ".join(tc.function.name for tc in tcs))
+                _cb(progress_cb, "Fetching data: " + ", ".join(tc.function.name for tc in tcs))
 
                 for tc in tcs:
                     ts = time.perf_counter()
@@ -150,6 +151,9 @@ class FitDashOrchestrator:
             "data_summary": _summary(results),
         }]
         trace["route_data"] = _route_data(results)
+        ft = _flythrough_from_results(results)
+        if ft:
+            trace["actions"].append(ft)
         trace["answer"] = answer
         _write_log(trace)
         return answer, trace
@@ -207,6 +211,34 @@ def _cb(fn: Optional[Callable], msg: str) -> None:
             fn(msg)
         except Exception:
             pass
+
+
+def _flythrough_from_results(results: List[Dict]) -> Optional[Dict]:
+    """Detect any tool result with action='show_flythrough' and build a trace action.
+
+    Tool-name agnostic — works with flythrough__prepare_flythrough,
+    strava__launch_flythrough, or any future server returning this action key.
+    """
+    for r in results:
+        if r.get("error"):
+            continue
+        try:
+            data = json.loads(r["result"])
+            if not isinstance(data, dict) or data.get("action") != "show_flythrough":
+                continue
+            return {
+                "type":          "flythrough",
+                "activity_id":   data.get("activity_id"),
+                "activity_name": data.get("activity_name", "Activity"),
+                "mode":          data.get("mode", "satellite_3d"),
+                "duration_sec":  int(data.get("duration_sec", 60)),
+                "orientation":   data.get("orientation", "landscape"),
+                "resolution":    data.get("resolution", "2K"),
+                "hidden":        True,
+            }
+        except Exception:
+            continue
+    return None
 
 
 def _write_log(trace: Dict) -> None:

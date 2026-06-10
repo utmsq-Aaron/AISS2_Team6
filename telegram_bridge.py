@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FitDash Telegram bridge — talk to the agent from a Telegram chat.
+"""Training Copilot Telegram bridge — talk to the agent from a Telegram chat.
 
 Every incoming Telegram message is forwarded to the SAME engine the Chat tab
 uses (``core.orchestrator.FitDashOrchestrator``) and the agent's answer is sent
@@ -137,7 +137,7 @@ def _chunk(text: str, limit: int = TG_LIMIT) -> List[str]:
 
 async def _send_text(event, text: str) -> None:
     """Send a possibly-long reply; try Markdown, fall back to plain on parse errors."""
-    for chunk in _chunk(text) or ["(keine Antwort)"]:
+    for chunk in _chunk(text) or ["(no response)"]:
         try:
             await event.respond(chunk, parse_mode="md", link_preview=False)
         except Exception:
@@ -171,7 +171,7 @@ async def _send_route(event, route_data: Dict) -> None:
     gmaps = google_maps_url(route_data)
     gpx = route_gpx(route_data)
 
-    link_line = f"📍 In Google Maps öffnen:\n{gmaps}" if gmaps else ""
+    link_line = f"📍 Open in Google Maps:\n{gmaps}" if gmaps else ""
     full_caption = f"🗺️ Route\n{link_line}" if link_line else "🗺️ Route"
 
     try:
@@ -194,7 +194,7 @@ async def _send_route(event, route_data: Dict) -> None:
             gio.name = "route.gpx"
             await event.client.send_file(
                 event.chat_id, gio, force_document=True,
-                caption="Exakte Route als GPX – in OsmAnd, Komoot, Organic Maps, Garmin oder Strava öffnen.",
+                caption="Exact route as GPX — open in OsmAnd, Komoot, Organic Maps, Garmin or Strava.",
             )
     except Exception:
         log.exception("failed to send route artifacts")
@@ -229,6 +229,79 @@ async def _transcribe_voice(event) -> Optional[str]:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+def _fetch_track_for_activity(activity_id: int) -> List[List[float]]:
+    """Fetch GPS points via ToolHost and return [[lon, lat, ele, time_s], ...]."""
+    import json as _json
+    raw = _get_orchestrator().host.call_tool("strava__get_activity_streams", {"activity_id": activity_id})
+    data = _json.loads(raw)
+    points = data.get("points", [])
+    if not points:
+        raise ValueError(f"No GPS stream data for activity {activity_id}")
+    return [
+        [p["lon"], p["lat"], p.get("ele") or 0.0, p.get("time_s")]
+        for p in points
+        if p.get("lat") is not None and p.get("lon") is not None
+    ]
+
+
+async def _send_flythrough(event, action: Dict) -> None:
+    """Render flythrough MP4 server-side via Playwright and send to Telegram."""
+    loop = asyncio.get_running_loop()
+    activity_id = action.get("activity_id")
+    name = action.get("activity_name", "Activity")
+    if not activity_id:
+        log.warning("flythrough action missing activity_id — skipping")
+        return
+
+    try:
+        from ui.video_renderer import render_flythrough
+    except ImportError:
+        log.warning("ui.video_renderer not available (playwright not installed) — skipping flythrough")
+        return
+
+    await _send_text(event, f"🎬 Rendering flythrough for *{name}*… (this may take ~30 s)")
+
+    try:
+        track = await loop.run_in_executor(None, _fetch_track_for_activity, activity_id)
+    except Exception:
+        log.exception("failed to fetch GPS track for activity %s", activity_id)
+        await _send_text(event, "⚠️ Could not fetch GPS track for this activity.")
+        return
+
+    try:
+        mp4_bytes: Optional[bytes] = await loop.run_in_executor(
+            None,
+            lambda: render_flythrough(
+                track=track,
+                name=name,
+                mode=action.get("mode", "satellite_3d"),
+                duration_sec=int(action.get("duration_sec", 60)),
+                orientation=action.get("orientation", "landscape"),
+                resolution=action.get("resolution", "2K"),
+            ),
+        )
+    except Exception:
+        log.exception("flythrough render failed for activity %s", activity_id)
+        await _send_text(event, "⚠️ Flythrough render failed. Make sure Playwright/Chromium is installed.")
+        return
+
+    if not mp4_bytes:
+        await _send_text(event, "⚠️ Flythrough render returned no data.")
+        return
+
+    try:
+        bio = io.BytesIO(mp4_bytes)
+        bio.name = f"flythrough_{activity_id}.mp4"
+        await event.client.send_file(
+            event.chat_id, bio,
+            caption=f"🎬 {name}",
+            force_document=False,
+        )
+        log.info("flythrough MP4 sent (%d bytes) for activity %s", len(mp4_bytes), activity_id)
+    except Exception:
+        log.exception("failed to send flythrough MP4 to Telegram")
+
+
 # ── Message handler ──────────────────────────────────────────────────────────────
 
 async def _handle_message(event) -> None:
@@ -251,13 +324,13 @@ async def _handle_message(event) -> None:
     if not text and _has_audio(event):
         transcript = await _transcribe_voice(event)
         if not transcript:
-            await _send_text(event, "🎤 Ich konnte die Sprachnachricht leider nicht verstehen.")
+            await _send_text(event, "🎤 Could not understand the voice message.")
             return
-        await _send_text(event, f'🎤 Verstanden: "{transcript}"')  # echo what was heard
+        await _send_text(event, f'🎤 Heard: "{transcript}"')  # echo what was heard
         text = transcript
 
     if not text:
-        await _send_text(event, "Ich kann momentan nur Text- und Sprachnachrichten verarbeiten. 📝")
+        await _send_text(event, "I can only process text and voice messages right now. 📝")
         return
 
     log.info("← chat=%s @%s: %s", chat_id, getattr(sender, "username", ""), text[:120])
@@ -272,20 +345,31 @@ async def _handle_message(event) -> None:
                 )
     except Exception as exc:
         log.exception("orchestrator run failed")
-        await _send_text(event, f"⚠️ Fehler bei der Verarbeitung: {exc}")
+        await _send_text(event, f"⚠️ Error processing your message: {exc}")
         return
 
     # Record the turn only after a successful run.
     _histories[chat_id].append({"role": "user", "content": text})
     _histories[chat_id].append({"role": "assistant", "content": answer or ""})
 
-    await _send_text(event, answer or "(keine Antwort)")
+    await _send_text(event, answer or "(no response)")
 
     route_data = (trace or {}).get("route_data")
     if route_data:
         await _send_route(event, route_data)
-    log.info("→ chat=%s: replied (%d chars)%s",
-             chat_id, len(answer or ""), " +route" if route_data else "")
+
+    # Flythrough: render MP4 server-side and send as video
+    ft_action = next(
+        (a for a in ((trace or {}).get("actions") or []) if a.get("type") == "flythrough"),
+        None,
+    )
+    if ft_action:
+        await _send_flythrough(event, ft_action)
+
+    log.info("→ chat=%s: replied (%d chars)%s%s",
+             chat_id, len(answer or ""),
+             " +route" if route_data else "",
+             " +flythrough" if ft_action else "")
 
 
 # ── Startup ──────────────────────────────────────────────────────────────────────
@@ -351,7 +435,7 @@ async def _login() -> None:
 
     if not API_HASH:
         raise SystemExit("Set TELEGRAM_API_ID and TELEGRAM_API_HASH in .env first.")
-    print("\nFitDash Telegram bridge — session login")
+    print("\nTraining Copilot Telegram bridge — session login")
     print("You will be asked for your phone number, the login code, and 2FA password if set.\n")
     client = TelegramClient(StringSession(), _api_id(), API_HASH)
     await client.start()  # prompts for phone / code / password as needed

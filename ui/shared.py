@@ -75,14 +75,25 @@ def strava_connected() -> bool:
 
 
 def garmin_connected() -> bool:
-    """True only if the Garmin token directory contains at least one token file."""
+    """True if Garmin mock mode is active OR token files exist in .tokens/."""
+    from dotenv import dotenv_values
+    file_vals = dotenv_values(".env")
+    mock_flag = os.getenv("GARMIN_MOCK_HEALTH") or file_vals.get("GARMIN_MOCK_HEALTH", "false")
+    if str(mock_flag).lower() in ("1", "true", "yes"):
+        return True
     token_dir = Path(".tokens")
     if not token_dir.is_dir():
         return False
+    excluded = {"strava.json", "google.json"}
     return any(
-        f.is_file() and f.suffix in (".json", ".txt", "") and f.name != "strava.json"
+        f.is_file() and f.suffix in (".json", ".txt", "") and f.name not in excluded
         for f in token_dir.iterdir()
     )
+
+
+def google_connected() -> bool:
+    """True if a Google OAuth token file exists."""
+    return Path(".tokens/google.json").is_file()
 
 
 def routes_connected() -> bool:
@@ -116,11 +127,11 @@ def validate_config() -> List[str]:
     """Return human-readable warnings for missing or incomplete configuration."""
     issues = []
     if not strava_connected():
-        issues.append("Strava nicht verbunden — öffne den Settings-Tab um dich zu verbinden")
+        issues.append("Strava not connected — open the ⚙️ Settings tab to connect")
     if not garmin_connected():
-        issues.append("Garmin nicht verbunden — führe python auth/garmin_setup.py aus")
+        issues.append("Garmin not connected — open the ⚙️ Settings tab to connect or enable mock mode")
     if not os.getenv("OPENAI_API_KEY"):
-        issues.append("OPENAI_API_KEY nicht gesetzt — KI-Features deaktiviert")
+        issues.append("OPENAI_API_KEY not set — AI features disabled")
     return issues
 
 

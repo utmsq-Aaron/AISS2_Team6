@@ -33,8 +33,7 @@ mcp = FastMCP(
     "strava",
     instructions=(
         "Strava activity data: list activities, aggregate stats, training trends, "
-        "personal bests, yearly breakdown, gear info, GPS streams, activity detail, "
-        "and 3D flythrough rendering."
+        "personal bests, yearly breakdown, gear info, GPS streams, and activity detail."
     ),
     host=HOST,
     port=PORT,
@@ -742,71 +741,6 @@ async def get_activity_streams(
         "has_velocity": bool(velocity),
         "has_watts":    bool(watts),
         "points":       points,
-    }
-
-
-@mcp.tool()
-async def launch_flythrough(
-    orientation: str,
-    mode: str,
-    duration_sec: int,
-    activity_id: Optional[int] = None,
-    activity_name: Optional[str] = None,
-    resolution: str = "2K",
-) -> Dict[str, Any]:
-    """Render a 3D cinematic GPS flythrough MP4 for a Strava activity.
-
-    The video animates the GPS route over a satellite or dark map from a moving
-    camera perspective. Contains ONLY the animated route — no HR, pace display,
-    split markers, elevation graph, or text overlays of any kind.
-
-    STRICT RULE: DO NOT call this tool until the user has EXPLICITLY stated ALL
-    THREE of: (1) ORIENTATION — 'landscape' or 'portrait'; (2) MAP STYLE —
-    'satellite_3d' or 'dark'; (3) DURATION — a number of seconds or minutes
-    (30–120 s). If any are missing, ask before calling. RESOLUTION defaults to
-    2K — only set when the user explicitly requests HD or 4K.
-
-    Args:
-        orientation: REQUIRED. 'landscape' (16:9) or 'portrait' (9:16) — must be confirmed by user.
-        mode: REQUIRED. 'satellite_3d' = real terrain + imagery. 'dark' = minimalist starfield.
-        duration_sec: REQUIRED. Video length in seconds (30–120) — must be confirmed by user.
-        activity_id: Strava numeric activity ID (use if known from conversation history).
-        activity_name: Short keyword extracted from the activity name (e.g. 'bergen', 'trail run').
-        resolution: Default '2K'. Only set when user explicitly requests 'HD' or '4K'.
-    """
-    if not activity_id and not activity_name:
-        return {"error": "Provide activity_id or activity_name"}
-
-    name_search = (activity_name or "").strip().lower()
-
-    if not activity_id:
-        acts = await _api.get_activities(limit=100)
-        matches = [a for a in acts if name_search in a.get("name", "").lower()]
-        if not matches:
-            return {"error": f"No activity found matching '{name_search}'"}
-        activity_id = int(matches[0]["id"])
-
-    try:
-        a = await _api.get_activity_by_id(int(activity_id))
-    except Exception as e:
-        return {"error": f"Could not load activity {activity_id}: {e}"}
-
-    spd = round(a.get("average_speed", 0) * 3.6, 2)
-    return {
-        "action":        "show_flythrough",
-        "activity_id":   int(activity_id),
-        "activity_name": a.get("name", f"Activity {activity_id}"),
-        "date":          a.get("start_date_local", "")[:10],
-        "type":          a.get("type", ""),
-        "distance_km":   round(a.get("distance", 0) / 1000, 2),
-        "elevation_m":   a.get("total_elevation_gain", 0),
-        "duration_min":  round(a.get("moving_time", 0) / 60, 1),
-        "avg_speed_kmh": spd,
-        "orientation":   orientation,
-        "mode":          mode,
-        "duration_sec":  max(30, min(120, duration_sec)),
-        "resolution":    resolution,
-        "auto_export":   True,
     }
 
 

@@ -48,40 +48,60 @@ mcp = FastMCP(
 
 
 class GarminAPI:
-    """Lazy-loading wrapper around garminconnect that reuses cached OAuth tokens.
+    """Lazy-loading wrapper around garminconnect (or MockGarminClient when mock mode is on).
 
     Thread-safe: uses a lock for init so parallel calls don't race on first login.
+    Enable mock mode via .env:  GARMIN_MOCK_HEALTH=true
     """
 
     def __init__(self) -> None:
-        self._client = None
+        self._real_client = None
+        self._mock_client = None
         self._lock = threading.Lock()
 
+    def _is_mock(self) -> bool:
+        from dotenv import dotenv_values
+        # Prefer the live .env file so the UI toggle takes effect without a restart.
+        # Fall back to process env for Docker/CI where .env is not present.
+        file_val = dotenv_values(".env").get("GARMIN_MOCK_HEALTH")
+        val = file_val if file_val is not None else os.getenv("GARMIN_MOCK_HEALTH", "false")
+        return str(val).lower() in ("1", "true", "yes")
+
     def client(self):
-        if self._client is None:
+        if self._is_mock():
+            if self._mock_client is None:
+                import sys, os as _os
+                _repo = str(Path(__file__).parent.parent)
+                if _repo not in sys.path:
+                    sys.path.insert(0, _repo)
+                from dummy_data_creation.garmin_health_mock import MockGarminClient
+                self._mock_client = MockGarminClient()
+            return self._mock_client
+
+        if self._real_client is None:
             with self._lock:
-                if self._client is None:
+                if self._real_client is None:
                     if not Path(TOKEN_STORE).exists():
                         raise RuntimeError(
-                            "Garmin tokens not found. Run: python auth/garmin_setup.py"
+                            "Garmin tokens not found — connect via the Settings tab."
                         )
                     try:
                         from garminconnect import Garmin
                         g = Garmin()
                         g.login(tokenstore=TOKEN_STORE)
-                        self._client = g
+                        self._real_client = g
                     except Exception as e:
                         raise RuntimeError(
                             f"Garmin login failed: {e}\n"
-                            "Re-run: python auth/garmin_setup.py"
+                            "Reconnect via the Settings tab."
                         ) from e
-        return self._client
+        return self._real_client
 
     _TRANSIENT_SIGNALS = ("timeout", "connection", "429", "503", "502", "reset", "eof")
     _MAX_RETRIES = 3
 
     def _call(self, fn, *args, **kwargs):
-        """Call a garminconnect method with retry on transient network errors."""
+        """Call a garminconnect/mock method with retry on transient network errors."""
         last_exc: Optional[Exception] = None
         for attempt in range(self._MAX_RETRIES):
             try:
@@ -804,12 +824,14 @@ def get_activity_gps_track(activity_id: int) -> Dict[str, Any]:
     Args:
         activity_id: Garmin numeric activity ID (from get_garmin_activities).
     """
-    from garminconnect import Garmin as GarminClient  # local import to keep module light
-
     g = _api.client()
 
     try:
-        raw = _api._call(g.download_activity, activity_id, dl_fmt=GarminClient.ActivityDownloadFormat.GPX)
+        if _api._is_mock():
+            raw = _api._call(g.download_activity, activity_id)
+        else:
+            from garminconnect import Garmin as GarminClient
+            raw = _api._call(g.download_activity, activity_id, dl_fmt=GarminClient.ActivityDownloadFormat.GPX)
     except Exception as e:
         return {"error": f"Could not download GPS track for activity {activity_id}: {e}"}
 

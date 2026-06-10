@@ -22,10 +22,11 @@ def _url(name: str, default_port: int) -> str:
 # name → Streamable-HTTP MCP endpoint. Own servers today; external/user servers
 # get appended here (per-user, at runtime) in the multi-tenant build.
 MCP_SERVERS: dict[str, str] = {
-    "weather":  _url("weather",  8101),
-    "routes":   _url("routes",   8102),
-    "strava":   _url("strava",   8103),
-    "garmin":   _url("garmin",   8104),
-    "calendar": _url("calendar", 8105),
-    "telegram": _url("telegram", 8106),
+    "weather":    _url("weather",    8101),
+    "routes":     _url("routes",     8102),
+    "strava":     _url("strava",     8103),
+    "garmin":     _url("garmin",     8104),
+    "calendar":   _url("calendar",   8105),
+    "telegram":   _url("telegram",   8106),
+    "flythrough": _url("flythrough", 8107),
 }

@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 
 from ui.shared import call_tool, garmin_connected
 from ui.styles import (
-    C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_PURPLE, C_ROSE, ACCENT,
+    C_AMBER, C_CYAN, C_GREEN, C_ROSE, ACCENT,
     TEXT_MUTED, TEXT_PRIMARY, BORDER, BG_CARD, chart_style,
 )
 
@@ -451,10 +451,8 @@ def render_health() -> None:
     if not garmin_connected():
         st.markdown("### Health & Wellness")
         st.warning(
-            "**Garmin not connected.**\n\n"
-            "1. Add `GARMIN_EMAIL` and `GARMIN_PASSWORD` to `.env`\n"
-            "2. Run: `python auth/garmin_setup.py`\n"
-            "3. Refresh this page"
+            "**Garmin not connected.** Open the ⚙️ Settings tab to connect your Garmin "
+            "account or enable mock mode for demo data."
         )
         return
 
@@ -483,6 +481,21 @@ def render_health() -> None:
 
     with st.spinner(f"Loading {period} health trends…"):
         wellness = _safe_load(lambda: load_wellness(days))
+
+    # Surface any MCP-level errors before rendering data
+    _garmin_errors = [r["error"] for r in (today, metrics, hrv, wellness) if r.get("error")]
+    if _garmin_errors:
+        st.error(
+            "**Garmin error:** " + _garmin_errors[0] + "\n\n"
+            "Check the ⚙️ **Settings** tab — you may need to reconnect or toggle mock mode. "
+            "Then click **Refresh data** in the sidebar."
+        )
+
+    # Strip error-only responses so downstream code sees clean dicts
+    today   = {} if today.get("error")   else today
+    metrics = {} if metrics.get("error") else metrics
+    hrv     = {} if hrv.get("error")     else hrv
+    wellness = {} if wellness.get("error") else wellness
 
     trend_days_list: List[Dict] = wellness.get("trend", [])
     df = pd.DataFrame(trend_days_list) if trend_days_list else pd.DataFrame()
@@ -574,7 +587,7 @@ def render_health() -> None:
     st.markdown(f"### {period} Trends")
 
     if df.empty:
-        st.info("No wellness trend data. Make sure `auth/garmin_setup.py` has been run.")
+        st.info("No wellness trend data available. If Garmin is connected, try a longer period or check the ⚙️ Settings tab.")
         return
 
     _section("Sleep")

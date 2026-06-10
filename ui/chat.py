@@ -9,9 +9,13 @@ input is always at the bottom (ChatGPT / Claude style).
 """
 
 import json
+import threading
 from typing import Dict, List, Optional
 
 import streamlit as st
+
+# Module-level dict for Telegram send results (background thread → main thread safe)
+_tg_sends: Dict[str, str] = {}
 
 
 @st.cache_resource(show_spinner=False)
@@ -282,6 +286,80 @@ def _render_trace(trace: Dict) -> None:
 
 # ── Inline renderers ──────────────────────────────────────────────────────────
 
+def _telegram_send_video(video_bytes: bytes, caption: str) -> str:
+    """Send MP4 bytes to Telegram Saved Messages via telethon. Returns 'ok' or 'error: ...'."""
+    import asyncio
+    import io
+    import os
+    from dotenv import dotenv_values
+
+    env = {**dotenv_values(".env"), **os.environ}
+    try:
+        api_id = int(env.get("TELEGRAM_API_ID", 0))
+    except (TypeError, ValueError):
+        return "error: invalid TELEGRAM_API_ID"
+    api_hash    = env.get("TELEGRAM_API_HASH", "")
+    session_str = env.get("TELEGRAM_SESSION_STRING", "")
+
+    if not all([api_id, api_hash, session_str]):
+        return "error: Telegram credentials not configured"
+
+    async def _send():
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+        client = TelegramClient(StringSession(session_str), api_id, api_hash)
+        await client.connect()
+        try:
+            buf = io.BytesIO(video_bytes)
+            buf.name = "flythrough.mp4"
+            await client.send_file("me", buf, caption=f"🎬 {caption}")
+            return "ok"
+        except Exception as exc:
+            return f"error: {exc}"
+        finally:
+            await client.disconnect()
+
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_send())
+    finally:
+        loop.close()
+
+
+def _auto_send_telegram(activity_id: int, name: str, run_id: str, video_bytes: bytes) -> None:
+    """Auto-send the rendered MP4 to Telegram Saved Messages (if configured)."""
+    from ui.shared import telegram_connected
+    if not telegram_connected():
+        return
+
+    tg_key = f"ft_tg_{run_id}"
+
+    # Sync thread result → session_state
+    if run_id in _tg_sends and tg_key not in st.session_state:
+        st.session_state[tg_key] = _tg_sends[run_id]
+
+    status = st.session_state.get(tg_key) or _tg_sends.get(run_id)
+
+    if status is None:
+        _tg_sends[run_id] = "sending"
+
+        def _bg(video_bytes=video_bytes, name=name, run_id=run_id):
+            _tg_sends[run_id] = _telegram_send_video(video_bytes, name)
+
+        threading.Thread(target=_bg, daemon=True).start()
+        st.rerun()
+
+    elif status == "sending":
+        st.info("📤 Sending to Telegram Saved Messages…")
+        st.rerun()
+
+    elif status == "ok":
+        st.success("✅ MP4 sent to Telegram Saved Messages!")
+
+    else:
+        st.warning(f"⚠️ Telegram send failed: {status}")
+
+
 def _render_viz_actions(actions: List[Dict]) -> None:
     """Render inline charts for all viz actions attached to a trace."""
     from ui import viz
@@ -290,38 +368,36 @@ def _render_viz_actions(actions: List[Dict]) -> None:
             viz.render(action["tool"], action["result"], action.get("metric_focus", ""))
 
 
-def _render_flythrough_inline(actions: List[Dict]) -> None:
-    """Render flythrough pinned to this message turn.
-
-    While rendering: shown inline (no expander) so reruns don't collapse it mid-progress.
-    When video is ready: wrapped in an auto-opened expander so the conversation stays readable.
-    """
+def _render_flythrough_inline(actions: List[Dict], run_id: str = "") -> None:
+    """Render a flythrough action and auto-send to Telegram when video is ready."""
     for action in (actions or []):
-        if action.get("type") == "flythrough":
-            from ui.flythrough_3d import show_flythrough
-            activity_id = action["activity_id"]
-            orientation = action.get("orientation", "landscape")
-            resolution  = action.get("resolution", "2K")
-            name        = action.get("activity_name") or "Flythrough"
-            render_key  = f"ft_video_{activity_id}_{orientation}_{resolution}"
+        if action.get("type") != "flythrough":
+            continue
 
-            kwargs = dict(
-                mode=action.get("mode", "satellite_3d"),
-                duration_sec=int(action.get("duration_sec", 60)),
-                orientation=orientation,
-                resolution=resolution,
-                hidden=True,
-            )
+        from ui.flythrough_3d import show_flythrough
+        activity_id = action["activity_id"]
+        orientation = action.get("orientation", "landscape")
+        resolution  = action.get("resolution", "2K")
+        duration    = int(action.get("duration_sec", 60))
+        name        = action.get("activity_name") or "Flythrough"
+        render_key  = f"ft_video_{activity_id}_{orientation}_{resolution}_{duration}"
 
-            if render_key in st.session_state:
-                # Video ready — wrap in expander; expanded=True on first appearance
-                # so user sees it without having to open manually.
-                with st.expander(f"🎬 {name}", expanded=True):
-                    show_flythrough(activity_id, name, **kwargs)
-            else:
-                # Still rendering — show status inline so reruns don't hide progress
+        kwargs = dict(
+            mode=action.get("mode", "satellite_3d"),
+            duration_sec=duration,
+            orientation=orientation,
+            resolution=resolution,
+            hidden=True,
+        )
+
+        if render_key in st.session_state:
+            with st.expander(f"🎬 {name}", expanded=True):
                 show_flythrough(activity_id, name, **kwargs)
-            break
+            # Video ready — auto-send to Telegram if configured
+            _auto_send_telegram(activity_id, name, run_id, st.session_state[render_key])
+        else:
+            show_flythrough(activity_id, name, **kwargs)
+        break
 
 
 # ── Main render ───────────────────────────────────────────────────────────────
@@ -361,7 +437,10 @@ def render_chat() -> None:
                 if msg["role"] == "assistant" and i // 2 < len(st.session_state.chat_traces):
                     trace_i = st.session_state.chat_traces[i // 2]
                     _render_viz_actions(trace_i.get("actions") or [])
-                    _render_flythrough_inline(trace_i.get("actions") or [])
+                    _render_flythrough_inline(
+                        trace_i.get("actions") or [],
+                        run_id=trace_i.get("run_id", str(i)),
+                    )
             if msg["role"] == "assistant" and i // 2 < len(st.session_state.chat_traces):
                 trace = st.session_state.chat_traces[i // 2]
                 _render_trace(trace)
@@ -381,7 +460,7 @@ def render_chat() -> None:
                 _phase_icons = {
                     "1": "🔍", "2": "📊", "3": "💬",
                 }
-                _status_box  = st.status("⏳ Analysiere Anfrage…", expanded=True)
+                _status_box  = st.status("⏳ Analysing request…", expanded=True)
                 _status_steps: list = []
 
                 def _update_status(msg: str) -> None:
@@ -401,31 +480,24 @@ def render_chat() -> None:
                 # Close status box — green checkmark on success, red on error
                 if trace.get("error"):
                     _status_box.update(
-                        label=f"❌ Fehler nach {sum(trace.get('timing', {}).values())} ms",
+                        label=f"❌ Error after {sum(trace.get('timing', {}).values())} ms",
                         state="error",
                         expanded=True,
                     )
                 else:
                     total_ms = sum(trace.get("timing", {}).values())
                     _status_box.update(
-                        label=f"✅ Fertig in {total_ms / 1000:.1f}s",
+                        label=f"✅ Done in {total_ms / 1000:.1f}s",
                         state="complete",
                         expanded=False,
                     )
 
-                is_flythrough = any(
-                    a.get("type") == "flythrough"
-                    for a in (trace.get("actions") or [])
-                )
+                st.markdown(answer)
+                _render_viz_actions(trace.get("actions") or [])
+                if trace.get("route_data"):
+                    _render_route_map(trace["route_data"], key_suffix=trace.get("run_id", "new"))
 
-                if not is_flythrough:
-                    st.markdown(answer)
-                    _render_viz_actions(trace.get("actions") or [])
-                    if trace.get("route_data"):
-                        _render_route_map(trace["route_data"], key_suffix=trace.get("run_id", "new"))
-
-            if not is_flythrough:
-                _render_trace(trace)
+            _render_trace(trace)
 
             # Persist BEFORE anything that calls st.rerun().
             # show_flythrough() polls via st.rerun() every 3 s — if we haven't
@@ -438,9 +510,8 @@ def render_chat() -> None:
                 st.session_state.chat_history = st.session_state.chat_history[-20:]
                 st.session_state.chat_traces  = st.session_state.chat_traces[-10:]
 
-            # For flythrough turns, rerun immediately so the history loop
-            # renders the widget at the correct position inside the chat bubble.
-            if is_flythrough:
+            # Rerun so the history loop immediately renders the flythrough widget.
+            if any(a.get("type") == "flythrough" for a in (trace.get("actions") or [])):
                 st.rerun()
 
         # Clear button lives inside the message area, below the last message

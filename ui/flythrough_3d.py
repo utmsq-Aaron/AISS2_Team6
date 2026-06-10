@@ -1233,7 +1233,7 @@ def show_flythrough(
 
     # ── Hidden / agent-triggered: non-blocking server-side render ────────────
     if hidden:
-        render_key = f"ft_video_{activity_id}_{orientation}_{resolution}"
+        render_key = f"ft_video_{activity_id}_{orientation}_{resolution}_{duration_sec}"
         thread_key = render_key + "_thread"
 
         # Promote a completed background render into the permanent cache

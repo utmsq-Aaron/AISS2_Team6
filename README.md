@@ -119,7 +119,12 @@ Each server is a self-contained FastMCP service. The UI calls every tool via `ca
 | `strava__get_gear_info` | Registered bikes and shoes with accumulated mileage |
 | `strava__get_activity_detail` | Deep single-activity detail: laps, HR, power, cadence, PRs, gear |
 | `strava__get_activity_streams` | Raw GPS streams (lat/lon, altitude, HR, cadence, velocity, power) |
-| `strava__launch_flythrough` | Trigger a 3D flythrough render — returns action payload for the UI |
+
+### Flythrough (port 8107) — 1 tool
+
+| Tool | What it returns |
+|---|---|
+| `flythrough__prepare_flythrough` | Validates render params and returns a `show_flythrough` action payload for the UI |
 
 ### Garmin (port 8104) — 13 tools
 
@@ -153,7 +158,7 @@ import os
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("example", host="127.0.0.1",
-              port=int(os.getenv("EXAMPLE_MCP_PORT", "8107")), stateless_http=True)
+              port=int(os.getenv("EXAMPLE_MCP_PORT", "8108")), stateless_http=True)
 
 @mcp.tool()
 def my_tool(param: str) -> dict:
@@ -166,7 +171,7 @@ if __name__ == "__main__":
 
 Then one line in `core/config.py`:
 ```python
-"example": _url("example", 8107),
+"example": _url("example", 8108),
 ```
 
 Start with `python -m servers.example_mcp`. `ToolHost` discovers the new tools automatically; the Chat agent can call them immediately — no other file needs to change.

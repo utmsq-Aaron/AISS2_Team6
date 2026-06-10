@@ -15,13 +15,46 @@ from ui.styles import STRAVA_ORANGE, inject_css
 
 # ── Page config (must be first Streamlit call) ────────────────────────────────
 st.set_page_config(
-    page_title="FitDash",
-    page_icon="🏃",
+    page_title="Training Copilot",
+    page_icon="🏋️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 inject_css()
+
+# ── Auto-start MCP servers (once per process) ─────────────────────────────────
+@st.cache_resource(show_spinner="⚙️ Starting services…")
+def _ensure_mcp_servers() -> list:
+    """Launch any MCP server that isn't already listening on its port."""
+    import socket
+    import subprocess
+    import sys
+    import time
+    import urllib.parse
+    from core.config import MCP_SERVERS
+
+    _optional = {"telegram"}  # requires manual setup; skip silently
+    started = []
+    for name, url in MCP_SERVERS.items():
+        if name in _optional:
+            continue
+        port = urllib.parse.urlparse(url).port
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
+            _s.settimeout(0.3)
+            already_up = _s.connect_ex(("127.0.0.1", port)) == 0
+        if not already_up:
+            subprocess.Popen(
+                [sys.executable, "-m", f"servers.{name}_mcp"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            started.append(name)
+    if started:
+        time.sleep(2.5)  # give freshly-launched servers time to bind their ports
+    return started
+
+_ensure_mcp_servers()
 
 # ── Config validation (once at startup) ──────────────────────────────────────
 @st.cache_resource(show_spinner=False)
@@ -36,15 +69,18 @@ for _warn in _check_config():
 def _pin_gate() -> None:
     """Block the app until the correct PIN is entered.
 
-    Set APP_PIN in .streamlit/secrets.toml (or as env var APP_PIN).
-    If APP_PIN is not configured the gate is bypassed (local dev convenience).
+    Requires DO_LOCK=true in .env AND APP_PIN set (in .env or .streamlit/secrets.toml).
+    When DO_LOCK is false (the default) the gate is always bypassed.
     """
+    if os.getenv("DO_LOCK", "false").lower() not in ("1", "true"):
+        return  # locking disabled — open access
+
     try:
         expected = st.secrets.get("APP_PIN") or os.getenv("APP_PIN", "")
     except Exception:
         expected = os.getenv("APP_PIN", "")
     if not expected:
-        return  # no PIN configured — open access
+        return  # lock enabled but no PIN set — still open access
 
     if st.session_state.get("authenticated"):
         return
@@ -62,7 +98,7 @@ def _pin_gate() -> None:
     _, col, _ = st.columns([1, 2, 1])
     with col:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("## 🏃 FitDash")
+        st.markdown("## 🏋️ Training Copilot")
         st.caption("Enter your PIN to continue")
         pin = st.text_input(
             "PIN",
@@ -85,7 +121,7 @@ _pin_gate()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown(f"# 🏃 FitDash")
+    st.markdown("# 🏋️ Training Copilot")
     st.caption("AI-powered sports analytics")
     st.divider()
 
@@ -93,13 +129,17 @@ with st.sidebar:
     from core.config import MCP_SERVERS
     from ui.shared import strava_connected, garmin_connected, routes_connected, telegram_connected
 
-    _labels = {"strava": "Strava", "garmin": "Garmin", "routes": "Routes", "weather": "Open-Meteo", "calendar": "Calendar", "telegram": "Telegram"}
+    _labels = {
+        "strava": "Strava", "garmin": "Garmin", "routes": "Routes",
+        "weather": "Open-Meteo", "calendar": "Calendar",
+        "telegram": "Telegram", "flythrough": "Flythrough",
+    }
 
     def _is_connected(key: str) -> bool:
-        if key in ("weather", "calendar"): return True
-        if key == "strava":  return strava_connected()
-        if key == "garmin":  return garmin_connected()
-        if key == "routes":  return routes_connected()
+        if key in ("weather", "calendar", "flythrough"): return True
+        if key == "strava":   return strava_connected()
+        if key == "garmin":   return garmin_connected()
+        if key == "routes":   return routes_connected()
         if key == "telegram": return telegram_connected()
         return False
 
@@ -136,7 +176,7 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.caption("AISS2 Team 6  ·  v2.0")
+    st.caption("Training Copilot  ·  AISS2 Team 6")
 
     if st.session_state.get("authenticated"):
         if st.button("🔒  Lock", width='stretch'):
@@ -145,7 +185,7 @@ with st.sidebar:
 
 # ── Tab layout ────────────────────────────────────────────────────────────────
 tab_dash, tab_health, tab_routes, tab_chat, tab_sync, tab_settings = st.tabs(
-    ["📊  Dashboard", "🏥  Health", "🗺️  Routen", "💬  Chat", "🔁  Sync", "⚙️  Settings"]
+    ["📊  Dashboard", "🏥  Health", "🗺️  Routes", "💬  Chat", "🔁  Sync", "⚙️  Settings"]
 )
 
 with tab_dash:
