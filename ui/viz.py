@@ -45,7 +45,8 @@ def can_render(tool_name: str) -> bool:
     return tool_name in _REGISTRY
 
 
-def render(tool_name: str, result_json: str, metric_focus: str = "") -> None:
+def render(tool_name: str, result_json: str, metric_focus: str = "",
+           viz_hints: Optional[dict] = None) -> None:
     """Dispatch to the registered renderer. Silent no-op on any failure."""
     fn = _REGISTRY.get(tool_name)
     if not fn:
@@ -54,8 +55,11 @@ def render(tool_name: str, result_json: str, metric_focus: str = "") -> None:
         data = json.loads(result_json) if isinstance(result_json, str) else result_json
         if not data or (isinstance(data, dict) and data.get("error")):
             return
-        if metric_focus and isinstance(data, dict):
-            data["_metric_focus"] = metric_focus
+        if isinstance(data, dict):
+            if metric_focus:
+                data["_metric_focus"] = metric_focus
+            if viz_hints:
+                data["_viz_hints"] = viz_hints
         fn(data)
     except Exception:
         pass  # visualization failures must never crash the chat
@@ -162,7 +166,7 @@ def viz_sleep(data: dict) -> None:
 
 @register("get_garmin_body_battery")
 def viz_body_battery(data: dict) -> None:
-    days = data.get("days") or []
+    days = [d for d in (data.get("days") or []) if d.get("date") and d.get("highest") is not None]
     if not days:
         return
     df = pd.DataFrame([
@@ -381,7 +385,14 @@ def viz_activities(data: dict) -> None:
     acts = data.get("activities") or []
     if not acts:
         return
-    _render_activity_list(acts, title=f"Activities — {len(acts)} retrieved")
+    hints = data.get("_viz_hints") or {}
+    metric = hints.get("metric")
+    sport_types = {a.get("type") for a in acts if a.get("type")}
+    if len(sport_types) == 1:
+        title = f"{next(iter(sport_types))}s — {len(acts)} activities"
+    else:
+        title = f"Activities — {len(acts)} retrieved"
+    _render_activity_list(acts, title=title, metric=metric)
 
 
 @register("get_garmin_activities")
@@ -389,64 +400,114 @@ def viz_garmin_activities(data: dict) -> None:
     acts = data.get("activities") or []
     if not acts:
         return
-    # Normalise field name difference between Strava and Garmin
     for a in acts:
         if "avg_hr" in a and "avg_heart_rate" not in a:
             a["avg_heart_rate"] = a["avg_hr"]
-    _render_activity_list(acts, title=f"Activities — {len(acts)} retrieved")
+    hints = data.get("_viz_hints") or {}
+    _render_activity_list(acts, title=f"Activities — {len(acts)} retrieved",
+                          metric=hints.get("metric"))
 
 
-def _render_activity_list(acts: list, title: str = "") -> None:
+# Metric configuration: (column, y-axis label, lower-is-better, bar-color-override)
+_METRIC_CFG: dict = {
+    "elevation_high_m":   ("elevation_high_m",  "m above sea level", False, C_INDIGO),
+    "elevation_gain_m":   ("elevation_gain_m",   "m elevation gain",  False, C_GREEN),
+    "pace_min_per_km":    ("pace_min_per_km",     "min/km",            True,  C_AMBER),
+    "avg_heart_rate":     ("avg_heart_rate",      "bpm",               False, C_ROSE),
+    "moving_time_hours":  ("moving_time_hours",   "hours",             False, C_CYAN),
+    "suffer_score":       ("suffer_score",        "suffer score",      False, C_ROSE),
+    "distance_km":        ("distance_km",         "km",                False, None),
+    "kilojoules":         ("kilojoules",          "kJ",                False, C_PURPLE),
+    "pr_count":           ("pr_count",            "PRs",               False, C_CYAN),
+    "kudos":              ("kudos",               "kudos",             False, C_AMBER),
+}
+
+
+def _render_activity_list(acts: list, title: str = "",
+                          metric: Optional[str] = None) -> None:
     df = pd.DataFrame(acts)
+    if df.empty:
+        return
+
+    # ── Choose which metric to visualise ─────────────────────────────────────
+    # If the model supplied a hint and the column exists, use it.
+    # Fallback: distance_km (original default).
+    cfg = _METRIC_CFG.get(metric) if metric else None
+    col, ylab, lower_better, color_override = cfg if cfg else ("distance_km", "km", False, None)
+
+    # Silently drop the hint if the column doesn't exist in this result set
+    if col not in df.columns or df[col].dropna().empty:
+        col, ylab, lower_better, color_override = ("distance_km", "km", False, None)
+
+    focused = col != "distance_km"  # True when model requested a specific metric
+
     if title:
         _label(title)
 
-    # Bar chart: top 20 by distance — only meaningful when comparing multiple activities
-    if "distance_km" in df.columns and len(df) >= 2:
-        top = df.nlargest(min(len(df), 20), "distance_km").copy()
-        sport_types = top.get("type", pd.Series([""] * len(top)))
-        colors = [ACCENT if t in ("Run", "TrailRun", "VirtualRun") else C_CYAN for t in sport_types]
-        icons   = [activity_icon(t) for t in sport_types]
-        names   = (top["name"] if "name" in top.columns else top.index.astype(str)).tolist()
+    # ── Bar chart ─────────────────────────────────────────────────────────────
+    if col in df.columns and len(df) >= 2:
+        sort_df = df.dropna(subset=[col])
+        if focused:
+            # Model asked for a specific metric (e.g. pace, elevation) → sort by
+            # that metric so the best/worst stand out clearly.
+            top = sort_df.sort_values(col, ascending=lower_better).head(20).copy()
+        else:
+            # Default: chronological timeline — most useful for most questions.
+            # "date" column is a datetime from to_df(); fall back to arrival order.
+            if "date" in sort_df.columns:
+                top = sort_df.sort_values("date", ascending=True).tail(20).copy()
+            else:
+                top = sort_df.tail(20).copy()
 
-        # Append date to disambiguate activities that share the same name
+        sport_types = top.get("type", pd.Series([""] * len(top)))
+        if color_override:
+            colors = [color_override] * len(top)
+        else:
+            colors = [ACCENT if t in ("Run", "TrailRun", "VirtualRun") else C_CYAN
+                      for t in sport_types]
+
+        icons = [activity_icon(t) for t in sport_types]
+        names = (top["name"] if "name" in top.columns else top.index.astype(str)).tolist()
+
         if "date" in top.columns:
             from collections import Counter
-            name_counts = Counter(names)
+            cnt = Counter(names)
             dates = top["date"].tolist()
-            names = [
-                f"{nm} ({str(dt)[:10]})" if name_counts[nm] > 1 else nm
-                for nm, dt in zip(names, dates)
-            ]
+            names = [f"{n} ({str(d)[:10]})" if cnt[n] > 1 else n
+                     for n, d in zip(names, dates)]
 
-        labels  = [f"{ic} {n}" for ic, n in zip(icons, names)]
+        labels = [f"{ic} {n}" for ic, n in zip(icons, names)]
 
-        hover_parts = ["<b>%{x}</b>", "Distance: %{y:.1f} km"]
+        hover_parts = [f"<b>%{{x}}</b>", f"{ylab}: %{{y:.1f}}"]
         custom = None
         if "date" in top.columns:
-            custom = list(zip(top["date"].tolist(),
-                              top.get("avg_heart_rate", [None]*len(top)).tolist()))
+            custom = list(zip(
+                top["date"].tolist(),
+                top.get("avg_heart_rate", pd.Series([None] * len(top))).tolist(),
+            ))
             hover_parts += ["Date: %{customdata[0]}", "Avg HR: %{customdata[1]:.0f} bpm"]
 
         fig = go.Figure(go.Bar(
-            x=labels, y=top["distance_km"],
+            x=labels, y=top[col],
             marker_color=colors, marker_line_width=0,
             customdata=custom,
             hovertemplate="<br>".join(hover_parts) + "<extra></extra>",
         ))
-        fig.update_layout(yaxis_title="km", xaxis_tickangle=-30)
+        fig.update_layout(yaxis_title=ylab, xaxis_tickangle=-30)
         _chart(chart_style(fig), height=260)
 
-    # Summary table
-    want = ["name", "type", "date", "distance_km", "pace_min_per_km", "avg_heart_rate", "elevation_gain_m"]
-    cols = [c for c in want if c in df.columns]
-    if cols:
-        shown = df[cols].head(10).copy()
-        shown.columns = [c.replace("_", " ").title() for c in shown.columns]
-        st.dataframe(shown, width='stretch', hide_index=True)
+    # ── Summary table — skip when model focused on a specific metric ──────────
+    if not focused:
+        want = ["name", "type", "date", "distance_km", "pace_min_per_km",
+                "avg_heart_rate", "elevation_gain_m"]
+        cols_present = [c for c in want if c in df.columns]
+        if cols_present:
+            shown = df[cols_present].head(10).copy()
+            shown.columns = [c.replace("_", " ").title() for c in shown.columns]
+            st.dataframe(shown, width='stretch', hide_index=True)
 
 
-# ── Strava: Activity Streams (GPS map + charts) ───────────────────────────────
+# ── Strava: Activity Streams (GPS map with HR/elevation coloring + charts) ────
 
 @register("get_activity_streams")
 def viz_activity_streams(data: dict) -> None:
@@ -454,36 +515,136 @@ def viz_activity_streams(data: dict) -> None:
     if len(points) < 2:
         return
 
-    # Lazy import — folium / streamlit_folium are optional heavy deps
     try:
-        from ui.activity_analysis import (
-            _colored_route_map, _plain_route_map, _stream_charts, _legend_html,
-        )
+        from ui.activity_analysis import _colored_route_map, _plain_route_map
         from streamlit_folium import st_folium
     except ImportError:
         return
 
-    has_hr  = any(p.get("hr")       for p in points)
-    has_vel = any(p.get("velocity") for p in points)
-    metric, invert, hi_lbl, lo_lbl = (
-        ("hr",       False, "High HR", "Low HR")  if has_hr  else
-        ("velocity", True,  "Fast",    "Slow")     if has_vel else
-        ("ele",      False, "High",    "Low")
-    )
+    has_hr  = data.get("has_hr")  or any(p.get("hr")  for p in points[:50])
+    has_ele = any(p.get("ele") is not None for p in points[:50])
 
-    m = _colored_route_map(points, metric, invert=invert) or _plain_route_map(points)
+    if has_hr:
+        m = _colored_route_map(points, "hr", invert=False)
+        label_text = "Route — colored by Heart Rate  (green=low → red=high)"
+    elif has_ele:
+        m = _colored_route_map(points, "ele", invert=False)
+        label_text = "Route — colored by Elevation  (green=low → red=high)"
+    else:
+        m = _plain_route_map(points)
+        label_text = "Route"
+
+    if not m:
+        m = _plain_route_map(points)
+        label_text = "Route"
+
     if m:
-        _label("Route")
-        map_col, leg_col = st.columns([9, 1])
-        with map_col:
-            st_folium(m, width='stretch', height=320, returned_objects=[])
-        with leg_col:
-            st.markdown(_legend_html(hi_lbl, lo_lbl), unsafe_allow_html=True)
+        _label(label_text)
+        st_folium(m, width='stretch', height=340, returned_objects=[])
 
-    df = pd.DataFrame(points)
-    if "dist_m" in df.columns:
-        df["dist_km"] = df["dist_m"] / 1000
-    _stream_charts(df)
+    # Elevation profile + HR timeline side by side when data is available
+    if has_ele or has_hr:
+        step = max(1, len(points) // 300)
+        pts_dn = points[::step]
+
+        # x-axis: use dist_m when available (Strava-measured), else compute from lat/lon
+        if pts_dn[0].get("dist_m") is not None:
+            xs = [p.get("dist_m", 0) / 1000 for p in pts_dn]
+        else:
+            import math
+            dists, cum_d = [], 0.0
+            for i, p in enumerate(pts_dn):
+                if i > 0:
+                    prev = pts_dn[i - 1]
+                    dlat = (p.get("lat", 0) - prev.get("lat", 0)) * 111000
+                    dlon = (p.get("lon", 0) - prev.get("lon", 0)) * 111000 * 0.85
+                    cum_d += math.sqrt(dlat**2 + dlon**2) / 1000
+                dists.append(round(cum_d, 3))
+            xs = dists
+
+        pairs = []
+
+        if has_ele:
+            eles = [p.get("ele") for p in pts_dn]
+            fig_ele = go.Figure(go.Scatter(
+                x=xs, y=eles, mode="lines", fill="tozeroy",
+                line=dict(color=C_AMBER, width=1.5),
+                fillcolor="rgba(245,158,11,0.15)",
+                hovertemplate="<b>%{x:.2f} km</b>  %{y:.0f} m<extra></extra>",
+            ))
+            fig_ele.update_layout(yaxis_title="Elevation (m)", xaxis_title="Distance (km)")
+            pairs.append(("Elevation Profile", fig_ele, 180))
+
+        if has_hr:
+            hrs = [p.get("hr") for p in pts_dn]
+            fig_hr = go.Figure(go.Scatter(
+                x=xs, y=hrs, mode="lines",
+                line=dict(color=C_ROSE, width=1.5),
+                fill="tozeroy", fillcolor="rgba(251,113,133,0.12)",
+                hovertemplate="<b>%{x:.2f} km</b>  %{y:.0f} bpm<extra></extra>",
+            ))
+            fig_hr.update_layout(yaxis_title="Heart Rate (bpm)", xaxis_title="Distance (km)")
+            pairs.append(("Heart Rate over Distance", fig_hr, 180))
+
+        if pairs:
+            _two_col_charts(pairs)
+
+
+# ── Garmin: GPS Track ─────────────────────────────────────────────────────────
+
+@register("get_activity_gps_track")
+def viz_gps_track(data: dict) -> None:
+    points = data.get("points") or []
+    if len(points) < 2:
+        return
+
+    try:
+        import folium
+        from streamlit_folium import st_folium
+
+        lats = [p["lat"] for p in points if p.get("lat") and p.get("lon")]
+        lons = [p["lon"] for p in points if p.get("lat") and p.get("lon")]
+        if not lats:
+            return
+
+        center = [sum(lats) / len(lats), sum(lons) / len(lons)]
+        m = folium.Map(location=center, zoom_start=14,
+                       tiles="CartoDB dark_matter")
+
+        # Sample for performance
+        step = max(1, len(points) // 500)
+        coords = [[p["lat"], p["lon"]] for p in points[::step]
+                  if p.get("lat") and p.get("lon")]
+
+        has_ele = any(p.get("ele") is not None for p in points)
+        if has_ele:
+            eles = [p.get("ele") or 0 for p in points[::step]
+                    if p.get("lat") and p.get("lon")]
+            ele_min = min(eles); ele_max = max(eles) or (ele_min + 1)
+
+            def _ele_color(ele):
+                t = max(0.0, min(1.0, (ele - ele_min) / (ele_max - ele_min)))
+                r = int(59 + t * (239 - 59))
+                g = int(130 - t * 130)
+                b = int(246 - t * (246 - 68))
+                return f"#{r:02x}{g:02x}{b:02x}"
+
+            for i in range(len(coords) - 1):
+                folium.PolyLine(
+                    [coords[i], coords[i + 1]],
+                    color=_ele_color(eles[i]), weight=3, opacity=0.9,
+                ).add_to(m)
+        else:
+            folium.PolyLine(coords, color="#3b82f6", weight=3, opacity=0.9).add_to(m)
+
+        folium.Marker(coords[0],  icon=folium.Icon(color="green", icon="play")).add_to(m)
+        folium.Marker(coords[-1], icon=folium.Icon(color="red",   icon="stop")).add_to(m)
+
+        _label(f"GPS Track — {data.get('activity_id', '')}  ({data.get('total_points', len(points))} pts)")
+        st_folium(m, width='stretch', height=360, returned_objects=[])
+
+    except ImportError:
+        pass
 
 
 # ── Strava: Activity Stats Summary ───────────────────────────────────────────
@@ -554,17 +715,498 @@ def viz_yearly_breakdown(data: dict) -> None:
 @register("get_personal_bests")
 def viz_personal_bests(data: dict) -> None:
     top_dist = data.get("top_5_by_distance") or []
-    top_fast = data.get("top_5_fastest")     or []
-    if not top_dist and not top_fast:
+    top_elev = data.get("top_5_by_elevation") or []
+    top_fast = data.get("top_5_fastest") or []
+    if not (top_dist or top_elev or top_fast):
         return
     _label("Personal Bests")
-    if top_dist:
-        st.markdown("**Longest activities**")
-        df   = pd.DataFrame(top_dist)
-        show = [c for c in ["name", "type", "date", "distance_km", "elevation_gain_m"] if c in df.columns]
-        st.dataframe(df[show].head(5), width='stretch', hide_index=True)
-    if top_fast:
-        st.markdown("**Fastest activities**")
-        df   = pd.DataFrame(top_fast)
-        show = [c for c in ["name", "type", "date", "distance_km", "pace_min_per_km", "avg_heart_rate"] if c in df.columns]
-        st.dataframe(df[show].head(5), width='stretch', hide_index=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        if top_dist:
+            rows = [{"Activity": a.get("name","")[:25], "Date": (a.get("date",""))[:10],
+                     "Distance (km)": a.get("distance_km", 0)} for a in top_dist]
+            st.caption("Top 5 by Distance")
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width='stretch')
+        if top_fast:
+            paced = [a for a in top_fast if a.get("pace_min_per_km")]
+            if paced:
+                rows2 = [{"Activity": a.get("name","")[:25], "Date": (a.get("date",""))[:10],
+                          "Pace (min/km)": a.get("pace_min_per_km", 0)} for a in paced]
+                st.caption("Top 5 Fastest")
+                st.dataframe(pd.DataFrame(rows2), hide_index=True, width='stretch')
+    with c2:
+        if top_elev:
+            rows3 = [{"Activity": a.get("name","")[:25], "Date": (a.get("date",""))[:10],
+                      "Elevation (m)": a.get("elevation_gain_m", 0)} for a in top_elev]
+            st.caption("Top 5 by Elevation")
+            st.dataframe(pd.DataFrame(rows3), hide_index=True, width='stretch')
+        bw = data.get("biggest_week")
+        streak = data.get("longest_streak_days")
+        if bw or streak:
+            if bw:
+                st.metric("Best Week", f"{bw.get('distance_km', 0):.0f} km", help=bw.get("week",""))
+            if streak:
+                st.metric("Longest Streak", f"{streak} days")
+
+
+# ── Strava: Performance Trends ────────────────────────────────────────────────
+
+@register("analyze_performance_trends")
+def viz_performance_trends(data: dict) -> None:
+    series = data.get("series") or []
+    if not series:
+        return
+
+    sport   = data.get("sport_type", "")
+    trends  = data.get("trends") or {}
+    avgs    = data.get("averages") or {}
+    dates   = [s["date"] for s in series]
+    paces   = [s.get("pace_min_per_km") for s in series]
+    hrs     = [s.get("avg_hr") for s in series]
+
+    has_pace = any(p for p in paces if p)
+    has_hr   = any(h for h in hrs   if h)
+    if not has_pace and not has_hr:
+        return
+
+    _trend_icon = {"improving": "📈", "declining": "📉", "stable": "➡️"}
+
+    fig = go.Figure()
+
+    if has_pace:
+        fig.add_trace(go.Scatter(
+            x=dates, y=paces, name="Pace (min/km)",
+            mode="lines+markers", line=dict(color=ACCENT, width=2),
+            marker=dict(size=5), connectgaps=True,
+            hovertemplate="<b>%{x}</b>  %{y:.2f} min/km<extra></extra>",
+        ))
+        # linear trend line
+        valid_idx = [i for i, p in enumerate(paces) if p]
+        if len(valid_idx) >= 4:
+            import numpy as _np
+            xi = _np.array(valid_idx, dtype=float)
+            yi = _np.array([paces[i] for i in valid_idx], dtype=float)
+            z  = _np.polyfit(xi, yi, 1)
+            trend_y = (_np.poly1d(z))(_np.arange(len(dates)))
+            fig.add_trace(go.Scatter(
+                x=dates, y=list(trend_y), name="Pace trend",
+                mode="lines", line=dict(color=ACCENT, width=1, dash="dot"),
+                showlegend=False, hoverinfo="skip",
+            ))
+
+    if has_hr:
+        fig.add_trace(go.Scatter(
+            x=dates, y=hrs, name="Avg HR (bpm)",
+            mode="lines+markers", line=dict(color=C_ROSE, width=1.5),
+            marker=dict(size=4), connectgaps=True, yaxis="y2",
+            hovertemplate="<b>%{x}</b>  %{y:.0f} bpm<extra></extra>",
+        ))
+
+    pace_trend = _trend_icon.get(trends.get("pace", ""), "")
+    hr_trend   = _trend_icon.get(trends.get("heart_rate", ""), "")
+    title_parts = [f"{sport} — {len(series)} activities"]
+    if pace_trend: title_parts.append(f"pace {pace_trend}")
+    if hr_trend:   title_parts.append(f"HR {hr_trend}")
+
+    layout = dict(
+        title="  ".join(title_parts),
+        legend=dict(orientation="h", y=1.12),
+        xaxis=dict(showgrid=False),
+    )
+    if has_pace:
+        layout["yaxis"]  = dict(title="min/km", autorange="reversed", ticksuffix=" min")
+    if has_hr:
+        layout["yaxis2"] = dict(title="bpm", overlaying="y", side="right", showgrid=False)
+
+    fig.update_layout(**layout)
+    _chart(chart_style(fig), height=300)
+
+    # Summary metrics row
+    avg_p = avgs.get("pace_min_per_km")
+    avg_h = avgs.get("avg_hr_bpm")
+    avg_d = avgs.get("distance_km")
+    if any([avg_p, avg_h, avg_d]):
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Avg Pace",  f"{avg_p:.2f} min/km" if avg_p else "—")
+        c2.metric("Avg HR",    f"{avg_h:.0f} bpm"    if avg_h else "—")
+        c3.metric("Avg Dist",  f"{avg_d:.1f} km"     if avg_d else "—")
+
+
+# ── Strava: Training Load (ATL / CTL / TSB) ──────────────────────────────────
+
+@register("get_training_load")
+def viz_training_load(data: dict) -> None:
+    weeks   = data.get("weeks") or []
+    current = data.get("current") or {}
+    if not weeks and not current:
+        return
+
+    # Current-state pills
+    if current:
+        atl  = current.get("atl",  0)
+        ctl  = current.get("ctl",  0)
+        tsb  = current.get("tsb",  0)
+        form = current.get("form", "")
+        tsb_color = C_GREEN if tsb >= 0 else C_ROSE
+        _label("Current Training Load")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("ATL — Fatigue",  f"{atl:.0f}")
+        c2.metric("CTL — Fitness",  f"{ctl:.0f}")
+        c3.metric("TSB — Form",     f"{tsb:+.0f}")
+        if form:
+            st.caption(f"Status: **{form}**")
+
+    if not weeks:
+        return
+
+    # Trim to last 16 weeks (already sorted oldest → newest from the MCP tool)
+    weeks = weeks[-16:]
+    week_labels = [w["week_start"] for w in weeks]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=week_labels, y=[w["avg_atl"] for w in weeks],
+        name="ATL (fatigue)", mode="lines+markers",
+        line=dict(color=C_ROSE, width=2), marker=dict(size=4),
+        hovertemplate="<b>%{x}</b>  ATL %{y:.0f}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=week_labels, y=[w["avg_ctl"] for w in weeks],
+        name="CTL (fitness)", mode="lines+markers",
+        line=dict(color=C_INDIGO, width=2), marker=dict(size=4),
+        hovertemplate="<b>%{x}</b>  CTL %{y:.0f}<extra></extra>",
+    ))
+    tsb_vals = [w["avg_tsb"] for w in weeks]
+    fig.add_trace(go.Bar(
+        x=week_labels, y=tsb_vals, name="TSB (form)", yaxis="y2",
+        marker_color=[C_GREEN if t >= 0 else C_ROSE for t in tsb_vals],
+        opacity=0.5,
+        hovertemplate="<b>%{x}</b>  TSB %{y:+.0f}<extra></extra>",
+    ))
+    fig.update_layout(
+        title="ATL / CTL / TSB — Weekly",
+        barmode="overlay",
+        legend=dict(orientation="h", y=1.12),
+        xaxis=dict(showgrid=False),
+        yaxis=dict(title="Load"),
+        yaxis2=dict(overlaying="y", side="right", title="TSB", showgrid=False,
+                    zeroline=True, zerolinecolor=TEXT_MUTED, zerolinewidth=1),
+    )
+    _chart(chart_style(fig), height=300)
+
+
+# ── Garmin: Activity Detail (lap splits + HR zones) ─────────────────────────
+
+@register("get_garmin_activity_detail")
+def viz_activity_detail(data: dict) -> None:
+    laps     = data.get("laps") or []
+    hr_zones = data.get("hr_zones") or []
+    name     = data.get("name", "Activity")
+    date_str = data.get("date", "")
+
+    if not laps and not hr_zones:
+        return
+
+    _label(f"{name} — {date_str}")
+
+    if laps:
+        lap_nums = [l.get("lap", i + 1) for i, l in enumerate(laps)]
+        paces    = [l.get("pace_min_per_km") for l in laps]
+        lap_hr   = [l.get("avg_hr") for l in laps]
+        has_pace = any(p for p in paces if p and p < 20)
+        has_hr   = any(h for h in lap_hr if h)
+        xs       = [f"Lap {n}" for n in lap_nums]
+
+        fig = go.Figure()
+        if has_pace:
+            valid_p = [p if p and p < 20 else None for p in paces]
+            fig.add_trace(go.Bar(
+                x=xs, y=valid_p, name="Pace (min/km)", marker_color=C_AMBER,
+                hovertemplate="<b>%{x}</b>  %{y:.2f} min/km<extra></extra>",
+            ))
+            fig.update_layout(yaxis=dict(autorange="reversed", title="min/km  (lower = faster)"))
+            if has_hr:
+                fig.add_trace(go.Scatter(
+                    x=xs, y=lap_hr, name="Avg HR", mode="lines+markers",
+                    line=dict(color=C_ROSE, width=2), marker=dict(size=5),
+                    yaxis="y2",
+                    hovertemplate="<b>%{x}</b>  %{y:.0f} bpm<extra></extra>",
+                ))
+                fig.update_layout(
+                    yaxis2=dict(title="bpm", overlaying="y", side="right",
+                                showgrid=False, tickfont=dict(color=C_ROSE)),
+                )
+        else:
+            dists = [l.get("distance_km", 0) for l in laps]
+            fig.add_trace(go.Bar(
+                x=xs, y=dists, name="Distance", marker_color=ACCENT,
+                hovertemplate="<b>%{x}</b>  %{y:.2f} km<extra></extra>",
+            ))
+            fig.update_layout(yaxis=dict(title="km"))
+        fig.update_layout(title="Lap Splits", legend=dict(orientation="h", y=1.12))
+        _chart(chart_style(fig), height=240)
+
+    if hr_zones:
+        zones  = [f"Z{z.get('zone', i + 1)}" for i, z in enumerate(hr_zones)]
+        times  = [z.get("time_min", 0) for z in hr_zones]
+        z_cols = [C_INDIGO, C_GREEN, C_AMBER, ACCENT, C_ROSE][:len(zones)]
+        fig2 = go.Figure(go.Bar(
+            x=times, y=zones, orientation="h",
+            marker_color=z_cols, marker_line_width=0,
+            text=[f"{t:.0f} min" for t in times], textposition="outside",
+            hovertemplate="<b>%{y}</b>  %{x:.0f} min<extra></extra>",
+        ))
+        fig2.update_layout(title="HR Zone Distribution", xaxis_title="Minutes")
+        _chart(chart_style(fig2), height=200)
+
+
+# ── Strava: Activity vs Baseline ─────────────────────────────────────────────
+
+@register("compare_activity_to_baseline")
+def viz_activity_comparison(data: dict) -> None:
+    comparisons = data.get("comparisons") or {}
+    activity    = data.get("activity") or {}
+    if not comparisons:
+        return
+
+    assessment = data.get("assessment", "")
+    overall    = data.get("overall_difficulty_percentile")
+    _ASSESS_COLOR = {
+        "one of your hardest":  C_ROSE,
+        "harder than usual":    C_AMBER,
+        "typical":              C_CYAN,
+        "easier than usual":    C_GREEN,
+        "one of your easiest":  C_GREEN,
+    }
+    assess_color = _ASSESS_COLOR.get(assessment, TEXT_MUTED)
+
+    act_name = activity.get("name", "Activity")
+    act_date = activity.get("date", "")
+    _label(f"{act_name} — {act_date}")
+    if assessment:
+        st.markdown(
+            f'<span style="background:{assess_color}22;color:{assess_color};'
+            f'padding:3px 10px;border-radius:12px;font-size:0.9rem;font-weight:600">'
+            f'{assessment.title()}'
+            + (f" (pct {overall})" if overall is not None else "")
+            + "</span>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("")
+
+    # Horizontal bar chart showing difficulty percentile per metric
+    _METRIC_LABELS = {
+        "pace_min_per_km":  "Pace",
+        "avg_hr_bpm":       "Heart Rate",
+        "distance_km":      "Distance",
+        "elevation_m":      "Elevation",
+        "elevation_per_km": "Elev / km",
+    }
+    metrics = []
+    pcts    = []
+    for key, label in _METRIC_LABELS.items():
+        v = comparisons.get(key)
+        if v and v.get("difficulty_percentile") is not None:
+            metrics.append(label)
+            pcts.append(v["difficulty_percentile"])
+
+    if not metrics:
+        return
+
+    bar_colors = [
+        C_ROSE if p >= 85 else C_AMBER if p >= 65 else C_CYAN if p >= 35 else C_GREEN
+        for p in pcts
+    ]
+    fig = go.Figure(go.Bar(
+        x=pcts, y=metrics, orientation="h",
+        marker_color=bar_colors, marker_line_width=0,
+        text=[f"{p}th pct" for p in pcts], textposition="outside",
+        hovertemplate="<b>%{y}</b>  difficulty percentile: %{x}<extra></extra>",
+    ))
+    fig.add_vline(x=50, line_dash="dot", line_color=TEXT_MUTED, line_width=1,
+                  annotation_text="50th", annotation_font_color=TEXT_MUTED,
+                  annotation_position="top")
+    fig.update_layout(
+        xaxis=dict(range=[0, 110], title="Difficulty percentile"),
+        showlegend=False,
+    )
+    _chart(chart_style(fig), height=max(180, len(metrics) * 45))
+
+
+# ── Weather: Forecast ─────────────────────────────────────────────────────────
+
+@register("get_weather_forecast")
+def viz_weather_forecast(data: dict) -> None:
+    forecast = data.get("forecast") or []
+    if not forecast:
+        return
+    df = pd.DataFrame(forecast)
+    df["date"] = pd.to_datetime(df["date"])
+    _label(f"Weather Forecast — {data.get('location', '')}")
+    c1, c2 = st.columns(2)
+    with c1:
+        if "temp_max_c" in df.columns:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=df["date"], y=df["temp_max_c"], name="Max",
+                line=dict(color=C_AMBER, width=2), mode="lines+markers",
+            ))
+            fig.add_trace(go.Scatter(
+                x=df["date"], y=df["temp_min_c"], name="Min",
+                line=dict(color=ACCENT, width=2, dash="dash"), mode="lines+markers",
+                fill="tonexty", fillcolor="rgba(252,76,2,0.1)",
+            ))
+            fig.update_layout(yaxis_title="°C", legend=dict(orientation="h", y=1.1))
+            _chart(chart_style(fig), height=200)
+    with c2:
+        if "precip_probability_pct" in df.columns:
+            rain_colors = [
+                "rgb(59,130,246)" if p < 30 else ("rgb(245,158,11)" if p < 60 else "rgb(239,68,68)")
+                for p in df["precip_probability_pct"]
+            ]
+            fig2 = go.Figure(go.Bar(
+                x=df["date"], y=df["precip_probability_pct"],
+                marker_color=rain_colors, marker_line_width=0,
+                hovertemplate="<b>%{x|%a %d}</b>  %{y}%<extra></extra>",
+            ))
+            fig2.update_layout(yaxis=dict(title="%", range=[0, 100]))
+            _chart(chart_style(fig2), height=200)
+
+
+# ── Strava: Gear Mileage ─────────────────────────────────────────────────────
+
+@register("get_gear_info")
+def viz_gear_info(data: dict) -> None:
+    shoes = data.get("shoes") or []
+    bikes = data.get("bikes") or []
+    all_items = [("shoe", s) for s in shoes] + [("bike", b) for b in bikes]
+    if not all_items:
+        return
+    _label("Gear Mileage")
+    rows = []
+    for kind, item in all_items:
+        brand = item.get("brand") or item.get("model") or ""
+        rows.append({
+            "Type": "👟 Shoe" if kind == "shoe" else "🚴 Bike",
+            "Name": item.get("name", "Unknown"),
+            "Brand": brand,
+            "Distance (km)": item.get("distance_km", 0),
+            "Primary": "★" if item.get("primary") else "",
+        })
+    rows.sort(key=lambda r: r["Distance (km)"], reverse=True)
+    df = pd.DataFrame(rows)
+    fig = go.Figure(go.Bar(
+        x=df["Distance (km)"],
+        y=df["Name"],
+        orientation="h",
+        marker_color=[C_AMBER if "Shoe" in t else ACCENT for t in df["Type"]],
+        marker_line_width=0,
+        text=[f"{d:,.0f} km {p}" for d, p in zip(df["Distance (km)"], df["Primary"])],
+        textposition="outside",
+        hovertemplate="<b>%{y}</b>  %{x:.0f} km<extra></extra>",
+    ))
+    fig.update_layout(xaxis_title="km")
+    _chart(chart_style(fig), height=max(200, len(all_items) * 50))
+
+
+# ── Strava: Activity Detail (laps + splits) ──────────────────────────────────
+
+@register("get_activity_detail")
+def viz_activity_detail_strava(data: dict) -> None:
+    laps   = data.get("laps") or []
+    splits = data.get("splits_per_km") or []
+    name   = data.get("name", "Activity")
+    date_s = data.get("date", "")
+
+    if not laps and not splits:
+        return
+
+    _label(f"{name} — {date_s}")
+
+    if splits and len(splits) >= 2:
+        kms   = [s.get("km") for s in splits]
+        paces = [s.get("pace_min_per_km") for s in splits]
+        hrs   = [s.get("avg_hr") for s in splits]
+        valid_p = [p if p and p < 20 else None for p in paces]
+        has_pace = any(p for p in valid_p if p)
+        has_hr   = any(h for h in hrs if h)
+
+        fig = go.Figure()
+        if has_pace:
+            fig.add_trace(go.Bar(
+                x=[f"km {k}" for k in kms], y=valid_p, name="Pace (min/km)",
+                marker_color=C_AMBER,
+                hovertemplate="<b>%{x}</b>  %{y:.2f} min/km<extra></extra>",
+            ))
+            fig.update_layout(yaxis=dict(autorange="reversed", title="min/km  (lower=faster)"))
+        if has_hr:
+            fig.add_trace(go.Scatter(
+                x=[f"km {k}" for k in kms], y=hrs, name="Avg HR",
+                mode="lines+markers", line=dict(color=C_ROSE, width=2),
+                yaxis="y2",
+                hovertemplate="<b>%{x}</b>  %{y:.0f} bpm<extra></extra>",
+            ))
+            fig.update_layout(
+                yaxis2=dict(title="bpm", overlaying="y", side="right",
+                            showgrid=False, tickfont=dict(color=C_ROSE)),
+            )
+        fig.update_layout(title="km Splits", legend=dict(orientation="h", y=1.12))
+        _chart(chart_style(fig), height=240)
+
+    elif laps and len(laps) >= 2:
+        xs = [f"Lap {l.get('lap', i+1)}" for i, l in enumerate(laps)]
+        paces = [l.get("pace_min_per_km") for l in laps]
+        hrs   = [l.get("avg_hr") for l in laps]
+        valid_p = [p if p and p < 20 else None for p in paces]
+        fig = go.Figure()
+        if any(p for p in valid_p if p):
+            fig.add_trace(go.Bar(
+                x=xs, y=valid_p, name="Pace (min/km)", marker_color=C_AMBER,
+                hovertemplate="<b>%{x}</b>  %{y:.2f} min/km<extra></extra>",
+            ))
+            fig.update_layout(yaxis=dict(autorange="reversed", title="min/km"))
+        if any(h for h in hrs if h):
+            fig.add_trace(go.Scatter(
+                x=xs, y=hrs, name="Avg HR", mode="lines+markers",
+                line=dict(color=C_ROSE, width=2), yaxis="y2",
+                hovertemplate="<b>%{x}</b>  %{y:.0f} bpm<extra></extra>",
+            ))
+            fig.update_layout(
+                yaxis2=dict(title="bpm", overlaying="y", side="right",
+                            showgrid=False, tickfont=dict(color=C_ROSE)),
+            )
+        fig.update_layout(title="Lap Splits", legend=dict(orientation="h", y=1.12))
+        _chart(chart_style(fig), height=240)
+
+
+# ── Strava: Athlete Profile ───────────────────────────────────────────────────
+
+@register("get_athlete_profile")
+def viz_athlete_profile(data: dict) -> None:
+    profile = data.get("profile") or {}
+    stats   = data.get("official_stats") or {}
+    if not profile:
+        return
+
+    _label(f"Athlete: {profile.get('name', '')}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Weight",   f"{profile['weight_kg']:.1f} kg" if profile.get("weight_kg") else "—")
+    c2.metric("FTP",      f"{profile['ftp']} W" if profile.get("ftp") else "—")
+    c3.metric("Follower", str(profile.get("follower_count", "—")))
+    c4.metric("Member since", profile.get("member_since", "—")[:4] if profile.get("member_since") else "—")
+
+    all_time = (stats.get("all_time") or {})
+    ytd      = (stats.get("year_to_date") or {})
+    labels   = ["Run", "Ride", "Swim"]
+    keys     = ["run", "ride", "swim"]
+
+    at_rows = [{"Sport": k.title(),
+                "All-Time km": round((all_time.get(k) or {}).get("distance_km", 0), 0),
+                "YTD km":      round((ytd.get(k)      or {}).get("distance_km", 0), 0),
+                "All-Time h":  round((all_time.get(k) or {}).get("moving_time_hours", 0), 1),
+               } for k in keys]
+    at_df = pd.DataFrame(at_rows)
+    at_df = at_df[at_df["All-Time km"] > 0]
+    if not at_df.empty:
+        _label("Official Strava Totals")
+        st.dataframe(at_df, hide_index=True, width='stretch')

@@ -67,6 +67,20 @@ def render_route_image(route_data: Optional[Dict]) -> Optional[bytes]:
                     smap.add_line(Line(pts, color, 4))
                     drew = True
 
+    elif tool in ("get_activity_streams", "get_activity_gps_track"):
+        pts = data.get("points") or []
+        # Downsample to at most 400 points so staticmap stays fast
+        if len(pts) > 400:
+            step = len(pts) / 400
+            pts = [pts[int(i * step)] for i in range(400)] + [pts[-1]]
+        coords = [(p["lon"], p["lat"]) for p in pts
+                  if p.get("lat") is not None and p.get("lon") is not None]
+        if len(coords) >= 2:
+            smap.add_line(Line(coords, _LINE, 4))
+            smap.add_marker(CircleMarker(coords[0], _START, 16))
+            smap.add_marker(CircleMarker(coords[-1], _END, 16))
+            drew = True
+
     elif tool == "get_isochrone":
         geom = data.get("geometry") or {}
         for ring in (geom.get("coordinates") or []):

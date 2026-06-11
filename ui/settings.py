@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -29,6 +31,39 @@ import streamlit as st
 from dotenv import load_dotenv, set_key
 
 from ui.styles import ACCENT, BORDER, C_GREEN, C_AMBER, TEXT_MUTED, TEXT_PRIMARY
+
+# ── Telegram bridge process state (module-level → survives Streamlit rerenders) ──
+_BRIDGE_LOG = Path(".logs/telegram_bridge.log")
+_bridge: Dict[str, Any] = {"proc": None}
+
+
+def _bridge_running() -> bool:
+    p = _bridge["proc"]
+    return p is not None and p.poll() is None
+
+
+def _bridge_start() -> None:
+    if _bridge_running():
+        return
+    # Inherit parent stdout/stderr so bridge logs appear in the terminal where
+    # `streamlit run app.py` is running — no growing log file that freezes the UI.
+    _bridge["proc"] = subprocess.Popen(
+        [sys.executable, "telegram_bridge.py"],
+        stdout=None, stderr=None,
+        cwd=str(Path(".").resolve()),
+    )
+
+
+def _bridge_stop() -> None:
+    p = _bridge.get("proc")
+    if p and p.poll() is None:
+        p.terminate()
+        try:
+            p.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            p.kill()
+    _bridge["proc"] = None
+
 
 # ── Garmin auth thread state ───────────────────────────────────────────────────
 # st.session_state is not writable from background threads (ScriptRunContext error).
@@ -141,6 +176,23 @@ def render_settings() -> None:
     # Catch-all: show registry servers not in DISPLAY_ORDER
     _render_unknown_servers()
 
+    st.divider()
+    st.markdown("### 🔧 Developer")
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        st.caption(
+            "Restart all MCP servers to pick up code changes. "
+            "Use this after updating server files or when tools show as 'Unknown'."
+        )
+    with c2:
+        if st.button("🔄 Restart MCP Servers", key="restart_mcp", width='stretch'):
+            with st.spinner("Restarting servers…"):
+                _killed, _started = _restart_mcp_servers()
+                st.cache_resource.clear()
+            st.success(f"Done — stopped {_killed}, started {_started} servers.")
+            time.sleep(1)
+            st.rerun()
+
 
 # ── Card renderer ─────────────────────────────────────────────────────────────
 
@@ -172,6 +224,11 @@ def _render_card(key: str, meta: Dict) -> None:
             _setup_telegram(is_connected)
         else:
             st.success("Active — no setup needed")
+
+    # Full-width Telegram Bridge panel (needs to be outside the narrow col_action)
+    if key == "telegram":
+        st.markdown("---")
+        _render_bridge_control()
 
 
 # ── Status helpers ────────────────────────────────────────────────────────────
@@ -230,30 +287,34 @@ def _setup_strava(is_connected: bool) -> None:
     if is_connected:
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔄 Reconnect", key="strava_reconnect", use_container_width=True):
+            if st.button("🔄 Reconnect", key="strava_reconnect", width='stretch'):
                 _strava_revoke()
                 st.rerun()
         with col2:
-            if st.button("🔌 Disconnect", key="strava_disconnect", use_container_width=True):
+            if st.button("🔌 Disconnect", key="strava_disconnect", width='stretch'):
                 _strava_revoke()
                 st.rerun()
         return
 
-    # ── Step 1: check credentials ─────────────────────────────────────────────
+    # ── Step 1: check API app credentials ────────────────────────────────────
+    # CLIENT_ID / CLIENT_SECRET identify the *Strava API app*, not the user account.
+    # The user's own account is linked via the OAuth flow below.
     cid  = os.getenv("CLIENT_ID", "")
     csec = os.getenv("CLIENT_SECRET", "")
 
     if not cid or not csec:
-        with st.expander("🔑 Enter API credentials", expanded=True):
-            st.caption("Create a Strava app at strava.com/settings/api — takes about 2 minutes.")
-
+        with st.expander("🔑 Enter Strava API app credentials", expanded=True):
+            st.caption(
+                "These identify the **Strava API application** (not your personal account). "
+                "Create one at strava.com/settings/api — takes about 2 minutes."
+            )
             _env_row("CLIENT_ID",     "not set")
             _env_row("CLIENT_SECRET", "not set")
             st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
 
             new_cid  = st.text_input("Client ID",     value=cid,  key="strava_cid")
             new_csec = st.text_input("Client Secret", value=csec, type="password", key="strava_csec")
-            if st.button("Save & continue", key="strava_save_creds", use_container_width=True):
+            if st.button("Save & continue", key="strava_save_creds", width='stretch'):
                 _save_env("CLIENT_ID",     new_cid)
                 _save_env("CLIENT_SECRET", new_csec)
                 os.environ["CLIENT_ID"]     = new_cid
@@ -277,7 +338,7 @@ def _setup_strava(is_connected: bool) -> None:
             st.link_button(
                 "→ Open Strava API page",
                 "https://www.strava.com/settings/api",
-                use_container_width=True,
+                width='stretch',
             )
         return
 
@@ -285,14 +346,14 @@ def _setup_strava(is_connected: bool) -> None:
     token_key = "strava_oauth_started"
 
     if not st.session_state.get(token_key):
-        if st.button("🔗 Connect with Strava", key="strava_connect", use_container_width=True, type="primary"):
+        if st.button("🔗 Connect with Strava", key="strava_connect", width='stretch', type="primary"):
             _strava_start_flow()
             st.rerun()
     else:
         # Flow is running — show auth link and poll
         auth_url = st.session_state.get("strava_auth_url", "")
         st.link_button("🌐 Authorize on Strava (opens new tab)", auth_url,
-                       use_container_width=True, type="primary")
+                       width='stretch', type="primary")
         st.caption("After authorizing, return here — the connection will be detected automatically.")
 
         from ui.shared import strava_connected
@@ -303,98 +364,151 @@ def _setup_strava(is_connected: bool) -> None:
             st.cache_resource.clear()
             st.rerun()
         else:
-            if st.button("🔄 Check connection", key="strava_poll", use_container_width=True):
+            if st.button("🔄 Check connection", key="strava_poll", width='stretch'):
                 st.rerun()
+
+            # Fallback: browser may show "connection refused" if the local callback
+            # server couldn't start (e.g. port 8080 already in use).
+            # The URL still contains the auth code — user can paste it here.
+            with st.expander("Browser showed an error on localhost:8080? Paste the URL here"):
+                st.caption(
+                    "Copy the full redirect URL from your browser's address bar "
+                    "(starts with `http://localhost:8080/callback?...`) and paste it below."
+                )
+                _cb_url = st.text_input("Callback URL", key="strava_callback_url",
+                                        placeholder="http://localhost:8080/callback?state=...&code=...")
+                if st.button("Exchange code", key="strava_exchange_code", width='stretch'):
+                    import urllib.parse as _up, requests as _req
+                    _parsed = _up.urlparse(_cb_url)
+                    _q      = _up.parse_qs(_parsed.query)
+                    _code   = (_q.get("code") or [None])[0]
+                    if not _code:
+                        st.error("No `code` parameter found in the URL.")
+                    else:
+                        _cid  = os.getenv("CLIENT_ID")
+                        _csec = os.getenv("CLIENT_SECRET")
+                        try:
+                            _r = _req.post("https://www.strava.com/oauth/token", data={
+                                "client_id":     _cid,
+                                "client_secret": _csec,
+                                "code":          _code,
+                                "grant_type":    "authorization_code",
+                            }, timeout=15)
+                            if _r.status_code == 200:
+                                _tok = _r.json()
+                                _tok.pop("client_id", None); _tok.pop("client_secret", None)
+                                Path(".tokens").mkdir(exist_ok=True)
+                                Path(".tokens/strava.json").write_text(json.dumps(_tok, indent=2))
+                                _ath = _tok.get("athlete", {})
+                                _name = f"{_ath.get('firstname','')} {_ath.get('lastname','')}".strip()
+                                st.session_state.pop("strava_oauth_started", None)
+                                st.cache_resource.clear()
+                                st.success(f"✅ Connected as **{_name}**!")
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Code exchange failed (HTTP {_r.status_code}): {_r.text[:200]}")
+                        except Exception as _ex:
+                            st.error(f"❌ Error: {_ex}")
 
     # ── Alternative: upload existing token ────────────────────────────────────
     with st.expander("📁 Already have a token? Upload it"):
-        st.caption("Upload an existing `strava.json` token file (e.g. from a teammate).")
+        st.caption(
+            "Upload the OAuth token JSON returned by Strava's `/oauth/token` endpoint "
+            "(fields: `access_token`, `refresh_token`, `expires_at`, optionally `athlete`). "
+            "**`client_id` / `client_secret` are not needed here** — they are read from `.env`."
+        )
         uploaded = st.file_uploader("strava.json", type="json", key="strava_token_upload",
                                     label_visibility="collapsed")
         if uploaded is not None:
             try:
                 raw = json.loads(uploaded.read())
-                # Normalize capitalized keys (e.g. Access_Token → access_token)
-                data = {k.lower().replace("-", "_"): v for k, v in raw.items()}
-                _key_map = {"client_id": "client_id", "client_secret": "client_secret",
-                            "access_token": "access_token", "refresh_token": "refresh_token"}
-                normalized = {_key_map.get(k, k): v for k, v in data.items()}
-                if not normalized.get("access_token"):
-                    st.error("Invalid token file — no `access_token` found.")
+                # Normalize any capitalized keys (e.g. Access_Token → access_token)
+                token_data = {k.lower().replace("-", "_"): v for k, v in raw.items()}
+
+                # Strip app credentials — they live in .env, not in the token file
+                for _drop in ("client_id", "client_secret"):
+                    token_data.pop(_drop, None)
+
+                if not token_data.get("access_token"):
+                    st.error("Invalid file — `access_token` not found.")
                 else:
+                    import time as _t
+                    if "expires_at" not in token_data:
+                        token_data["expires_at"] = int(_t.time()) - 1  # treat as expired → force refresh
+
                     Path(".tokens").mkdir(exist_ok=True)
-                    if "expires_at" not in normalized:
-                        import time as _t
-                        normalized["expires_at"] = int(_t.time()) + 21600
-                    Path(".tokens/strava.json").write_text(json.dumps(normalized, indent=2))
-                    if normalized.get("client_id"):
-                        _save_env("CLIENT_ID", str(normalized["client_id"]))
-                    if normalized.get("client_secret"):
-                        _save_env("CLIENT_SECRET", str(normalized["client_secret"]))
-                    # Live-verify the token against the Strava API; auto-refresh if expired
+                    Path(".tokens/strava.json").write_text(json.dumps(token_data, indent=2))
+
                     import requests as _req
+                    _cid  = os.getenv("CLIENT_ID", "")
+                    _csec = os.getenv("CLIENT_SECRET", "")
+
+                    # Try the access token as-is first
                     with st.spinner("Verifying token…"):
                         try:
                             _resp = _req.get(
                                 "https://www.strava.com/api/v3/athlete",
-                                headers={"Authorization": f"Bearer {normalized['access_token']}"},
+                                headers={"Authorization": f"Bearer {token_data['access_token']}"},
                                 timeout=8,
                             )
                         except Exception:
                             _resp = None
-                    if _resp is not None and _resp.status_code == 401:
-                        # Access token expired — try refreshing with refresh_token
-                        _cid  = normalized.get("client_id") or os.getenv("CLIENT_ID")
-                        _csec = normalized.get("client_secret") or os.getenv("CLIENT_SECRET")
-                        _rtok = normalized.get("refresh_token")
-                        if _cid and _csec and _rtok:
+
+                    # Access token expired or missing — refresh using env-stored app credentials
+                    if (_resp is None or _resp.status_code == 401) and token_data.get("refresh_token"):
+                        if not _cid or not _csec:
+                            Path(".tokens/strava.json").unlink(missing_ok=True)
+                            st.error(
+                                "❌ Access token expired and `CLIENT_ID` / `CLIENT_SECRET` are not set in `.env`. "
+                                "Add your Strava API app credentials first."
+                            )
+                        else:
                             with st.spinner("Access token expired — refreshing…"):
                                 try:
                                     _rresp = _req.post(
                                         "https://www.strava.com/oauth/token",
                                         data={
-                                            "client_id": _cid,
+                                            "client_id":     _cid,
                                             "client_secret": _csec,
-                                            "refresh_token": _rtok,
-                                            "grant_type": "refresh_token",
+                                            "refresh_token": token_data["refresh_token"],
+                                            "grant_type":    "refresh_token",
                                         },
                                         timeout=10,
                                     )
                                     if _rresp.status_code == 200:
                                         _new = _rresp.json()
-                                        normalized.update({
-                                            "access_token": _new["access_token"],
-                                            "refresh_token": _new.get("refresh_token", _rtok),
-                                            "expires_at": _new.get("expires_at", 0),
+                                        token_data.update({
+                                            "access_token":  _new["access_token"],
+                                            "refresh_token": _new.get("refresh_token", token_data["refresh_token"]),
+                                            "expires_at":    _new.get("expires_at", 0),
                                         })
-                                        Path(".tokens/strava.json").write_text(json.dumps(normalized, indent=2))
+                                        Path(".tokens/strava.json").write_text(json.dumps(token_data, indent=2))
                                         _resp = _req.get(
                                             "https://www.strava.com/api/v3/athlete",
-                                            headers={"Authorization": f"Bearer {normalized['access_token']}"},
+                                            headers={"Authorization": f"Bearer {token_data['access_token']}"},
                                             timeout=8,
                                         )
                                     else:
                                         _resp = None
-                                except Exception:
+                                        st.error(
+                                            f"❌ Token refresh failed (HTTP {_rresp.status_code}). "
+                                            "The refresh token may be invalid — reconnect via Strava OAuth."
+                                        )
+                                except Exception as _re:
                                     _resp = None
-                        else:
-                            Path(".tokens/strava.json").unlink(missing_ok=True)
-                            st.error("❌ Token expired and no refresh credentials available. Reconnect via Strava OAuth.")
-                            _resp = None
+                                    st.error(f"❌ Refresh error: {_re}")
+
                     if _resp is not None and _resp.status_code == 200:
                         _ath = _resp.json()
                         _name = f"{_ath.get('firstname', '')} {_ath.get('lastname', '')}".strip()
                         st.cache_resource.clear()
                         st.success(f"✅ Token verified — connected as **{_name}**.")
                         st.rerun()
-                    elif _resp is not None:
+                    elif _resp is not None and _resp.status_code not in (200, 401):
                         Path(".tokens/strava.json").unlink(missing_ok=True)
-                        st.error(f"❌ Token is expired or invalid (HTTP {_resp.status_code}). Reconnect via Strava OAuth.")
-                    elif not (normalized.get("client_id") and normalized.get("refresh_token")):
-                        Path(".tokens/strava.json").unlink(missing_ok=True)
-                        st.error("❌ Could not reach Strava. Check your internet connection.")
+                        st.error(f"❌ Strava returned HTTP {_resp.status_code}. Check your internet connection.")
             except Exception as exc:
-                st.error(f"Error: {exc}")
+                st.error(f"Error reading file: {exc}")
 
 
 def _strava_start_flow() -> None:
@@ -465,10 +579,11 @@ def _strava_start_flow() -> None:
     def _serve():
         try:
             srv = HTTPServer(("localhost", 8080), _Handler)
+            srv.allow_reuse_address = True  # avoids EADDRINUSE on quick restarts
             srv.timeout = 300  # 5 min
             srv.handle_request()  # serve exactly one request
         except Exception:
-            pass
+            pass  # port busy → user uses the paste-URL fallback
 
     threading.Thread(target=_serve, daemon=True).start()
 
@@ -486,11 +601,11 @@ def _setup_google(is_connected: bool) -> None:
     if is_connected:
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔄 Reconnect", key="google_reconnect", use_container_width=True):
+            if st.button("🔄 Reconnect", key="google_reconnect", width='stretch'):
                 _google_revoke()
                 st.rerun()
         with col2:
-            if st.button("🔌 Disconnect", key="google_disconnect", use_container_width=True):
+            if st.button("🔌 Disconnect", key="google_disconnect", width='stretch'):
                 _google_revoke()
                 st.rerun()
         return
@@ -506,7 +621,7 @@ def _setup_google(is_connected: bool) -> None:
             st.markdown("<div style='margin-top:10px'></div>", unsafe_allow_html=True)
             new_cid  = st.text_input("Client ID",     value=cid,  key="google_cid")
             new_csec = st.text_input("Client Secret", value=csec, type="password", key="google_csec")
-            if st.button("Save & continue", key="google_save_creds", use_container_width=True):
+            if st.button("Save & continue", key="google_save_creds", width='stretch'):
                 _save_env("GOOGLE_CLIENT_ID",     new_cid)
                 _save_env("GOOGLE_CLIENT_SECRET", new_csec)
                 os.environ["GOOGLE_CLIENT_ID"]     = new_cid
@@ -525,21 +640,21 @@ def _setup_google(is_connected: bool) -> None:
             st.link_button(
                 "→ Open Google Cloud Console",
                 "https://console.cloud.google.com/apis/credentials",
-                use_container_width=True,
+                width='stretch',
             )
         return
 
     # Has credentials → start OAuth flow
     if not st.session_state.get("google_oauth_started"):
         if st.button("🔗 Connect with Google", key="google_connect",
-                     use_container_width=True, type="primary"):
+                     width='stretch', type="primary"):
             _google_start_flow(cid, csec)
             st.rerun()
         return
 
     auth_url = st.session_state.get("google_auth_url", "")
     st.link_button("🌐 Authorize with Google (opens new tab)", auth_url,
-                   use_container_width=True, type="primary")
+                   width='stretch', type="primary")
     st.caption("After authorizing, return here — the connection will be detected automatically.")
 
     from ui.shared import google_connected
@@ -550,7 +665,7 @@ def _setup_google(is_connected: bool) -> None:
         st.cache_resource.clear()
         st.rerun()
     else:
-        if st.button("🔄 Check connection", key="google_poll", use_container_width=True):
+        if st.button("🔄 Check connection", key="google_poll", width='stretch'):
             st.rerun()
 
 
@@ -672,7 +787,7 @@ def _setup_garmin(is_connected: bool) -> None:
         return
 
     if is_connected:
-        if st.button("🔌 Disconnect Garmin", key="garmin_disconnect", use_container_width=True):
+        if st.button("🔌 Disconnect Garmin", key="garmin_disconnect", width='stretch'):
             import shutil
             _excluded = {"strava.json", "google.json"}
             token_dir = Path(".tokens")
@@ -695,7 +810,7 @@ def _setup_garmin(is_connected: bool) -> None:
             st.caption("Garmin Connect E-Mail und Passwort")
             new_email = st.text_input("E-Mail", value=email, key="g_email")
             new_pw    = st.text_input("Passwort", type="password", key="g_pw")
-            submitted = st.form_submit_button("Verbinden", use_container_width=True, type="primary")
+            submitted = st.form_submit_button("Verbinden", width='stretch', type="primary")
         if submitted:
             _save_env("GARMIN_EMAIL",    new_email)
             _save_env("GARMIN_PASSWORD", new_pw)
@@ -710,7 +825,7 @@ def _setup_garmin(is_connected: bool) -> None:
 
     elif flow == "authenticating":
         st.info("🔄 Verbinde mit Garmin Connect…")
-        if st.button("✕ Abbrechen", key="garmin_cancel", use_container_width=True):
+        if st.button("✕ Abbrechen", key="garmin_cancel", width='stretch'):
             st.session_state["garmin_flow"] = "idle"
             st.rerun()
         time.sleep(1)
@@ -720,7 +835,7 @@ def _setup_garmin(is_connected: bool) -> None:
         st.warning("🔐 Zwei-Faktor-Authentifizierung erforderlich")
         with st.form("garmin_mfa_form"):
             mfa_code = st.text_input("MFA / OTP Code", placeholder="123456", key="g_mfa_code")
-            submitted = st.form_submit_button("Bestätigen", use_container_width=True, type="primary")
+            submitted = st.form_submit_button("Bestätigen", width='stretch', type="primary")
         if submitted:
             st.session_state["garmin_flow"] = "mfa_submitted"
             _garmin_submit_mfa(mfa_code)
@@ -734,7 +849,7 @@ def _setup_garmin(is_connected: bool) -> None:
     elif flow == "error":
         err = st.session_state.get("garmin_error", "Unbekannter Fehler")
         st.error(f"❌ Error: {err}")
-        if st.button("Nochmal versuchen", key="garmin_retry", use_container_width=True):
+        if st.button("Nochmal versuchen", key="garmin_retry", width='stretch'):
             st.session_state["garmin_flow"] = "idle"
             st.rerun()
 
@@ -747,19 +862,42 @@ def _setup_garmin(is_connected: bool) -> None:
     # ── Alternative: upload existing token ────────────────────────────────────
     if flow in ("idle", "error"):
         with st.expander("📁 Already have a token? Upload it"):
-            st.caption("Upload an existing `garmin_tokens.json` token file (e.g. from your supervisor).")
+            st.caption(
+                "Upload a `garmin_tokens.json` shared by a teammate. "
+                "No email or password needed — the token is sufficient for all API calls."
+            )
             uploaded = st.file_uploader("garmin_tokens.json", type="json", key="garmin_token_upload",
                                         label_visibility="collapsed")
             if uploaded is not None:
                 try:
                     data = json.loads(uploaded.read())
-                    Path(".tokens").mkdir(exist_ok=True)
-                    Path(".tokens/garmin_tokens.json").write_text(json.dumps(data, indent=2))
-                    st.cache_resource.clear()
-                    st.success("✅ Garmin token saved!")
-                    st.rerun()
+                    required = {"di_token", "di_refresh_token", "di_client_id"}
+                    missing = required - set(data.keys())
+                    if missing:
+                        st.error(f"Invalid token file — missing fields: {', '.join(missing)}")
+                    else:
+                        Path(".tokens").mkdir(exist_ok=True)
+                        Path(".tokens/garmin_tokens.json").write_text(json.dumps(data, indent=2))
+                        # Verify: log in and fetch the account name
+                        with st.spinner("Verifying token…"):
+                            try:
+                                from garminconnect import Garmin as _G
+                                _g = _G()
+                                _g.login(tokenstore=".tokens")
+                                _name = _g.get_full_name()
+                                st.cache_resource.clear()
+                                st.success(f"✅ Garmin connected as **{_name}**.")
+                                st.rerun()
+                            except Exception as _ve:
+                                Path(".tokens/garmin_tokens.json").unlink(missing_ok=True)
+                                st.error(
+                                    f"❌ Token verification failed: {_ve}\n\n"
+                                    "The token may be expired or belong to a different region. "
+                                    "Ask your teammate to generate a fresh one via "
+                                    "`python auth/garmin_setup.py`."
+                                )
                 except Exception as exc:
-                    st.error(f"Error: {exc}")
+                    st.error(f"Error reading file: {exc}")
 
 
 def _garmin_start_auth(email: str, password: str) -> None:
@@ -857,18 +995,40 @@ def _setup_api_key(key: str, meta: Dict, is_connected: bool) -> None:
         if key == "openai":
             load_dotenv(override=True)
             _KIT_MODELS = [
-                "kit.gpt-4.1",
+                # GPT-5 Familie
+                "kit.gpt-5.1",
                 "kit.gpt-5",
                 "kit.gpt-5-mini",
+                "kit.gpt-5-nano",
+                # GPT-4.1 Familie
+                "kit.gpt-4.1",
+                "kit.gpt-4.1-mini",
+                "kit.gpt-4.1-nano",
+                # Open-Weight Modelle
                 "meta-llama-3.1-8b-instruct",
+                "qwen3.5-397b-a17b",
+                "qwen3.5-122b-a10b",
+                "qwen3.5-35b-a3b",
+                "qwen3.5-27b",
+                "qwen3-30b-a3b-instruct-2507",
+                # Sonstige
+                "kit.minimax-m2.7-229b",
+                "minimax-m2.5-229b",
+                "openai-gpt-oss-120b",
+                "teuken-7b-instruct-research",
+                "glm-4.7",
             ]
-            cur_model = os.getenv("AGENT_MODEL", "kit.gpt-4.1")
-            cur_base  = os.getenv("OPENAI_BASE_URL", "https://ai-gateway.dsi-experimente.de/v1")
-            idx = _KIT_MODELS.index(cur_model) if cur_model in _KIT_MODELS else 0
-            new_model = st.selectbox("AGENT_MODEL", _KIT_MODELS, index=idx)
+            cur_model = os.getenv("AGENT_MODEL", "kit.gpt-5.1")
+            cur_base  = os.getenv("OPENAI_BASE_URL", "https://ai-gateway.dsi-experimente.de")
+            # Aktuell gesetztes Modell immer anzeigen, auch wenn nicht in der Liste
+            model_list = list(_KIT_MODELS)
+            if cur_model and cur_model not in model_list:
+                model_list.insert(0, cur_model)
+            idx = model_list.index(cur_model) if cur_model in model_list else 0
+            new_model = st.selectbox("AGENT_MODEL", model_list, index=idx)
             new_base  = st.text_input("OPENAI_BASE_URL", value=cur_base)
 
-        saved = st.form_submit_button(label, use_container_width=True, type="primary")
+        saved = st.form_submit_button(label, width='stretch', type="primary")
 
     if saved:
         if new_val.strip():
@@ -903,11 +1063,11 @@ def _setup_telegram(is_connected: bool) -> None:
         st.caption("Tools laufen über den Telegram-Server (`python -m servers.telegram_mcp`, :8106).")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔄 Regenerate session", key="tg_regen", use_container_width=True):
+            if st.button("🔄 Regenerate session", key="tg_regen", width='stretch'):
                 _tg_reset_session()
                 st.rerun()
         with col2:
-            if st.button("🔌 Disconnect", key="tg_disconnect", use_container_width=True):
+            if st.button("🔌 Disconnect", key="tg_disconnect", width='stretch'):
                 _tg_reset_session()
                 st.rerun()
         return
@@ -917,7 +1077,7 @@ def _setup_telegram(is_connected: bool) -> None:
         st.caption("Create an app at my.telegram.org/apps")
         new_id   = st.text_input("API ID",   value=api_id,   key="tg_api_id")
         new_hash = st.text_input("API Hash", value=api_hash, type="password", key="tg_api_hash")
-        if st.button("Save & continue", key="tg_save_creds", use_container_width=True):
+        if st.button("Save & continue", key="tg_save_creds", width='stretch'):
             _save_env("TELEGRAM_API_ID", new_id.strip())
             _save_env("TELEGRAM_API_HASH", new_hash.strip())
             os.environ["TELEGRAM_API_ID"]   = new_id.strip()
@@ -945,7 +1105,7 @@ def _setup_telegram(is_connected: bool) -> None:
         st.caption("Alternative — generate via CLI:  "
                    "`uv run --directory external/telegram-mcp session_string_generator.py`")
         manual = st.text_input("TELEGRAM_SESSION_STRING", type="password", key="tg_manual")
-        if st.button("Save session string", key="tg_manual_save", use_container_width=True):
+        if st.button("Save session string", key="tg_manual_save", width='stretch'):
             if manual.strip():
                 _tg_save_session(manual.strip())
                 st.success("✅ Session saved!")
@@ -963,7 +1123,7 @@ def _telegram_session_flow(api_id: str, api_hash: str) -> None:
 
     if flow == "idle":
         phone = st.text_input("Phone number (with country code, e.g. +49…)", key="tg_phone_in")
-        if st.button("📲 Send code", key="tg_send_code", use_container_width=True, type="primary"):
+        if st.button("📲 Send code", key="tg_send_code", width='stretch', type="primary"):
             if not phone.strip():
                 st.error("Please enter a phone number.")
                 return
@@ -983,7 +1143,7 @@ def _telegram_session_flow(api_id: str, api_hash: str) -> None:
         code = st.text_input("Confirmation code", key="tg_code_in")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("✅ Sign in", key="tg_signin", use_container_width=True, type="primary"):
+            if st.button("✅ Sign in", key="tg_signin", width='stretch', type="primary"):
                 try:
                     with st.spinner("Signing in…"):
                         status, result = _run_tg(_tg_sign_in(
@@ -1002,7 +1162,7 @@ def _telegram_session_flow(api_id: str, api_hash: str) -> None:
                 except Exception as exc:
                     st.error(f"Sign-in failed: {exc}")
         with col2:
-            if st.button("↩︎ Cancel", key="tg_cancel", use_container_width=True):
+            if st.button("↩︎ Cancel", key="tg_cancel", width='stretch'):
                 _tg_clear_flow()
                 st.rerun()
 
@@ -1011,7 +1171,7 @@ def _telegram_session_flow(api_id: str, api_hash: str) -> None:
         pw = st.text_input("2FA password", type="password", key="tg_pw_in")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔓 Confirm", key="tg_pw_btn", use_container_width=True, type="primary"):
+            if st.button("🔓 Confirm", key="tg_pw_btn", width='stretch', type="primary"):
                 try:
                     with st.spinner("Checking password…"):
                         result = _run_tg(_tg_password(
@@ -1024,7 +1184,7 @@ def _telegram_session_flow(api_id: str, api_hash: str) -> None:
                 except Exception as exc:
                     st.error(f"Wrong password or error: {exc}")
         with col2:
-            if st.button("↩︎ Cancel", key="tg_pw_cancel", use_container_width=True):
+            if st.button("↩︎ Cancel", key="tg_pw_cancel", width='stretch'):
                 _tg_clear_flow()
                 st.rerun()
 
@@ -1101,6 +1261,164 @@ async def _tg_password(api_id: str, api_hash: str, inter: str, password: str):
         return StringSession.save(client.session)
     finally:
         await client.disconnect()
+
+
+# ── Telegram bridge control ───────────────────────────────────────────────────
+
+def _render_bridge_control() -> None:
+    """Full-width Telegram Bridge start/stop panel (rendered below the card columns)."""
+    load_dotenv(override=True)
+
+    api_id   = os.getenv("TELEGRAM_API_ID", "")
+    api_hash = os.getenv("TELEGRAM_API_HASH", "")
+    session  = (os.getenv("TELEGRAM_BRIDGE_SESSION_STRING") or
+                os.getenv("TELEGRAM_SESSION_STRING") or "")
+    has_creds = bool(api_id and api_hash and session)
+
+    running = _bridge_running()
+
+    st.markdown("#### 🤖 Telegram Bridge")
+    st.caption(
+        "Expose the agent over Telegram. "
+        "Bridge logs appear in the **terminal** where `streamlit run app.py` is running."
+    )
+
+    if not has_creds:
+        st.warning(
+            "Telegram credentials missing. "
+            "Configure **API ID, API Hash** and **Session String** above first."
+        )
+        return
+
+    # ── Internal / External mode toggle ──────────────────────────────────────
+    internal_val = os.getenv("TELEGRAM_BRIDGE_INTERNAL_ONLY", "false").lower() in ("1", "true", "yes")
+    new_internal = st.toggle(
+        "🔒 Internal only (respond only to your own Saved Messages)",
+        value=internal_val,
+        key="bridge_internal_toggle",
+        help=(
+            "ON: only react when you write to yourself (Saved Messages) — safe for dev/testing.\n"
+            "OFF: also respond to incoming DMs from anyone (or TELEGRAM_ALLOWED_USERS if set)."
+        ),
+        disabled=running,
+    )
+    if new_internal != internal_val and not running:
+        _save_env("TELEGRAM_BRIDGE_INTERNAL_ONLY", "true" if new_internal else "false")
+        os.environ["TELEGRAM_BRIDGE_INTERNAL_ONLY"] = "true" if new_internal else "false"
+
+    col_dot, col_label, col_btn = st.columns([1, 6, 3])
+
+    with col_dot:
+        color = "#22c55e" if running else "#ef4444"
+        st.markdown(
+            f'<div style="padding-top:8px">'
+            f'<span style="width:12px;height:12px;border-radius:50%;background:{color};'
+            f'display:inline-block"></span></div>',
+            unsafe_allow_html=True,
+        )
+    with col_label:
+        if running:
+            pid = _bridge["proc"].pid if _bridge.get("proc") else "?"
+            mode = "internal (Saved Messages)" if internal_val else "public (incoming DMs)"
+            st.markdown(f"**Bridge running** (PID {pid}) — mode: {mode}")
+        else:
+            st.markdown("**Bridge stopped**")
+
+    with col_btn:
+        if running:
+            if st.button("⏹ Stop bridge", key="bridge_stop", width='stretch'):
+                _bridge_stop()
+                st.rerun()
+        else:
+            if st.button("▶ Start bridge", key="bridge_start",
+                         width='stretch', type="primary"):
+                _bridge_start()
+                time.sleep(0.5)
+                st.rerun()
+
+    # Shared-session warning
+    using_shared = (
+        not os.getenv("TELEGRAM_BRIDGE_SESSION_STRING", "").strip()
+        and bool(os.getenv("TELEGRAM_SESSION_STRING", "").strip())
+    )
+    if running and using_shared:
+        st.warning(
+            "⚠️ Bridge and Telegram MCP proxy share the same session "
+            "(`TELEGRAM_SESSION_STRING`). Running both simultaneously may cause "
+            "Telegram to revoke the key. For stable parallel operation, generate a "
+            "dedicated login: `python telegram_bridge.py --login` → `TELEGRAM_BRIDGE_SESSION_STRING`."
+        )
+
+
+# ── MCP server restart ────────────────────────────────────────────────────────
+
+def _restart_mcp_servers() -> tuple[int, int]:
+    """Kill all MCP server processes by port, then restart them. Returns (killed, started)."""
+    import socket
+    import urllib.parse
+    from core.config import MCP_SERVERS
+
+    _optional = {"telegram"}
+    killed = 0
+
+    for name, url in MCP_SERVERS.items():
+        if name in _optional:
+            continue
+        port = urllib.parse.urlparse(url).port
+        if not port:
+            continue
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
+            _s.settimeout(0.3)
+            if _s.connect_ex(("127.0.0.1", port)) != 0:
+                continue  # nothing running on this port
+        try:
+            if sys.platform == "win32":
+                result = subprocess.run(
+                    ["netstat", "-ano"], capture_output=True, text=True, timeout=5
+                )
+                for line in result.stdout.splitlines():
+                    if f":{port}" in line and "LISTENING" in line:
+                        parts = line.split()
+                        pid = int(parts[-1])
+                        subprocess.run(
+                            ["taskkill", "/PID", str(pid), "/F"],
+                            capture_output=True, timeout=5,
+                        )
+                        killed += 1
+                        break
+            else:
+                result = subprocess.run(
+                    ["lsof", "-ti", f":{port}"], capture_output=True, text=True, timeout=5
+                )
+                for pid_str in result.stdout.strip().split("\n"):
+                    if pid_str.strip():
+                        subprocess.run(
+                            ["kill", "-9", pid_str.strip()], capture_output=True, timeout=5
+                        )
+                        killed += 1
+        except Exception:
+            pass
+
+    time.sleep(1.0)
+
+    started = 0
+    for name, url in MCP_SERVERS.items():
+        if name in _optional:
+            continue
+        port = urllib.parse.urlparse(url).port
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
+            _s.settimeout(0.3)
+            already_up = _s.connect_ex(("127.0.0.1", port)) == 0
+        if not already_up:
+            subprocess.Popen(
+                [sys.executable, "-m", f"servers.{name}_mcp"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            started += 1
+
+    time.sleep(3.0)  # give servers time to bind
+    return killed, started
 
 
 # ── Unknown registry servers ──────────────────────────────────────────────────

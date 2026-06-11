@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<body>
+<pre id="out"></pre>
+
+<script>
+const out = document.getElementById("out");
+
+const es = new EventSource("http://127.0.0.1:8103/mcp");
+
+es.onmessage = e => {
+  out.textContent += e.data + "\n";
+};
+</script>
+</body>
+</html>

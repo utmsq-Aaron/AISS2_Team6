@@ -41,20 +41,34 @@ _PRESETS: Dict[str, int] = {
 
 def _garmin_client():
     from garminconnect import Garmin
-    email    = os.getenv("GARMIN_EMAIL", "") or ""
-    password = os.getenv("GARMIN_PASSWORD", "") or ""
+    import pathlib
+    token_file = pathlib.Path(TOKEN_STORE) / "garmin_tokens.json"
+    has_tokens = token_file.exists()
     try:
-        g = Garmin(email=email, password=password)
+        # Token-only path — no credentials needed when tokens are cached
+        g = Garmin()
         g.login(tokenstore=TOKEN_STORE)
         return g
     except Exception as exc:
         msg = str(exc)
-        if "username and password" in msg.lower() or "401" in msg.lower():
+        # Fall back to credential login if tokens are absent or fully expired
+        email    = os.getenv("GARMIN_EMAIL", "") or ""
+        password = os.getenv("GARMIN_PASSWORD", "") or ""
+        if email and password:
+            try:
+                g2 = Garmin(email=email, password=password)
+                g2.login(tokenstore=TOKEN_STORE)
+                return g2
+            except Exception:
+                pass
+        if not has_tokens:
             raise RuntimeError(
-                "Garmin tokens are missing or expired. "
-                "Set GARMIN_EMAIL / GARMIN_PASSWORD in ⚙️ Settings and reconnect."
+                "Garmin not connected. Upload token files in ⚙️ Settings → Garmin."
             ) from exc
-        raise
+        raise RuntimeError(
+            f"Garmin login failed: {msg}\n"
+            "Reconnect via ⚙️ Settings → Garmin."
+        ) from exc
 
 
 def _strava_token() -> str:
@@ -64,6 +78,75 @@ def _strava_token() -> str:
         raise RuntimeError("CLIENT_ID / CLIENT_SECRET not set in .env")
     from auth.strava_oauth import OAuth2Manager
     return OAuth2Manager(cid, csec).get_valid_access_token()
+
+
+def _fetch_strava_for_range(start_str: str, end_str: str) -> List[Dict]:
+    """Fetch all Strava activities in the given date range directly via REST API."""
+    try:
+        token  = _strava_token()
+        after  = int(datetime.strptime(start_str, "%Y-%m-%d").timestamp())
+        before = int((datetime.strptime(end_str,   "%Y-%m-%d") + timedelta(days=1)).timestamp())
+        collected: List[Dict] = []
+        page = 1
+        while True:
+            resp = requests.get(
+                "https://www.strava.com/api/v3/activities",
+                headers={"Authorization": f"Bearer {token}"},
+                params={"per_page": 200, "page": page, "after": after, "before": before},
+                timeout=30,
+            )
+            if not resp.ok:
+                break
+            batch = resp.json()
+            if not batch:
+                break
+            collected.extend(batch)
+            page += 1
+            if len(batch) < 200:
+                break
+        return collected
+    except Exception:
+        return []
+
+
+def _match_in_strava(garmin_act: Dict, strava_acts: List[Dict]) -> bool:
+    """True if this Garmin activity is already present in the given Strava list.
+
+    Matches by: same calendar date (±1 day for timezone drift) AND either
+    duration within 3 minutes OR distance within 5 %.
+    """
+    g_date_str = (garmin_act.get("startTimeLocal") or "")[:10]
+    g_dur      = garmin_act.get("duration") or 0        # seconds
+    g_dist     = garmin_act.get("distance")  or 0       # meters
+
+    if not g_date_str:
+        return False
+    try:
+        g_date = datetime.strptime(g_date_str, "%Y-%m-%d")
+    except ValueError:
+        return False
+
+    for s in strava_acts:
+        s_date_str = (s.get("start_date") or s.get("start_date_local") or "")[:10]
+        if not s_date_str:
+            continue
+        try:
+            s_date = datetime.strptime(s_date_str, "%Y-%m-%d")
+        except ValueError:
+            continue
+        if abs((g_date - s_date).days) > 1:
+            continue
+
+        s_dur  = s.get("moving_time") or 0               # seconds
+        s_dist = s.get("distance")    or 0                # meters
+
+        dur_ok  = g_dur  and s_dur  and abs(g_dur  - s_dur)  < 180              # 3 min
+        dist_ok = g_dist and s_dist and abs(g_dist - s_dist) / max(g_dist, 1) < 0.05  # 5 %
+
+        if dur_ok or dist_ok:
+            return True
+
+    return False
 
 
 def _download_fit(garmin, activity_id: int) -> Optional[bytes]:
@@ -141,7 +224,7 @@ def _fmt_duration(seconds: float) -> str:
 
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(show_spinner=False)
 def _fetch_route_coords(activity_id: int) -> List[Tuple[float, float]]:
     """Return [(lat, lon), …] for the activity route. Cached per activity_id."""
     try:
@@ -216,8 +299,11 @@ def _mini_map(lat: float, lon: float, route_coords: Tuple[Tuple[float, float], .
     return fig
 
 
-def _activity_card(act: Dict) -> None:
-    """Render one activity preview card (checkbox state stored in session_state)."""
+def _activity_card(act: Dict, in_strava: Optional[bool] = None) -> None:
+    """Render one activity preview card (checkbox state stored in session_state).
+
+    in_strava: True = already in Strava, False = not yet, None = unknown (no check done).
+    """
     aid      = act.get("activityId")
     name     = act.get("activityName") or f"Activity {aid}"
     atype    = (act.get("activityType") or {}).get("typeKey", "")
@@ -232,6 +318,22 @@ def _activity_card(act: Dict) -> None:
     lon      = act.get("startLongitude")
     has_poly = act.get("hasPolyline", False)
 
+    # Border color hints at Strava status
+    if in_strava is True:
+        badge_html = (
+            '<span style="background:#22c55e22;color:#22c55e;border:1px solid #22c55e55;'
+            'border-radius:10px;padding:1px 8px;font-size:0.75rem;margin-left:6px">'
+            '✅ Already on Strava</span>'
+        )
+    elif in_strava is False:
+        badge_html = (
+            '<span style="background:#3b82f622;color:#60a5fa;border:1px solid #3b82f655;'
+            'border-radius:10px;padding:1px 8px;font-size:0.75rem;margin-left:6px">'
+            '⬆️ Not on Strava</span>'
+        )
+    else:
+        badge_html = ""
+
     with st.container(border=True):
         left, right = st.columns([3, 1])
 
@@ -240,7 +342,11 @@ def _activity_card(act: Dict) -> None:
             # _render_setup. Passing value= alongside key= causes Streamlit
             # to reset the state on rerenders, selecting the wrong activity.
             st.checkbox(label=f"**{icon} {name}**", key=f"chk_{aid}")
-            st.caption(f"{atype or 'Activity'}  ·  {date_str}")
+            st.markdown(
+                f'<span style="font-size:0.8rem;color:#94a3b8">{atype or "Activity"}  ·  {date_str}</span>'
+                f'{badge_html}',
+                unsafe_allow_html=True,
+            )
             m1, m2, m3, m4, m5 = st.columns(5)
             m1.metric("Distance",  f"{dist_km} km"     if dist_km else "—")
             m2.metric("Duration",  _fmt_duration(dur_s))
@@ -308,12 +414,24 @@ def _render_setup() -> None:
             st.info(f"No activities found between {start_str} and {end_str}.")
             return
 
-        # Store fetched data and default-select everything (always reset to
-        # True so stale False values from a previous fetch don't carry over)
-        st.session_state.sync_activities = acts
-        st.session_state.sync_date_range = (start_str, end_str)
+        # Fetch Strava activities for the same range to detect duplicates
+        strava_status_text = st.empty()
+        strava_status_text.caption("Checking which activities are already on Strava…")
+        strava_acts = _fetch_strava_for_range(start_str, end_str)
+        strava_status_text.empty()
+
+        # Build match map: activityId → bool (True = already in Strava)
+        matches: Dict[int, bool] = {}
         for a in acts:
-            st.session_state[f"chk_{a.get('activityId')}"] = True
+            aid = a.get("activityId")
+            matches[aid] = _match_in_strava(a, strava_acts)
+
+        st.session_state.sync_activities  = acts
+        st.session_state.sync_date_range  = (start_str, end_str)
+        st.session_state.sync_matches     = matches
+        # Default: nothing selected — user picks manually
+        for a in acts:
+            st.session_state[f"chk_{a.get('activityId')}"] = False
         st.rerun()
 
 
@@ -321,6 +439,11 @@ def _render_setup() -> None:
 
 def _render_preview(activities: List[Dict]) -> None:
     start_str, end_str = st.session_state.get("sync_date_range", ("?", "?"))
+    matches: Dict[int, bool] = st.session_state.get("sync_matches", {})
+
+    n_in_strava  = sum(1 for a in activities if matches.get(a.get("activityId")))
+    n_missing    = len(activities) - n_in_strava
+    has_matches  = bool(matches)
 
     # Header row
     hdr, back = st.columns([5, 1])
@@ -330,29 +453,113 @@ def _render_preview(activities: List[Dict]) -> None:
             _clear_preview_state(activities)
             st.rerun()
 
-    # Bulk selection
-    n_sel = sum(
-        1 for a in activities
-        if st.session_state.get(f"chk_{a.get('activityId')}", False)
+    # Strava status overview
+    if has_matches:
+        s1, s2 = st.columns(2)
+        s1.markdown(
+            f'<div style="background:#22c55e15;border:1px solid #22c55e44;border-radius:8px;'
+            f'padding:8px 12px;font-size:0.85rem">'
+            f'✅ <strong style="color:#22c55e">{n_in_strava}</strong> already on Strava</div>',
+            unsafe_allow_html=True,
+        )
+        s2.markdown(
+            f'<div style="background:#3b82f615;border:1px solid #3b82f644;border-radius:8px;'
+            f'padding:8px 12px;font-size:0.85rem">'
+            f'⬆️ <strong style="color:#60a5fa">{n_missing}</strong> not yet on Strava</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("")
+
+    # ── View filter + search ──────────────────────────────────────────────────
+    view = st.session_state.get("sync_view_filter", "all")
+
+    def _set_view_all():
+        st.session_state["sync_view_filter"] = "all"
+
+    def _set_view_missing():
+        st.session_state["sync_view_filter"] = "missing"
+
+    def _sel_visible():
+        """Select all activities currently visible (respects view filter + search)."""
+        _view = st.session_state.get("sync_view_filter", "all")
+        _m    = st.session_state.get("sync_matches", {})
+        _q    = st.session_state.get("sync_search", "").strip().lower()
+        for a in st.session_state.get("sync_activities", []):
+            aid = a.get("activityId")
+            if _view == "missing" and _m.get(aid, False):
+                continue
+            if _q:
+                name  = (a.get("activityName") or "").lower()
+                atype = (a.get("activityType") or {}).get("typeKey", "").lower()
+                if _q not in name and _q not in atype:
+                    continue
+            st.session_state[f"chk_{aid}"] = True
+
+    def _desel_all():
+        for a in st.session_state.get("sync_activities", []):
+            st.session_state[f"chk_{a.get('activityId')}"] = False
+
+    # Search + view-filter buttons on one row
+    c_search, c_vf1, c_vf2 = st.columns([3, 1, 1])
+    with c_search:
+        search_q = st.text_input(
+            "🔍 Search",
+            placeholder="Activity name or sport type…",
+            key="sync_search",
+            label_visibility="collapsed",
+        )
+    with c_vf1:
+        st.button(
+            "All", key="vf_all", width='stretch', on_click=_set_view_all,
+            type="primary" if view == "all" else "secondary",
+        )
+    with c_vf2:
+        st.button(
+            "Missing only", key="vf_missing", width='stretch', on_click=_set_view_missing,
+            type="primary" if view == "missing" else "secondary",
+            help="Show only activities not yet on Strava",
+            disabled=not has_matches,
+        )
+    q = search_q.strip().lower()
+
+    # Apply view filter, then search filter
+    if view == "missing" and has_matches:
+        view_acts = [a for a in activities if not matches.get(a.get("activityId"), False)]
+    else:
+        view_acts = activities
+
+    if q:
+        visible_acts = [
+            a for a in view_acts
+            if q in (a.get("activityName") or "").lower()
+            or q in (a.get("activityType") or {}).get("typeKey", "").lower()
+        ]
+    else:
+        visible_acts = view_acts
+
+    # Selection row
+    n_sel = sum(1 for a in activities if st.session_state.get(f"chk_{a.get('activityId')}", False))
+    sc1, sc2, sc3 = st.columns([4, 1, 1])
+    sc1.caption(
+        f"**{n_sel}** selected  ·  showing **{len(visible_acts)}** of {len(activities)}"
     )
-    cc1, cc2, cc3 = st.columns([3, 1, 1])
-    cc1.caption(f"**{n_sel}** of **{len(activities)}** selected for export")
-    with cc2:
-        if st.button("Select all", width='stretch'):
-            for a in activities:
-                st.session_state[f"chk_{a.get('activityId')}"] = True
-            st.rerun()
-    with cc3:
-        if st.button("Deselect all", width='stretch'):
-            for a in activities:
-                st.session_state[f"chk_{a.get('activityId')}"] = False
-            st.rerun()
+    with sc2:
+        st.button("Select visible", key="sel_visible_btn", width='stretch', on_click=_sel_visible)
+    with sc3:
+        st.button("Deselect all", key="desel_all_btn", width='stretch', on_click=_desel_all)
 
     st.divider()
 
     # Activity cards
-    for act in activities:
-        _activity_card(act)
+    for act in visible_acts:
+        aid = act.get("activityId")
+        _activity_card(act, in_strava=matches.get(aid) if has_matches else None)
+
+    if not visible_acts:
+        if q:
+            st.info(f"No activities found matching '{search_q}'.")
+        elif view == "missing":
+            st.success("All activities in this range are already on Strava! 🎉")
 
     st.divider()
 
@@ -475,6 +682,7 @@ def _render_preview(activities: List[Dict]) -> None:
 def _clear_preview_state(activities: List[Dict]) -> None:
     st.session_state.pop("sync_activities", None)
     st.session_state.pop("sync_date_range", None)
+    st.session_state.pop("sync_matches", None)
     for a in activities:
         st.session_state.pop(f"chk_{a.get('activityId')}", None)
 

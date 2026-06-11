@@ -43,16 +43,16 @@ def _render_map(tool: str, data: dict, key: str) -> None:
         folium.PolyLine(coords, color="#FF6400", weight=5, opacity=0.9).add_to(m)
         folium.Marker(coords[0],  popup="Start", icon=folium.Icon(color="green", icon="play")).add_to(m)
         folium.Marker(coords[-1], popup="Ziel",  icon=folium.Icon(color="red",   icon="stop")).add_to(m)
-        st_folium(m, height=480, use_container_width=True, key=key, returned_objects=[])
+        st_folium(m, height=480, width=None, key=key, returned_objects=[])
 
     elif tool == "explore_trails":
         trails = data.get("trails", [])
         if not trails:
-            st.info("Keine Trails gefunden.")
+            st.info("No trails found.")
             return
 
         names = [f"{t['name']}  ({t.get('distance') or '?'} km)" for t in trails]
-        sel_idx = st.radio("Trail auswählen:", range(len(names)),
+        sel_idx = st.radio("Select trail:", range(len(names)),
                            format_func=lambda i: names[i], key=f"sel_{key}")
 
         centre = data.get("search_centre", {})
@@ -93,7 +93,7 @@ def _render_map(tool: str, data: dict, key: str) -> None:
                     folium.Marker([clat, clon], popup=trail["name"],
                                   icon=folium.Icon(color="orange", icon="map-marker")).add_to(m)
 
-        st_folium(m, height=480, use_container_width=True, key=key, returned_objects=[])
+        st_folium(m, height=480, width=None, key=key, returned_objects=[])
 
         t = trails[sel_idx]
         c1, c2, c3 = st.columns(3)
@@ -107,9 +107,9 @@ def _render_map(tool: str, data: dict, key: str) -> None:
 
         # Load-more
         if data.get("has_more"):
-            if st.button("Mehr laden ▶", key=f"more_{key}"):
+            if st.button("Load more ▶", key=f"more_{key}"):
                 next_offset = data.get("offset", 0) + data.get("page_size", 5)
-                with st.spinner("Lade nächste Seite…"):
+                with st.spinner("Loading next page…"):
                     new_raw = call_tool("routes__explore_trails", {
                         "lat":        centre.get("lat"),
                         "lon":        centre.get("lon"),
@@ -126,7 +126,7 @@ def _render_map(tool: str, data: dict, key: str) -> None:
         geometry = data.get("geometry", {})
         centre   = data.get("centre", {})
         if not geometry or not centre:
-            st.info("Keine Isochrone-Daten.")
+            st.info("No isochrone data.")
             return
         m = folium.Map(location=[centre["lat"], centre["lon"]],
                        zoom_start=11, tiles="OpenStreetMap")
@@ -137,7 +137,7 @@ def _render_map(tool: str, data: dict, key: str) -> None:
         ).add_to(m)
         folium.Marker([centre["lat"], centre["lon"]], popup="Start",
                       icon=folium.Icon(color="blue", icon="home")).add_to(m)
-        st_folium(m, height=480, use_container_width=True, key=key, returned_objects=[])
+        st_folium(m, height=480, width=None, key=key, returned_objects=[])
 
     elif tool == "get_elevation_profile":
         elev = data.get("elevation", {})
@@ -148,7 +148,7 @@ def _render_map(tool: str, data: dict, key: str) -> None:
                       sum(c[1] for c in coords) / len(coords)]
             m = folium.Map(location=center, zoom_start=13, tiles="OpenStreetMap")
             folium.PolyLine(coords, color="#9B59B6", weight=4, opacity=0.9).add_to(m)
-            st_folium(m, height=480, use_container_width=True, key=key, returned_objects=[])
+            st_folium(m, height=480, width=None, key=key, returned_objects=[])
         st.json(elev)
 
 
@@ -157,43 +157,43 @@ def _render_map(tool: str, data: dict, key: str) -> None:
 def _render_metrics(tool: str, data: dict) -> None:
     if tool in ("plan_route", "plan_circular_route"):
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Distanz",      f"{data.get('distance_km') or data.get('actual_distance_km', '?')} km")
-        c2.metric("Dauer",        f"{data.get('duration_min', '?')} min")
+        c1.metric("Distance",   f"{data.get('distance_km') or data.get('actual_distance_km', '?')} km")
+        c2.metric("Duration",   f"{data.get('duration_min', '?')} min")
         elev = data.get("elevation", {})
-        c3.metric("Höhengewinn",  f"{elev.get('gain_m', '?')} m")
-        c4.metric("Wegpunkte",    data.get("waypoints_count", len(data.get("waypoints", []))))
+        c3.metric("Elevation gain", f"{elev.get('gain_m', '?')} m")
+        c4.metric("Waypoints",  data.get("waypoints_count", len(data.get("waypoints", []))))
     elif tool == "explore_trails":
         c1, c2, c3 = st.columns(3)
-        c1.metric("Gefunden",  data.get("total_found", "?"))
-        c2.metric("Angezeigt", len(data.get("trails", [])))
-        c3.metric("Umkreis",   f"{data.get('radius_km', '?')} km")
+        c1.metric("Found",   data.get("total_found", "?"))
+        c2.metric("Shown",   len(data.get("trails", [])))
+        c3.metric("Radius",  f"{data.get('radius_km', '?')} km")
     elif tool == "get_isochrone":
         c1, c2 = st.columns(2)
-        c1.metric("Erreichbare Fläche", f"{data.get('area_km2', '?')} km²")
+        c1.metric("Reachable area", f"{data.get('area_km2', '?')} km²")
         c2.metric("Label", data.get("range_label", "?"))
 
 
 # ── Main render ───────────────────────────────────────────────────────────────
 
 def render_routes_explorer() -> None:
-    st.markdown("### 🗺️ Routen Explorer")
-    st.caption("Direkter Test der Route-Tools — kein Chat, kein Strava nötig.")
+    st.markdown("### 🗺️ Routes Explorer")
+    st.caption("Direct route tool testing — no chat or Strava required.")
 
     # ── Inputs ────────────────────────────────────────────────────────────────
     col_loc, col_tool = st.columns([3, 2])
 
     with col_loc:
-        preset_choice = st.selectbox("Startpunkt", ["Eigene Koordinaten"] + list(PRESETS.keys()))
-        if preset_choice == "Eigene Koordinaten":
+        preset_choice = st.selectbox("Starting point", ["Custom coordinates"] + list(PRESETS.keys()))
+        if preset_choice == "Custom coordinates":
             lc, lnc = st.columns(2)
             lat = lc.number_input("Latitude",  value=49.0130, format="%.4f", step=0.001)
-            lon = lnc.number_input("Longitude", value=8.4093,  format="%.4f", step=0.001)
+            lon = lnc.number_input("Longitude", value=8.4093, format="%.4f", step=0.001)
         else:
             lat, lon = PRESETS[preset_choice]
             st.caption(f"📍 {lat:.4f}°N, {lon:.4f}°E")
 
     with col_tool:
-        tool_choice = st.selectbox("Tool", [
+        tool_choice = st.selectbox("Funktion", [
             "explore_trails",
             "plan_circular_route",
             "plan_route",
@@ -202,65 +202,65 @@ def render_routes_explorer() -> None:
 
     # ── Tool-specific params ──────────────────────────────────────────────────
     args: dict = {"lat": lat, "lon": lon}
-    run_label = "Ausführen ▶"
+    run_label = "Run ▶"
 
     if tool_choice == "explore_trails":
         p1, p2, p3 = st.columns(3)
-        args["sport_type"] = p1.selectbox("Sportart", ["hiking", "cycling", "running", "mtb"])
-        args["radius_km"]  = p2.slider("Umkreis (km)", 5, 50, 20)
-        args["limit"]      = p3.slider("Trails pro Seite", 3, 10, 5)
+        args["sport_type"] = p1.selectbox("Sport type", ["hiking", "cycling", "running", "mtb"])
+        args["radius_km"]  = p2.slider("Radius (km)", 5, 50, 20)
+        args["limit"]      = p3.slider("Trails per page", 3, 10, 5)
         args["offset"]     = 0
-        run_label = "Trails suchen 🔍"
+        run_label = "Find trails 🔍"
 
     elif tool_choice == "plan_circular_route":
         p1, p2 = st.columns(2)
-        args["distance_km"] = p1.slider("Zieldistanz (km)", 3, 80, 10)
-        args["profile"]     = p2.selectbox("Profil", [
+        args["distance_km"] = p1.slider("Target distance (km)", 3, 80, 10)
+        args["profile"]     = p2.selectbox("Profile", [
             "foot-hiking", "foot-walking", "cycling-regular", "cycling-mountain", "running"
         ])
-        run_label = "Loop planen 🔄"
+        run_label = "Plan loop 🔄"
 
     elif tool_choice == "plan_route":
-        st.markdown("**Ziel**")
+        st.markdown("**Destination**")
         ep1, ep2 = st.columns(2)
-        end_preset = ep1.selectbox("Ziel-Preset", list(PRESETS.keys()), index=1)
+        end_preset = ep1.selectbox("Destination preset", list(PRESETS.keys()), index=1)
         elat, elon = PRESETS[end_preset]
         ep2.caption(f"📍 {elat:.4f}°N, {elon:.4f}°E")
         args["end_lat"] = elat
         args["end_lon"] = elon
-        args["profile"] = st.selectbox("Profil", [
+        args["profile"] = st.selectbox("Profile", [
             "cycling-regular", "foot-hiking", "foot-walking", "cycling-mountain"
         ])
         args["start_lat"] = lat
         args["start_lon"] = lon
         del args["lat"], args["lon"]
-        run_label = "Route planen 🛣️"
+        run_label = "Plan route 🛣️"
 
     elif tool_choice == "get_isochrone":
         p1, p2, p3 = st.columns(3)
-        args["range_type"]  = p1.selectbox("Typ", ["time", "distance"])
+        args["range_type"]  = p1.selectbox("Type", ["time", "distance"])
         if args["range_type"] == "time":
-            minutes = p2.slider("Minuten", 5, 120, 30)
+            minutes = p2.slider("Minutes", 5, 120, 30)
             args["range_value"] = minutes * 60
             p2.caption(f"{minutes} min = {minutes*60} s")
         else:
-            args["range_value"] = p2.slider("Distanz (m)", 1000, 30000, 10000, 500)
-        args["profile"] = p3.selectbox("Profil", [
+            args["range_value"] = p2.slider("Distance (m)", 1000, 30000, 10000, 500)
+        args["profile"] = p3.selectbox("Profile", [
             "cycling-regular", "foot-hiking", "foot-walking"
         ])
-        run_label = "Erreichbarkeit berechnen 🔵"
+        run_label = "Calculate reachability 🔵"
 
     # ── Run button ────────────────────────────────────────────────────────────
     st.divider()
-    if st.button(run_label, type="primary", use_container_width=True):
-        with st.spinner(f"Rufe {tool_choice} auf…"):
+    if st.button(run_label, type="primary", width='stretch'):
+        with st.spinner(f"Calling {tool_choice}…"):
             try:
                 raw = call_tool(f"routes__{tool_choice}", args)
                 result = json.loads(raw)
                 st.session_state["rex_result"] = result
                 st.session_state["rex_tool"]   = tool_choice
             except Exception as e:
-                st.error(f"Fehler: {e}")
+                st.error(f"Error: {e}")
                 st.session_state.pop("rex_result", None)
 
     # ── Results ───────────────────────────────────────────────────────────────
@@ -272,13 +272,13 @@ def render_routes_explorer() -> None:
         _render_metrics(tool, data)
         _render_map(tool, data, key=f"rex_{tool}")
 
-        with st.expander("Raw JSON", expanded=False):
+        with st.expander("Rohdaten (JSON)", expanded=False):
             # Trim waypoints for readability
             display = dict(data)
             if "waypoints" in display and len(display["waypoints"]) > 10:
                 display = {**display,
                            "waypoints": display["waypoints"][:5],
-                           "waypoints_truncated": f"… {len(data['waypoints'])-5} more"}
+                           "waypoints_truncated": f"… {len(data['waypoints'])-5} weitere"}
             if "trails" in display:
                 display = {**display,
                            "trails": [{k: v for k, v in t.items() if k != "segments"}

@@ -24,8 +24,8 @@ __pycache__/
 logs/
 .logs/
 
-# Test files (cleanup)
-tests/
+# Temporary debug output only — real test scripts and logs are committed
+tests/logs/tmp_*.txt
 
 # OAuth2 tokens - NEVER commit these!
 .tokens/

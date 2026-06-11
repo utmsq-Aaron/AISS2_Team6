@@ -9,13 +9,10 @@ input is always at the bottom (ChatGPT / Claude style).
 """
 
 import json
-import threading
 from typing import Dict, List, Optional
 
 import streamlit as st
 
-# Module-level dict for Telegram send results (background thread → main thread safe)
-_tg_sends: Dict[str, str] = {}
 
 
 @st.cache_resource(show_spinner=False)
@@ -54,7 +51,7 @@ def _render_route_map(route_data: Dict, key_suffix: str = "") -> None:
         folium.PolyLine(coords, color="#FF6400", weight=5, opacity=0.9).add_to(m)
         folium.Marker(coords[0],  popup="Start", icon=folium.Icon(color="green", icon="play")).add_to(m)
         folium.Marker(coords[-1], popup="Ziel",  icon=folium.Icon(color="red",   icon="stop")).add_to(m)
-        st_folium(m, height=420, use_container_width=True,
+        st_folium(m, height=420, width=None,
                   key=f"route_map_{key_suffix}", returned_objects=[])
 
     # ── Trail selection (explore_trails) ─────────────────────────────────────
@@ -77,10 +74,10 @@ def _render_route_map(route_data: Dict, key_suffix: str = "") -> None:
         col_info, col_btn = st.columns([3, 1])
         col_info.caption(
             f"Trails {st.session_state[page_key] + 1}–"
-            f"{st.session_state[page_key] + len(cached_trails)} angezeigt"
-            + ("  ·  weitere verfügbar" if data.get("has_more") else "")
+            f"{st.session_state[page_key] + len(cached_trails)} shown"
+            + ("  ·  more available" if data.get("has_more") else "")
         )
-        if data.get("has_more") and col_btn.button("Mehr laden ▶", key=f"more_{key_suffix}"):
+        if data.get("has_more") and col_btn.button("Load more ▶", key=f"more_{key_suffix}"):
             from ui.shared import call_tool
             new_offset = st.session_state[page_key] + len(cached_trails)
             raw = call_tool("routes__explore_trails", {
@@ -106,7 +103,7 @@ def _render_route_map(route_data: Dict, key_suffix: str = "") -> None:
             for t in trails
         ]
         sel_idx = st.radio(
-            "Route auswählen:",
+            "Select route:",
             range(len(names)),
             format_func=lambda i: names[i],
             key=f"trail_sel_{key_suffix}",
@@ -164,7 +161,7 @@ def _render_route_map(route_data: Dict, key_suffix: str = "") -> None:
                         icon=folium.Icon(color="orange", icon="map-marker"),
                     ).add_to(m)
 
-        st_folium(m, height=450, use_container_width=True,
+        st_folium(m, height=450, width=None,
                   key=f"trail_map_{key_suffix}", returned_objects=[])
 
         t = trails[sel_idx]
@@ -202,7 +199,7 @@ def _render_route_map(route_data: Dict, key_suffix: str = "") -> None:
             popup="Start",
             icon=folium.Icon(color="blue", icon="home"),
         ).add_to(m)
-        st_folium(m, height=420, use_container_width=True,
+        st_folium(m, height=420, width=None,
                   key=f"isochrone_map_{key_suffix}", returned_objects=[])
 
 
@@ -286,90 +283,17 @@ def _render_trace(trace: Dict) -> None:
 
 # ── Inline renderers ──────────────────────────────────────────────────────────
 
-def _telegram_send_video(video_bytes: bytes, caption: str) -> str:
-    """Send MP4 bytes to Telegram Saved Messages via telethon. Returns 'ok' or 'error: ...'."""
-    import asyncio
-    import io
-    import os
-    from dotenv import dotenv_values
 
-    env = {**dotenv_values(".env"), **os.environ}
-    try:
-        api_id = int(env.get("TELEGRAM_API_ID", 0))
-    except (TypeError, ValueError):
-        return "error: invalid TELEGRAM_API_ID"
-    api_hash    = env.get("TELEGRAM_API_HASH", "")
-    session_str = env.get("TELEGRAM_SESSION_STRING", "")
-
-    if not all([api_id, api_hash, session_str]):
-        return "error: Telegram credentials not configured"
-
-    async def _send():
-        from telethon import TelegramClient
-        from telethon.sessions import StringSession
-        client = TelegramClient(StringSession(session_str), api_id, api_hash)
-        await client.connect()
-        try:
-            buf = io.BytesIO(video_bytes)
-            buf.name = "flythrough.mp4"
-            await client.send_file("me", buf, caption=f"🎬 {caption}")
-            return "ok"
-        except Exception as exc:
-            return f"error: {exc}"
-        finally:
-            await client.disconnect()
-
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_send())
-    finally:
-        loop.close()
-
-
-def _auto_send_telegram(activity_id: int, name: str, run_id: str, video_bytes: bytes) -> None:
-    """Auto-send the rendered MP4 to Telegram Saved Messages (if configured)."""
-    from ui.shared import telegram_connected
-    if not telegram_connected():
-        return
-
-    tg_key = f"ft_tg_{run_id}"
-
-    # Sync thread result → session_state
-    if run_id in _tg_sends and tg_key not in st.session_state:
-        st.session_state[tg_key] = _tg_sends[run_id]
-
-    status = st.session_state.get(tg_key) or _tg_sends.get(run_id)
-
-    if status is None:
-        _tg_sends[run_id] = "sending"
-
-        def _bg(video_bytes=video_bytes, name=name, run_id=run_id):
-            _tg_sends[run_id] = _telegram_send_video(video_bytes, name)
-
-        threading.Thread(target=_bg, daemon=True).start()
-        st.rerun()
-
-    elif status == "sending":
-        st.info("📤 Sending to Telegram Saved Messages…")
-        st.rerun()
-
-    elif status == "ok":
-        st.success("✅ MP4 sent to Telegram Saved Messages!")
-
-    else:
-        st.warning(f"⚠️ Telegram send failed: {status}")
-
-
-def _render_viz_actions(actions: List[Dict]) -> None:
-    """Render inline charts for all viz actions attached to a trace."""
-    from ui import viz
-    for action in (actions or []):
-        if action.get("type") == "viz":
-            viz.render(action["tool"], action["result"], action.get("metric_focus", ""))
 
 
 def _render_flythrough_inline(actions: List[Dict], run_id: str = "") -> None:
-    """Render a flythrough action and auto-send to Telegram when video is ready."""
+    """Render a flythrough action inline in chat.
+
+    While rendering: shows a progress indicator (polls via st.rerun every 3 s).
+    When done: shows a download button only — no video preview.  The preview
+    widget caused infinite reload loops because st.rerun() was triggered by the
+    Telegram auto-send background thread on every render cycle.
+    """
     for action in (actions or []):
         if action.get("type") != "flythrough":
             continue
@@ -382,21 +306,26 @@ def _render_flythrough_inline(actions: List[Dict], run_id: str = "") -> None:
         name        = action.get("activity_name") or "Flythrough"
         render_key  = f"ft_video_{activity_id}_{orientation}_{resolution}_{duration}"
 
-        kwargs = dict(
-            mode=action.get("mode", "satellite_3d"),
-            duration_sec=duration,
-            orientation=orientation,
-            resolution=resolution,
-            hidden=True,
-        )
-
         if render_key in st.session_state:
-            with st.expander(f"🎬 {name}", expanded=True):
-                show_flythrough(activity_id, name, **kwargs)
-            # Video ready — auto-send to Telegram if configured
-            _auto_send_telegram(activity_id, name, run_id, st.session_state[render_key])
+            # Video ready — just a download button, no preview, no Telegram loop.
+            video_bytes = st.session_state[render_key]
+            safe_fn = name.replace(" ", "_")[:40]
+            st.download_button(
+                label=f"⬇ Download flythrough — {name} ({orientation} · {resolution} · {duration}s)",
+                data=video_bytes,
+                file_name=f"flythrough_{safe_fn}.mp4",
+                mime="video/mp4",
+                type="primary",
+                key=f"ft_dl_{render_key}",
+            )
         else:
-            show_flythrough(activity_id, name, **kwargs)
+            # Still rendering — show_flythrough handles the progress polling.
+            show_flythrough(activity_id, name,
+                            mode=action.get("mode", "satellite_3d"),
+                            duration_sec=duration,
+                            orientation=orientation,
+                            resolution=resolution,
+                            hidden=True)
         break
 
 
@@ -415,6 +344,24 @@ def render_chat() -> None:
         st.session_state.chat_traces = []
 
     orchestrator = _get_orchestrator()
+
+    # ── Tool availability banner ──────────────────────────────────────────────
+    # Show a warning if no tools are discoverable (all servers down).
+    # Show a refresh button so users don't have to reload the whole page.
+    tool_count = len(orchestrator._tools or [])
+    if tool_count == 0:
+        col_warn, col_btn = st.columns([4, 1])
+        col_warn.warning(
+            "⚠ No MCP servers reachable — start them first "
+            "(`python -m servers.strava_mcp`, etc.), then click Refresh."
+        )
+        if col_btn.button("↻ Refresh tools", key="chat_refresh_tools"):
+            new_count = orchestrator.refresh_tools()
+            if new_count > 0:
+                st.success(f"Connected — {new_count} tools available.")
+            st.rerun()
+    elif tool_count < 10:
+        st.caption(f"⚡ {tool_count} tools available (some servers may be offline)")
 
     # ── Message area (container sits ABOVE the chat_input in page flow) ───────
     messages = st.container()
@@ -436,7 +383,8 @@ def render_chat() -> None:
                 st.markdown(msg["content"])
                 if msg["role"] == "assistant" and i // 2 < len(st.session_state.chat_traces):
                     trace_i = st.session_state.chat_traces[i // 2]
-                    _render_viz_actions(trace_i.get("actions") or [])
+                    from ui import chart_gen
+                    chart_gen.generate_and_render(trace_i, key_suffix=str(i))
                     _render_flythrough_inline(
                         trace_i.get("actions") or [],
                         run_id=trace_i.get("run_id", str(i)),
@@ -456,15 +404,19 @@ def render_chat() -> None:
             with st.chat_message("assistant", avatar="🏃"):
                 history_before = st.session_state.chat_history[:-1]
 
-                # ── Live progress via st.status ───────────────────────────────
-                _phase_icons = {
-                    "1": "🔍", "2": "📊", "3": "💬",
-                }
+                # ── Position 0: answer text — MUST be first child so its path  ─
+                # ── matches st.markdown(content) in the history loop.  Without  ─
+                # ── this ordering Streamlit leaves the old element alongside the ─
+                # ── new one (double-render bug).                                 ─
+                _answer_box = st.empty()
+                _answer_box.markdown("*⏳ Thinking…*")
+
+                # ── Position 1: live tool-call progress ───────────────────────
+                _phase_icons = {"1": "🔍", "2": "📊", "3": "💬"}
                 _status_box  = st.status("⏳ Analysing request…", expanded=True)
                 _status_steps: list = []
 
                 def _update_status(msg: str) -> None:
-                    # Extract phase number for icon
                     icon = "⏳"
                     for k, v in _phase_icons.items():
                         if f"Phase {k}" in msg:
@@ -476,8 +428,11 @@ def render_chat() -> None:
                             st.write(step)
 
                 answer, trace = orchestrator.run(prompt, history_before, _update_status)
+                trace["question"] = prompt
 
-                # Close status box — green checkmark on success, red on error
+                # Replace "Thinking…" with the actual answer at position 0
+                _answer_box.markdown(answer)
+
                 if trace.get("error"):
                     _status_box.update(
                         label=f"❌ Error after {sum(trace.get('timing', {}).values())} ms",
@@ -492,10 +447,9 @@ def render_chat() -> None:
                         expanded=False,
                     )
 
-                st.markdown(answer)
-                _render_viz_actions(trace.get("actions") or [])
-                if trace.get("route_data"):
-                    _render_route_map(trace["route_data"], key_suffix=trace.get("run_id", "new"))
+            # Route map outside the chat_message — consistent with history loop
+            if trace.get("route_data"):
+                _render_route_map(trace["route_data"], key_suffix=trace.get("run_id", "new"))
 
             _render_trace(trace)
 
@@ -510,9 +464,8 @@ def render_chat() -> None:
                 st.session_state.chat_history = st.session_state.chat_history[-20:]
                 st.session_state.chat_traces  = st.session_state.chat_traces[-10:]
 
-            # Rerun so the history loop immediately renders the flythrough widget.
-            if any(a.get("type") == "flythrough" for a in (trace.get("actions") or [])):
-                st.rerun()
+            # Rerun so the history loop renders charts (and any flythrough widget).
+            st.rerun()
 
         # Clear button lives inside the message area, below the last message
         if st.session_state.chat_history:

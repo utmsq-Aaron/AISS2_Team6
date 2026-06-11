@@ -157,9 +157,13 @@ def get_garmin_activities(
     """List Garmin-recorded activities (runs, hikes, rides, swims, …) with
     distance, duration, avg/max HR, calories, elevation, pace, and training effect.
 
-    Use this tool — together with strava__get_activities — whenever the user asks
-    about their workouts, runs, rides or training history. Garmin and Strava are
-    independent sources; always query both so no activity is missed.
+    Use as FALLBACK when strava__get_activities returns no results or Strava is not
+    connected. If Strava is connected, Garmin activities are typically already synced
+    there — do NOT call both and compare results; they contain the same workouts and
+    querying both causes duplicate or contradictory answers.
+
+    For health and wellness data (sleep, HRV, Body Battery, steps, stress) use the
+    dedicated Garmin health tools — those are always exclusive to Garmin.
 
     Args:
         limit: Max activities to return (default 50).

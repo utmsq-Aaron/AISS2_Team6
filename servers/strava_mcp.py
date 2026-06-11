@@ -8,12 +8,14 @@ Run locally:   python -m servers.strava_mcp
 Endpoint:      http://127.0.0.1:8103/mcp   (override host/port via env)
 """
 
+import json
 import os
 import random
 import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -33,7 +35,9 @@ mcp = FastMCP(
     "strava",
     instructions=(
         "Strava activity data: list activities, aggregate stats, training trends, "
-        "personal bests, yearly breakdown, gear info, GPS streams, and activity detail."
+        "personal bests, yearly breakdown, gear info, GPS streams, activity detail, "
+        "performance trend analysis over time, activity vs. baseline comparison, "
+        "and training load (ATL/CTL/TSB)."
     ),
     host=HOST,
     port=PORT,
@@ -94,9 +98,9 @@ class StravaAPI:
                     time.sleep(2 ** attempt + random.uniform(0, 0.5))
                 continue
             if resp.status_code == 429:
-                wait = int(resp.headers.get("Retry-After", 2 ** (attempt + 1)))
-                time.sleep(min(wait, 60))
-                continue
+                # Return the 429 immediately — the Retry-After is usually 15+ min,
+                # so retrying in the same request loop is pointless and only blocks.
+                return resp
             if resp.status_code >= 500 and attempt < _MAX_RETRIES - 1:
                 time.sleep(2 ** attempt)
                 continue
@@ -150,6 +154,92 @@ class StravaAPI:
         collected.sort(key=lambda x: x.get("start_date", ""), reverse=True)
         return collected[:limit]
 
+    # ── Cached wrapper — disk cache persists across restarts, no auto-expiry.
+    # Only refreshed when the user explicitly clicks "Refresh data" (which deletes
+    # the file) or adds a new activity (handled by the delete/import flows).
+    _FILE_CACHE = Path(".cache/strava_activities.json")
+
+    async def get_activities_cached(
+        self,
+        limit: int = 200,
+        sport_type: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict]:
+        is_unfiltered = (sport_type is None and start_date is None and end_date is None)
+
+        # Disk cache: for unfiltered queries return as-is; for filtered queries
+        # apply filters client-side so all filtered variants share the same file.
+        file_data = self._load_file_cache()
+        if file_data is not None:
+            if is_unfiltered:
+                return file_data[:limit]
+            return self._filter_activities(file_data, sport_type, start_date, end_date)[:limit]
+
+        data = await self.get_activities(
+            limit=limit, sport_type=sport_type,
+            start_date=start_date, end_date=end_date,
+        )
+
+        # Enrich missing polylines before caching. Strava's list endpoint omits
+        # summary_polyline for many activities; the detail endpoint always has it.
+        # Skip sports that never have outdoor GPS to avoid wasting API calls.
+        _NO_GPS_TYPES = {"Swim", "WeightTraining", "Yoga", "Crossfit", "Elliptical",
+                         "StairStepper", "RockClimbing", "VirtualRide", "VirtualRun"}
+        if is_unfiltered:
+            no_poly = [
+                a for a in data
+                if not (a.get("map") or {}).get("summary_polyline", "")
+                and a.get("type") not in _NO_GPS_TYPES
+            ]
+            for a in no_poly:
+                poly = await self.get_activity_polyline(a["id"])
+                if poly:
+                    if not a.get("map"):
+                        a["map"] = {}
+                    a["map"]["summary_polyline"] = poly
+            self._save_file_cache(data)
+
+        return data
+
+    @staticmethod
+    def _filter_activities(
+        activities: List[Dict],
+        sport_type: Optional[str],
+        start_date: Optional[str],
+        end_date: Optional[str],
+    ) -> List[Dict]:
+        result = activities
+        if sport_type:
+            st = sport_type.lower()
+            result = [
+                a for a in result
+                if (a.get("type") or "").lower() == st
+                or (a.get("sport_type") or "").lower() == st
+            ]
+        if start_date:
+            result = [a for a in result if (a.get("start_date") or "")[:10] >= start_date]
+        if end_date:
+            result = [a for a in result if (a.get("start_date") or "")[:10] <= end_date]
+        return result
+
+    def _load_file_cache(self) -> Optional[List[Dict]]:
+        """Return cached activities from disk, or None if no cache file exists."""
+        try:
+            if not self._FILE_CACHE.exists():
+                return None
+            return json.loads(self._FILE_CACHE.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+
+    def _save_file_cache(self, data: List[Dict]) -> None:
+        """Write activity list to disk so it survives server restarts."""
+        try:
+            self._FILE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            self._FILE_CACHE.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+
     async def get_athlete(self) -> Dict:
         await self._ensure_token()
         resp = self._get(f"{self.BASE}/athlete")
@@ -162,12 +252,37 @@ class StravaAPI:
         resp.raise_for_status()
         return resp.json()
 
+    def _evict_activity(self, activity_id: int) -> None:
+        """Remove a deleted/inaccessible activity from the disk cache."""
+        aid = int(activity_id)
+        try:
+            if self._FILE_CACHE.exists():
+                raw = json.loads(self._FILE_CACHE.read_text(encoding="utf-8"))
+                trimmed_file = [a for a in raw if a.get("id") != aid]
+                if len(trimmed_file) < len(raw):
+                    self._FILE_CACHE.write_text(
+                        json.dumps(trimmed_file, ensure_ascii=False), encoding="utf-8"
+                    )
+        except Exception:
+            pass
+
     async def get_activity_by_id(self, activity_id: int) -> Dict:
         await self._ensure_token()
         resp = self._get(f"{self.BASE}/activities/{activity_id}")
+        if resp.status_code == 404:
+            self._evict_activity(activity_id)
+            raise RuntimeError(f"Activity {activity_id} not found (404) — removed from cache")
         if not resp.ok:
             raise RuntimeError(f"Activity {activity_id} not found ({resp.status_code})")
         return resp.json()
+
+    async def get_activity_polyline(self, activity_id: int) -> str:
+        """Return map.polyline from activity detail (Strava list endpoint omits it)."""
+        try:
+            detail = await self.get_activity_by_id(activity_id)
+            return (detail.get("map") or {}).get("polyline", "")
+        except Exception:
+            return ""
 
     async def get_activity_streams(self, activity_id: int) -> Dict:
         await self._ensure_token()
@@ -178,6 +293,9 @@ class StravaAPI:
                 "key_by_type": "true",
             },
         )
+        if resp.status_code == 404:
+            self._evict_activity(activity_id)
+            raise RuntimeError(f"Streams {activity_id}: 404 — activity removed from cache")
         if not resp.ok:
             raise RuntimeError(f"Streams {activity_id}: {resp.status_code}")
         return resp.json()
@@ -186,6 +304,9 @@ class StravaAPI:
         await self._ensure_token()
         resp = self._get(f"{self.BASE}/gear/{gear_id}")
         return resp.json() if resp.ok else None
+
+    def _delete(self, url: str) -> requests.Response:
+        return requests.delete(url, headers=self._headers(), timeout=_HTTP_TIMEOUT)
 
 
 _api = StravaAPI()
@@ -217,16 +338,19 @@ async def get_activities(
     end_date: Optional[str] = None,
 ) -> Dict[str, Any]:
     """List the user's Strava-recorded activities (most recent first), optionally
-    filtered by sport type and date range. May return 0 results if Strava is not
-    connected or the account has no activities — in that case ALWAYS also call
-    garmin__get_garmin_activities as the alternative source.
+    filtered by sport type and date range. This is the primary activity source —
+    it includes activities originally recorded on Garmin and synced to Strava.
+    If this returns 0 results (Strava not connected), fall back to
+    garmin__get_garmin_activities. Do NOT call both and compare them.
 
-    Returns id, name, date, distance, duration, elevation, avg/max speed,
-    avg/max heart rate, pace (min/km), suffer_score (HR-based relative effort,
-    often null for activities without HR), kilojoules (meaningful only for
-    cycling with a power meter), pr_count, and kudos. Each activity's numeric
-    id can be passed to get_activity_detail or get_activity_streams for deeper
-    analysis.
+    Returns id, name, date, distance, duration, elevation_gain_m (total
+    vertical meters climbed), elevation_high_m (highest GPS altitude in meters
+    above sea level), elevation_low_m (lowest GPS altitude in meters above sea
+    level), avg/max speed, avg/max heart rate, pace (min/km), suffer_score
+    (HR-based relative effort, often null for activities without HR), kilojoules
+    (meaningful only for cycling with a power meter), pr_count, and kudos. Each
+    activity's numeric id can be passed to get_activity_detail or
+    get_activity_streams for deeper analysis.
 
     Args:
         limit: Max activities to return (default 50).
@@ -234,12 +358,13 @@ async def get_activities(
         start_date: Return only activities on or after YYYY-MM-DD.
         end_date: Return only activities on or before YYYY-MM-DD.
     """
-    activities = await _api.get_activities(
+    activities = await _api.get_activities_cached(
         limit=limit,
         sport_type=sport_type,
         start_date=start_date,
         end_date=end_date,
     )
+
     rows = []
     for a in activities:
         spd = round(a.get("average_speed", 0) * 3.6, 2)
@@ -253,6 +378,8 @@ async def get_activities(
             "distance_km":       round(a.get("distance", 0) / 1000, 2),
             "moving_time_hours": round(a.get("moving_time", 0) / 3600, 2),
             "elevation_gain_m":  a.get("total_elevation_gain", 0),
+            "elevation_high_m":  a.get("elev_high"),     # peak altitude above sea level (m)
+            "elevation_low_m":   a.get("elev_low"),      # lowest point above sea level (m)
             "avg_speed_kmh":     spd,
             "pace_min_per_km":   _pace(spd),
             "pace_display":      _pace_str(spd),
@@ -276,7 +403,7 @@ async def get_activity_stats() -> Dict[str, Any]:
     rides), averages, per-sport-type breakdown, and the single longest activity.
     Call when the user asks about overall training volume or totals.
     """
-    activities = await _api.get_activities(limit=400)
+    activities = await _api.get_activities_cached(limit=400)
     total_dist = sum(a.get("distance", 0) for a in activities) / 1000
     total_time = sum(a.get("moving_time", 0) for a in activities) / 3600
     total_elev = sum(a.get("total_elevation_gain", 0) for a in activities)
@@ -370,15 +497,16 @@ async def get_athlete_profile() -> Dict[str, Any]:
 
 @mcp.tool()
 async def get_training_trends(weeks: int = 12) -> Dict[str, Any]:
-    """Per-week training load for the last N weeks.
+    """Weekly training volume (distance, time, elevation, activity count) for the
+    last N weeks — useful for showing training consistency and peak weeks.
 
-    Returns distance, time, elevation gain, activity count, and sport types per
-    week. Useful for analysing training consistency, progression, and peak weeks.
+    NOTE: for ATL/CTL/TSB training load (overtraining, form, fitness), use
+    strava__get_training_load instead.
 
     Args:
         weeks: Past weeks to include (default 12).
     """
-    activities = await _api.get_activities(limit=400)
+    activities = await _api.get_activities_cached(limit=400)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     week_data: Dict[str, Dict] = {}
@@ -440,7 +568,7 @@ async def get_personal_bests(sport_type: Optional[str] = None) -> Dict[str, Any]
     Args:
         sport_type: Optionally restrict to one sport type (e.g. 'Run', 'Ride').
     """
-    activities = await _api.get_activities(limit=400, sport_type=sport_type)
+    activities = await _api.get_activities_cached(limit=400, sport_type=sport_type)
     if not activities:
         return {"error": "No activities found"}
 
@@ -498,7 +626,7 @@ async def get_yearly_breakdown() -> Dict[str, Any]:
     """Year-over-year training statistics. Each year includes total activities,
     distance, time, elevation, and a per-sport breakdown.
     """
-    activities = await _api.get_activities(limit=400)
+    activities = await _api.get_activities_cached(limit=400)
     yearly: Dict[int, Dict] = {}
     for a in activities:
         try:
@@ -580,7 +708,7 @@ async def get_activity_detail(
 
     Args:
         activity_id: Strava numeric activity ID.
-        activity_name: Short keyword from the activity name (e.g. 'bergen', 'morning run'). NOT the full user sentence.
+        activity_name: Short keyword from the activity name (e.g. 'karlsruhe', 'morning run'). NOT the full user sentence.
     """
     if not activity_id and not activity_name:
         return {"error": "Provide activity_id or activity_name"}
@@ -590,7 +718,7 @@ async def get_activity_detail(
     if activity_id:
         a = await _api.get_activity_by_id(int(activity_id))
     else:
-        activities = await _api.get_activities(limit=100)
+        activities = await _api.get_activities_cached(limit=100)
         matches = [x for x in activities if name_search in x.get("name", "").lower()]
         if not matches:
             return {"error": f"No activity found matching '{name_search}'"}
@@ -675,7 +803,7 @@ async def get_activity_streams(
 
     Args:
         activity_id: Strava numeric activity ID.
-        activity_name: Short keyword extracted from the activity name (e.g. 'bergen', 'trail run'). NOT the full user sentence.
+        activity_name: Short keyword extracted from the activity name (e.g. 'karlsruhe', 'trail run'). NOT the full user sentence.
     """
     if not activity_id and not activity_name:
         return {"error": "Provide activity_id or activity_name"}
@@ -684,7 +812,7 @@ async def get_activity_streams(
     act_meta = None
 
     if not activity_id:
-        acts = await _api.get_activities(limit=100)
+        acts = await _api.get_activities_cached(limit=100)
         matches = [a for a in acts if name_search in a.get("name", "").lower()]
         if not matches:
             return {"error": f"No activity found matching '{name_search}'"}
@@ -741,6 +869,387 @@ async def get_activity_streams(
         "has_velocity": bool(velocity),
         "has_watts":    bool(watts),
         "points":       points,
+    }
+
+
+@mcp.tool()
+async def delete_activity(activity_id: int) -> Dict[str, Any]:
+    """Permanently delete a Strava activity by its numeric ID. This action cannot
+    be undone. Requires the Strava token to have the activity:write scope.
+
+    Use only when the user explicitly asks to delete or remove an activity.
+    Always confirm the activity name and ID with the user before calling this.
+
+    Args:
+        activity_id: The numeric Strava activity ID to delete.
+    """
+    await _api._ensure_token()
+    resp = _api._delete(f"{_api.BASE}/activities/{int(activity_id)}")
+    if resp.status_code == 204:
+        return {"success": True, "activity_id": activity_id, "message": "Activity deleted."}
+    err = ""
+    try:
+        err = resp.json().get("message", "") or resp.text[:200]
+    except Exception:
+        err = resp.text[:200]
+    if resp.status_code == 401:
+        err += " — reconnect Strava in ⚙️ Settings (activity:write scope required)"
+    return {"error": f"Strava {resp.status_code}: {err}"}
+
+
+@mcp.tool()
+async def analyze_performance_trends(
+    sport_type: str = "Run",
+    limit: int = 30,
+    start_date: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Analyse how key performance metrics evolve across the most recent N activities
+    of one sport type. Returns a per-activity time series (oldest → newest) for pace,
+    average heart rate, distance, elevation, and effort score — plus a linear trend
+    direction (improving / declining / stable) for pace and HR, and highlights the
+    best and worst activity.
+
+    Use when the user asks: "is my pace improving?", "how has my training changed
+    over the last month?", "show me my running progress", "Trainingsfortschritt",
+    "Entwicklung meiner Laufleistung", etc.
+
+    Args:
+        sport_type: Strava sport type, e.g. "Run", "Ride", "Hike", "Walk".
+        limit: Number of most recent activities to analyse (default 30, max 100).
+        start_date: Optional ISO date YYYY-MM-DD; restrict analysis to activities on
+                    or after this date (combined with limit).
+    """
+    activities = await _api.get_activities_cached(
+        limit=min(int(limit), 100), sport_type=sport_type, start_date=start_date
+    )
+    if not activities:
+        return {"error": f"No {sport_type} activities found"}
+
+    # Sort oldest → newest for trend analysis
+    activities = sorted(activities, key=lambda a: a.get("start_date", ""))
+
+    series = []
+    paces: List[float] = []
+    hrs:   List[float] = []
+    dists: List[float] = []
+    elevs: List[float] = []
+
+    for a in activities:
+        spd   = (a.get("average_speed") or 0) * 3.6  # m/s → km/h
+        pace  = round(60.0 / spd, 3) if spd > 0 else None
+        hr    = a.get("average_heartrate")
+        dist  = round((a.get("distance") or 0) / 1000, 2)
+        elev  = round(a.get("total_elevation_gain") or 0, 1)
+        elev_km = round(elev / dist, 1) if dist > 0 else None
+        suffer = a.get("suffer_score")
+
+        series.append({
+            "date":               (a.get("start_date") or "")[:10],
+            "name":               a.get("name", ""),
+            "distance_km":        dist,
+            "pace_min_per_km":    pace,
+            "pace_display":       _pace_str(spd) if spd > 0 else None,
+            "avg_hr":             hr,
+            "elevation_m":        elev,
+            "elevation_per_km":   elev_km,
+            "suffer_score":       suffer,
+            "moving_time_h":      round((a.get("moving_time") or 0) / 3600, 2),
+        })
+        if pace: paces.append(pace)
+        if hr:   hrs.append(float(hr))
+        dists.append(dist)
+        if elev_km is not None: elevs.append(elev_km)
+
+    def _trend(values: List[float], lower_is_better: bool = True) -> str:
+        n = len(values)
+        if n < 4:
+            return "insufficient data"
+        xs = list(range(n))
+        x_m = sum(xs) / n
+        y_m = sum(values) / n
+        num = sum((xs[i] - x_m) * (values[i] - y_m) for i in range(n))
+        den = sum((x - x_m) ** 2 for x in xs) or 1e-9
+        slope = num / den
+        if abs(slope) / (abs(y_m) or 1) < 0.003:
+            return "stable"
+        getting_better = (slope < 0) == lower_is_better
+        return "improving" if getting_better else "declining"
+
+    paced = [e for e in series if e["pace_min_per_km"]]
+    best  = min(paced, key=lambda x: x["pace_min_per_km"]) if paced else None
+    worst = max(paced, key=lambda x: x["pace_min_per_km"]) if paced else None
+
+    def _avg(lst): return round(sum(lst) / len(lst), 2) if lst else None
+
+    return {
+        "sport_type":    sport_type,
+        "activity_count": len(series),
+        "date_range":    {"from": series[0]["date"], "to": series[-1]["date"]},
+        "trends": {
+            "pace":        _trend(paces, lower_is_better=True)  if len(paces) >= 4 else "insufficient data",
+            "heart_rate":  _trend(hrs,   lower_is_better=True)  if len(hrs)   >= 4 else "insufficient data",
+        },
+        "averages": {
+            "pace_min_per_km":  _avg(paces),
+            "avg_hr_bpm":       _avg(hrs),
+            "distance_km":      _avg(dists),
+            "elevation_per_km": _avg(elevs),
+        },
+        "highlights": {
+            "fastest": {"name": best["name"],  "date": best["date"],  "pace": best["pace_display"]}  if best  else None,
+            "slowest": {"name": worst["name"], "date": worst["date"], "pace": worst["pace_display"]} if worst else None,
+        },
+        "series": series,
+    }
+
+
+@mcp.tool()
+async def compare_activity_to_baseline(
+    activity_id: Optional[int] = None,
+    activity_name: Optional[str] = None,
+    baseline_count: int = 30,
+) -> Dict[str, Any]:
+    """Compare one specific activity's effort and performance metrics against the user's
+    personal historical baseline for the same sport type.
+
+    Computes the user's typical values (mean ± std) for pace, heart rate, distance, and
+    elevation per km across the last N same-type activities, then places the target
+    activity on a difficulty percentile. Returns a human-readable assessment such as
+    "harder than usual", "one of your hardest hikes", or "easier than typical".
+
+    Use when the user asks: "war die Bergtour anspruchsvoller als usual?",
+    "wie war mein letzter Lauf im Vergleich?", "was this ride hard for me?",
+    "compare this activity to my average", etc.
+
+    Args:
+        activity_id: Numeric Strava activity ID.
+        activity_name: Short keyword in the activity name (e.g. 'karlsruhe', 'morning run').
+                       Used only if activity_id is not provided.
+        baseline_count: Number of recent same-sport activities to compare against (default 30).
+    """
+    if not activity_id and not activity_name:
+        return {"error": "Provide activity_id or activity_name"}
+
+    name_kw = (activity_name or "").strip().lower()
+
+    if activity_id:
+        target = await _api.get_activity_by_id(int(activity_id))
+    else:
+        candidates = await _api.get_activities_cached(limit=100)
+        matches = [a for a in candidates if name_kw in a.get("name", "").lower()]
+        if not matches:
+            return {"error": f"No activity found matching '{name_kw}'"}
+        target = await _api.get_activity_by_id(int(matches[0]["id"]))
+
+    sport   = target.get("type", "")
+    tgt_id  = target.get("id")
+
+    baseline_raw = await _api.get_activities_cached(limit=baseline_count + 10, sport_type=sport)
+    baseline = [a for a in baseline_raw if a.get("id") != tgt_id][:baseline_count]
+
+    if len(baseline) < 3:
+        return {"error": f"Not enough {sport} activities for comparison (need ≥ 3, have {len(baseline)})"}
+
+    def _stat(values: List[float], tgt: Optional[float], lower_harder: bool = False):
+        if not values or tgt is None:
+            return None
+        n    = len(values)
+        mean = sum(values) / n
+        std  = (sum((v - mean) ** 2 for v in values) / n) ** 0.5
+        if lower_harder:
+            pct = round(100 * sum(1 for v in values if v > tgt) / n)  # fraction slower
+        else:
+            pct = round(100 * sum(1 for v in values if v < tgt) / n)  # fraction with less
+        z = round((tgt - mean) / std, 1) if std > 0 else 0.0
+        return {
+            "baseline_mean": round(mean, 2),
+            "baseline_std":  round(std, 2),
+            "target":        round(tgt, 2),
+            "difficulty_percentile": pct,
+            "z_score": z,
+        }
+
+    t_dist   = (target.get("distance")            or 0) / 1000
+    t_elev   = target.get("total_elevation_gain") or 0
+    t_spd    = (target.get("average_speed")       or 0) * 3.6
+    t_pace   = 60.0 / t_spd if t_spd > 0 else None
+    t_hr     = target.get("average_heartrate")
+    t_ekm    = t_elev / t_dist if t_dist > 0 else None
+
+    def _bvals(key, fn=lambda a: a):
+        return [fn(a) for a in baseline if fn(a) is not None and fn(a) > 0]
+
+    b_dists  = _bvals("distance",            lambda a: (a.get("distance") or 0) / 1000)
+    b_elevs  = _bvals("total_elevation_gain", lambda a: a.get("total_elevation_gain") or 0)
+    b_ekm    = [
+        (a.get("total_elevation_gain") or 0) / max((a.get("distance") or 1) / 1000, 0.01)
+        for a in baseline
+    ]
+    b_speeds = [(a.get("average_speed") or 0) * 3.6 for a in baseline if (a.get("average_speed") or 0) > 0]
+    b_paces  = [60.0 / s for s in b_speeds if s > 0]
+    b_hrs    = [float(a["average_heartrate"]) for a in baseline if a.get("average_heartrate")]
+
+    comparisons: Dict[str, Any] = {}
+    if t_dist and b_dists:
+        comparisons["distance_km"]      = _stat(b_dists, t_dist)
+    if t_elev and b_elevs:
+        comparisons["elevation_m"]      = _stat(b_elevs, t_elev)
+    if t_ekm is not None and b_ekm:
+        comparisons["elevation_per_km"] = _stat(b_ekm, t_ekm)
+    if t_pace and b_paces:
+        comparisons["pace_min_per_km"]  = _stat(b_paces, t_pace, lower_harder=True)
+    if t_hr and b_hrs:
+        comparisons["avg_hr_bpm"]       = _stat(b_hrs, float(t_hr))
+
+    pcts = [v["difficulty_percentile"] for v in comparisons.values() if v]
+    overall = round(sum(pcts) / len(pcts)) if pcts else None
+
+    if overall is None:        assessment = "unknown (insufficient data)"
+    elif overall >= 85:        assessment = "one of your hardest"
+    elif overall >= 65:        assessment = "harder than usual"
+    elif overall >= 35:        assessment = "typical"
+    elif overall >= 15:        assessment = "easier than usual"
+    else:                      assessment = "one of your easiest"
+
+    return {
+        "activity": {
+            "id":           tgt_id,
+            "name":         target.get("name"),
+            "date":         (target.get("start_date") or "")[:10],
+            "sport_type":   sport,
+            "distance_km":  round(t_dist, 2),
+            "elevation_m":  round(t_elev, 0),
+            "pace_display": _pace_str(t_spd) if t_spd > 0 else None,
+            "avg_hr":       t_hr,
+        },
+        "baseline_activity_count": len(baseline),
+        "comparisons":             comparisons,
+        "overall_difficulty_percentile": overall,
+        "assessment": assessment,
+    }
+
+
+@mcp.tool()
+async def get_training_load(weeks: int = 16) -> Dict[str, Any]:
+    """Compute the user's training load over the last N weeks using the classic
+    ATL/CTL/TSB model (Banister's Impulse–Response model):
+
+    • ATL (Acute Training Load, τ=7d) — recent fatigue / short-term training stress
+    • CTL (Chronic Training Load, τ=42d) — fitness base / long-term average
+    • TSB (Training Stress Balance) = CTL − ATL:
+        positive (> +5) = fresh, rested, ready to race or push hard
+        near zero        = neutral, balanced
+        negative (< -10) = accumulated fatigue, needs recovery
+
+    Load per activity is taken from Strava's suffer_score (HR-based) when available,
+    otherwise estimated from duration × sport-type intensity factor.
+
+    Use when the user asks: "am I overtraining?", "what's my current form?",
+    "should I rest this week?", "training load", "overtraining",
+    "am I improving my fitness?", etc.
+
+    Args:
+        weeks: Number of weeks to look back (default 16; max 52).
+    """
+    weeks = min(int(weeks), 52)
+    activities = await _api.get_activities_cached(limit=500)
+
+    _SPORT_FACTOR = {
+        "Run": 1.0, "TrailRun": 1.1, "VirtualRun": 0.9,
+        "Ride": 0.6, "MountainBikeRide": 0.8, "GravelRide": 0.7, "VirtualRide": 0.5, "EBikeRide": 0.4,
+        "Hike": 0.7, "Walk": 0.4,
+        "Swim": 0.9, "Workout": 0.7, "WeightTraining": 0.5,
+        "NordicSki": 0.9, "AlpineSki": 0.5,
+    }
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    daily: Dict[str, float] = {}
+
+    for a in activities:
+        ds = a.get("start_date", "")
+        if not ds:
+            continue
+        try:
+            dt = datetime.strptime(ds[:19], "%Y-%m-%dT%H:%M:%S")
+        except ValueError:
+            continue
+        age = (now - dt).days
+        if age < 0 or age >= weeks * 7:
+            continue
+        key = dt.strftime("%Y-%m-%d")
+        suffer = a.get("suffer_score")
+        if suffer:
+            load = float(suffer)
+        else:
+            hours  = (a.get("moving_time") or 0) / 3600
+            factor = _SPORT_FACTOR.get(a.get("type", ""), 0.7)
+            load   = hours * 100 * factor
+        daily[key] = daily.get(key, 0.0) + load
+
+    # Build day list oldest → newest
+    day_list = [
+        (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        for i in range(weeks * 7 - 1, -1, -1)
+    ]
+
+    atl, ctl = 0.0, 0.0
+    k_atl, k_ctl = 1.0 / 7, 1.0 / 42
+
+    weekly: List[Dict] = []
+    cur_week: List[Dict] = []
+
+    for day in day_list:
+        load = daily.get(day, 0.0)
+        atl  = atl + k_atl * (load - atl)
+        ctl  = ctl + k_ctl * (load - ctl)
+        cur_week.append({
+            "date": day, "load": round(load, 1),
+            "atl": round(atl, 1), "ctl": round(ctl, 1), "tsb": round(ctl - atl, 1),
+        })
+        if len(cur_week) == 7:
+            weekly.append({
+                "week_start":  cur_week[0]["date"],
+                "total_load":  round(sum(d["load"] for d in cur_week), 1),
+                "avg_atl":     round(sum(d["atl"]  for d in cur_week) / 7, 1),
+                "avg_ctl":     round(sum(d["ctl"]  for d in cur_week) / 7, 1),
+                "avg_tsb":     round(sum(d["tsb"]  for d in cur_week) / 7, 1),
+            })
+            cur_week = []
+    if cur_week:
+        weekly.append({
+            "week_start": cur_week[0]["date"],
+            "total_load": round(sum(d["load"] for d in cur_week), 1),
+            "avg_atl":    round(sum(d["atl"]  for d in cur_week) / len(cur_week), 1),
+            "avg_ctl":    round(sum(d["ctl"]  for d in cur_week) / len(cur_week), 1),
+            "avg_tsb":    round(sum(d["tsb"]  for d in cur_week) / len(cur_week), 1),
+        })
+
+    last_day   = cur_week[-1] if cur_week else (weekly[-1] if weekly else {})
+    final_atl  = last_day.get("atl", atl)
+    final_ctl  = last_day.get("ctl", ctl)
+    final_tsb  = last_day.get("tsb", ctl - atl)
+
+    if   final_tsb >  15: form = "very fresh — well rested, ready to race or push hard"
+    elif final_tsb >   5: form = "fresh — good balance, can push when needed"
+    elif final_tsb >  -5: form = "neutral — balanced load"
+    elif final_tsb > -15: form = "productively tired — moderate training stress, normal"
+    elif final_tsb > -30: form = "tired — high load, schedule recovery"
+    else:                 form = "very fatigued — overtraining risk, rest week recommended"
+
+    return {
+        "current": {
+            "atl":  round(final_atl, 1),
+            "ctl":  round(final_ctl, 1),
+            "tsb":  round(final_tsb, 1),
+            "form": form,
+        },
+        "explanation": (
+            "ATL (Acute Load, 7d) = short-term fatigue. "
+            "CTL (Chronic Load, 42d) = fitness base. "
+            "TSB = CTL − ATL: positive = rested, negative = training stress. "
+            "Load uses suffer_score where available, otherwise duration × sport factor × 100."
+        ),
+        "weeks": weekly,
     }
 
 

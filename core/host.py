@@ -33,7 +33,7 @@ class ToolHost:
         self,
         servers: Optional[Dict[str, str]] = None,
         headers: Optional[Dict[str, Dict[str, str]]] = None,
-        timeout: float = 30.0,
+        timeout: float = 60.0,
     ) -> None:
         # name → url. Copy so per-user hosts can extend without mutating the global.
         self.servers: Dict[str, str] = dict(servers if servers is not None else MCP_SERVERS)
@@ -48,28 +48,36 @@ class ToolHost:
         """Discover every tool from every reachable server, in OpenAI tool format.
 
         Names are namespaced ``server__tool``. Unreachable servers are skipped.
+        All servers are queried in parallel so one slow/missing server doesn't
+        block the others.
         """
-        tools: List[Dict[str, Any]] = []
-        for name, url in self.servers.items():
-            try:
+        async def _fetch(name: str, url: str) -> List[Dict[str, Any]]:
+            async def _do():
                 async with streamablehttp_client(url, headers=self.headers.get(name)) as (read, write, _):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
                         result = await session.list_tools()
-                        for t in result.tools:
-                            tools.append({
-                                "type": "function",
-                                "function": {
-                                    "name":        f"{name}{SEP}{t.name}",
-                                    "description": t.description or "",
-                                    "parameters":  t.inputSchema or {
-                                        "type": "object", "properties": {}, "required": []
-                                    },
+                        return [{
+                            "type": "function",
+                            "function": {
+                                "name":        f"{name}{SEP}{t.name}",
+                                "description": t.description or "",
+                                "parameters":  t.inputSchema or {
+                                    "type": "object", "properties": {}, "required": []
                                 },
-                            })
+                            },
+                        } for t in result.tools]
+            try:
+                return await asyncio.wait_for(_do(), timeout=self.timeout)
             except Exception:
-                # Server not started / unauthorized / unreachable → skip, don't fail.
-                continue
+                return []
+
+        batches = await asyncio.gather(*[
+            _fetch(name, url) for name, url in self.servers.items()
+        ])
+        tools: List[Dict[str, Any]] = []
+        for batch in batches:
+            tools.extend(batch)
         return tools
 
     async def acall_tool(self, name: str, args: Optional[Dict[str, Any]] = None) -> str:
@@ -78,7 +86,8 @@ class ToolHost:
         url = self.servers.get(server)
         if not url:
             return json.dumps({"error": f"No server '{server}' for tool '{name}'"})
-        try:
+
+        async def _do() -> str:
             async with streamablehttp_client(url, headers=self.headers.get(server)) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
@@ -91,6 +100,11 @@ class ToolHost:
                     if result.isError:
                         return json.dumps({"error": "\n".join(texts) or "tool error"})
                     return "\n".join(texts) if texts else json.dumps({"result": "ok"})
+
+        try:
+            return await asyncio.wait_for(_do(), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            return json.dumps({"error": f"Tool '{name}' timed out after {self.timeout}s"})
         except Exception as exc:
             return json.dumps({"error": str(exc)})
 

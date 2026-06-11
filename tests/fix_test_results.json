@@ -1,0 +1,46 @@
+[
+  {
+    "label": "hr_zones",
+    "query": "Show me the heart rate zone distribution of my last run",
+    "elapsed_s": 48.5,
+    "tools": [
+      "garmin__get_garmin_activities",
+      "strava__get_activities",
+      "garmin__get_garmin_activity_detail"
+    ],
+    "viz_hints": {},
+    "asked_permission": false,
+    "tool_count": 3,
+    "answer": "Here’s the heart rate zone distribution for your last run:\n\n- Zone 1 (easy): 1.1 min\n- Zone 2 (endurance): 8.1 min\n- Zone 3 (moderate): 5.8 min\n- Zone 4 (threshold): 13.9 min\n- Zone 5 (max): 0.0 min\n\nSummary: Most of the session was spent at threshold (Zone 4), with solid time in endurance (Zone 2) and moderate (Zone 3), very little in easy (Zone 1), and none at max (Zone 5). This suggests a fairly hard, steady effort focused around threshold work."
+  },
+  {
+    "label": "cadence",
+    "query": "What was my cadence and HR zones during my last run?",
+    "elapsed_s": 26.9,
+    "tools": [
+      "garmin__get_garmin_activities",
+      "strava__get_activities",
+      "garmin__get_garmin_activity_detail"
+    ],
+    "viz_hints": {},
+    "asked_permission": false,
+    "tool_count": 3,
+    "answer": "I pulled your most recent run and here’s the summary:\n\n- Average cadence: not available in the Garmin detail for this activity (no cadence data was recorded or synced for it).\n- Heart rate zones (time in zone):\n  - Zone 1: 1.1 min\n  - Zone 2: 8.1 min\n  - Zone 3: 5.8 min\n  - Zone 4: 13.9 min\n  - Zone 5: 0.0 min\n\nIf you expected cadence for this run, it might be due to:\n- Cadence not being recorded by the device/sensor during that session, or\n- A sync gap. We can check another recent run for cadence if you like."
+  },
+  {
+    "label": "permission_check",
+    "query": "Fetch my last Garmin activity detail",
+    "elapsed_s": 41.7,
+    "tools": [
+      "garmin__get_garmin_activities",
+      "strava__get_activities",
+      "garmin__get_garmin_activity_detail"
+    ],
+    "viz_hints": {
+      "show": []
+    },
+    "asked_permission": false,
+    "tool_count": 3,
+    "answer": "I pulled your most recent Garmin activity and its full detail.\n\nActivity\n- Name: Karlsruhe Laufen\n- Date: 2026-05-19\n- Type: Run\n- Distance: 5.31 km\n- Moving time: 29.2 min\n- Avg HR: 152 bpm (max 178 bpm)\n- Elevation gain: 20 m\n- Pace: 5:30 min/km\n\nGarmin detail highlights\n- Heart rate zones (time in zone):\n  - Z1 (low): 1.1 min\n  - Z2: 8.1 min\n  - Z3: 5.8 min\n  - Z4: 13.9 min\n  - Z5: 0.0 min\n- Laps: not available in the detail payload\n- Training effect, cadence, and power: not reported for this activity\n\nNotes\n- HR zone breakdown is available; per-lap data wasn’t returned by Garmin for this file.\n- If you want, I can fetch another recent activity’s detail or pull the GPS track/route map."
+  }
+]

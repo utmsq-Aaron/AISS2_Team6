@@ -72,6 +72,8 @@ ALLOW_GROUPS = os.getenv("TELEGRAM_BRIDGE_ALLOW_GROUPS", "false").strip().lower(
 _ALLOW_RAW = os.getenv("TELEGRAM_ALLOWED_USERS", "").strip()
 ALLOWLIST = {p.strip().lstrip("@").lower() for p in _ALLOW_RAW.split(",") if p.strip()}  # empty ⇒ anyone
 HISTORY_TURNS = max(1, int(os.getenv("TELEGRAM_BRIDGE_HISTORY", "10") or "10"))
+# Internal-only mode: only respond to self-messages (Saved Messages) — ignore external DMs
+INTERNAL_ONLY = os.getenv("TELEGRAM_BRIDGE_INTERNAL_ONLY", "false").strip().lower() in ("1", "true", "yes")
 
 TG_LIMIT = 4096  # Telegram per-message character cap
 
@@ -84,6 +86,18 @@ _RUN_LOCK = asyncio.Lock()
 # Separate lock guarding the shared Whisper model (also not assumed thread-safe).
 _TRANSCRIBE_LOCK = asyncio.Lock()
 _orchestrator = None  # lazily built singleton
+
+# Echo-loop guard for Saved Messages: track IDs of messages the bridge itself
+# sends so that when Telethon re-fires them as NewMessage(outgoing) events we
+# simply skip them instead of feeding our own answers back to the orchestrator.
+_skip_ids: set = set()
+
+
+def _track(*msgs) -> None:
+    """Register sent message IDs so they are ignored if re-fired as events."""
+    for m in msgs:
+        if m is not None and getattr(m, "id", None):
+            _skip_ids.add(m.id)
 
 
 def _get_orchestrator():
@@ -138,13 +152,15 @@ def _chunk(text: str, limit: int = TG_LIMIT) -> List[str]:
 async def _send_text(event, text: str) -> None:
     """Send a possibly-long reply; try Markdown, fall back to plain on parse errors."""
     for chunk in _chunk(text) or ["(no response)"]:
+        sent = None
         try:
-            await event.respond(chunk, parse_mode="md", link_preview=False)
+            sent = await event.respond(chunk, parse_mode="md", link_preview=False)
         except Exception:
             try:
-                await event.respond(chunk, parse_mode=None, link_preview=False)
+                sent = await event.respond(chunk, parse_mode=None, link_preview=False)
             except Exception:
                 log.exception("failed to send a reply chunk")
+        _track(sent)
 
 
 async def _send_route(event, route_data: Dict) -> None:
@@ -163,8 +179,15 @@ async def _send_route(event, route_data: Dict) -> None:
         log.exception("route export imports failed")
         return
 
+    # For activity GPS tools (get_activity_streams / get_activity_gps_track), the
+    # viz_telegram chart renderer already sends a higher-quality HR/elevation-colored
+    # map.  Skip the simpler staticmap PNG here so users don't get two nearly-identical
+    # images; keep the GPX and Google Maps link (they're still useful).
+    _ACTIVITY_TOOLS = {"get_activity_streams", "get_activity_gps_track"}
+    skip_png = (route_data or {}).get("tool", "") in _ACTIVITY_TOOLS
+
     try:
-        png = await loop.run_in_executor(None, render_route_image, route_data)
+        png = None if skip_png else await loop.run_in_executor(None, render_route_image, route_data)
     except Exception:
         log.exception("route image render failed")
         png = None
@@ -183,19 +206,19 @@ async def _send_route(event, route_data: Dict) -> None:
                 caption = "🗺️ Route"
             bio = io.BytesIO(png)
             bio.name = "route.png"
-            await event.client.send_file(event.chat_id, bio, caption=caption, force_document=False)
+            _track(await event.client.send_file(event.chat_id, bio, caption=caption, force_document=False))
 
         # No photo (or caption too long) → send the link on its own so it's still tappable.
         if link_line and not link_inline:
-            await event.respond(link_line, parse_mode=None, link_preview=True)
+            _track(await event.respond(link_line, parse_mode=None, link_preview=True))
 
         if gpx:
             gio = io.BytesIO(gpx)
             gio.name = "route.gpx"
-            await event.client.send_file(
+            _track(await event.client.send_file(
                 event.chat_id, gio, force_document=True,
                 caption="Exact route as GPX — open in OsmAnd, Komoot, Organic Maps, Garmin or Strava.",
-            )
+            ))
     except Exception:
         log.exception("failed to send route artifacts")
 
@@ -259,7 +282,12 @@ async def _send_flythrough(event, action: Dict) -> None:
         log.warning("ui.video_renderer not available (playwright not installed) — skipping flythrough")
         return
 
-    await _send_text(event, f"🎬 Rendering flythrough for *{name}*… (this may take ~30 s)")
+    await _send_text(
+        event,
+        f"🎬 Rendering flythrough for *{name}*… "
+        "This encodes a full video — expect **2–10 minutes** depending on GPU availability. "
+        "Progress is printed to the server terminal.",
+    )
 
     try:
         track = await loop.run_in_executor(None, _fetch_track_for_activity, activity_id)
@@ -292,19 +320,250 @@ async def _send_flythrough(event, action: Dict) -> None:
     try:
         bio = io.BytesIO(mp4_bytes)
         bio.name = f"flythrough_{activity_id}.mp4"
-        await event.client.send_file(
+        _track(await event.client.send_file(
             event.chat_id, bio,
             caption=f"🎬 {name}",
             force_document=False,
-        )
+        ))
         log.info("flythrough MP4 sent (%d bytes) for activity %s", len(mp4_bytes), activity_id)
     except Exception:
         log.exception("failed to send flythrough MP4 to Telegram")
 
 
+# ── Visualization delivery ────────────────────────────────────────────────────────
+
+_CHART_LABELS = {
+    "get_garmin_sleep":           "Sleep",
+    "get_garmin_body_battery":    "Body Battery",
+    "get_garmin_heart_rate_timeline": "Heart Rate",
+    "get_garmin_steps_timeline":  "Steps",
+    "get_garmin_stress_timeline": "Stress",
+    "get_garmin_hrv_status":      "HRV Status",
+    "get_garmin_daily_health":    "Daily Health",
+    "get_garmin_training_metrics":"Training Metrics",
+    "get_garmin_wellness_trends": "Wellness Trends",
+    "get_garmin_activity_detail": "Activity Detail",
+    "get_garmin_body_composition":"Body Composition",
+    "get_activity_gps_track":     "GPS Track",
+    "get_activities":             "Activities",
+    "get_garmin_activities":      "Activities",
+    "get_activity_streams":       "GPS Route",
+    "analyze_performance_trends": "Performance Trends",
+    "get_training_load":          "Training Load (ATL/CTL/TSB)",
+    "get_training_trends":        "Weekly Training Volume",
+    "get_yearly_breakdown":       "Year-over-Year Stats",
+    "compare_activity_to_baseline": "Activity vs. Baseline",
+    "get_activity_stats":          "All-Time Stats",
+    "get_personal_bests":          "Personal Bests",
+    "get_weather_forecast":        "Weather Forecast",
+    "get_gear_info":               "Gear Mileage",
+}
+
+
+def _chart_caption(bare_tool: str, result_json: str) -> str:
+    """Build a short Telegram photo caption from the tool name + key data fields."""
+    label = _CHART_LABELS.get(bare_tool, bare_tool.replace("_", " ").title())
+    try:
+        import json as _json
+        d = _json.loads(result_json) if result_json else {}
+        date = d.get("date") or d.get("start_date") or ""
+        name = d.get("name") or d.get("activity_name") or ""
+        if name:
+            return f"{label} — {name[:40]}"
+        if date:
+            return f"{label} — {str(date)[:10]}"
+    except Exception:
+        pass
+    return label
+
+
+async def _send_viz_charts(event, trace: Dict) -> int:
+    """Render chart images for tool results and send them as Telegram photos.
+
+    Uses core.viz_telegram (matplotlib, headless, no Streamlit). Each renderable
+    tool result becomes one photo message. Returns the number of charts sent.
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        from core.viz_telegram import can_render, render_chart_png
+    except ImportError:
+        log.debug("core.viz_telegram unavailable — skipping chart delivery")
+        return 0
+
+    tool_calls = trace.get("tool_calls") or []
+    user_query = trace.get("user_input") or ""
+    n_sent = 0
+
+    # Deduplicate: only one chart per bare tool name (first successful result wins)
+    seen: set = set()
+    for tc in tool_calls:
+        if tc.get("error"):
+            continue
+        bare = tc["tool"].split("__", 1)[-1] if "__" in tc["tool"] else tc["tool"]
+        if bare in seen or not can_render(bare):
+            continue
+        seen.add(bare)
+
+        result_json = tc.get("result", "")
+        try:
+            png: Optional[bytes] = await loop.run_in_executor(
+                None, render_chart_png, tc["tool"], result_json, user_query
+            )
+        except Exception:
+            log.exception("chart render failed for tool %s", tc["tool"])
+            continue
+
+        if not png:
+            continue
+
+        try:
+            caption = _chart_caption(bare, tc.get("result", ""))
+            bio = io.BytesIO(png)
+            bio.name = f"chart_{bare}.png"
+            _track(await event.client.send_file(
+                event.chat_id, bio, caption=caption, force_document=False,
+            ))
+            n_sent += 1
+        except Exception:
+            log.exception("failed to send chart for tool %s", tc["tool"])
+
+    return n_sent
+
+
+async def _send_plotly_charts(event, trace: Dict) -> int:
+    """Generate LLM Plotly charts (identical to the chat UI) and send as PNG photos.
+
+    Uses the same _generate_code / _fix_code / _try_execute pipeline from
+    ui.chart_gen, but provides the client from core.llm so that @st.cache_resource
+    (in ui.shared.get_openai_client) is never touched from this headless context.
+    Requires kaleido for fig.to_image() PNG export (pip install kaleido).
+    """
+    loop = asyncio.get_running_loop()
+
+    try:
+        from ui.chart_gen import (
+            _generate_code, _fix_code, _try_execute, _extract_code,
+            _compact, _STRAVA_DOMAIN_HINT, _SKIP_TOOLS,
+        )
+        import plotly.graph_objects as _go  # just to verify plotly import
+        del _go
+    except ImportError as _e:
+        log.debug("plotly chart delivery skipped: %s", _e)
+        return 0
+
+    import json as _json
+
+    run_id   = trace.get("run_id", "")
+    question = trace.get("question") or trace.get("user_input", "")
+    answer   = trace.get("answer", "")
+    hints    = trace.get("chart_hints") or []
+
+    if not question:
+        return 0
+
+    # Build data_vars — same logic as chart_gen.generate_and_render
+    data_vars: Dict = {}
+    var_lines: List[str] = []
+    seen_vars: set = set()
+    for tc in (trace.get("tool_calls") or []):
+        if tc.get("error"):
+            continue
+        bare = tc["tool"].split("__", 1)[-1] if "__" in tc["tool"] else tc["tool"]
+        if bare in _SKIP_TOOLS:
+            continue
+        try:
+            data = _json.loads(tc["result"]) if isinstance(tc["result"], str) else tc["result"]
+        except Exception:
+            continue
+        if not data or (isinstance(data, dict) and data.get("error")):
+            continue
+        var_name = f"data_{bare}"
+        if var_name in seen_vars:
+            var_lines = [ln for ln in var_lines if not ln.startswith(f"{var_name} =")]
+        seen_vars.add(var_name)
+        data_vars[var_name] = data
+        var_lines.append(f"{var_name} = {_compact(data)}")
+
+    if not data_vars:
+        return 0
+
+    # Use core.llm — safe for headless use (no st.cache_resource)
+    from core.llm import get_llm_client
+    llm_client, model_name = get_llm_client()
+
+    # Generate code (run in thread — synchronous network call)
+    try:
+        raw = await loop.run_in_executor(
+            None,
+            lambda: _generate_code(
+                question, answer, var_lines, chart_hints=hints,
+                _client=llm_client, _model=model_name,
+            ),
+        )
+    except Exception:
+        log.exception("plotly chart code generation failed (run=%s)", run_id)
+        return 0
+
+    if not raw:
+        return 0
+
+    code = _extract_code(raw)
+    if not code:
+        return 0
+
+    # Execute; one reflexion fix attempt on error
+    figures, error = _try_execute(code, data_vars)
+    if error and not figures:
+        try:
+            fixed = await loop.run_in_executor(
+                None,
+                lambda: _fix_code(
+                    code, error, list(data_vars.keys()),
+                    _client=llm_client, _model=model_name,
+                ),
+            )
+            if fixed:
+                figures, _ = _try_execute(fixed, data_vars)
+        except Exception:
+            pass
+
+    if not figures:
+        return 0
+
+    n_sent = 0
+    for i, fig in enumerate(figures):
+        fig.update_layout(height=400, width=800, paper_bgcolor="rgb(17,17,17)")
+        try:
+            png_bytes: bytes = await loop.run_in_executor(
+                None, lambda f=fig: f.to_image(format="png", scale=1.5)
+            )
+        except Exception:
+            log.exception("fig.to_image failed (is kaleido installed?), chart %d", i)
+            continue
+        try:
+            title = (fig.layout.title.text or question)[:60]
+            bio = io.BytesIO(png_bytes)
+            bio.name = f"chart_{run_id}_{i}.png"
+            _track(await event.client.send_file(
+                event.chat_id, bio,
+                caption=f"📊 {title}",
+                force_document=False,
+            ))
+            n_sent += 1
+        except Exception:
+            log.exception("failed to send plotly chart %d to Telegram", i)
+
+    return n_sent
+
+
 # ── Message handler ──────────────────────────────────────────────────────────────
 
 async def _handle_message(event) -> None:
+    # Skip messages the bridge itself sent (prevents echo-loops in Saved Messages).
+    if event.message.id in _skip_ids:
+        _skip_ids.discard(event.message.id)
+        return
+
     # Scope: DMs only unless groups are explicitly enabled.
     if not event.is_private and not ALLOW_GROUPS:
         return
@@ -358,6 +617,12 @@ async def _handle_message(event) -> None:
     if route_data:
         await _send_route(event, route_data)
 
+    # Visualizations: matplotlib pre-defined charts (core.viz_telegram)
+    n_charts = await _send_viz_charts(event, trace or {})
+
+    # Visualizations: LLM-generated Plotly charts (same as chat UI)
+    n_plotly = await _send_plotly_charts(event, trace or {})
+
     # Flythrough: render MP4 server-side and send as video
     ft_action = next(
         (a for a in ((trace or {}).get("actions") or []) if a.get("type") == "flythrough"),
@@ -366,10 +631,12 @@ async def _handle_message(event) -> None:
     if ft_action:
         await _send_flythrough(event, ft_action)
 
-    log.info("→ chat=%s: replied (%d chars)%s%s",
+    log.info("→ chat=%s: replied (%d chars)%s%s%s%s",
              chat_id, len(answer or ""),
-             " +route" if route_data else "",
-             " +flythrough" if ft_action else "")
+             " +route"               if route_data else "",
+             f" +{n_charts}charts"   if n_charts else "",
+             f" +{n_plotly}plotly"   if n_plotly else "",
+             " +flythrough"          if ft_action else "")
 
 
 # ── Startup ──────────────────────────────────────────────────────────────────────
@@ -423,8 +690,23 @@ async def _run_bridge() -> None:
     except Exception:
         log.exception("tool discovery failed — are the MCP servers running? continuing anyway")
 
-    client.add_event_handler(_handle_message, events.NewMessage(incoming=True))
-    log.info("Bridge is up. Send your Telegram account a message to talk to the agent. Ctrl-C to stop.")
+    # Always handle self-messages (Saved Messages / self-chat).
+    # The skip-id guard in _handle_message prevents the bridge's own replies from
+    # re-triggering the orchestrator.
+    client.add_event_handler(_handle_message, events.NewMessage(outgoing=True, chats=[me.id]))
+    if INTERNAL_ONLY:
+        log.info(
+            "Bridge is up — INTERNAL ONLY mode. "
+            "Write to your own Saved Messages on Telegram to talk to the agent. Ctrl-C to stop."
+        )
+    else:
+        # Also listen to incoming DMs (and groups if ALLOW_GROUPS is set)
+        client.add_event_handler(_handle_message, events.NewMessage(incoming=True))
+        log.info(
+            "Bridge is up — PUBLIC mode (accessible to %s). "
+            "Write your Telegram account a message to talk to the agent. Ctrl-C to stop.",
+            ("allowlist: " + ", ".join(sorted(ALLOWLIST))) if ALLOWLIST else "anyone",
+        )
     await client.run_until_disconnected()
 
 

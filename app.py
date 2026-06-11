@@ -7,10 +7,12 @@ Entry point:
 """
 
 import os
+import socket
+import urllib.parse as _urlparse
 
 import streamlit as st
 
-from ui.shared import garmin_connected, strava_connected, validate_config
+from ui.shared import garmin_connected, garmin_mock_mode, strava_connected, validate_config
 from ui.styles import STRAVA_ORANGE, inject_css
 
 # ── Page config (must be first Streamlit call) ────────────────────────────────
@@ -26,33 +28,59 @@ inject_css()
 # ── Auto-start MCP servers (once per process) ─────────────────────────────────
 @st.cache_resource(show_spinner="⚙️ Starting services…")
 def _ensure_mcp_servers() -> list:
-    """Launch any MCP server that isn't already listening on its port."""
-    import socket
+    """Kill any stale MCP servers, then launch fresh ones. Cleans up on exit."""
+    import atexit
     import subprocess
     import sys
     import time
     import urllib.parse
+    import psutil
     from core.config import MCP_SERVERS
 
     _optional = {"telegram"}  # requires manual setup; skip silently
-    started = []
+
+    def _kill_port(port: int) -> None:
+        for conn in psutil.net_connections(kind="inet"):
+            if conn.laddr.port == port and conn.pid:
+                try:
+                    psutil.Process(conn.pid).terminate()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+
+    # Kill any existing MCP servers so we always start fresh
     for name, url in MCP_SERVERS.items():
         if name in _optional:
             continue
         port = urllib.parse.urlparse(url).port
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
-            _s.settimeout(0.3)
-            already_up = _s.connect_ex(("127.0.0.1", port)) == 0
-        if not already_up:
-            subprocess.Popen(
-                [sys.executable, "-m", f"servers.{name}_mcp"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            started.append(name)
-    if started:
-        time.sleep(2.5)  # give freshly-launched servers time to bind their ports
-    return started
+        if port:
+            _kill_port(port)
+
+    time.sleep(0.5)  # let terminated processes release their ports
+
+    # Start fresh subprocesses
+    procs: list[subprocess.Popen] = []
+    for name, url in MCP_SERVERS.items():
+        if name in _optional:
+            continue
+        proc = subprocess.Popen(
+            [sys.executable, "-m", f"servers.{name}_mcp"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        procs.append(proc)
+
+    time.sleep(2.5)  # give servers time to bind their ports
+
+    # Kill children when Streamlit exits
+    def _cleanup() -> None:
+        for p in procs:
+            try:
+                p.terminate()
+            except OSError:
+                pass
+
+    atexit.register(_cleanup)
+    return [p.pid for p in procs]
 
 _ensure_mcp_servers()
 
@@ -119,13 +147,21 @@ def _pin_gate() -> None:
 
 _pin_gate()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("# 🏋️ Training Copilot")
-    st.caption("AI-powered sports analytics")
-    st.divider()
 
-    # Connection status — colored dots from core.config.MCP_SERVERS
+def _check_server(url: str) -> bool:
+    """Single TCP probe — no cache, called in parallel threads."""
+    port = _urlparse.urlparse(url).port
+    if not port:
+        return False
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
+        _s.settimeout(0.3)
+        return _s.connect_ex(("127.0.0.1", port)) == 0
+
+
+@st.fragment(run_every=5)
+def _status_dots() -> None:
+    """Auto-refreshes every 5 s — checks all server ports in parallel."""
+    from concurrent.futures import ThreadPoolExecutor
     from core.config import MCP_SERVERS
     from ui.shared import strava_connected, garmin_connected, routes_connected, telegram_connected
 
@@ -135,7 +171,7 @@ with st.sidebar:
         "telegram": "Telegram", "flythrough": "Flythrough",
     }
 
-    def _is_connected(key: str) -> bool:
+    def _svc_ok(key: str) -> bool:
         if key in ("weather", "calendar", "flythrough"): return True
         if key == "strava":   return strava_connected()
         if key == "garmin":   return garmin_connected()
@@ -143,19 +179,49 @@ with st.sidebar:
         if key == "telegram": return telegram_connected()
         return False
 
-    dots_html = ""
+    # All port checks run in parallel — total latency ≤ 0.3 s
+    with ThreadPoolExecutor(max_workers=len(MCP_SERVERS)) as _ex:
+        _srv_up = dict(zip(MCP_SERVERS.keys(),
+                           _ex.map(_check_server, MCP_SERVERS.values())))
+
+    _DOT   = 'width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;'
+    _GREEN, _RED = "#22c55e", "#ef4444"
+    _is_mock = garmin_mock_mode()
+
+    html = (
+        '<div style="font-size:0.7rem;color:#666;margin-bottom:6px;display:flex;'
+        'gap:10px;align-items:center">'
+        '<span>🔑 Service</span>'
+        '<span>🖥️ Server</span>'
+        '</div>'
+    )
     for _key in MCP_SERVERS:
-        _label = _labels.get(_key, _key.capitalize())
-        _color = "#22c55e" if _is_connected(_key) else "#ef4444"
-        dots_html += (
-            f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0">'
-            f'<span style="width:10px;height:10px;border-radius:50%;'
-            f'background:{_color};display:inline-block;flex-shrink:0"></span>'
-            f'<span style="font-size:0.85rem;color:#ccc">{_label}</span>'
+        _label   = _labels.get(_key, _key.capitalize())
+        _svc_col = _GREEN if _svc_ok(_key) else _RED
+        _srv_col = _GREEN if _srv_up.get(_key) else _RED
+        _mock    = (
+            ' <span style="font-size:0.7rem;color:#f59e0b;font-weight:600">(Mock)</span>'
+            if _key == "garmin" and _is_mock else ""
+        )
+        html += (
+            f'<div style="display:flex;align-items:center;gap:5px;margin:3px 0">'
+            f'<span title="Service connected">🔑</span>'
+            f'<span style="{_DOT}background:{_svc_col}"></span>'
+            f'<span title="MCP server running" style="margin-left:4px">🖥️</span>'
+            f'<span style="{_DOT}background:{_srv_col}"></span>'
+            f'<span style="font-size:0.85rem;color:#ccc;margin-left:2px">{_label}{_mock}</span>'
             f'</div>'
         )
-    st.markdown(dots_html, unsafe_allow_html=True)
-    st.caption("⚙️ Settings")
+    st.markdown(html, unsafe_allow_html=True)
+
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("# 🏋️ Training Copilot")
+    st.caption("AI-powered sports analytics")
+    st.divider()
+
+    _status_dots()   # auto-refreshes every 5 s via st.fragment
 
     st.divider()
 
@@ -170,8 +236,12 @@ with st.sidebar:
 
     st.divider()
 
-    # Refresh
+    # Refresh — clears Streamlit's in-memory cache AND the Strava disk cache
+    # so the next render fetches fresh data from the Strava API.
     if st.button("🔄  Refresh data", width='stretch'):
+        from pathlib import Path
+        Path(".cache/strava_activities.json").unlink(missing_ok=True)
+        st.session_state["_refresh_v"] = st.session_state.get("_refresh_v", 0) + 1
         st.cache_data.clear()
         st.rerun()
 
@@ -184,8 +254,8 @@ with st.sidebar:
             st.rerun()
 
 # ── Tab layout ────────────────────────────────────────────────────────────────
-tab_dash, tab_health, tab_routes, tab_chat, tab_sync, tab_settings = st.tabs(
-    ["📊  Dashboard", "🏥  Health", "🗺️  Routes", "💬  Chat", "🔁  Sync", "⚙️  Settings"]
+tab_dash, tab_health, tab_routes, tab_analyse, tab_chat, tab_sync, tab_settings = st.tabs(
+    ["📊  Dashboard", "🏥  Health", "🗺️  Routes", "📈  Analysis", "💬  Chat", "🔁  Sync", "⚙️  Settings"]
 )
 
 with tab_dash:
@@ -199,6 +269,10 @@ with tab_health:
 with tab_routes:
     from ui.routes_explorer import render_routes_explorer
     render_routes_explorer()
+
+with tab_analyse:
+    from ui.analytics import render_analytics
+    render_analytics()
 
 with tab_chat:
     from ui.chat import render_chat

@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from ui.shared import call_tool, garmin_connected
+from ui.shared import call_tool, garmin_connected, wait_for_servers
 from ui.styles import (
     C_AMBER, C_CYAN, C_GREEN, C_ROSE, ACCENT,
     TEXT_MUTED, TEXT_PRIMARY, BORDER, BG_CARD, chart_style,
@@ -54,25 +54,25 @@ def _safe_load(fn):
         return {}
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(show_spinner=False)
 def load_wellness(days: int = 14) -> Dict:
     if not garmin_connected():
         return {}
     return json.loads(call_tool("garmin__get_garmin_wellness_trends", {"days": days}))
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(show_spinner=False)
 def load_training_metrics() -> Dict:
     if not garmin_connected():
         return {}
     return json.loads(call_tool("garmin__get_garmin_training_metrics", {}))
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(show_spinner=False)
 def load_hrv() -> Dict:
     if not garmin_connected():
         return {}
     return json.loads(call_tool("garmin__get_garmin_hrv_status", {}))
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(show_spinner=False)
 def load_today() -> Dict:
     if not garmin_connected():
         return {}
@@ -454,6 +454,9 @@ def render_health() -> None:
             "**Garmin not connected.** Open the ⚙️ Settings tab to connect your Garmin "
             "account or enable mock mode for demo data."
         )
+        return
+
+    if not wait_for_servers("garmin"):
         return
 
     # ── Period selector ───────────────────────────────────────────────────────

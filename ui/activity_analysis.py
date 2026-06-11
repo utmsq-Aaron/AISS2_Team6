@@ -22,7 +22,7 @@ _MAX_PACE_OUTLIER_MIN_KM = 20   # pace values above this are GPS noise, not real
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(show_spinner=False)
 def _load_streams(activity_id: int) -> Dict:
     return json.loads(call_tool("strava__get_activity_streams", {"activity_id": activity_id}))
 

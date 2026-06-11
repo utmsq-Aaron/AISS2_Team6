@@ -74,12 +74,17 @@ def strava_connected() -> bool:
         return False
 
 
-def garmin_connected() -> bool:
-    """True if Garmin mock mode is active OR token files exist in .tokens/."""
+def garmin_mock_mode() -> bool:
+    """True if GARMIN_MOCK_HEALTH is enabled (env or .env file)."""
     from dotenv import dotenv_values
     file_vals = dotenv_values(".env")
-    mock_flag = os.getenv("GARMIN_MOCK_HEALTH") or file_vals.get("GARMIN_MOCK_HEALTH", "false")
-    if str(mock_flag).lower() in ("1", "true", "yes"):
+    flag = os.getenv("GARMIN_MOCK_HEALTH") or file_vals.get("GARMIN_MOCK_HEALTH", "false")
+    return str(flag).lower() in ("1", "true", "yes")
+
+
+def garmin_connected() -> bool:
+    """True if Garmin mock mode is active OR token files exist in .tokens/."""
+    if garmin_mock_mode():
         return True
     token_dir = Path(".tokens")
     if not token_dir.is_dir():
@@ -133,6 +138,54 @@ def validate_config() -> List[str]:
     if not os.getenv("OPENAI_API_KEY"):
         issues.append("OPENAI_API_KEY not set — AI features disabled")
     return issues
+
+
+# ── Server readiness ─────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=10, show_spinner=False)
+def _server_reachable(name: str) -> bool:
+    """Quick TCP check — True if the MCP server's port accepts connections within 1 s.
+
+    Short TTL (10 s) so a rerun after starting a server sees the new state quickly.
+    Errors are never returned as a value, so failed checks are never cached by
+    @st.cache_data — each call retries immediately.
+    """
+    import socket
+    import urllib.parse
+    from core.config import MCP_SERVERS
+    url = MCP_SERVERS.get(name, "")
+    if not url:
+        return False
+    p = urllib.parse.urlparse(url)
+    try:
+        with socket.create_connection((p.hostname or "127.0.0.1", p.port or 80), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+def wait_for_servers(*names: str) -> bool:
+    """Return True when every named MCP server is reachable; otherwise render a
+    wait-banner with a Retry button and return False.
+
+    Usage — call at the top of a tab render function before any data fetching::
+
+        if not wait_for_servers("strava", "weather"):
+            return
+    """
+    missing = [n for n in names if not _server_reachable(n)]
+    if not missing:
+        return True
+    label = ", ".join(f"**{n}**" for n in missing)
+    plural = "s" if len(missing) > 1 else ""
+    st.info(
+        f"⏳ Waiting for MCP server{plural} to start: {label}  \n"
+        "Start the server process(es) first, then click Retry."
+    )
+    if st.button("↻ Retry", key=f"wait_retry_{'_'.join(missing)}"):
+        _server_reachable.clear()
+        st.rerun()
+    return False
 
 
 # ── OpenAI client (for direct LLM calls in UI components) ────────────────────

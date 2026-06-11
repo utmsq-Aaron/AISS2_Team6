@@ -1,7 +1,9 @@
 """Dashboard tab — activity map, key metrics, charts, and official Strava stats."""
 
+import time as _time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
+
 
 import folium
 import pandas as pd
@@ -11,17 +13,44 @@ import polyline as pl
 import streamlit as st
 from streamlit_folium import st_folium
 
-from ui.shared import call_tool, strava_connected
+from ui.shared import call_tool, strava_connected, wait_for_servers
 from ui.styles import (
     ACTIVITY_ICONS, CHART_COLORS, DARK_MAP_ATTR, DARK_MAP_TILES,
     STRAVA_ORANGE, activity_icon, chart_style,
 )
 
-# ── Cached data loaders ───────────────────────────────────────────────────────
+# GPS sport types that are expected to have a GPS track
+_GPS_SPORTS = {"Run", "Hike", "Walk", "Ride", "TrailRun", "MountainBikeRide",
+               "GravelRide", "NordicSki", "VirtualRun", "VirtualRide", "Swim",
+               "BackcountrySki", "Snowshoe", "Kayaking", "Canoe", "Rowing",
+               "Surfing", "Kitesurf", "Windsurf", "SUP", "EBikeRide"}
 
-@st.cache_data(ttl=300, show_spinner=False)
+
+# ── Cached data loaders ───────────────────────────────────────────────────────
+#
+# DESIGN RATIONALE — warum hier gecacht wird und kein TTL gesetzt ist:
+#
+# Das Dashboard baut seine Ansicht ausschließlich aus gecachten MCP-Tool-Ergebnissen
+# auf. Es wird KEIN Agent und KEIN LLM involviert — jede Strava-Anfrage zählt direkt
+# gegen das Strava-API-Rate-Limit (100 Requests/15 min, 1000/Tag). Das Chat-Tab
+# hingegen schickt beliebig viele Tool-Calls über den Orchestrator, was schnell einen
+# Großteil des Tageskontingents verbraucht.
+#
+# Daher: Dashboard-Daten werden einmalig geladen und bleiben im Speicher bis der
+# Nutzer explizit auf „🔄 Refresh data" klickt (löst st.cache_data.clear() aus).
+# Kein automatischer Ablauf (kein TTL) — so bleibt das Kontingent für Chat-Interak-
+# tionen reserviert und das Dashboard rendert ohne jede API-Latenz.
+#
+# Konsequenz für neue Features: Neue Dashboard-Widgets dürfen MCP-Tools nur über
+# eine @st.cache_data-Funktion aufrufen — niemals direkt im Render-Pfad.
+
+@st.cache_data(show_spinner=False)
 def load_weather() -> Dict:
-    """Fetch weather, pollen and UV in parallel via ToolHost."""
+    """Fetch weather, pollen and UV in parallel via ToolHost.
+
+    Raises on any failure so @st.cache_data does not cache the error — the next
+    render attempt will retry, rather than serving a stale failure for 5 minutes.
+    """
     import json
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -35,31 +64,52 @@ def load_weather() -> Dict:
         return key, json.loads(call_tool(tool_name, {}))
 
     result: Dict = {}
-    try:
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            futures = {pool.submit(_fetch, k, t): k for k, t in calls.items()}
-            for fut in as_completed(futures, timeout=12):
-                key, data = fut.result()
-                result[key] = data
-        # Treat any sub-result that is itself an error as a top-level error
-        sub_errors = [v.get("error") for v in result.values() if isinstance(v, dict) and v.get("error")]
-        result["error"] = sub_errors[0] if sub_errors else None
-    except Exception as e:
-        result["error"] = str(e)
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {pool.submit(_fetch, k, t): k for k, t in calls.items()}
+        for fut in as_completed(futures, timeout=8):
+            key, data = fut.result()
+            result[key] = data
+
+    sub_errors = [v.get("error") for v in result.values() if isinstance(v, dict) and v.get("error")]
+    if sub_errors:
+        raise RuntimeError(sub_errors[0])
     return result
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def load_activities(limit: int = 2000) -> Tuple[List[Dict], str]:
-    """Returns (activities, error_message). error_message is '' on success."""
+@st.cache_data(show_spinner=False)
+def load_activities(days: int = 30, _v: int = 0) -> Tuple[List[Dict], str]:
+    """Returns (activities, error_message). Fetches only the given number of days.
+
+    days=0 means no date filter (all time), capped at 500 activities.
+    _v is a version counter: increment it (via session_state['_refresh_v']) to
+    force a fresh API call regardless of TTL — e.g. after importing a new activity.
+    """
     import json
-    raw = json.loads(call_tool("strava__get_activities", {"limit": limit}))
-    if raw.get("error"):
+    from datetime import date, timedelta
+
+    if days > 0:
+        limit = min(days * 3, 400)   # rough upper bound; 3 activities/day × days
+        start_date = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
+        args: Dict = {"limit": limit, "start_date": start_date}
+    else:
+        args = {"limit": 500}        # all-time: cap at 500 to stay within rate limits
+
+    raw = json.loads(call_tool("strava__get_activities", args))
+    if isinstance(raw, dict) and raw.get("error"):
         return [], raw["error"]
+    if isinstance(raw, list):
+        return raw, ""
     return raw.get("activities", []), ""
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(show_spinner=False)
+def load_activity_streams(activity_id: int) -> Dict:
+    """Fetch GPS stream for a single activity — used when the list endpoint omits the polyline."""
+    import json
+    return json.loads(call_tool("strava__get_activity_streams", {"activity_id": activity_id}))
+
+
+@st.cache_data(show_spinner=False)
 def load_athlete_and_stats() -> Tuple[Dict, Dict]:
     import json
     data = json.loads(call_tool("strava__get_athlete_profile", {}))
@@ -129,12 +179,35 @@ def pace_str(avg_speed_kmh: float) -> str:
 def decode_route(activity: Dict) -> List[List[float]]:
     # Tool returns map_polyline; fall back to nested map dict for raw API data
     encoded = activity.get("map_polyline") or (activity.get("map") or {}).get("summary_polyline", "")
-    if not encoded:
-        return []
+    if encoded:
+        try:
+            return [[lat, lon] for lat, lon in pl.decode(encoded)]
+        except Exception:
+            pass
+    # Fall back to pre-fetched stream points injected by the dashboard
+    return activity.get("_stream_pts") or []
+
+
+def enrich_activity_from_streams(activity: Dict) -> Dict:
+    """Return a copy of activity with GPS points from the streams endpoint.
+
+    Called when the Strava list endpoint omits the polyline for older activities.
+    The result is cached so only one API call is made per activity per TTL window.
+    """
+    act_id = activity.get("id")
+    if not act_id:
+        return activity
     try:
-        return [[lat, lon] for lat, lon in pl.decode(encoded)]
+        data = load_activity_streams(act_id)
+        pts = data.get("points", [])
+        if pts:
+            enriched = dict(activity)
+            enriched["_stream_pts"] = [[p["lat"], p["lon"]] for p in pts
+                                       if p.get("lat") and p.get("lon")]
+            return enriched
     except Exception:
-        return []
+        pass
+    return activity
 
 def build_map(
     activities: List[Dict],
@@ -227,9 +300,18 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
         st.warning("**Strava not connected.** Open the ⚙️ Settings tab to connect your Strava account.")
         return
 
+    if not wait_for_servers("strava", "weather"):
+        return
+
+    # Read the previously-selected period (or default "30 days") BEFORE the
+    # spinner so we only fetch what the user actually wants to see.
+    _v = st.session_state.get("_refresh_v", 0)
+    _cur_period  = st.session_state.get("dash_period", "30 days")
+    _load_days   = _DASH_PERIODS.get(_cur_period, 30)
+
     with st.spinner("Loading Strava data…"):
         try:
-            activities, act_error = load_activities()
+            activities, act_error = load_activities(days=_load_days, _v=_v)
             athlete, stats = load_athlete_and_stats()
         except Exception as e:
             st.error(f"Could not load Strava data: {e}")
@@ -256,6 +338,21 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
             if (a.get("sport_type") or a.get("type")) == sport_filter
         ]
 
+    # ── Search filter ─────────────────────────────────────────────────────────
+    search_q = st.text_input(
+        "🔍 Search activities",
+        placeholder="Name or sport type…",
+        key="dash_search",
+        label_visibility="collapsed",
+    )
+    if search_q.strip():
+        q = search_q.strip().lower()
+        activities = [
+            a for a in activities
+            if q in (a.get("name") or "").lower()
+            or q in (a.get("sport_type") or a.get("type") or "").lower()
+        ]
+
     df = to_df(activities)
 
     # ── Athlete header ────────────────────────────────────────────────────────
@@ -278,10 +375,8 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
         st.caption("  ·  ".join(info_parts))
 
     # ── Weather widget ────────────────────────────────────────────────────────
-    wd = load_weather()
-    if wd.get("error"):
-        st.caption(f"⚠️ Weather unavailable: {wd['error']} — make sure the weather MCP server is running.")
-    if not wd.get("error"):
+    try:
+        wd = load_weather()
         w  = wd.get("weather", {})
         uv = wd.get("uv", {})
         p  = wd.get("pollen", {}).get("pollen", {})
@@ -322,6 +417,14 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
             f"{pol_icon} {pol_level.title()}",
             top_pollen[0].replace("_pollen", "").title() if top_pollen[0] else "—",
         )
+    except Exception:
+        _wc1, _wc2 = st.columns([10, 1])
+        with _wc1:
+            st.caption("⚠️ Weather unavailable — make sure the weather MCP server is running.")
+        with _wc2:
+            if st.button("↻", key="retry_weather", help="Wetterdaten neu laden"):
+                load_weather.clear()
+                st.rerun()
 
     st.divider()
 
@@ -347,6 +450,27 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
 
     st.divider()
 
+    # ── Cache / freshness indicator ───────────────────────────────────────────
+    # Read the disk-cache file's mtime — the single source of truth.
+    # A new mtime means the MCP server just wrote fresh data from the Strava API.
+    # Unchanged mtime means this render served data from the on-disk cache.
+    from pathlib import Path as _Path
+    _cache_file = _Path(".cache/strava_activities.json")
+    try:
+        _cur_mtime = _cache_file.stat().st_mtime if _cache_file.exists() else None
+    except Exception:
+        _cur_mtime = None
+
+    _prev_mtime = st.session_state.get("_cache_mtime")
+    if _cur_mtime != _prev_mtime:
+        st.session_state["_cache_mtime"] = _cur_mtime
+        st.caption("⚡ Freshly loaded from the API")
+    else:
+        if _cur_mtime:
+            _dt = datetime.fromtimestamp(_cur_mtime).strftime('%H:%M:%S')
+            st.caption(
+                f"💾 Cached data · last updated {_dt} — 🔄 Refresh to fetch new data"
+            )
     # ── Key metrics ───────────────────────────────────────────────────────────
     total_dist = df["distance_km"].sum()          if not df.empty else 0
     total_h    = df["moving_time_min"].sum() / 60 if not df.empty else 0
@@ -364,6 +488,22 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
 
     # ── Activity map ──────────────────────────────────────────────────────────
     st.markdown("### Activity Map")
+
+    # Enrich any GPS activities the list endpoint omitted polylines for.
+    # load_activity_streams is @st.cache_data so API calls only happen once per TTL.
+    _missing = [
+        a for a in activities
+        if a.get("id") and not decode_route(a)
+        and (a.get("sport_type") or a.get("type")) in _GPS_SPORTS
+    ]
+    if _missing:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=8) as _ex:
+            _enriched_list = list(_ex.map(enrich_activity_from_streams, _missing))
+        _enriched_map = {e["id"]: e for e in _enriched_list if e.get("_stream_pts")}
+        if _enriched_map:
+            activities = [_enriched_map.get(a.get("id"), a) for a in activities]
+
     routed = [a for a in activities if decode_route(a)]
 
     col_ctrl, col_map = st.columns([1, 3])
@@ -382,6 +522,12 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
 
         if selected_id:
             sel = next((a for a in activities if a.get("id") == selected_id), None)
+            # If the list endpoint omitted the polyline, enrich from streams
+            if sel and not decode_route(sel) and sel.get("type", "") in _GPS_SPORTS:
+                with st.spinner("Loading GPS track…"):
+                    sel = enrich_activity_from_streams(sel)
+                # Write the enriched activity back so build_map sees the GPS points
+                activities = [sel if a.get("id") == selected_id else a for a in activities]
             if sel:
                 st.markdown("---")
                 sport = sel.get("type", "")
@@ -404,11 +550,45 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
                 if hr:
                     st.metric("Avg HR", f"{hr:.0f} bpm")
 
-                if decode_route(sel):
+                if decode_route(sel):  # only show when GPS data actually loaded
                     st.markdown("")
                     if st.button("🎥 3D Flythrough", key="flythrough_btn", type="primary", width='stretch'):
                         st.session_state["flythrough_id"]   = selected_id
                         st.session_state["flythrough_name"] = sel.get("name", "")
+
+                # ── Delete ────────────────────────────────────────────────────
+                st.markdown("")
+                _del_key = f"_del_confirm_{selected_id}"
+                if not st.session_state.get(_del_key):
+                    if st.button("🗑️ Delete activity", key=f"del_btn_{selected_id}", width='stretch'):
+                        st.session_state[_del_key] = True
+                        st.rerun()
+                else:
+                    st.warning(f"Really delete **{sel.get('name','')}**? This cannot be undone.")
+                    c_yes, c_no = st.columns(2)
+                    if c_yes.button("✓ Yes, delete", key=f"del_yes_{selected_id}", type="primary", width='stretch'):
+                        import json as _j
+                        result = _j.loads(call_tool("strava__delete_activity", {"activity_id": selected_id}))
+                        st.session_state.pop(_del_key, None)
+                        if result.get("success"):
+                            from pathlib import Path
+                            Path(".cache/strava_activities.json").unlink(missing_ok=True)
+                            st.session_state["_refresh_v"] = st.session_state.get("_refresh_v", 0) + 1
+                            st.cache_data.clear()
+                            st.success("Activity deleted.")
+                            st.rerun()
+                        else:
+                            err = result.get("error", "Unknown error")
+                            if "unknown tool" in err.lower():
+                                st.warning(
+                                    f"**Tool not found** — the Strava MCP server is running an older version.  \n"
+                                    "Go to ⚙️ **Settings → Developer → Restart MCP Servers** and try again."
+                                )
+                            else:
+                                st.error(err)
+                    if c_no.button("✗ Cancel", key=f"del_no_{selected_id}", width='stretch'):
+                        st.session_state.pop(_del_key, None)
+                        st.rerun()
 
         else:
             st.markdown("---")
@@ -422,7 +602,7 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
             st.info("No GPS route data available.")
 
     # ── Activity stream analysis ──────────────────────────────────────────────
-    if selected_id and sel and decode_route(sel):
+    if selected_id and sel:
         st.divider()
         from ui.activity_analysis import show_analysis
         show_analysis(selected_id, sel.get("name", ""))
@@ -497,13 +677,59 @@ def render_dashboard(sport_filter: Optional[str] = None) -> None:
             st.plotly_chart(chart_style(fig), width='stretch')
 
         with c2:
-            st.markdown('<p class="chart-label">Sport Breakdown</p>', unsafe_allow_html=True)
-            tdf = df_typed.groupby("type").agg(count=("id", "count")).reset_index()
-            fig = px.pie(tdf, values="count", names="type",
-                         color_discrete_sequence=CHART_COLORS, hole=0.5)
-            fig.update_traces(textposition="inside", textinfo="percent+label",
-                              textfont_size=11)
-            st.plotly_chart(chart_style(fig), width='stretch')
+            n_sport_types = df_typed["type"].nunique()
+            if n_sport_types > 1:
+                st.markdown('<p class="chart-label">Sport Breakdown</p>', unsafe_allow_html=True)
+                tdf = df_typed.groupby("type").agg(count=("id", "count")).reset_index()
+                fig = px.pie(tdf, values="count", names="type",
+                             color_discrete_sequence=CHART_COLORS, hole=0.5)
+                fig.update_traces(textposition="inside", textinfo="percent+label",
+                                  textfont_size=11)
+                st.plotly_chart(chart_style(fig), width='stretch')
+            else:
+                # Single sport — show the most diagnostic per-activity metric
+                sport = df_typed["type"].iloc[0] if not df_typed.empty else ""
+                recent = df_typed.sort_values("day").tail(50).copy()
+                recent["elevation_gain_m"] = recent["elevation_m"]
+                recent["pace_min_per_km"] = recent["avg_speed_kmh"].apply(
+                    lambda s: round(60 / s, 2) if s and s > 0 else None
+                )
+                running_like = sport in ("Run", "TrailRun", "VirtualRun", "Hike", "Walk")
+                cycling_like = sport in ("Ride", "MountainBikeRide", "GravelRide",
+                                         "EBikeRide", "VirtualRide")
+                has_pace  = running_like and recent["pace_min_per_km"].notna().any()
+                has_speed = cycling_like and recent["avg_speed_kmh"].gt(0).any()
+                has_elev  = recent["elevation_gain_m"].gt(0).any()
+
+                if has_pace:
+                    st.markdown('<p class="chart-label">Pace per Activity</p>', unsafe_allow_html=True)
+                    fig = px.scatter(recent, x="date", y="pace_min_per_km",
+                                     size="distance_km",
+                                     labels={"date": "", "pace_min_per_km": "min/km"},
+                                     color_discrete_sequence=[STRAVA_ORANGE],
+                                     trendline="ols")
+                    fig.update_traces(marker_line_width=0)
+                elif has_speed:
+                    st.markdown('<p class="chart-label">Speed per Activity</p>', unsafe_allow_html=True)
+                    fig = px.scatter(recent, x="date", y="avg_speed_kmh",
+                                     size="distance_km",
+                                     labels={"date": "", "avg_speed_kmh": "km/h"},
+                                     color_discrete_sequence=[STRAVA_ORANGE],
+                                     trendline="ols")
+                    fig.update_traces(marker_line_width=0)
+                elif has_elev:
+                    st.markdown('<p class="chart-label">Elevation per Activity</p>', unsafe_allow_html=True)
+                    fig = px.bar(recent, x="date", y="elevation_gain_m",
+                                 labels={"date": "", "elevation_gain_m": "m"},
+                                 color_discrete_sequence=[CHART_COLORS[2]])
+                    fig.update_traces(marker_line_width=0)
+                else:
+                    st.markdown('<p class="chart-label">Distance per Activity</p>', unsafe_allow_html=True)
+                    fig = px.bar(recent, x="date", y="distance_km",
+                                 labels={"date": "", "distance_km": "km"},
+                                 color_discrete_sequence=[STRAVA_ORANGE])
+                    fig.update_traces(marker_line_width=0)
+                st.plotly_chart(chart_style(fig), width='stretch')
 
         c3, c4 = st.columns(2)
         with c3:
