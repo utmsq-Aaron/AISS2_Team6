@@ -30,22 +30,37 @@ inject_css()
 def _ensure_mcp_servers() -> list:
     """Kill any stale MCP servers, then launch fresh ones. Cleans up on exit."""
     import atexit
+    import signal
     import subprocess
     import sys
     import time
     import urllib.parse
-    import psutil
     from core.config import MCP_SERVERS
 
     _optional = {"telegram"}  # requires manual setup; skip silently
 
     def _kill_port(port: int) -> None:
-        for conn in psutil.net_connections(kind="inet"):
-            if conn.laddr.port == port and conn.pid:
-                try:
-                    psutil.Process(conn.pid).terminate()
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
+        """Terminate whatever process is listening on `port`.
+
+        Uses `lsof` rather than psutil.net_connections(): on macOS the latter
+        inspects every process and raises AccessDenied for any we don't own,
+        aborting the whole scan. `lsof -ti` only reports PIDs we can see and
+        needs no elevated privileges for our own listeners.
+        """
+        try:
+            out = subprocess.run(
+                ["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout
+        except (FileNotFoundError, OSError):
+            return  # lsof unavailable; nothing we can do safely
+        for pid_str in out.split():
+            try:
+                os.kill(int(pid_str), signal.SIGTERM)
+            except (ValueError, ProcessLookupError, PermissionError):
+                pass
 
     # Kill any existing MCP servers so we always start fresh
     for name, url in MCP_SERVERS.items():
