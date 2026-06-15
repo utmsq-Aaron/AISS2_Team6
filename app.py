@@ -39,9 +39,22 @@ def _ensure_mcp_servers() -> list:
 
     _optional = {"telegram"}  # requires manual setup; skip silently
 
+    def _port_open(port: int) -> bool:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.2)
+            return s.connect_ex(("127.0.0.1", port)) == 0
+
     def _kill_port(port: int) -> None:
-        for conn in psutil.net_connections(kind="inet"):
-            if conn.laddr.port == port and conn.pid:
+        try:
+            connections = psutil.net_connections(kind="inet")
+        except psutil.AccessDenied:
+            # macOS may deny global socket enumeration for unrelated processes.
+            # Treat this as "cannot clean up"; the start phase will reuse an
+            # already-open port instead of crashing or spawning a duplicate.
+            return
+
+        for conn in connections:
+            if conn.laddr and conn.laddr.port == port and conn.pid:
                 try:
                     psutil.Process(conn.pid).terminate()
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -61,6 +74,9 @@ def _ensure_mcp_servers() -> list:
     procs: list[subprocess.Popen] = []
     for name, url in MCP_SERVERS.items():
         if name in _optional:
+            continue
+        port = urllib.parse.urlparse(url).port
+        if port and _port_open(port):
             continue
         proc = subprocess.Popen(
             [sys.executable, "-m", f"servers.{name}_mcp"],
