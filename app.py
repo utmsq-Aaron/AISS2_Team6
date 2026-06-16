@@ -30,6 +30,7 @@ inject_css()
 def _ensure_mcp_servers() -> list:
     """Kill any stale MCP servers, then launch fresh ones. Cleans up on exit."""
     import atexit
+    import signal
     import subprocess
     import sys
     import time
