@@ -162,27 +162,27 @@ function sleepHover(row: TrendRow): string {
   const awakePct = (awakeH / total) * 100;
 
   const durLabel = (h: number): [string, string] => {
-    if (h >= SLEEP_TOTAL_GREAT_H) return ["Great", "#22C55E"];
+    if (h >= SLEEP_TOTAL_GREAT_H) return ["Great", "#10b981"];
     if (h >= SLEEP_TOTAL_GOOD_H) return ["Good", "#60A5FA"];
-    if (h >= 6) return ["A bit short", "#FCD34D"];
+    if (h >= 6) return ["A bit short", "#f59e0b"];
     return ["Too short", "#FB7185"];
   };
   const deepLabel = (pct: number): [string, string] => {
-    if (pct >= 20) return ["Excellent", "#22C55E"];
+    if (pct >= 20) return ["Excellent", "#10b981"];
     if (pct >= SLEEP_DEEP_GOOD_PCT) return ["Good", "#60A5FA"];
-    if (pct >= 7) return ["Low", "#FCD34D"];
+    if (pct >= 7) return ["Low", "#f59e0b"];
     return ["Very low", "#FB7185"];
   };
   const remLabel = (pct: number): [string, string] => {
-    if (pct >= 22) return ["Excellent", "#22C55E"];
+    if (pct >= 22) return ["Excellent", "#10b981"];
     if (pct >= SLEEP_REM_GOOD_PCT) return ["Good", "#60A5FA"];
-    if (pct >= 9) return ["Low", "#FCD34D"];
+    if (pct >= 9) return ["Low", "#f59e0b"];
     return ["Very low", "#FB7185"];
   };
   const awakeLabel = (h: number): [string, string] => {
-    if (h <= 0.25) return ["Minimal", "#22C55E"];
+    if (h <= 0.25) return ["Minimal", "#10b981"];
     if (h <= 0.5) return ["Normal", "#60A5FA"];
-    if (h <= 1.0) return ["Elevated", "#FCD34D"];
+    if (h <= 1.0) return ["Elevated", "#f59e0b"];
     return ["Disruptive", "#FB7185"];
   };
   const tag = (label: string, color: string) =>

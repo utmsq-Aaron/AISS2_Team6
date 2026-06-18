@@ -12,7 +12,7 @@ module lets them *open* it:
     import GPX — that's why the link above exists).
 
 Input is the orchestrator's ``trace["route_data"]`` shape ``{"tool", "data"}`` —
-see ``core.orchestrator._route_data``. Both functions return ``None`` when there
+see ``core.agent_trace.route_data``. Both functions return ``None`` when there
 is nothing applicable, so callers can simply skip them.
 """
 

@@ -7,7 +7,7 @@ package (OSM tiles + Pillow) so the Telegram bridge can ship a route as a photo.
 
 Input is the orchestrator's ``trace["route_data"]`` shape:
 ``{"tool": <bare route tool>, "data": <tool result dict>}`` — see
-``core.orchestrator._route_data``. Returns PNG bytes, or ``None`` when there is
+``core.agent_trace.route_data``. Returns PNG bytes, or ``None`` when there is
 nothing renderable (so callers can simply skip sending an image).
 """
 

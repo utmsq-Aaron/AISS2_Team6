@@ -30,6 +30,22 @@ for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrou
 done
 sleep 2
 
+# 1b. A2A agent layer — LangGraph specialists + orchestrator (each its own server).
+#     Specialists first, orchestrator (:9000) last. The orchestrator resolves the
+#     specialists lazily per request, so startup order isn't load-bearing.
+for a in recovery:9001 load:9002 context:9003 route:9004 orchestrator:9000; do
+  name="${a%%:*}"; port="${a##*:}"
+  if [ "$name" = "orchestrator" ]; then mod="core.orchestrator_agent"; else mod="agents.${name}_agent"; fi
+  if port_busy "$port"; then
+    echo "✓ agent $name already on :$port"
+  else
+    echo "→ starting agent $name on :$port  ($mod)"
+    "$PY" -m "$mod" >"/tmp/agent_${name}.log" 2>&1 &
+    pids+=($!)
+  fi
+done
+sleep 2
+
 # 2. FastAPI seam
 if port_busy 8000; then echo "✓ FastAPI already on :8000"; else
   echo "→ starting FastAPI on :8000"

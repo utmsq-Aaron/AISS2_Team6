@@ -201,7 +201,7 @@ export function Chat() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col">
+    <div className="flex h-[calc(100vh-6rem)] flex-col">
       <PageHeader
         title="Ask anything about your fitness data"
         subtitle="The assistant fetches live data from Strava and Garmin before answering — no guessing, only real numbers."

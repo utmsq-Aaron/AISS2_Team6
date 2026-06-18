@@ -23,7 +23,7 @@ export function chartLayout(title = "", extra: Partial<Layout> = {}): Partial<La
       bgcolor: "rgba(0,0,0,0)",
       font: { color: TEXT_MUTED, size: 11 },
     },
-    hoverlabel: { bgcolor: "#1C1C32", font: { color: TEXT_PRIMARY }, bordercolor: BORDER },
+    hoverlabel: { bgcolor: "#16212B", font: { color: TEXT_PRIMARY }, bordercolor: BORDER },
     colorway: CHART_COLORS,
     xaxis: {
       showgrid: false,

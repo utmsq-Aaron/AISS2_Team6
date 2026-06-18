@@ -523,49 +523,94 @@ function GarminCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
   );
 }
 
-// ── OpenAI (api_key + model + base URL) ──────────────────────────────────────────
+// ── LLM provider + model (OpenAI/KIT ↔ Gemini) ───────────────────────────────────
 function OpenAiCard({ data, refetch }: { data: SettingsResponse; refetch: () => void }) {
-  const connected = data.integrations.openai;
-  const curModel = data.env.AGENT_MODEL?.value || "kit.gpt-5.1";
-  const curBase = data.env.OPENAI_BASE_URL?.value || "https://ai-gateway.dsi-experimente.de";
+  const curProvider =
+    ["gemini", "google"].includes((data.env.LLM_PROVIDER?.value || "openai").toLowerCase())
+      ? "gemini"
+      : "openai";
+  const curOpenAiModel =
+    data.env.AGENT_LLM_MODEL?.value || data.env.AGENT_MODEL?.value || "kit.gpt-4.1";
+  const curGeminiModel = data.env.GEMINI_MODEL?.value || "gemini-2.0-flash";
+  const curBase = data.env.OPENAI_BASE_URL?.value || "https://ai-gateway.dsi-experimente.de/v1";
 
-  // Always show the current model even if not in the list.
-  const models = data.models.includes(curModel) ? data.models : [curModel, ...data.models];
+  // Always include the current model even if not in the predefined list.
+  const openaiModels = data.models.includes(curOpenAiModel) ? data.models : [curOpenAiModel, ...data.models];
+  const geminiList = data.gemini_models ?? [];
+  const geminiModels = geminiList.includes(curGeminiModel) ? geminiList : [curGeminiModel, ...geminiList];
 
-  const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState(curModel);
+  const [prov, setProv] = useState<"openai" | "gemini">(curProvider);
+  const [openaiModel, setOpenaiModel] = useState(curOpenAiModel);
+  const [geminiModel, setGeminiModel] = useState(curGeminiModel);
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
   const [base, setBase] = useState(curBase);
   const [msg, setMsg] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: () => {
-      const values: Record<string, string> = { AGENT_MODEL: model };
-      if (apiKey.trim()) values.OPENAI_API_KEY = apiKey.trim();
-      if (base.trim()) values.OPENAI_BASE_URL = base.trim();
+      const values: Record<string, string> = { LLM_PROVIDER: prov };
+      if (prov === "gemini") {
+        values.GEMINI_MODEL = geminiModel;
+        if (geminiKey.trim()) values.GEMINI_API_KEY = geminiKey.trim();
+      } else {
+        // Set both so the agent layer (prefers AGENT_LLM_MODEL) and the chart
+        // service (uses AGENT_MODEL) both pick up the chosen model.
+        values.AGENT_MODEL = openaiModel;
+        values.AGENT_LLM_MODEL = openaiModel;
+        if (openaiKey.trim()) values.OPENAI_API_KEY = openaiKey.trim();
+        if (base.trim()) values.OPENAI_BASE_URL = base.trim();
+      }
       return putEnv(values);
     },
-    onSuccess: () => { setMsg("✅ Saved!"); setApiKey(""); refetch(); },
+    onSuccess: () => {
+      setMsg("✅ Saved! Applies on your next message (no restart needed).");
+      setOpenaiKey(""); setGeminiKey(""); refetch();
+    },
   });
 
   return (
     <>
-      <input
-        className="fd-input w-full"
-        type="password"
-        placeholder={data.env.OPENAI_API_KEY?.set ? data.env.OPENAI_API_KEY.value : "sk-..."}
-        value={apiKey}
-        onChange={(e) => setApiKey(e.target.value)}
-      />
-      <label className="text-xs text-text-muted">AGENT_MODEL</label>
-      <select className="fd-input w-full" value={model} onChange={(e) => setModel(e.target.value)}>
-        {models.map((m) => (
-          <option key={m} value={m}>{m}</option>
-        ))}
+      <label className="text-xs text-text-muted">Provider</label>
+      <select className="fd-input w-full" value={prov} onChange={(e) => setProv(e.target.value as "openai" | "gemini")}>
+        <option value="openai">OpenAI-compatible (KIT gateway)</option>
+        <option value="gemini">Google Gemini</option>
       </select>
-      <label className="text-xs text-text-muted">OPENAI_BASE_URL</label>
-      <input className="fd-input w-full" value={base} onChange={(e) => setBase(e.target.value)} />
+
+      {prov === "gemini" ? (
+        <>
+          <input
+            className="fd-input w-full"
+            type="password"
+            placeholder={data.env.GEMINI_API_KEY?.set ? data.env.GEMINI_API_KEY.value : "AIza..."}
+            value={geminiKey}
+            onChange={(e) => setGeminiKey(e.target.value)}
+          />
+          <label className="text-xs text-text-muted">GEMINI_MODEL (free flash)</label>
+          <select className="fd-input w-full" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)}>
+            {geminiModels.map((m) => (<option key={m} value={m}>{m}</option>))}
+          </select>
+        </>
+      ) : (
+        <>
+          <input
+            className="fd-input w-full"
+            type="password"
+            placeholder={data.env.OPENAI_API_KEY?.set ? data.env.OPENAI_API_KEY.value : "sk-..."}
+            value={openaiKey}
+            onChange={(e) => setOpenaiKey(e.target.value)}
+          />
+          <label className="text-xs text-text-muted">Model</label>
+          <select className="fd-input w-full" value={openaiModel} onChange={(e) => setOpenaiModel(e.target.value)}>
+            {openaiModels.map((m) => (<option key={m} value={m}>{m}</option>))}
+          </select>
+          <label className="text-xs text-text-muted">OPENAI_BASE_URL</label>
+          <input className="fd-input w-full" value={base} onChange={(e) => setBase(e.target.value)} />
+        </>
+      )}
+
       <button className="fd-btn-primary w-full" onClick={() => { setMsg(null); save.mutate(); }} disabled={save.isPending}>
-        {connected ? "🔄 Update API key" : "🔑 Enter API key"}
+        💾 Save provider &amp; model
       </button>
       {msg && <Toast message={msg} />}
     </>
@@ -687,7 +732,7 @@ function BridgeControl({ data, refetch }: { data: SettingsResponse; refetch: () 
               width: 12,
               height: 12,
               borderRadius: "50%",
-              background: running ? "#22c55e" : "#ef4444",
+              background: running ? "#10b981" : "#ef4444",
               display: "inline-block",
             }}
           />

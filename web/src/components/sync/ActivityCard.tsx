@@ -22,7 +22,7 @@ function StravaBadge({ inStrava }: { inStrava: boolean | null }) {
     return (
       <span
         className="ml-1.5 rounded-[10px] px-2 py-px text-[0.75rem]"
-        style={{ background: "#22c55e22", color: "#22c55e", border: "1px solid #22c55e55" }}
+        style={{ background: "#10b98122", color: "#10b981", border: "1px solid #10b98155" }}
       >
         ✅ Already on Strava
       </span>

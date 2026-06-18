@@ -28,8 +28,6 @@ export function AgentTrace({ trace }: { trace: ChatTrace }) {
   const totalMs = Object.values(timing).reduce((a, b) => a + (b || 0), 0);
   const label = `🔍 Agent trace  ·  ${toolCalls.length} tool call(s)  ·  ${totalMs} ms`;
 
-  const dataSummary =
-    agents.find((a) => a.agent === "FetchingAgent")?.data_summary ?? "";
   const reasoning = plan.reasoning ?? "";
   const steps = plan.steps ?? [];
 
@@ -67,16 +65,18 @@ export function AgentTrace({ trace }: { trace: ChatTrace }) {
                   Phase {ag.phase} —{" "}
                   <span className="font-semibold text-text-primary">{ag.agent}</span>{" "}
                   — {ag.duration_ms} ms
+                  {ag.data_summary && (
+                    <div className="pl-3 text-text-muted">↳ {ag.data_summary}</div>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
-          {/* FetchingAgent plan */}
-          {dataSummary && <div className="text-text-muted">Data: {dataSummary}</div>}
+          {/* Orchestrator plan */}
           {reasoning && (
             <div className="text-text-primary">
-              <span className="font-semibold">FetchingAgent plan:</span> {reasoning}
+              <span className="font-semibold">Plan:</span> {reasoning}
             </div>
           )}
           {steps.length > 0 ? (

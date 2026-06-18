@@ -255,7 +255,8 @@ async def _transcribe_voice(event) -> Optional[str]:
 def _fetch_track_for_activity(activity_id: int) -> List[List[float]]:
     """Fetch GPS points via ToolHost and return [[lon, lat, ele, time_s], ...]."""
     import json as _json
-    raw = _get_orchestrator().host.call_tool("strava__get_activity_streams", {"activity_id": activity_id})
+    from core.host import default_host
+    raw = default_host.call_tool("strava__get_activity_streams", {"activity_id": activity_id})
     data = _json.loads(raw)
     points = data.get("points", [])
     if not points:
@@ -685,10 +686,14 @@ async def _run_bridge() -> None:
     # if the MCP servers aren't running.
     try:
         loop = asyncio.get_running_loop()
-        n_tools = await loop.run_in_executor(None, lambda: len(_get_orchestrator()._discover()))
-        log.info("Agent ready — %d tools discovered.", n_tools)
+        reachable = await loop.run_in_executor(None, _get_orchestrator().refresh_tools)
+        if reachable:
+            log.info("Agent layer reachable — orchestrator (:9000) is up.")
+        else:
+            log.warning("Orchestrator agent (:9000) not reachable — start it with "
+                        "`python -m core.orchestrator_agent` (and the specialists). Continuing anyway.")
     except Exception:
-        log.exception("tool discovery failed — are the MCP servers running? continuing anyway")
+        log.exception("agent-layer reachability check failed — continuing anyway")
 
     # Always handle self-messages (Saved Messages / self-chat).
     # The skip-id guard in _handle_message prevents the bridge's own replies from

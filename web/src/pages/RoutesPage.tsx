@@ -522,7 +522,7 @@ function RouteResultView({ tool, data }: { tool: ToolName; data: RouteResult }) 
     return [
       {
         coords: waypoints.map((wp) => [wp.lat, wp.lon] as [number, number]),
-        color: "#FF6400",
+        color: "#f97316",
         weight: 5,
         opacity: 0.9,
       },

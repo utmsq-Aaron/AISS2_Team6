@@ -54,6 +54,20 @@ run_mcps() {
   done
   sleep 2
 
+  echo "=== A2A agents (LangGraph specialists + orchestrator) ==="
+  for a in recovery:9001 load:9002 context:9003 route:9004 orchestrator:9000; do
+    name="${a%%:*}"; port="${a##*:}"
+    if [ "$name" = "orchestrator" ]; then mod="core.orchestrator_agent"; else mod="agents.${name}_agent"; fi
+    if port_busy "$port"; then
+      echo "✓ agent $name already on :$port (reusing)"
+    else
+      echo "→ starting agent $name on :$port"
+      python -m "$mod" >"/tmp/agent_${name}.log" 2>&1 &
+      pids+=($!)
+    fi
+  done
+  sleep 2
+
   echo "=== FastAPI seam ==="
   if port_busy 8000; then
     echo "✓ FastAPI already on :8000 (reusing)"

@@ -17,7 +17,9 @@ router = APIRouter()
 
 # Keys editable from the Settings tab and whether to mask them in responses.
 _EDITABLE_KEYS = {
-    "OPENAI_API_KEY": True, "OPENAI_BASE_URL": False, "AGENT_MODEL": False,
+    "LLM_PROVIDER": False,
+    "OPENAI_API_KEY": True, "OPENAI_BASE_URL": False, "AGENT_MODEL": False, "AGENT_LLM_MODEL": False,
+    "GEMINI_API_KEY": True, "GEMINI_MODEL": False,
     "CLIENT_ID": False, "CLIENT_SECRET": True,
     "GARMIN_EMAIL": False, "GARMIN_PASSWORD": True, "GARMIN_MOCK_HEALTH": False,
     "ORS_API_KEY": True, "GOOGLE_CLIENT_ID": False, "GOOGLE_CLIENT_SECRET": True,
@@ -50,6 +52,7 @@ def get_settings():
         },
         "env": env,
         "models": svc.KIT_MODELS,
+        "gemini_models": svc.GEMINI_MODELS,
         "bridge_running": svc.bridge_running(),
     }
 

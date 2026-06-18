@@ -23,28 +23,47 @@ python -m servers.garmin_mcp &    # :8104
 python -m servers.calendar_mcp &  # :8105
 python -m servers.telegram_mcp &  # :8106  (optional — proxy server, see below)
 
+# Terminal 1b — the A2A agent layer (LangGraph specialists + orchestrator).
+# The chat engine runs HERE now, not in an in-process loop. Specialists first.
+python -m agents.recovery_agent &      # :9001  (→ garmin MCP)
+python -m agents.load_agent &          # :9002  (→ strava + garmin)
+python -m agents.context_agent &       # :9003  (→ weather + calendar)
+python -m agents.route_agent &         # :9004  (→ routes)
+python -m core.orchestrator_agent &    # :9000  (coordinates the four via A2A)
+
 # Terminal 2 — the UI
 streamlit run app.py              # http://localhost:8501
 ```
 
-Or via Docker: `docker compose up --build` (one container per server; the single `Dockerfile` is reused, the `SERVER` env var selects which `servers.*_mcp` module runs). The Streamlit app still runs on the host, reaching the containers over published localhost ports.
+In practice use the launchers, which start MCP servers + the five agents + FastAPI (+ UI) for you: **`./dev_stack.sh`** (React/Vite stack on :5173) or **`./start.sh`** (opens Terminal windows; React UI + Telegram bridge). The chat will not work until the orchestrator (:9000) and at least one specialist are up.
+
+Or via Docker: `docker compose up --build` (one container per MCP server **and** per agent; the single `Dockerfile` is reused — MCP services select their module via the `SERVER` env var, agent services override `command:`). The Streamlit/React app still runs on the host, reaching the containers over published localhost ports.
 
 Garmin needs a one-time MFA login before the Health tab / Garmin tools work: `python auth/garmin_setup.py` (after setting `GARMIN_EMAIL`/`GARMIN_PASSWORD`). Strava OAuth runs automatically on first use. Calendar has no setup script — it reads `.tokens/google.json` (single-user dev) or a per-request `Authorization` header (multi-tenant), refreshing via optional `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`. All tokens persist in `.tokens/` (gitignored). Telegram (optional) is an *external* server bridged by a proxy (see Servers): the `chigwell/telegram-mcp` upstream is **vendored** in `external/telegram-mcp` (committed to this repo, minus its own `.git`/`.venv`). Set `TELEGRAM_API_ID`/`TELEGRAM_API_HASH`, and generate `TELEGRAM_SESSION_STRING` once — either in the **Settings tab → Telegram** card (enter API id/hash, then phone-login; `ui/settings.py` `_setup_telegram`, uses Telethon directly) or via `uv run --directory external/telegram-mcp session_string_generator.py` (interactive — headless login is disabled). It needs `uv` on PATH. The sidebar status dot reflects *config presence* (`ui/shared.py` `telegram_connected`), not a live ping.
 
-Config comes from `.env` (copy `.env.example`). Required: `OPENAI_API_KEY`, `OPENAI_BASE_URL` (KIT gateway), `AGENT_MODEL` (e.g. `kit.gpt-4.1`). Optional integrations: `GARMIN_*`, `ORS_API_KEY`, `CLIENT_ID`/`CLIENT_SECRET` (Strava). All are also editable at runtime in the Settings tab. An optional `APP_PIN` (in `.streamlit/secrets.toml` or env) gates the whole app.
+Config comes from `.env` (copy `.env.example`). Required: `OPENAI_API_KEY`, `OPENAI_BASE_URL` (KIT gateway), `AGENT_MODEL` (e.g. `kit.gpt-4.1`). **Model provider:** `LLM_PROVIDER` switches the whole app between `openai` (any OpenAI-compatible endpoint, default) and `gemini` (Google Gemini — set `GEMINI_API_KEY` + `GEMINI_MODEL`, a free flash model like `gemini-2.0-flash`); the multi-call agent layer also honours `AGENT_LLM_MODEL`. Optional integrations: `GARMIN_*`, `ORS_API_KEY`, `CLIENT_ID`/`CLIENT_SECRET` (Strava). All are also editable at runtime in the Settings tab. An optional `APP_PIN` (in `.streamlit/secrets.toml` or env) gates the whole app.
 
 ## Architecture — the load-bearing idea
 
 The entire design is **MCP-standard, tool-agnostic**: one uniform client talks to many independent servers, tools are *discovered, never hardcoded*, and auth is separated from tool declarations. Internalize this before touching `core/` — most "where do I add X" questions answer themselves once you do.
 
-The flow is **UI → `core/host.ToolHost` → MCP servers**. The UI *never* calls Strava/Garmin/etc. APIs directly; everything goes through `call_tool("server__tool", args)`.
+The data path is **agent → `core/host.ToolHost` → MCP servers**: nothing calls Strava/Garmin/etc. APIs directly; everything goes through `call_tool("server__tool", args)`. The chat path layers on top: **UI → `FitDashOrchestrator` → (A2A) orchestrator agent → (A2A) specialist agents → `ToolHost` → MCP** — see *Agent layer* below.
 
 - **`core/config.py`** — the registry: a flat `name → MCP URL` dict (`MCP_SERVERS`). Each URL is env-overridable (`WEATHER_MCP_URL=…`). Tool names are namespaced `server__tool`; the separator is `SEP = "__"` (dots aren't legal in OpenAI function names).
 - **`core/host.py` — `ToolHost`** — the *single* MCP client for the whole app (UI, orchestrator, any future API). `list_tools()` discovers every tool from every *reachable* server in OpenAI-tool format; an unreachable/unauthorized server is silently **skipped, never fatal**. `call_tool()` splits `server__tool`, routes it, and returns text/JSON — tool errors come back as `{"error": …}` strings, not exceptions. Real impl is async; a sync facade (`_run`, fresh event loop per call) bridges it for the synchronous Streamlit/thread code.
-- **`core/llm.py`** — the vendor-neutral LLM seam. The only place a chat client is constructed and the model resolved (both from env). Deliberately imports **no Streamlit** so `core/` runs standalone. Swapping provider/model is a config change, not code.
-- **`core/orchestrator.py` — `FitDashOrchestrator`** — the tool-use loop that drives the Chat tab. Discovers tools once (cached), then loops up to `MAX_ROUNDS` (6) letting the model call tools via `tool_choice="auto"`; results are fed back until the model returns a plain answer. Large arrays (`points`, `waypoints`, `timeline`, …) are compacted by `_clip` before going back to the model so context doesn't blow up — the **full** data is rendered separately by the UI via `trace["route_data"]`. `run()` returns `(answer, trace)`; the `trace` shape is consumed by the Streamlit debug panel and route-map renderer, so preserve its keys. Runs are appended to `.logs/agent_interactions.jsonl`.
+- **`core/llm.py`** — the vendor-neutral LLM seam. The only place a chat client is constructed and the model resolved (both from env). Deliberately imports **no Streamlit** so `core/` runs standalone. Swapping provider/model is a config change, not code: `LLM_PROVIDER` (`openai`|`gemini`) selects between the OpenAI-compatible gateway (`ChatOpenAI`) and native Gemini (`ChatGoogleGenerativeAI`) for `get_chat_model()`; the raw OpenAI-SDK path (`get_llm_client()`, used by the chart service) follows the same switch, reaching Gemini via its OpenAI-compatible endpoint.
+- **`core/orchestrator.py` — `FitDashOrchestrator`** — **no longer a tool-use loop**; it is now a thin **A2A client adapter** to the orchestrator agent (:9000). It preserves the exact public contract every caller depends on — `run(user_input, history, progress_cb, text_cb) -> (answer, trace)` and `refresh_tools()` — so the Streamlit Chat tab, the FastAPI SSE endpoint (`api/`) and `telegram_bridge.py` are unchanged. It flattens history into one A2A message, relays A2A status updates → `progress_cb`, and returns the `trace` the orchestrator assembled. Runs are logged to `.logs/agent_interactions.jsonl`.
 
 `core/` is Streamlit-free and vendor-neutral by design — keep it that way. UI concerns belong in `ui/`.
+
+## Agent layer — LangGraph specialists over A2A (`core/orchestrator_agent.py`, `agents/`)
+
+The chat engine is a multi-agent system. Each agent is its own **A2A server** (official `a2a-sdk`, the pydantic 0.3.x API — chosen for tutorial parity) with an Agent Card at `/.well-known/agent-card.json`:
+
+- **Orchestrator** — `core/orchestrator_agent.py` (:9000). A LangGraph agent (`langchain.agents.create_agent`) whose only tools are `ask_<specialist>` — each performs an A2A call to a specialist. It decomposes the request, delegates (in parallel when the model emits multiple tool calls), collects each specialist's DataPart artifact, and assembles the `trace` via `core/agent_trace.build_trace`. It has **no MCP access** of its own.
+- **Specialists** — `agents/{recovery,load,context,route}_agent.py` (:9001–:9004). Each is a LangGraph ReAct agent over a **ToolHost scoped to its MCP servers** (`core/mcp_langchain.scoped_host` + `build_tools`; scope map in `core/config.AGENT_MCP_SCOPE`): recovery→garmin, load→strava+garmin, context→weather+calendar, route→routes. Tools are still *discovered, never hardcoded* — just narrowed per agent. Each returns its raw MCP calls (FULL results, JSON strings) as a DataPart artifact so the orchestrator can build route maps / charts / the debug trace.
+- **Glue** — `core/a2a_client.py` (A2A client used by both the orchestrator's ask-tools and the run() adapter); `core/mcp_langchain.py` (ToolHost→LangChain tool wrapper that records the full result and clips the model's copy); `core/agent_trace.py` (the trace helpers + `build_trace` — the exact UI/chart/route contract, so preserve its keys); `agents/prompts.py` (the old `_SYSTEM` split into per-domain prompts + the orchestrator routing prompt).
+- Agents run **non-streaming** (`ainvoke`) for robustness against the KIT gateway; progress is surfaced as A2A status messages, not token streaming. `core/llm.get_chat_model()` builds the LangChain `ChatOpenAI` on the same gateway; **`AGENT_LLM_MODEL`** overrides the model for the agent layer (recommend `kit.gpt-4.1` — `glm-4.7` is flaky for the multi-call loops). Registry: `core/config.A2A_AGENTS` (name→URL, env-overridable like `RECOVERY_A2A_URL=…`); `ORCHESTRATOR_SPECIALISTS` selects which specialists are enabled (unreachable ones degrade gracefully).
 
 ## Servers (`servers/*_mcp.py`)
 

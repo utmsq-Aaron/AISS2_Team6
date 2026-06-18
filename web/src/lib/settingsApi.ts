@@ -36,6 +36,7 @@ export interface SettingsResponse {
   integrations: Integrations;
   env: Record<string, EnvVar>;
   models: string[];
+  gemini_models: string[];
   bridge_running: boolean;
 }
 

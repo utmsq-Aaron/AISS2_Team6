@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getServerHealth } from "../lib/api";
 
-const GREEN = "#22c55e";
+const GREEN = "#10b981";
 const RED = "#ef4444";
 
 function Dot({ ok }: { ok: boolean }) {

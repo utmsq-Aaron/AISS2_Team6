@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 @tailwind base;
@@ -16,19 +17,28 @@ body,
 
 body {
   margin: 0;
-  background: #0f0f1e;
-  color: #eeeeff;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #0b1219; /* deep navy canvas */
+  color: #f8fafc;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Thin dark scrollbars to match the dashboard chrome */
+/* Semibold headings, lightly tightened tracking (modern SaaS) */
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Thin dark scrollbars matching the slate chrome */
 *::-webkit-scrollbar {
   width: 9px;
   height: 9px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #2a2a45;
+  background: #1e293b;
   border-radius: 6px;
 }
 *::-webkit-scrollbar-track {
@@ -36,28 +46,44 @@ body {
 }
 
 @layer components {
-  /* Content/metric card — mirrors styles.py [data-testid="metric-container"] */
+  /* Card — dark slate, subtle border + very slight elevation/glow */
   .fd-card {
-    @apply rounded-card border border-border bg-bg-card transition-colors;
+    @apply rounded-card border border-border bg-bg-card shadow-card transition-all;
   }
   .fd-card-hover:hover {
-    border-color: rgba(252, 76, 2, 0.45);
-    box-shadow: 0 0 0 1px rgba(252, 76, 2, 0.18);
+    border-color: rgba(45, 212, 191, 0.45); /* teal */
+    box-shadow:
+      0 0 0 1px rgba(45, 212, 191, 0.25),
+      0 4px 20px rgba(45, 212, 191, 0.08);
   }
-  /* Uppercase muted section label — mirrors .chart-label */
+  /* Uppercase muted section label */
   .fd-label {
     @apply text-[11px] font-semibold uppercase tracking-wide text-text-muted;
     letter-spacing: 0.8px;
   }
+  /* Primary CTA — teal with dark text for high contrast (8px radius) */
   .fd-btn-primary {
-    @apply rounded-lg bg-accent px-4 py-2 font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50;
+    @apply rounded-lg bg-accent px-4 py-2 font-semibold text-[#0B1219] transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50;
   }
+  /* Secondary — outlined slate, teal hover */
   .fd-btn-secondary {
     @apply rounded-lg border border-border bg-bg-surface px-4 py-2 font-medium text-text-primary transition-colors hover:border-accent/50;
   }
-  .fd-input {
-    @apply rounded-lg border border-border bg-bg-surface px-3 py-2 text-text-primary outline-none focus:border-accent/60;
+  /* Ghost — for secondary navigation / toolbar actions */
+  .fd-btn-ghost {
+    @apply rounded-lg px-3 py-2 font-medium text-text-muted transition-colors hover:bg-bg-surface hover:text-text-primary;
   }
+  .fd-input {
+    @apply rounded-lg border border-border bg-bg-surface px-3 py-2 text-text-primary outline-none transition-colors placeholder:text-text-muted/70 focus:border-accent/60 focus:ring-1 focus:ring-accent/40;
+  }
+  /* Sidebar nav item */
+  .fd-nav {
+    @apply flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-text-muted transition-colors hover:bg-bg-surface hover:text-text-primary;
+  }
+  .fd-nav-active {
+    @apply bg-accent/10 font-semibold text-accent;
+  }
+  /* Legacy top-tab classes (kept for any residual use) */
   .fd-tab {
     @apply border-b-2 border-transparent px-3 py-2 text-[13px] font-medium text-text-muted transition-colors hover:text-text-primary;
   }

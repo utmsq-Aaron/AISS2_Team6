@@ -102,7 +102,7 @@ interface Comparison {
   error?: string;
 }
 
-const STRAVA_ORANGE = "#FC4C02";
+const STRAVA_ORANGE = "#2dd4bf";
 
 // ── helper for cross-cutting tool-error messaging (mirrors _show_tool_error) ────
 function toolErrorMessage(error: string, tool: string): string {
@@ -255,7 +255,7 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
                         y: df.map((w) => w.avg_tsb),
                         name: "TSB",
                         marker: {
-                          color: df.map((w) => (w.avg_tsb >= 0 ? "#22c55e" : "#f97316")),
+                          color: df.map((w) => (w.avg_tsb >= 0 ? "#10b981" : "#f97316")),
                         },
                         opacity: 0.5,
                       } as Data,
@@ -572,7 +572,7 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
                       x: elevIdx.map((i) => dates[i]),
                       y: elevIdx.map((i) => series[i].elevation_per_km as number),
                       name: "m/km",
-                      marker: { color: "#22c55e" },
+                      marker: { color: "#10b981" },
                       text: elevIdx.map((i) => names[i]),
                       hovertemplate: "%{text}<br>%{y:.1f} m/km<extra></extra>",
                     } as Data,
@@ -621,7 +621,7 @@ const ASSESSMENT_COLORS: Record<string, string> = {
   "one of your hardest": "#ef4444",
   "harder than usual": "#f97316",
   typical: "#94a3b8",
-  "easier than usual": "#22c55e",
+  "easier than usual": "#10b981",
   "one of your easiest": "#16a34a",
 };
 const ASSESSMENT_LABELS: Record<string, string> = {

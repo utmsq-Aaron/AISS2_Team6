@@ -1,8 +1,9 @@
-"""Chat tab — AI sports analyst backed by the tool-agnostic core engine.
+"""Chat tab — AI sports analyst backed by the LangGraph + A2A agent layer.
 
-Runs on ``core.orchestrator.FitDashOrchestrator``: a native tool-use loop over
-the MCP servers (``core.host.ToolHost``); the model discovers and calls tools
-itself — no tool names are hard-coded here. See ``docs/mcp-architecture.md``.
+Runs on ``core.orchestrator.FitDashOrchestrator``, now a thin A2A client to the
+orchestrator agent (:9000), which coordinates the recovery/load/context/route
+specialists over A2A (each scoped to its own MCP servers via ``core.host.ToolHost``);
+tools are still discovered, never hard-coded. See ``docs/mcp-architecture.md``.
 
 Layout: messages fill a container that sits above st.chat_input, so the
 input is always at the bottom (ChatGPT / Claude style).
@@ -222,24 +223,21 @@ def _render_trace(trace: Dict) -> None:
         if error:
             st.error(f"Orchestrator error: {error}")
 
-        # ── Agent pipeline overview ───────────────────────────────────────────
+        # ── Agent pipeline overview (per specialist) ──────────────────────────
         if agents:
             st.markdown("**Agent pipeline:**")
             for ag in agents:
                 st.caption(
                     f"Phase {ag['phase']} — **{ag['agent']}** — {ag['duration_ms']} ms"
                 )
+                if ag.get("data_summary"):
+                    st.caption(f"↳ {ag['data_summary']}")
 
-        # ── FetchingAgent plan ────────────────────────────────────────────────
-        data_summary = next(
-            (ag.get("data_summary") for ag in agents if ag.get("agent") == "FetchingAgent"), ""
-        )
+        # ── Orchestrator plan / reasoning ─────────────────────────────────────
         reasoning = plan.get("reasoning", "")
         steps     = plan.get("steps") or []
-        if data_summary:
-            st.caption(f"Data: {data_summary}")
         if reasoning:
-            st.markdown(f"**FetchingAgent plan:** {reasoning}")
+            st.markdown(f"**Plan:** {reasoning}")
         if steps:
             st.markdown(f"**{len(steps)} planned MCP call(s):**")
             for s in steps:
@@ -345,23 +343,21 @@ def render_chat() -> None:
 
     orchestrator = _get_orchestrator()
 
-    # ── Tool availability banner ──────────────────────────────────────────────
-    # Show a warning if no tools are discoverable (all servers down).
-    # Show a refresh button so users don't have to reload the whole page.
-    tool_count = len(orchestrator._tools or [])
-    if tool_count == 0:
+    # ── Agent-layer availability banner ───────────────────────────────────────
+    # The adapter exposes *reachability* of the orchestrator agent (:9000), not a
+    # per-server tool count — so this is a connected / not-connected signal.
+    reachable = len(orchestrator._tools or []) > 0
+    if not reachable:
         col_warn, col_btn = st.columns([4, 1])
         col_warn.warning(
-            "⚠ No MCP servers reachable — start them first "
-            "(`python -m servers.strava_mcp`, etc.), then click Refresh."
+            "⚠ Agent layer not reachable — start it first "
+            "(`./dev_stack.sh`, or `python -m core.orchestrator_agent` plus the specialists), "
+            "then click Refresh."
         )
-        if col_btn.button("↻ Refresh tools", key="chat_refresh_tools"):
-            new_count = orchestrator.refresh_tools()
-            if new_count > 0:
-                st.success(f"Connected — {new_count} tools available.")
+        if col_btn.button("↻ Refresh", key="chat_refresh_tools"):
+            if orchestrator.refresh_tools() > 0:
+                st.success("Connected to the agent layer.")
             st.rerun()
-    elif tool_count < 10:
-        st.caption(f"⚡ {tool_count} tools available (some servers may be offline)")
 
     # ── Message area (container sits ABOVE the chat_input in page flow) ───────
     messages = st.container()

@@ -230,9 +230,9 @@ export function Sync() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div
                 className="rounded-lg px-3 py-2 text-[0.85rem]"
-                style={{ background: "#22c55e15", border: "1px solid #22c55e44" }}
+                style={{ background: "#10b98115", border: "1px solid #10b98144" }}
               >
-                ✅ <strong style={{ color: "#22c55e" }}>{nInStrava}</strong> already on Strava
+                ✅ <strong style={{ color: "#10b981" }}>{nInStrava}</strong> already on Strava
               </div>
               <div
                 className="rounded-lg px-3 py-2 text-[0.85rem]"
@@ -305,7 +305,7 @@ export function Sync() {
             ) : view === "missing" ? (
               <div
                 className="rounded-lg px-4 py-3 text-sm"
-                style={{ background: "#22c55e15", border: "1px solid #22c55e44", color: "#22c55e" }}
+                style={{ background: "#10b98115", border: "1px solid #10b98144", color: "#10b981" }}
               >
                 All activities in this range are already on Strava! 🎉
               </div>
@@ -492,7 +492,7 @@ function ExportPanel({
         <>
           <div
             className="rounded-lg px-4 py-3 text-sm"
-            style={{ background: "#22c55e15", border: "1px solid #22c55e44", color: "#22c55e" }}
+            style={{ background: "#10b98115", border: "1px solid #10b98144", color: "#10b981" }}
           >
             Done — {summaryParts.join(", ")}.
           </div>

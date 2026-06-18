@@ -27,7 +27,7 @@ from dotenv import load_dotenv, set_key
 ENV_FILE = Path(".env")
 TOKENS = Path(".tokens")
 
-# KIT gateway model choices surfaced in the OpenAI card.
+# KIT gateway model choices surfaced in the OpenAI/LLM card (provider=openai).
 KIT_MODELS = [
     "kit.gpt-5.1", "kit.gpt-5", "kit.gpt-5-mini", "kit.gpt-5-nano",
     "kit.gpt-4.1", "kit.gpt-4.1-mini", "kit.gpt-4.1-nano",
@@ -35,6 +35,12 @@ KIT_MODELS = [
     "qwen3.5-35b-a3b", "qwen3.5-27b", "qwen3-30b-a3b-instruct-2507",
     "kit.minimax-m2.7-229b", "minimax-m2.5-229b", "openai-gpt-oss-120b",
     "teuken-7b-instruct-research", "glm-4.7",
+]
+
+# Google Gemini free-tier flash models surfaced when provider=gemini.
+GEMINI_MODELS = [
+    "gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest",
+    "gemini-2.0-flash-lite", "gemini-2.5-flash-lite", "gemini-flash-lite-latest",
 ]
 
 

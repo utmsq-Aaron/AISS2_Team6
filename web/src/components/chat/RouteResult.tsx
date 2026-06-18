@@ -11,7 +11,7 @@ import type { MarkerSpec, PolyLineSpec } from "../RouteMap";
 // the orchestrator surfaces via trace.route_data: plan_route, plan_circular_route,
 // explore_trails (with selection + pagination), and get_isochrone.
 
-const TRAIL_COLORS = ["#FF6400", "#1E96FF", "#00C864", "#C832C8", "#FFC800"];
+const TRAIL_COLORS = ["#f97316", "#1E96FF", "#00C864", "#C832C8", "#FFC800"];
 
 interface Waypoint {
   lat: number;
@@ -79,7 +79,7 @@ function SingleRoute({ data }: { data: Record<string, unknown> }) {
 
   const coords: [number, number][] = waypoints.map((wp) => [wp.lat, wp.lon]);
   const polylines: PolyLineSpec[] = [
-    { coords, color: "#FF6400", weight: 5, opacity: 0.9 },
+    { coords, color: "#f97316", weight: 5, opacity: 0.9 },
   ];
   const markers: MarkerSpec[] = [
     { lat: coords[0][0], lon: coords[0][1], color: C_GREEN, label: "Start" },
@@ -220,7 +220,7 @@ function TrailSelection({ initial }: { initial: TrailsData }) {
   if (sb) {
     const clat = ((sb.min_lat ?? 0) + (sb.max_lat ?? 0)) / 2;
     const clon = ((sb.min_lon ?? 0) + (sb.max_lon ?? 0)) / 2;
-    markers.push({ lat: clat, lon: clon, color: "#FF6400", label: selTrail.name });
+    markers.push({ lat: clat, lon: clon, color: "#f97316", label: selTrail.name });
   }
 
   const from = pageStart + 1;

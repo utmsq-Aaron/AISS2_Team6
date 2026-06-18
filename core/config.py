@@ -30,3 +30,41 @@ MCP_SERVERS: dict[str, str] = {
     "telegram":   _url("telegram",   8106),
     "flythrough": _url("flythrough", 8107),
 }
+
+
+# ── A2A agent layer ───────────────────────────────────────────────────────────
+# Each agent is its own A2A server (LangGraph inside). The orchestrator (:9000)
+# is an A2A client to the four specialists (:9001–:9004). Same declarative shape
+# as MCP_SERVERS: name → base URL, env-overridable (e.g. RECOVERY_A2A_URL=…).
+
+def _a2a_url(name: str, default_port: int) -> str:
+    return os.getenv(f"{name.upper()}_A2A_URL", f"http://127.0.0.1:{default_port}/")
+
+
+AGENT_PORTS: dict[str, int] = {
+    "orchestrator": 9000,
+    "recovery":     9001,
+    "load":         9002,
+    "context":      9003,
+    "route":        9004,
+}
+
+A2A_AGENTS: dict[str, str] = {name: _a2a_url(name, port) for name, port in AGENT_PORTS.items()}
+
+# Which MCP servers each specialist may reach. The agent discovers tools from
+# only these servers (scoped ToolHost) — "tools discovered, never hardcoded",
+# just narrowed per agent. The orchestrator has no MCP scope; it talks to agents.
+AGENT_MCP_SCOPE: dict[str, list[str]] = {
+    "recovery": ["garmin"],
+    "load":     ["strava", "garmin"],
+    "context":  ["weather", "calendar"],
+    "route":    ["routes"],
+}
+
+# Which specialists the orchestrator may delegate to (one A2A ask_* tool each).
+# Override with ORCHESTRATOR_SPECIALISTS=recovery,load (e.g. to run a subset).
+# Unreachable specialists degrade gracefully — the orchestrator reports them as
+# unavailable rather than failing the whole turn.
+ORCHESTRATOR_SPECIALISTS: list[str] = [
+    s.strip() for s in os.getenv("ORCHESTRATOR_SPECIALISTS", "recovery,load,context,route").split(",") if s.strip()
+]

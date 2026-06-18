@@ -1,9 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { Dumbbell, RefreshCw } from "lucide-react";
+import { NavLink } from "react-router-dom";
 
+import { NAV } from "../nav";
 import { SPORT_TYPES, useUiStore } from "../store/uiStore";
 import { StatusDots } from "./StatusDots";
 
-// Mirrors the Streamlit sidebar: title, live status dots, sport filter, refresh.
+// Sidebar — focused on global navigation + real-time service status (design IA),
+// with the sport filter and data refresh as secondary controls below.
 export function Sidebar() {
   const qc = useQueryClient();
   const { sportFilter, setSportFilter, bumpRefresh } = useUiStore();
@@ -14,21 +18,50 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex w-64 flex-shrink-0 flex-col gap-4 border-r border-border bg-bg-sidebar px-4 py-5">
+    <aside className="flex w-64 flex-shrink-0 flex-col gap-5 overflow-y-auto border-r border-border bg-bg-sidebar px-3 py-5">
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 px-2">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent">
+          <Dumbbell size={20} strokeWidth={2} />
+        </span>
+        <div>
+          <h1 className="text-[15px] font-semibold leading-tight text-text-primary">
+            Training Copilot
+          </h1>
+          <p className="text-[11px] text-text-muted">AI sports analytics</p>
+        </div>
+      </div>
+
+      {/* Primary navigation */}
+      <nav className="flex flex-col gap-1">
+        {NAV.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) => `fd-nav ${isActive ? "fd-nav-active" : ""}`}
+          >
+            <Icon size={18} strokeWidth={2} />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <hr className="border-border" />
+
+      {/* Real-time service status */}
       <div>
-        <h1 className="text-lg font-bold text-text-primary">🏋️ Training Copilot</h1>
-        <p className="text-xs text-text-muted">AI-powered sports analytics</p>
+        <h3 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+          Service status
+        </h3>
+        <StatusDots />
       </div>
 
       <hr className="border-border" />
 
-      <StatusDots />
-
-      <hr className="border-border" />
-
-      <div>
+      {/* Secondary controls */}
+      <div className="px-1">
         <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-          Filter
+          Sport filter
         </h3>
         <select
           value={sportFilter}
@@ -41,13 +74,13 @@ export function Sidebar() {
             </option>
           ))}
         </select>
+        <button onClick={refresh} className="fd-btn-secondary mt-3 flex w-full items-center justify-center gap-2 text-sm">
+          <RefreshCw size={15} strokeWidth={2} />
+          Refresh data
+        </button>
       </div>
 
-      <button onClick={refresh} className="fd-btn-secondary w-full text-sm">
-        🔄 Refresh data
-      </button>
-
-      <div className="mt-auto text-xs text-text-muted">Training Copilot · AISS2 Team 6</div>
+      <div className="mt-auto px-1 text-[11px] text-text-muted">Training Copilot · AISS2 Team 6</div>
     </aside>
   );
 }

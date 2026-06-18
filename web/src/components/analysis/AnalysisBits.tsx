@@ -42,7 +42,7 @@ export function CollapsibleSection({
 // ── Trend pill (mirrors _trend_pill) ────────────────────────────────────────────
 
 const TREND_MAP: Record<string, { color: string; label: string }> = {
-  improving: { color: "#22c55e", label: "📈 Improving" },
+  improving: { color: "#10b981", label: "📈 Improving" },
   declining: { color: "#ef4444", label: "📉 Declining" },
   stable: { color: "#94a3b8", label: "➡️ Stable" },
   "insufficient data": { color: "#64748b", label: "❓ Insufficient data" },
@@ -83,7 +83,7 @@ export function PctBar({
   let barCol: string;
   if (clamp >= 75) barCol = "#ef4444";
   else if (clamp >= 50) barCol = "#f97316";
-  else if (clamp <= 25) barCol = "#22c55e";
+  else if (clamp <= 25) barCol = "#10b981";
   else barCol = "#94a3b8";
 
   return (

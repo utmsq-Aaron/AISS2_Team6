@@ -62,6 +62,77 @@ services:
     ports: ["8104:8104"]
     restart: unless-stopped
 
+  # ── A2A agent layer (LangGraph specialists + orchestrator) ──────────────────
+  # Each agent reuses the same image but overrides the command (it runs an agent
+  # module, not servers.*_mcp). Inside the compose network agents reach each other
+  # and the MCP servers by service name; the host app reaches the orchestrator via
+  # the published :9000. Each agent needs the LLM env (OPENAI_* / AGENT_MODEL /
+  # AGENT_LLM_MODEL) supplied through .env.
+  recovery-agent:
+    build: .
+    env_file: .env
+    command: ["python", "-m", "agents.recovery_agent"]
+    environment:
+      A2A_BIND_HOST: 0.0.0.0
+      RECOVERY_A2A_URL: http://recovery-agent:9001/
+      GARMIN_MCP_URL: http://garmin-mcp:8104/mcp
+    ports: ["9001:9001"]
+    depends_on: [garmin-mcp]
+    restart: unless-stopped
+
+  load-agent:
+    build: .
+    env_file: .env
+    command: ["python", "-m", "agents.load_agent"]
+    environment:
+      A2A_BIND_HOST: 0.0.0.0
+      LOAD_A2A_URL: http://load-agent:9002/
+      STRAVA_MCP_URL: http://strava-mcp:8103/mcp
+      GARMIN_MCP_URL: http://garmin-mcp:8104/mcp
+    ports: ["9002:9002"]
+    depends_on: [strava-mcp, garmin-mcp]
+    restart: unless-stopped
+
+  context-agent:
+    build: .
+    env_file: .env
+    command: ["python", "-m", "agents.context_agent"]
+    environment:
+      A2A_BIND_HOST: 0.0.0.0
+      CONTEXT_A2A_URL: http://context-agent:9003/
+      WEATHER_MCP_URL: http://weather-mcp:8101/mcp
+      CALENDAR_MCP_URL: http://calendar-mcp:8105/mcp
+    ports: ["9003:9003"]
+    depends_on: [weather-mcp, calendar-mcp]
+    restart: unless-stopped
+
+  route-agent:
+    build: .
+    env_file: .env
+    command: ["python", "-m", "agents.route_agent"]
+    environment:
+      A2A_BIND_HOST: 0.0.0.0
+      ROUTE_A2A_URL: http://route-agent:9004/
+      ROUTES_MCP_URL: http://routes-mcp:8102/mcp
+    ports: ["9004:9004"]
+    depends_on: [routes-mcp]
+    restart: unless-stopped
+
+  orchestrator-agent:
+    build: .
+    env_file: .env            # OPENAI_* / AGENT_MODEL / AGENT_LLM_MODEL
+    command: ["python", "-m", "core.orchestrator_agent"]
+    environment:
+      A2A_BIND_HOST: 0.0.0.0
+      ORCHESTRATOR_A2A_URL: http://orchestrator-agent:9000/
+      RECOVERY_A2A_URL: http://recovery-agent:9001/
+      LOAD_A2A_URL: http://load-agent:9002/
+      CONTEXT_A2A_URL: http://context-agent:9003/
+      ROUTE_A2A_URL: http://route-agent:9004/
+    ports: ["9000:9000"]
+    depends_on: [recovery-agent, load-agent, context-agent, route-agent]
+    restart: unless-stopped
+
   # telegram-mcp is NOT a native FastMCP server: servers/telegram_mcp.py is a proxy
   # that shells out to `uv run` against the external github.com/chigwell/telegram-mcp
   # checkout. That needs `uv` + the cloned repo, which the shared python:3.11-slim

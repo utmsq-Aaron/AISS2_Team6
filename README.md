@@ -9,7 +9,7 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
 - **Dashboard** — activity map, summary metrics, training charts, live weather widget (temperature, wind, UV, pollen).
 - **Activity Analysis** — stream-based charts (HR, pace, elevation, cadence, power) with colourised route overlays selectable by metric.
 - **Health** — Garmin wellness trends: Body Battery, sleep stages, stress, HR, steps, training metrics, HRV.
-- **Chat** — AI sports analyst backed by a tool-agnostic tool-use loop: the model discovers and calls tools itself (Strava, Garmin, Weather, Routes) and answers from live data only.
+- **Chat** — AI sports analyst backed by a LangGraph + A2A multi-agent system: an orchestrator delegates to recovery / training-load / context / route specialists (each scoped to its own MCP tools) and synthesises a data-driven answer from live data only.
 - **Routes** — route planning powered by OpenRouteService: circular routes, A→B routes, trail search, isochrone maps.
 - **Sync** — export Garmin activities to Strava as FIT files with preview and selection controls.
 - **Settings** — configure all API connections (LLM key, Strava OAuth, Garmin, ORS) directly in the app.
@@ -38,7 +38,7 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
 
 All data flows through the MCP servers — the UI never calls Strava or Garmin APIs directly. Each server handles auth, retries, and data formatting; the UI receives clean, ready-to-display JSON.
 
-The **Chat** tab uses a tool-agnostic tool-use loop (`core/orchestrator.py`): the LLM discovers every available tool via `ToolHost.list_tools()` (the 31 built-in tools, plus the Telegram set when that optional server is running) and decides itself which to call — no tool names are hardcoded anywhere.
+The **Chat** tab is powered by a **LangGraph + A2A multi-agent** system. An **Orchestrator Agent** (`core/orchestrator_agent.py`, A2A server :9000) decomposes each request and delegates over the **Agent-to-Agent (A2A) protocol** to four specialist agents — **Recovery** :9001, **Training-Load** :9002, **Context** :9003, **Route** :9004 — each a LangGraph ReAct agent scoped to just its MCP servers (recovery→Garmin, load→Strava+Garmin, context→Weather+Calendar, route→Routes). Tools are still discovered via `ToolHost`, never hardcoded — only narrowed per agent. `core/orchestrator.py` is now a thin A2A client adapter, so the Chat tab, the FastAPI layer and the Telegram bridge keep the same interface.
 
 ## Project Layout
 
@@ -61,7 +61,11 @@ fitdash/
 │   ├── config.py                # Declarative registry: server name → MCP URL
 │   ├── host.py                  # ToolHost — the single MCP client (list_tools / call_tool)
 │   ├── llm.py                   # Vendor-neutral LLM seam (provider/model from config)
-│   └── orchestrator.py          # Tool-agnostic tool-use loop (drives the Chat tab)
+│   ├── orchestrator.py          # Thin A2A client adapter → orchestrator agent (:9000)
+│   ├── orchestrator_agent.py    # Orchestrator A2A server (:9000) — LangGraph coordinator
+│   ├── a2a_client.py            # A2A client helper (status + artifacts)
+│   ├── mcp_langchain.py         # ToolHost → LangChain tools, scoped per agent
+│   └── agent_trace.py           # Trace assembly (route_data, charts, agents)
 │
 ├── servers/
 │   ├── weather_mcp.py           # FastMCP server — weather via Open-Meteo (port 8101)
@@ -181,7 +185,7 @@ Start with `python -m servers.example_mcp`. `ToolHost` discovers the new tools a
 ### Prerequisites
 
 - Python 3.11 or later
-- A KIT Gateway API key (from the Übungsleitung / DSI portal) — or any OpenAI-compatible key
+- An LLM provider — either a KIT Gateway / OpenAI-compatible key (default), **or** a Google [Gemini](https://aistudio.google.com/apikey) key: set `LLM_PROVIDER=gemini` + `GEMINI_API_KEY` + `GEMINI_MODEL` (a free flash model, e.g. `gemini-2.0-flash`)
 - *(Optional)* A Garmin Connect account for the Health tab and activity data in Chat
 - *(Optional)* An [OpenRouteService](https://openrouteservice.org/dev/#/signup) key for route planning (free, no credit card)
 - *(Optional)* A Strava API application — note: Strava requires a paid subscription since May 2025
@@ -290,24 +294,33 @@ python telegram_bridge.py --login   # prints a TELEGRAM_BRIDGE_SESSION_STRING fo
 
 ## Running
 
-Start the MCP servers, then the Streamlit app:
+The easiest path is a launcher that starts the MCP servers, the five A2A agents and the API/UI for you: **`./dev_stack.sh`** (React/Vite stack) or **`./start.sh`** (Terminal windows). Manually:
 
 ```bash
-# Terminal 1 — start all MCP servers (each in its own process)
+# Terminal 1 — MCP servers (each in its own process)
 source .venv/bin/activate
 python -m servers.weather_mcp &
 python -m servers.routes_mcp &
 python -m servers.strava_mcp &
 python -m servers.garmin_mcp &
 python -m servers.calendar_mcp &
-python -m servers.telegram_mcp &  
+python -m servers.telegram_mcp &
 
-# Terminal 2 — start the UI
+# Terminal 1b — A2A agent layer (the Chat engine). Specialists first, orchestrator last.
+python -m agents.recovery_agent &      # :9001
+python -m agents.load_agent &          # :9002
+python -m agents.context_agent &       # :9003
+python -m agents.route_agent &         # :9004
+python -m core.orchestrator_agent &    # :9000
+
+# Terminal 2 — the UI
 streamlit run app.py
 
 # Terminal 3 (optional) — talk to the agent FROM Telegram (userbot bridge)
 python telegram_bridge.py
 ```
+
+> The agent layer needs `OPENAI_*` / `AGENT_MODEL` set; for the multi-call agent loops a stable model is recommended — set `AGENT_LLM_MODEL=kit.gpt-4.1` (the agent layer uses it in preference to `AGENT_MODEL`).
 
 Or with Docker Compose:
 ```bash

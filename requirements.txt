@@ -24,3 +24,14 @@ aiohttp>=3.9.0
 psutil>=5.9.0              # cross-platform port/process management for MCP server lifecycle
 kaleido>=0.2.1             # static Plotly PNG export (fig.to_image) for Telegram chart delivery
 psutil
+
+# ── Agent layer: LangGraph specialists + A2A coordination ─────────────────────
+# Orchestrator + 4 specialists are LangGraph ReAct agents, each its own A2A server.
+# a2a-sdk is pinned to the 0.3.x (pydantic) line to match the official Python
+# tutorial / A2A examples; create_agent comes from langchain 1.x.
+a2a-sdk>=0.3.26,<0.4
+langgraph>=1.2,<2
+langchain>=1,<2
+langchain-core>=1.4,<2
+langchain-openai>=1.3,<2     # ChatOpenAI against the OpenAI-compatible KIT gateway
+langchain-google-genai>=2,<4 # optional: LLM_PROVIDER=gemini (Google Gemini)

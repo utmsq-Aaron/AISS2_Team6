@@ -25,6 +25,19 @@ Die Architektur folgt bewusst dem Modell, das Anthropic für MCP-Hosts beschreib
 
 ---
 
+## 1a. Agentenschicht — LangGraph + A2A
+
+Der Chat-Motor ist heute ein **Multi-Agenten-System** auf Basis von **LangGraph** und dem **A2A-Protokoll** (offizielles `a2a-sdk`, pydantic-/Tutorial-API). Die MCP-Schicht und die Prinzipien aus §1 bleiben unverändert — die Agenten sind nur eine neue Ebene **oberhalb** von `ToolHost`.
+
+- **Orchestrator-Agent** (`core/orchestrator_agent.py`, A2A-Server `:9000`): LangGraph-Agent (`langchain.agents.create_agent`), dessen einzige Tools `ask_<spezialist>` sind — jeder Aufruf ist eine A2A-Anfrage an einen Spezialisten. Er zerlegt die Anfrage, delegiert (parallel, wenn das Modell mehrere Tool-Calls ausgibt), sammelt die DataPart-Artefakte der Spezialisten und baut die `trace` via `core/agent_trace.build_trace`. **Kein** eigener MCP-Zugriff.
+- **Spezialisten** (`agents/{recovery,load,context,route}_agent.py`, `:9001`–`:9004`): je ein LangGraph-ReAct-Agent über einen **auf seine MCP-Server beschränkten ToolHost** (`core/mcp_langchain.scoped_host`; Scope-Map in `core/config.AGENT_MCP_SCOPE`): recovery→garmin, load→strava+garmin, context→weather+calendar, route→routes. Tools werden weiterhin **entdeckt, nie hartkodiert** — nur pro Agent verengt. Jeder liefert seine rohen MCP-Ergebnisse (vollständig, als JSON-String) als DataPart-Artefakt zurück, damit der Orchestrator Karten/Charts/Trace bauen kann.
+- **`core/orchestrator.py`** ist jetzt ein dünner **A2A-Client-Adapter** zum Orchestrator-Agenten und erhält den öffentlichen Vertrag `run()/refresh_tools()` — UI, FastAPI-SSE und Telegram-Bridge bleiben unverändert.
+- **Registry & Betrieb**: `core/config.A2A_AGENTS` (name → URL, env-überschreibbar wie `RECOVERY_A2A_URL=…`); jeder Agent ist ein eigener Prozess/Port/Container mit Agent Card unter `/.well-known/agent-card.json`. Modell-Override für die Agentenschicht: `AGENT_LLM_MODEL` (empfohlen `kit.gpt-4.1`; `glm-4.7` ist für die Mehrfach-Calls unzuverlässig). Agenten laufen **non-streaming** (`ainvoke`); Fortschritt kommt als A2A-Status-Update, nicht als Token-Stream.
+
+Datenpfad weiterhin: **Agent → `ToolHost` → MCP-Server**. Chat-Pfad: **UI → `FitDashOrchestrator` → (A2A) Orchestrator `:9000` → (A2A) Spezialisten `:9001`–`:9004` → `ToolHost` → MCP**.
+
+---
+
 ## 2. Komponenten
 
 ```
