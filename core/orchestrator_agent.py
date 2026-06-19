@@ -27,7 +27,7 @@ from langchain_core.tools import StructuredTool
 from agents._base_executor import last_text, run_agent_server
 from agents.prompts import orchestrator_prompt
 from core.a2a_client import call_agent
-from core.agent_trace import build_trace
+from core.agent_trace import build_trace, collect_sources, ensure_sources
 from core.config import A2A_AGENTS, ORCHESTRATOR_SPECIALISTS
 from core.llm import get_chat_model
 from core.tracing import trace_span
@@ -99,6 +99,9 @@ class OrchestratorExecutor(AgentExecutor):
             user_input=user_text, run_id=uuid.uuid4().hex[:8],
             specialist_artifacts=collected, answer=answer, total_ms=dur, error=error,
         )
+        # Guarantee the user sees the real book citations whenever a RAG specialist
+        # (fitness) was consulted — the synthesis model otherwise sometimes drops them.
+        trace["answer"] = ensure_sources(trace["answer"], collect_sources(trace["tool_calls"]))
         await updater.add_artifact([Part(root=DataPart(data=trace))], name="trace")
         await updater.complete(
             message=updater.new_agent_message([Part(root=TextPart(text=trace["answer"]))]),

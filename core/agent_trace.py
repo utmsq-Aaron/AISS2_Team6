@@ -150,6 +150,59 @@ def flythrough_from_results(results: List[Dict]) -> Optional[Dict]:
     return None
 
 
+# ── Source citations (RAG) ────────────────────────────────────────────────────
+
+# A heading line like "Sources:" / "**Sources**" the synthesis model may emit.
+_SOURCES_HEADING_RE = re.compile(r'(?im)^[ \t>*_#-]*sources\b[ \t]*:?.*$')
+
+
+def collect_sources(tool_calls: List[Dict]) -> List[str]:
+    """Distinct ``source`` strings from RAG-shaped tool results.
+
+    Detects the retrieval result shape ``{"results": [{"source", "passage", …}]}``
+    by structure (``source`` + ``passage`` keys), NOT by tool name — so ``core``
+    stays tool-agnostic while still surfacing the fitness library's citations. The
+    list is de-duplicated, order-preserved.
+    """
+    seen: set = set()
+    out: List[str] = []
+    for r in tool_calls or []:
+        if r.get("error"):
+            continue
+        try:
+            d = json.loads(r.get("result") or "")
+        except (json.JSONDecodeError, TypeError):
+            continue
+        items = d.get("results") if isinstance(d, dict) else None
+        if not isinstance(items, list):
+            continue
+        for it in items:
+            if isinstance(it, dict) and "passage" in it:
+                s = it.get("source")
+                if isinstance(s, str) and s.strip() and s not in seen:
+                    seen.add(s)
+                    out.append(s.strip())
+    return out
+
+
+def ensure_sources(answer: str, sources: List[str]) -> str:
+    """Guarantee the answer ends with an authoritative ``Sources:`` list.
+
+    Any trailing ``Sources:`` block the synthesis model wrote is replaced with the
+    real, de-duplicated source list derived from the retrieved passages — so the
+    user always sees the actual books cited, even if the model dropped or garbled
+    them. A no-op when there are no sources (e.g. non-RAG answers).
+    """
+    if not sources:
+        return answer or ""
+    text = answer or ""
+    matches = list(_SOURCES_HEADING_RE.finditer(text))
+    if matches:
+        text = text[:matches[-1].start()]
+    listed = "\n".join(f"- {s}" for s in sources)
+    return f"{text.rstrip()}\n\nSources:\n{listed}"
+
+
 # ── Trace assembly ────────────────────────────────────────────────────────────
 
 def _flatten_artifacts(artifacts: Optional[List[Dict]]) -> List[Dict]:
