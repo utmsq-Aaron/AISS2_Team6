@@ -18,13 +18,17 @@ For each run it:
    **Sophie**), each pursuing a different multi-turn goal. Every persona is made
    aware of the Copilot's real capabilities (`copilot_brief.py`).
 3. Runs each conversation against the **live Copilot** (`FitDashOrchestrator`),
-   tracing every turn to the experiment and grouping turns by session.
-4. Scores each conversation with the **same scorers as the tutorial**, on
-   **gpt-5.4-nano**:
-   - `ConversationCompleteness`, `UserFrustration`, `Safety` (built-in)
-   - `supportive_coaching_tone` — a `ConversationalGuidelines` assertion
-   - `grounded_in_real_data` — a `make_judge` over the whole conversation
-     (the Copilot must never fabricate numbers)
+   tracing every turn to the experiment and grouping turns by session. The
+   Copilot's specialist + tool-call structure is **reconstructed as spans** into
+   each turn's trace (from the trace dict `run()` returns), so the tool calls are
+   visible in the e2e experiment — the deep spans the agents really emit live in
+   the separate `fitdash` experiment, out of this process's reach.
+4. Scores each conversation with the tutorial's scorer set:
+   - `ConversationCompleteness`, `UserFrustration`, `Safety` (built-in judges, **gpt-5.4-nano**)
+   - `supportive_coaching_tone` — a `ConversationalGuidelines` assertion (**gpt-5.4-nano**)
+   - `grounded_in_real_data` — a **deterministic, session-level code scorer** that
+     inspects the conversation's **tool-call spans** (not the chat text) and reports
+     whether the Copilot actually used its tools to fetch real data. No LLM.
 5. Has **gpt-5.4-mini** write a **structured HTML report** combining the hard
    MLflow facts with its own analysis → `reports/<experiment>.html`.
 
@@ -65,5 +69,5 @@ artifacts). Reports are git-ignored — they are per-run artifacts.
 | `personas.py` | the 10 persona test cases (2 types × 5) |
 | `copilot_brief.py` | capability awareness injected into every persona |
 | `agent_under_test.py` | `predict_fn` wrapping `FitDashOrchestrator.run` |
-| `scorers.py` | the scorer set (same as the tutorial), on nano |
+| `scorers.py` | 4 nano LLM judges + a deterministic tool-usage scorer |
 | `report.py` | MLflow fact collection + gpt-5.4-mini HTML report |

@@ -213,6 +213,13 @@ Copilot. The evaluation simulated persona users (two types: ambitious triathlete
 hobby road cyclists) holding multi-turn conversations with the Copilot, then scored each
 conversation with LLM judges.
 
+Note on scorers: four are LLM judges (conversation_completeness, user_frustration, safety,
+supportive_coaching_tone). The fifth, `grounded_in_real_data`, is a deterministic check of
+the conversation's tool-call traces — "yes" means the Copilot actually invoked tools to
+fetch real data, "no" means it answered without calling any tool; its rationale lists the
+tool calls per turn (including failures). Treat it as a factual tool-usage signal, not an
+opinion. The `tools_used` / `specialists_used` per session corroborate it.
+
 Rules:
 - Use ONLY the facts in the provided JSON. Never invent numbers, scores, or quotes.
 - If a value is missing, say so plainly rather than guessing.
