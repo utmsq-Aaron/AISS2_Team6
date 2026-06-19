@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from api.auth import current_user  # noqa: E402
-from api.routers import auth, chat, charts, health, settings, sync, tools  # noqa: E402
+from api.routers import auth, chat, charts, health, memory, settings, sync, tools  # noqa: E402
 from core.tracing import setup_tracing  # noqa: E402
 
 setup_tracing("api")  # MLflow autologging for the chart-service LLM calls
@@ -35,7 +35,8 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 
 _PROTECTED = [Depends(current_user)]
-for r in (health.router, tools.router, chat.router, charts.router, settings.router, sync.router):
+for r in (health.router, tools.router, chat.router, charts.router,
+          settings.router, sync.router, memory.router):
     app.include_router(r, prefix="/api", dependencies=_PROTECTED)
 
 

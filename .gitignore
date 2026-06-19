@@ -69,3 +69,7 @@ server/dist/
 # Fitness RAG built vector index — derived artifact, rebuilt from the committed
 # corpus via `python -m scripts.build_fitness_index` (the launch scripts do this).
 data/fitness_library/index/
+
+# Per-user conversation vector stores — runtime memory, grows as users chat.
+# The seed soul.md profiles ARE committed; the embedded conversation data is not.
+data/user_memory/*/conversations/

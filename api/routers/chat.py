@@ -18,10 +18,11 @@ import json
 import threading
 from typing import Any, Dict, List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from api.auth import current_user
 from api.deps import get_orchestrator, orchestrator_lock
 
 router = APIRouter()
@@ -38,7 +39,7 @@ def _sse(event: str, data: Any) -> str:
 
 
 @router.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, user: str = Depends(current_user)):
     loop = asyncio.get_running_loop()
     q: "asyncio.Queue[tuple]" = asyncio.Queue()
 
@@ -58,7 +59,7 @@ async def chat(req: ChatRequest):
         orch = get_orchestrator()
         with orchestrator_lock:
             try:
-                answer, trace = orch.run(req.message, req.history, progress_cb, text_cb)
+                answer, trace = orch.run(req.message, req.history, progress_cb, text_cb, user=user)
                 trace = dict(trace or {})
                 trace.setdefault("question", req.message)
                 trace.setdefault("answer", answer)

@@ -60,8 +60,17 @@ class FitDashOrchestrator:
         history: List[Dict],
         progress_cb: Optional[Callable[[str], None]] = None,
         text_cb: Optional[Callable[[Optional[str]], None]] = None,
+        user: Optional[str] = None,
     ) -> Tuple[str, Dict]:
+        # Per-user memory (only when an authenticated user is known — the React
+        # path passes it; Telegram/Streamlit single-user paths leave it None).
+        mem = _get_memory(user)
         prompt = _flatten_history(history, user_input)
+        if mem is not None:
+            preamble = mem.context_block(user_input)
+            if preamble:
+                prompt = f"{preamble}\n\n---\n\n{prompt}"
+
         try:
             answer, artifacts = _run(
                 call_agent(self._url, prompt, on_status=progress_cb, on_token=text_cb)
@@ -82,14 +91,33 @@ class FitDashOrchestrator:
                 user_input=user_input, run_id=uuid.uuid4().hex[:8],
                 specialist_artifacts=[], answer=answer, total_ms=0, error=None,
             )
+        # Keep the trace's question the *real* user message, not the memory-augmented
+        # prompt we sent to the agent.
+        trace["user_input"] = user_input
         trace.setdefault("question", user_input)
         if not trace.get("answer"):
             trace["answer"] = answer
         _write_log(trace)
-        return trace.get("answer") or answer, trace
+
+        final = trace.get("answer") or answer
+        if mem is not None and final and not trace.get("error"):
+            mem.remember(user_input, final)  # best-effort; never raises
+        return final, trace
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _get_memory(user: Optional[str]):
+    """A UserMemory for ``user`` if memory is enabled, else None (best-effort)."""
+    if not user:
+        return None
+    try:
+        from core.user_memory import get_user_memory, memory_enabled
+        return get_user_memory(user) if memory_enabled() else None
+    except Exception as exc:  # noqa: BLE001 — memory must never break chat
+        print(f"[orchestrator] user memory unavailable: {exc}", flush=True)
+        return None
+
 
 def _flatten_history(history: List[Dict], user_input: str) -> str:
     """A2A messages are single-shot; fold recent turns into one prompt."""
