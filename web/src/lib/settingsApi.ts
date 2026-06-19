@@ -37,6 +37,7 @@ export interface SettingsResponse {
   env: Record<string, EnvVar>;
   models: string[];
   gemini_models: string[];
+  openai_models: string[];
   bridge_running: boolean;
 }
 
@@ -77,7 +78,17 @@ export interface RestartResult {
 
 // ── Core ────────────────────────────────────────────────────────────────────────
 
+export interface ModelsResponse {
+  models: string[];
+  source: "live" | "fallback";
+  error?: string;
+}
+
 export const getSettings = () => http<SettingsResponse>("/settings");
+
+// Live model list for a provider ("openai" | "openai_official" | "gemini").
+export const getModels = (provider: string) =>
+  http<ModelsResponse>(`/settings/models/${provider}`);
 
 export const putEnv = (values: Record<string, string>) =>
   http<{ written: string[] }>("/settings/env", {

@@ -19,6 +19,7 @@ router = APIRouter()
 _EDITABLE_KEYS = {
     "LLM_PROVIDER": False,
     "OPENAI_API_KEY": True, "OPENAI_BASE_URL": False, "AGENT_MODEL": False, "AGENT_LLM_MODEL": False,
+    "OPENAI_OFFICIAL_API_KEY": True, "OPENAI_OFFICIAL_BASE_URL": False, "OPENAI_MODEL": False,
     "GEMINI_API_KEY": True, "GEMINI_MODEL": False,
     "CLIENT_ID": False, "CLIENT_SECRET": True,
     "GARMIN_EMAIL": False, "GARMIN_PASSWORD": True, "GARMIN_MOCK_HEALTH": False,
@@ -53,8 +54,20 @@ def get_settings():
         "env": env,
         "models": svc.KIT_MODELS,
         "gemini_models": svc.GEMINI_MODELS,
+        "openai_models": svc.OPENAI_MODELS,
         "bridge_running": svc.bridge_running(),
     }
+
+
+_PROVIDERS = {"openai", "openai_official", "gemini"}
+
+
+@router.get("/settings/models/{provider}")
+def list_models(provider: str):
+    """Live model list for a provider (chat models), with static fallback."""
+    if provider not in _PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"unknown provider: {provider}")
+    return svc.list_models(provider)
 
 
 class EnvUpdate(BaseModel):

@@ -43,6 +43,40 @@ GEMINI_MODELS = [
     "gemini-2.0-flash-lite", "gemini-2.5-flash-lite", "gemini-flash-lite-latest",
 ]
 
+# Official OpenAI (api.openai.com) models surfaced when provider=openai_official.
+OPENAI_MODELS = [
+    "gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1", "gpt-4.1-nano",
+    "gpt-5-mini", "gpt-5", "o4-mini",
+]
+
+# Curated static fallback per provider (used when the live /models call fails).
+_STATIC_MODELS = {"openai": KIT_MODELS, "openai_official": OPENAI_MODELS, "gemini": GEMINI_MODELS}
+# Substrings that mark non-chat models (embeddings, audio, image, …) — filtered out.
+_NON_CHAT = ("embedding", "whisper", "tts", "dall-e", "image", "moderation",
+             "audio", "transcribe", "rerank", "guard", "bert", "aqa", "veo", "imagen")
+
+
+def list_models(provider: str) -> Dict[str, Any]:
+    """Fetch the live model list from a provider's /models endpoint (chat models only).
+
+    Falls back to the curated static list on any error so the picker is never empty.
+    Uses the saved .env credentials for that provider.
+    """
+    fallback = _STATIC_MODELS.get(provider) or KIT_MODELS
+    try:
+        from core.llm import client_for
+        raw = client_for(provider).models.list()
+        ids = set()
+        for m in getattr(raw, "data", []) or []:
+            mid = (getattr(m, "id", "") or "").replace("models/", "").strip()
+            if mid and not any(x in mid.lower() for x in _NON_CHAT):
+                ids.add(mid)
+        if not ids:
+            return {"models": fallback, "source": "fallback"}
+        return {"models": sorted(ids), "source": "live"}
+    except Exception as exc:  # noqa: BLE001 — surface as fallback, never 500
+        return {"models": fallback, "source": "fallback", "error": str(exc)[:140]}
+
 
 def save_env(key: str, value: str) -> None:
     ENV_FILE.touch(exist_ok=True)

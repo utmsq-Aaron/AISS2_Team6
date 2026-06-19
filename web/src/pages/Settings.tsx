@@ -14,6 +14,7 @@ import { PageHeader } from "../components/PageHeader";
 import { Spinner, ErrorBox } from "../components/Spinner";
 import {
   getSettings,
+  getModels,
   putEnv,
   stravaConnect,
   stravaDisconnect,
@@ -523,61 +524,105 @@ function GarminCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
   );
 }
 
-// ── LLM provider + model (OpenAI/KIT ↔ Gemini) ───────────────────────────────────
+// ── LLM provider + model (KIT ↔ OpenAI official ↔ Gemini) ─────────────────────────
+type Prov = "openai" | "openai_official" | "gemini";
+
 function OpenAiCard({ data, refetch }: { data: SettingsResponse; refetch: () => void }) {
-  const curProvider =
-    ["gemini", "google"].includes((data.env.LLM_PROVIDER?.value || "openai").toLowerCase())
-      ? "gemini"
+  const qc = useQueryClient();
+  const lp = (data.env.LLM_PROVIDER?.value || "openai").toLowerCase();
+  const curProvider: Prov =
+    ["gemini", "google"].includes(lp) ? "gemini"
+      : ["openai_official", "official", "oai"].includes(lp) ? "openai_official"
       : "openai";
-  const curOpenAiModel =
-    data.env.AGENT_LLM_MODEL?.value || data.env.AGENT_MODEL?.value || "kit.gpt-4.1";
+
+  const curKitModel = data.env.AGENT_LLM_MODEL?.value || data.env.AGENT_MODEL?.value || "kit.gpt-4.1";
+  const curOfficialModel = data.env.OPENAI_MODEL?.value || "gpt-4o-mini";
   const curGeminiModel = data.env.GEMINI_MODEL?.value || "gemini-2.0-flash";
-  const curBase = data.env.OPENAI_BASE_URL?.value || "https://ai-gateway.dsi-experimente.de/v1";
+  const curKitBase = data.env.OPENAI_BASE_URL?.value || "https://ai-gateway.dsi-experimente.de/v1";
+  const curOfficialBase = data.env.OPENAI_OFFICIAL_BASE_URL?.value || "";
 
-  // Always include the current model even if not in the predefined list.
-  const openaiModels = data.models.includes(curOpenAiModel) ? data.models : [curOpenAiModel, ...data.models];
-  const geminiList = data.gemini_models ?? [];
-  const geminiModels = geminiList.includes(curGeminiModel) ? geminiList : [curGeminiModel, ...geminiList];
-
-  const [prov, setProv] = useState<"openai" | "gemini">(curProvider);
-  const [openaiModel, setOpenaiModel] = useState(curOpenAiModel);
+  const [prov, setProv] = useState<Prov>(curProvider);
+  const [kitModel, setKitModel] = useState(curKitModel);
+  const [officialModel, setOfficialModel] = useState(curOfficialModel);
   const [geminiModel, setGeminiModel] = useState(curGeminiModel);
-  const [openaiKey, setOpenaiKey] = useState("");
+  const [kitKey, setKitKey] = useState("");
+  const [officialKey, setOfficialKey] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
-  const [base, setBase] = useState(curBase);
+  const [kitBase, setKitBase] = useState(curKitBase);
+  const [officialBase, setOfficialBase] = useState(curOfficialBase);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Live model list for the selected provider (falls back to the static lists).
+  const staticFor = (p: Prov) =>
+    p === "gemini" ? (data.gemini_models ?? [])
+      : p === "openai_official" ? (data.openai_models ?? [])
+      : (data.models ?? []);
+  const modelsQ = useQuery({ queryKey: ["llmModels", prov], queryFn: () => getModels(prov), staleTime: 60_000 });
+  const modelOptions = modelsQ.data?.models ?? staticFor(prov);
+  const isFallback = modelsQ.data?.source === "fallback";
 
   const save = useMutation({
     mutationFn: () => {
       const values: Record<string, string> = { LLM_PROVIDER: prov };
       if (prov === "gemini") {
-        values.GEMINI_MODEL = geminiModel;
+        values.GEMINI_MODEL = geminiModel.trim();
         if (geminiKey.trim()) values.GEMINI_API_KEY = geminiKey.trim();
+      } else if (prov === "openai_official") {
+        values.OPENAI_MODEL = officialModel.trim();
+        if (officialKey.trim()) values.OPENAI_OFFICIAL_API_KEY = officialKey.trim();
+        values.OPENAI_OFFICIAL_BASE_URL = officialBase.trim(); // blank → api.openai.com
       } else {
-        // Set both so the agent layer (prefers AGENT_LLM_MODEL) and the chart
-        // service (uses AGENT_MODEL) both pick up the chosen model.
-        values.AGENT_MODEL = openaiModel;
-        values.AGENT_LLM_MODEL = openaiModel;
-        if (openaiKey.trim()) values.OPENAI_API_KEY = openaiKey.trim();
-        if (base.trim()) values.OPENAI_BASE_URL = base.trim();
+        // KIT / OpenAI-compatible. Set both so the agent layer (prefers
+        // AGENT_LLM_MODEL) and the chart service (uses AGENT_MODEL) agree.
+        values.AGENT_MODEL = kitModel.trim();
+        values.AGENT_LLM_MODEL = kitModel.trim();
+        if (kitKey.trim()) values.OPENAI_API_KEY = kitKey.trim();
+        if (kitBase.trim()) values.OPENAI_BASE_URL = kitBase.trim();
       }
       return putEnv(values);
     },
     onSuccess: () => {
       setMsg("✅ Saved! Applies on your next message (no restart needed).");
-      setOpenaiKey(""); setGeminiKey(""); refetch();
+      setKitKey(""); setOfficialKey(""); setGeminiKey("");
+      qc.invalidateQueries({ queryKey: ["llmModels"] }); // re-fetch models with the new key
+      refetch();
     },
   });
+
+  // Model field: a type-ahead over the live list that ALSO accepts a custom name.
+  const modelField = (label: string, value: string, setValue: (v: string) => void) => (
+    <>
+      <div className="flex items-center justify-between">
+        <label className="text-xs text-text-muted">{label}</label>
+        <button type="button" className="text-xs text-accent hover:underline disabled:opacity-50"
+          onClick={() => modelsQ.refetch()} disabled={modelsQ.isFetching}>
+          {modelsQ.isFetching ? "loading…" : "↻ refresh list"}
+        </button>
+      </div>
+      <input className="fd-input w-full" list="llm-models" value={value}
+        placeholder="pick from the list or type a custom model name"
+        onChange={(e) => setValue(e.target.value)} />
+      <datalist id="llm-models">
+        {modelOptions.map((m) => (<option key={m} value={m} />))}
+      </datalist>
+      <p className="text-[11px] text-text-muted">
+        {isFallback
+          ? "⚠ couldn't fetch live models (showing a built-in list) — you can still type any model name"
+          : `${modelOptions.length} models fetched from the provider · custom names allowed`}
+      </p>
+    </>
+  );
 
   return (
     <>
       <label className="text-xs text-text-muted">Provider</label>
-      <select className="fd-input w-full" value={prov} onChange={(e) => setProv(e.target.value as "openai" | "gemini")}>
-        <option value="openai">OpenAI-compatible (KIT gateway)</option>
+      <select className="fd-input w-full" value={prov} onChange={(e) => setProv(e.target.value as Prov)}>
+        <option value="openai">KIT gateway (OpenAI-compatible)</option>
+        <option value="openai_official">OpenAI (official)</option>
         <option value="gemini">Google Gemini</option>
       </select>
 
-      {prov === "gemini" ? (
+      {prov === "gemini" && (
         <>
           <input
             className="fd-input w-full"
@@ -586,26 +631,37 @@ function OpenAiCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
             value={geminiKey}
             onChange={(e) => setGeminiKey(e.target.value)}
           />
-          <label className="text-xs text-text-muted">GEMINI_MODEL (free flash)</label>
-          <select className="fd-input w-full" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)}>
-            {geminiModels.map((m) => (<option key={m} value={m}>{m}</option>))}
-          </select>
+          {modelField("Gemini model", geminiModel, setGeminiModel)}
         </>
-      ) : (
+      )}
+
+      {prov === "openai_official" && (
+        <>
+          <input
+            className="fd-input w-full"
+            type="password"
+            placeholder={data.env.OPENAI_OFFICIAL_API_KEY?.set ? data.env.OPENAI_OFFICIAL_API_KEY.value : "sk-..."}
+            value={officialKey}
+            onChange={(e) => setOfficialKey(e.target.value)}
+          />
+          {modelField("OpenAI model", officialModel, setOfficialModel)}
+          <label className="text-xs text-text-muted">Base URL (blank = api.openai.com)</label>
+          <input className="fd-input w-full" placeholder="https://api.openai.com/v1" value={officialBase} onChange={(e) => setOfficialBase(e.target.value)} />
+        </>
+      )}
+
+      {prov === "openai" && (
         <>
           <input
             className="fd-input w-full"
             type="password"
             placeholder={data.env.OPENAI_API_KEY?.set ? data.env.OPENAI_API_KEY.value : "sk-..."}
-            value={openaiKey}
-            onChange={(e) => setOpenaiKey(e.target.value)}
+            value={kitKey}
+            onChange={(e) => setKitKey(e.target.value)}
           />
-          <label className="text-xs text-text-muted">Model</label>
-          <select className="fd-input w-full" value={openaiModel} onChange={(e) => setOpenaiModel(e.target.value)}>
-            {openaiModels.map((m) => (<option key={m} value={m}>{m}</option>))}
-          </select>
+          {modelField("Model", kitModel, setKitModel)}
           <label className="text-xs text-text-muted">OPENAI_BASE_URL</label>
-          <input className="fd-input w-full" value={base} onChange={(e) => setBase(e.target.value)} />
+          <input className="fd-input w-full" value={kitBase} onChange={(e) => setKitBase(e.target.value)} />
         </>
       )}
 

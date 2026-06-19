@@ -6,12 +6,14 @@ chart service) depends only on this seam, so swapping provider/model/gateway is 
 config change, not a code change.
 
 Providers (``LLM_PROVIDER`` env):
-  * ``openai`` / ``kit`` (default) — any OpenAI-compatible endpoint (the KIT
-    gateway via ``OPENAI_BASE_URL`` / ``OPENAI_API_KEY`` / ``AGENT_MODEL``).
-  * ``gemini`` / ``google`` — Google Gemini. The LangChain agent path uses the
-    native ``langchain-google-genai`` client; the raw OpenAI-SDK path (chart
-    service) uses Gemini's OpenAI-compatible endpoint. Key from ``GEMINI_API_KEY``
-    (or ``GOOGLE_API_KEY``), model from ``GEMINI_MODEL`` (default a free flash).
+  * ``openai`` (default) — any OpenAI-compatible endpoint, i.e. the **KIT gateway**
+    via ``OPENAI_BASE_URL`` / ``OPENAI_API_KEY`` / ``AGENT_MODEL`` (+ ``AGENT_LLM_MODEL``).
+  * ``openai_official`` — **official OpenAI** (api.openai.com) via ``OPENAI_OFFICIAL_API_KEY``
+    / ``OPENAI_MODEL`` (+ optional ``OPENAI_OFFICIAL_BASE_URL`` for an Azure/proxy).
+  * ``gemini`` / ``google`` — Google Gemini. The LangChain agent path uses the native
+    ``langchain-google-genai`` client; the raw OpenAI-SDK path (chart service) uses
+    Gemini's OpenAI-compatible endpoint. Key from ``GEMINI_API_KEY`` (or
+    ``GOOGLE_API_KEY``), model from ``GEMINI_MODEL`` (default a free flash).
 
 **Live config:** every resolution re-reads the ``.env`` file, so changing the
 provider/model from the Settings UI takes effect on the next request — even
@@ -36,7 +38,9 @@ load_dotenv(_ENV_PATH)
 
 # Gemini's OpenAI-compatible base URL (for the raw OpenAI-SDK path).
 _GEMINI_OPENAI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
+_OPENAI_OFFICIAL_BASE = "https://api.openai.com/v1"  # explicit so the SDK doesn't fall back to OPENAI_BASE_URL
 _DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"   # free-tier flash; override with GEMINI_MODEL
+_DEFAULT_OPENAI_MODEL = "gpt-4o-mini"        # official OpenAI; override with OPENAI_MODEL
 
 
 def _env(key: str, default: str = "") -> str:
@@ -55,9 +59,17 @@ def _env(key: str, default: str = "") -> str:
 
 
 def provider() -> str:
-    """The active model provider, normalised. Default: openai-compatible (KIT)."""
+    """The active model provider, normalised. Default: KIT/OpenAI-compatible.
+
+    Returns one of: ``openai`` (KIT / any OpenAI-compatible gateway),
+    ``openai_official`` (api.openai.com), ``gemini``.
+    """
     p = _env("LLM_PROVIDER", "openai").strip().lower()
-    return "gemini" if p in ("gemini", "google") else "openai"
+    if p in ("gemini", "google"):
+        return "gemini"
+    if p in ("openai_official", "official", "oai"):
+        return "openai_official"
+    return "openai"
 
 
 def _gemini_key() -> str:
@@ -66,31 +78,47 @@ def _gemini_key() -> str:
 
 def model() -> str:
     """Model for the raw OpenAI-SDK path (chart service), per provider."""
-    if provider() == "gemini":
+    p = provider()
+    if p == "gemini":
         return _env("GEMINI_MODEL", _DEFAULT_GEMINI_MODEL)
+    if p == "openai_official":
+        return _env("OPENAI_MODEL", _DEFAULT_OPENAI_MODEL)
     return _env("AGENT_MODEL", "gpt-4o")
 
 
 def _agent_model() -> str:
     """Model for the LangGraph agent layer, per provider.
 
-    For OpenAI/KIT, AGENT_LLM_MODEL overrides AGENT_MODEL (the agents make many
-    more calls and benefit from a stable model, e.g. kit.gpt-4.1).
+    For KIT, AGENT_LLM_MODEL overrides AGENT_MODEL (the agents make many more calls
+    and benefit from a stable model, e.g. kit.gpt-4.1).
     """
-    if provider() == "gemini":
+    p = provider()
+    if p == "gemini":
         return _env("GEMINI_MODEL", _DEFAULT_GEMINI_MODEL)
+    if p == "openai_official":
+        return _env("OPENAI_MODEL", _DEFAULT_OPENAI_MODEL)
     return _env("AGENT_LLM_MODEL") or _env("AGENT_MODEL", "gpt-4o")
 
 
 # ── Raw OpenAI-SDK client (chart service) ─────────────────────────────────────
 
-def _client() -> OpenAI:
-    if provider() == "gemini":
+def client_for(prov: str) -> OpenAI:
+    """Build a raw OpenAI-SDK client for an EXPLICIT provider, using its own creds.
+
+    Used to list models for whatever provider the Settings UI currently shows,
+    which may differ from the active LLM_PROVIDER.
+    """
+    p = (prov or "").strip().lower()
+    if p in ("gemini", "google"):
         return OpenAI(api_key=_gemini_key(), base_url=_GEMINI_OPENAI_BASE)
-    return OpenAI(
-        api_key=_env("OPENAI_API_KEY"),
-        base_url=_env("OPENAI_BASE_URL") or None,
-    )
+    if p in ("openai_official", "official", "oai"):
+        return OpenAI(api_key=_env("OPENAI_OFFICIAL_API_KEY"),
+                      base_url=_env("OPENAI_OFFICIAL_BASE_URL") or _OPENAI_OFFICIAL_BASE)
+    return OpenAI(api_key=_env("OPENAI_API_KEY"), base_url=_env("OPENAI_BASE_URL") or None)
+
+
+def _client() -> OpenAI:
+    return client_for(provider())
 
 
 def get_llm_client() -> Tuple[OpenAI, str]:
@@ -107,7 +135,8 @@ def get_chat_model():
     applies on the next request. LangChain imports are lazy so importing core.llm
     doesn't pull them into processes that only need the raw OpenAI client.
     """
-    if provider() == "gemini":
+    p = provider()
+    if p == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(
             model=_agent_model(),
@@ -116,6 +145,15 @@ def get_chat_model():
             max_retries=3,
         )
     from langchain_openai import ChatOpenAI
+    if p == "openai_official":
+        return ChatOpenAI(
+            model=_agent_model(),
+            base_url=_env("OPENAI_OFFICIAL_BASE_URL") or _OPENAI_OFFICIAL_BASE,
+            api_key=_env("OPENAI_OFFICIAL_API_KEY"),
+            temperature=0,
+            timeout=120,
+            max_retries=3,
+        )
     return ChatOpenAI(
         model=_agent_model(),
         base_url=_env("OPENAI_BASE_URL") or None,
