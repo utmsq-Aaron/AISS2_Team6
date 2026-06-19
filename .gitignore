@@ -23,6 +23,10 @@ __pycache__/
 mlruns/
 mlartifacts/
 
+# End-to-end evaluation outputs — per-run HTML reports + facts dumps (regenerated).
+evaluation/reports/*
+!evaluation/reports/.gitkeep
+
 # Runtime API cache (regenerated on demand)
 .cache/
 
