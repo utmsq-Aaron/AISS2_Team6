@@ -7,6 +7,8 @@ indirection. The app reaches it as a plain MCP client via core.host.ToolHost.
 Run locally:   python -m servers.routes_mcp
 Endpoint:      http://127.0.0.1:8102/mcp
 Requires:      ORS_API_KEY in .env
+Optional:      GOOGLE_GEOCODING_API_KEY in .env — enables the geocode tool (place
+               name → coordinates) so routes can be anchored at named places.
 """
 
 import os
@@ -20,6 +22,7 @@ load_dotenv()
 
 ORS_BASE = "https://api.openrouteservice.org"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
 HOST = os.getenv("ROUTES_MCP_HOST", "127.0.0.1")
 PORT = int(os.getenv("ROUTES_MCP_PORT", "8102"))
@@ -52,6 +55,15 @@ def _api_key() -> str:
 
 def _headers() -> Dict[str, str]:
     return {"Authorization": _api_key(), "Content-Type": "application/json"}
+
+
+def _google_key() -> str:
+    key = os.getenv("GOOGLE_GEOCODING_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY", "")
+    if not key:
+        raise RuntimeError(
+            "GOOGLE_GEOCODING_API_KEY not set. Enable the Geocoding API and get a key at "
+            "https://developers.google.com/maps/documentation/geocoding/get-api-key")
+    return key
 
 
 def _profile(profile: Optional[str]) -> str:
@@ -87,6 +99,67 @@ def _simplify(raw: List[List[float]], target: int) -> List[Dict[str, Any]]:
 
 
 # ── Tools ─────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+def geocode(query: str, region: str = "de") -> Dict[str, Any]:
+    """Resolve a place name or address to coordinates (Google Geocoding API).
+
+    Call this FIRST whenever the user names a place — a park, landmark, address,
+    neighbourhood, or city — before planning a route. Turn the name into lat/lon,
+    then pass those coordinates to plan_route / plan_circular_route / explore_trails.
+    Do NOT guess coordinates and do NOT fall back to the home location when the user
+    has named a specific place.
+
+    Args:
+        query: Place name or address, e.g. "Schlossgarten, Karlsruhe" or
+            "Hauptbahnhof Karlsruhe". Include the city/country for accuracy.
+        region: ccTLD region bias for ambiguous names (default "de" = Germany).
+
+    Returns:
+        {query, lat, lon, name (formatted address), bbox {min_lat,min_lon,max_lat,
+        max_lon} or None, location_type, types} on success, or {error, query}.
+        The bbox is the place's bounding box — useful to keep a loop near/within it.
+    """
+    q = (query or "").strip()
+    if not q:
+        return {"error": "empty query"}
+    # A comma makes Google parse the text as a STRUCTURED address and prefer a
+    # literal street match — e.g. "Schlossgarten, Karlsruhe" resolves to a street
+    # "Am Schloßgarten" 20 km away, while "Schlossgarten Karlsruhe" finds the park.
+    # Place-name queries geocode far better comma-free; street addresses are
+    # unaffected, so normalise commas to spaces.
+    q = " ".join(q.replace(",", " ").split())
+    try:
+        resp = requests.get(GOOGLE_GEOCODE_URL, params={
+            "address": q, "region": region or "", "key": _google_key(),
+        }, timeout=15)
+    except RuntimeError as exc:  # missing key — surface clearly
+        return {"error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 — network/transport
+        return {"error": f"geocode request failed: {type(exc).__name__}: {exc}"}
+    if not resp.ok:
+        return {"error": f"Google geocode HTTP {resp.status_code}: {resp.text[:200]}"}
+    body = resp.json()
+    status = body.get("status")
+    if status != "OK" or not body.get("results"):
+        return {"error": f"geocode {status}: {body.get('error_message', 'no results')}",
+                "query": q}
+    top = body["results"][0]
+    geom = top.get("geometry", {})
+    loc = geom.get("location", {})
+    box = geom.get("viewport") or geom.get("bounds") or {}
+    ne, sw = box.get("northeast", {}), box.get("southwest", {})
+    bbox = ({"min_lat": sw.get("lat"), "min_lon": sw.get("lng"),
+             "max_lat": ne.get("lat"), "max_lon": ne.get("lng")} if ne and sw else None)
+    return {
+        "query": q,
+        "lat": loc.get("lat"), "lon": loc.get("lng"),
+        "name": top.get("formatted_address"),
+        "bbox": bbox,
+        "location_type": geom.get("location_type"),
+        "types": top.get("types", []),
+    }
+
 
 @mcp.tool()
 def plan_route(
