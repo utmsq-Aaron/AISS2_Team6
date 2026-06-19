@@ -12,6 +12,7 @@ Optional:      GOOGLE_GEOCODING_API_KEY in .env — enables the geocode tool (pl
 """
 
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -98,28 +99,35 @@ def _simplify(raw: List[List[float]], target: int) -> List[Dict[str, Any]]:
              "ele_m": round(c[2], 1) if len(c) > 2 else None} for c in raw[::step]]
 
 
-# ── Tools ─────────────────────────────────────────────────────────────────────
+# ── Geometry helpers (containment / centroid) ─────────────────────────────────
 
-@mcp.tool()
-def geocode(query: str, region: str = "de") -> Dict[str, Any]:
-    """Resolve a place name or address to coordinates (Google Geocoding API).
+def _norm(s: str) -> str:
+    """Lowercase + fold German diacritics, for fuzzy name matching."""
+    s = (s or "").lower()
+    for a, b in (("ß", "ss"), ("ä", "a"), ("ö", "o"), ("ü", "u")):
+        s = s.replace(a, b)
+    return s
 
-    Call this FIRST whenever the user names a place — a park, landmark, address,
-    neighbourhood, or city — before planning a route. Turn the name into lat/lon,
-    then pass those coordinates to plan_route / plan_circular_route / explore_trails.
-    Do NOT guess coordinates and do NOT fall back to the home location when the user
-    has named a specific place.
 
-    Args:
-        query: Place name or address, e.g. "Schlossgarten, Karlsruhe" or
-            "Hauptbahnhof Karlsruhe". Include the city/country for accuracy.
-        region: ccTLD region bias for ambiguous names (default "de" = Germany).
+def _point_in_ring(pt: List[float], ring: List[List[float]]) -> bool:
+    """Ray-casting point-in-polygon. pt and ring vertices are [lon, lat]."""
+    x, y = pt[0], pt[1]
+    inside = False
+    for i in range(len(ring) - 1):
+        x1, y1 = ring[i]
+        x2, y2 = ring[i + 1]
+        if ((y1 > y) != (y2 > y)) and (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1):
+            inside = not inside
+    return inside
 
-    Returns:
-        {query, lat, lon, name (formatted address), bbox {min_lat,min_lon,max_lat,
-        max_lon} or None, location_type, types} on success, or {error, query}.
-        The bbox is the place's bounding box — useful to keep a loop near/within it.
-    """
+
+def _ring_centroid(ring: List[List[float]]) -> List[float]:
+    pts = ring[:-1] if ring and ring[0] == ring[-1] else ring
+    return [sum(c[0] for c in pts) / len(pts), sum(c[1] for c in pts) / len(pts)]
+
+
+def _geocode(query: str, region: str = "de") -> Dict[str, Any]:
+    """Core geocoder (Google) — shared by the geocode tool and plan_park_loop."""
     q = (query or "").strip()
     if not q:
         return {"error": "empty query"}
@@ -159,6 +167,89 @@ def geocode(query: str, region: str = "de") -> Dict[str, Any]:
         "location_type": geom.get("location_type"),
         "types": top.get("types", []),
     }
+
+
+def _fetch_area_polygon(lat: float, lon: float, name_hint: str = "",
+                        radius_m: int = 1000) -> Optional[Dict[str, Any]]:
+    """Find the boundary polygon of a park/green area near (lat, lon) via OSM Overpass.
+
+    Picks, among nearby leisure=park/garden/nature_reserve/recreation_ground areas:
+    a name match to ``name_hint`` first, then the polygon that contains the point,
+    then the largest. Returns {"ring": [[lon,lat],…closed], "name", "osm_id"} or None.
+    """
+    selectors = "".join(
+        f'way["leisure"="{v}"](around:{radius_m},{lat},{lon});'
+        f'relation["leisure"="{v}"](around:{radius_m},{lat},{lon});'
+        for v in ("park", "garden", "nature_reserve", "recreation_ground"))
+    query = f"[out:json][timeout:30];({selectors});out geom tags;"
+    elements = None
+    for attempt in range(3):  # Overpass is flaky (429/504/transient empties) — retry
+        try:
+            resp = requests.post(OVERPASS_URL, data={"data": query},
+                                 headers={"Accept": "application/json",
+                                          "User-Agent": "AISS2-Team6-RoutesMCP/1.0"}, timeout=35)
+            if resp.ok:
+                els = resp.json().get("elements", [])
+                if els:
+                    elements = els
+                    break
+        except Exception:  # noqa: BLE001 — transient; retry then fall back
+            pass
+        if attempt < 2:
+            time.sleep(0.7)
+    if not elements:
+        return None
+
+    hint = _norm(name_hint)
+    best, best_score = None, -1.0
+    for el in elements:
+        geom = el.get("geometry") or []
+        if len(geom) < 4:
+            continue
+        ring = [[p["lon"], p["lat"]] for p in geom]
+        if ring[0] != ring[-1]:
+            ring.append(ring[0])
+        lons = [c[0] for c in ring]
+        lats = [c[1] for c in ring]
+        area = (max(lons) - min(lons)) * (max(lats) - min(lats))  # bbox area (deg²)
+        nm = _norm(el.get("tags", {}).get("name", ""))
+        name_match = bool(nm) and (nm in hint or hint in nm)
+        contains = _point_in_ring([lon, lat], ring)
+        # name match dominates; then containment; then size (tie-break)
+        score = (2.0 if name_match else 0.0) + (1.0 if contains else 0.0) + min(area * 50, 0.9)
+        if score > best_score:
+            best, best_score = (ring, el.get("tags", {}).get("name"), el.get("id")), score
+    if not best:
+        return None
+    return {"ring": best[0], "name": best[1], "osm_id": best[2]}
+
+
+# ── Tools ─────────────────────────────────────────────────────────────────────
+
+@mcp.tool()
+def geocode(query: str, region: str = "de") -> Dict[str, Any]:
+    """Resolve a place name or address to coordinates (Google Geocoding API).
+
+    Call this FIRST whenever the user names a place — a park, landmark, address,
+    neighbourhood, or city — before planning a route. Turn the name into lat/lon,
+    then pass those coordinates to plan_route / plan_circular_route / explore_trails.
+    Do NOT guess coordinates and do NOT fall back to the home location when the user
+    has named a specific place.
+
+    For a loop that must STAY INSIDE a named park/green area, prefer plan_park_loop
+    (it geocodes, fetches the boundary, and constrains the route to it).
+
+    Args:
+        query: Place name or address, e.g. "Schlossgarten, Karlsruhe" or
+            "Hauptbahnhof Karlsruhe". Include the city/country for accuracy.
+        region: ccTLD region bias for ambiguous names (default "de" = Germany).
+
+    Returns:
+        {query, lat, lon, name (formatted address), bbox {min_lat,min_lon,max_lat,
+        max_lon} or None, location_type, types} on success, or {error, query}.
+        The bbox is the place's bounding box — useful to keep a loop near/within it.
+    """
+    return _geocode(query, region)
 
 
 @mcp.tool()
@@ -242,6 +333,105 @@ def plan_circular_route(lat: float, lon: float, distance_km: float,
         "duration_min": round(summary.get("duration", 0) / 60, 1),
         "elevation": _elevation_stats([c[2] for c in raw if len(c) > 2]),
         "start_lat": lat, "start_lon": lon,
+        "waypoints": _simplify(raw, 100),
+    }
+
+
+@mcp.tool()
+def plan_park_loop(area: str, distance_km: float = 3.0,
+                   profile: str = "foot-walking") -> Dict[str, Any]:
+    """Plan a loop that stays INSIDE a named park / green area.
+
+    Use this when the user wants a route that stays within a specific park, garden or
+    green space (e.g. "a running loop that stays inside Schlossgarten"). It geocodes the
+    area, fetches its boundary from OpenStreetMap, and constrains an OpenRouteService
+    round-trip to that boundary by avoiding everything outside it. The area may be small,
+    so the actual loop can be SHORTER than requested — the result reports the real
+    distance and what fraction of the path lies inside the boundary (containment_pct).
+
+    Args:
+        area: Park/area name, e.g. "Schlossgarten Karlsruhe" (name + city, no comma).
+        distance_km: Target loop distance in km (default 3); capped by the area's size.
+        profile: ORS profile or Strava sport type (default foot-walking).
+
+    Returns:
+        Same shape as plan_circular_route (profile, distance_km, duration_min, elevation,
+        start_lat/lon, waypoints) PLUS: area (resolved name), area_osm_id, contained
+        (bool), containment_pct (0–100 or None), note (honest caveat). On failure: {error}.
+    """
+    g = _geocode(area)
+    if g.get("error"):
+        return {"error": f"could not locate '{area}': {g['error']}"}
+    clat, clon = g["lat"], g["lon"]
+    prof = _profile(profile)
+    poly = _fetch_area_polygon(clat, clon, g.get("name") or area)
+
+    def _round_trip(anchor_lat, anchor_lon, length_m, avoid):
+        body = {"coordinates": [[anchor_lon, anchor_lat]],
+                "options": {"round_trip": {"length": float(length_m), "points": 5, "seed": 1}},
+                "elevation": True, "instructions": False, "units": "km"}
+        if avoid:
+            body["options"]["avoid_polygons"] = avoid
+        return requests.post(f"{ORS_BASE}/v2/directions/{prof}/geojson",
+                             headers=_headers(), json=body, timeout=25)
+
+    feat, raw, pct, contained, note = None, [], None, False, None
+
+    if poly:
+        ring = poly["ring"]
+        lons = [c[0] for c in ring]
+        lats = [c[1] for c in ring]
+        m = 0.02  # ~2 km outer margin; routing must stay in the hole (the park)
+        outer = [[min(lons) - m, min(lats) - m], [max(lons) + m, min(lats) - m],
+                 [max(lons) + m, max(lats) + m], [min(lons) - m, max(lats) + m],
+                 [min(lons) - m, min(lats) - m]]
+        avoid = {"type": "Polygon", "coordinates": [outer, ring]}
+        anchor = [clon, clat] if _point_in_ring([clon, clat], ring) else _ring_centroid(ring)
+        # the boundary caps the loop length; retry shorter until ORS can route it
+        for factor in (1.0, 0.66, 0.4, 0.25):
+            resp = _round_trip(anchor[1], anchor[0], float(distance_km) * 1000 * factor, avoid)
+            if resp.ok:
+                feat = resp.json()["features"][0]
+                raw = feat.get("geometry", {}).get("coordinates", [])
+                if raw:
+                    break
+        if raw:
+            inside = sum(_point_in_ring(c[:2], ring) for c in raw)
+            pct = round(100 * inside / len(raw), 1)
+            contained = pct >= 90
+            note = (f"Route constrained to {poly.get('name') or area}; "
+                    f"{pct:.0f}% of the path lies inside the park boundary.")
+        else:
+            note = (f"Found the boundary of {poly.get('name') or area} but ORS could not build "
+                    f"a loop inside it (the area may be too small for this distance).")
+
+    # Fallback: no boundary found, or constrained routing failed → anchored, uncontained loop
+    if not raw:
+        resp = _round_trip(clat, clon, float(distance_km) * 1000, None)
+        if not resp.ok:
+            return {"error": f"ORS round-trip {resp.status_code}: {resp.text[:200]}",
+                    "area": g.get("name") or area}
+        feat = resp.json()["features"][0]
+        raw = feat.get("geometry", {}).get("coordinates", [])
+        if not raw:
+            return {"error": "ORS returned an empty route", "area": g.get("name") or area}
+        if note is None:
+            note = (f"No mappable boundary was found for '{area}', so the loop is anchored at "
+                    f"the area but is NOT constrained to stay inside it.")
+
+    summary = feat.get("properties", {}).get("summary", {})
+    return {
+        "profile": prof,
+        "target_distance_km": float(distance_km),
+        "distance_km": round(summary.get("distance", 0), 2),
+        "duration_min": round(summary.get("duration", 0) / 60, 1),
+        "elevation": _elevation_stats([c[2] for c in raw if len(c) > 2]),
+        "start_lat": raw[0][1], "start_lon": raw[0][0],
+        "area": (poly.get("name") if poly else None) or g.get("name") or area,
+        "area_osm_id": poly.get("osm_id") if poly else None,
+        "contained": contained,
+        "containment_pct": pct,
+        "note": note,
         "waypoints": _simplify(raw, 100),
     }
 

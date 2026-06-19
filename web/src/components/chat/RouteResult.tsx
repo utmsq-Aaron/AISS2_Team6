@@ -7,9 +7,10 @@ import { MetricCard } from "../MetricCard";
 import { RouteMap } from "../RouteMap";
 import type { MarkerSpec, PolyLineSpec } from "../RouteMap";
 
-// Mirror of ui/chat.py `_render_route_map`. Handles the four route tools that
-// the orchestrator surfaces via trace.route_data: plan_route, plan_circular_route,
-// explore_trails (with selection + pagination), and get_isochrone.
+// Mirror of ui/chat.py `_render_route_map`. Handles the route tools that the
+// orchestrator surfaces via trace.route_data: plan_route, plan_circular_route and
+// plan_park_loop (all single routes), explore_trails (selection + pagination), and
+// get_isochrone.
 
 const TRAIL_COLORS = ["#f97316", "#1E96FF", "#00C864", "#C832C8", "#FFC800"];
 
@@ -60,7 +61,7 @@ export function RouteResult({ routeData }: { routeData: RouteData }) {
   const tool = routeData.tool || "";
   const data = (routeData.data || {}) as Record<string, unknown>;
 
-  if (tool === "plan_route" || tool === "plan_circular_route") {
+  if (tool === "plan_route" || tool === "plan_circular_route" || tool === "plan_park_loop") {
     return <SingleRoute data={data} />;
   }
   if (tool === "explore_trails") {

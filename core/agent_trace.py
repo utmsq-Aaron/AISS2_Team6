@@ -24,8 +24,8 @@ from core.config import SEP
 # back into an LLM's context (the UI renders the full data separately).
 LARGE_ARRAY_KEYS = {"points", "waypoints", "segments", "timeline", "buckets_15min", "trails", "instructions"}
 # Bare tool names whose first successful result becomes ``route_data`` (the map).
-ROUTE_TOOLS = {"plan_route", "plan_circular_route", "explore_trails", "get_isochrone",
-               "get_activity_streams", "get_activity_gps_track"}
+ROUTE_TOOLS = {"plan_route", "plan_circular_route", "plan_park_loop", "explore_trails",
+               "get_isochrone", "get_activity_streams", "get_activity_gps_track"}
 # Keys always preserved verbatim in _compact_list_item regardless of string length.
 _ALWAYS_KEEP_KEYS = {"id", "name", "date", "type", "sport_type", "start_date"}
 # Pattern the model uses to embed chart suggestions at the end of its answer.
