@@ -39,6 +39,11 @@ SCOPE_EVENTS = "https://www.googleapis.com/auth/calendar.events"  # needed by cr
 HOST = os.getenv("CALENDAR_MCP_HOST", "127.0.0.1")
 PORT = int(os.getenv("CALENDAR_MCP_PORT", "8105"))
 
+# Default IANA time zone for events the model creates with a naive wall-clock time
+# (e.g. "08:00" means 08:00 *here*). Google rejects a dateTime that has neither an
+# offset nor a timeZone, so we always supply one. Override with CALENDAR_TZ.
+CAL_TZ = os.getenv("CALENDAR_TZ", "Europe/Berlin")
+
 mcp = FastMCP(
     "calendar",
     instructions="Read-only Google Calendar: list calendars, list events in a time range, get one event.",
@@ -136,19 +141,30 @@ def _post(path: str, body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _iso(value: Optional[str]) -> Optional[str]:
-    """Accept RFC3339 or YYYY-MM-DD; return an API-friendly UTC timestamp."""
+    """Accept RFC3339 or YYYY-MM-DD; return a tz-aware RFC3339 timestamp.
+
+    Google's events.list rejects a naive ``timeMin``/``timeMax`` ("Bad Request"),
+    so a bare "…T…" with no offset is treated as UTC (append ``Z``).
+    """
     if not value:
         return None
     if "T" in value:
-        return value
+        tail = value[11:]  # the part after "YYYY-MM-DDT"
+        has_tz = value.endswith("Z") or "+" in tail or "-" in tail
+        return value if has_tz else value + "Z"
     from datetime import datetime, timezone
     return datetime.fromisoformat(value).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _event_time(value: str) -> Dict[str, str]:
-    """Build a Google event start/end object: all-day (date) vs timed (dateTime)."""
-    if "T" in value:                       # timed event → RFC3339 dateTime (UTC)
-        return {"dateTime": _iso(value)}
+def _event_time(value: str, tz: str) -> Dict[str, str]:
+    """Build a Google event start/end object: all-day (date) vs timed (dateTime).
+
+    A timed value is passed as wall-clock + an explicit ``timeZone`` so "08:00"
+    lands at 08:00 local. If the value already carries an offset, ``timeZone`` is
+    still accepted by Google and is harmless.
+    """
+    if "T" in value:
+        return {"dateTime": value, "timeZone": tz}
     return {"date": value}                  # date-only → all-day event
 
 
@@ -233,6 +249,7 @@ def create_event(
     calendar_id: str = "primary",
     description: Optional[str] = None,
     location: Optional[str] = None,
+    time_zone: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create a new calendar event. WRITES to the user's calendar.
 
@@ -240,27 +257,29 @@ def create_event(
     "add a long run Saturday 8am", "block 2 hours tomorrow afternoon", "put my
     race on the calendar". Compute explicit start/end yourself.
 
-    Times: pass RFC3339 with a "T" for a timed event (e.g. "2026-06-21T08:00:00"),
-    or a bare "YYYY-MM-DD" for an all-day event. ``start`` and ``end`` must be the
-    same kind (both timed or both all-day). Timed values are treated as UTC.
+    Times: pass a wall-clock "YYYY-MM-DDTHH:MM:SS" for a timed event (interpreted
+    in ``time_zone``), or a bare "YYYY-MM-DD" for an all-day event. ``start`` and
+    ``end`` must be the same kind (both timed or both all-day).
 
     Requires a Google token with the calendar.events (write) scope — if the
     account was connected read-only, this returns a 403 asking you to reconnect.
 
     Args:
         summary: Event title (required).
-        start: Start time — RFC3339 ("…T…") or "YYYY-MM-DD" for all-day.
+        start: Start time — "YYYY-MM-DDTHH:MM:SS" (timed) or "YYYY-MM-DD" (all-day).
         end: End time — same kind as start.
         calendar_id: Target calendar (default "primary").
         description: Optional event notes.
         location: Optional location text.
+        time_zone: IANA zone for timed events (default server's CALENDAR_TZ).
     """
     if not summary or not start or not end:
         return {"error": "summary, start and end are required"}
+    tz = time_zone or CAL_TZ
     body: Dict[str, Any] = {
         "summary": summary,
-        "start": _event_time(start),
-        "end": _event_time(end),
+        "start": _event_time(start, tz),
+        "end": _event_time(end, tz),
     }
     if description:
         body["description"] = description
