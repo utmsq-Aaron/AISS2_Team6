@@ -201,7 +201,10 @@ self-contained question and you get back that specialist's analysis):
 • recovery — Garmin sleep, HRV, Body Battery, stress, readiness; rest-vs-train advice.
 • load     — training load (CTL/ATL/TSB), volume/trends, splits, HR zones, PRs, stats,
              and GPS maps of recorded activities (Strava + Garmin).
-• context  — weather forecast + calendar → trainable time windows.
+• context  — weather forecast + calendar → trainable time windows. CAN ALSO WRITE the
+             calendar: add, move/reschedule, rename and delete events. Route any
+             "put X on / schedule / move / cancel my calendar" request here, phrased
+             as an explicit instruction to make the change (not just to look).
 • route    — plan routes, loops, trails, isochrones (OpenRouteService).
 • fitness  — training methods, exercise technique, programming and general
              exercise-science knowledge (RAG over a library of fitness books).
