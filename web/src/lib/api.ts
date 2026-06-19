@@ -1,6 +1,14 @@
 // Thin client over the FastAPI seam (proxied at /api by Vite in dev, by the Node
 // BFF in prod). callTool() is the generic data path; streamChat() consumes SSE.
 
+import { authToken, forceLogout } from "../store/authStore";
+
+/** Bearer header for the logged-in user (empty before login / on /auth/login). */
+export function authHeaders(): Record<string, string> {
+  const t = authToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 export interface ToolResult<T = unknown> {
   name: string;
   ok: boolean;
@@ -10,14 +18,30 @@ export interface ToolResult<T = unknown> {
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     ...init,
   });
+  if (res.status === 401) {
+    forceLogout(); // token missing/expired → drop back to the login screen
+    throw new Error("Session expired — please log in again.");
+  }
   if (!res.ok) {
     const detail = await res.text().catch(() => res.statusText);
     throw new Error(`API ${res.status}: ${detail}`);
   }
   return res.json() as Promise<T>;
+}
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+
+export const getKnownUsers = () => http<{ users: string[] }>("/auth/users");
+
+/** Exchange a name for a Bearer token. Throws on an unknown name (401). */
+export async function loginUser(name: string): Promise<{ token: string; user: string }> {
+  return http<{ token: string; user: string }>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
 }
 
 /** Call an MCP tool by namespaced name `server__tool`. Returns parsed JSON data. */
@@ -93,10 +117,14 @@ export function streamChat(
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ message, history }),
         signal: controller.signal,
       });
+      if (res.status === 401) {
+        forceLogout();
+        throw new Error("Session expired — please log in again.");
+      }
       if (!res.ok || !res.body) throw new Error(`chat ${res.status}`);
 
       const reader = res.body.getReader();

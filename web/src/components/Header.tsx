@@ -1,8 +1,9 @@
-import { ChevronRight, Search, User } from "lucide-react";
+import { ChevronRight, LogOut, Search, User } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { NAV, navLabel } from "../nav";
+import { useAuthStore } from "../store/authStore";
 
 // Minimalist header — breadcrumb, quick search (page jump), and user profile.
 export function Header() {
@@ -11,6 +12,7 @@ export function Header() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
+  const { user, logout } = useAuthStore();
   const current = navLabel(location.pathname);
   const matches = query
     ? NAV.filter((n) => n.label.toLowerCase().includes(query.toLowerCase()))
@@ -74,12 +76,19 @@ export function Header() {
         )}
       </div>
 
-      {/* User profile */}
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-bg-surface px-2.5 py-1.5">
+      {/* User profile + logout */}
+      <div className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-surface px-2.5 py-1.5">
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-accent">
           <User size={14} strokeWidth={2} />
         </span>
-        <span className="hidden text-sm text-text-primary sm:inline">Athlete</span>
+        <span className="hidden text-sm text-text-primary sm:inline">{user ?? "Athlete"}</span>
+        <button
+          onClick={logout}
+          title="Sign out"
+          className="ml-1 flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-bg-app hover:text-text-primary"
+        >
+          <LogOut size={14} strokeWidth={2} />
+        </button>
       </div>
     </header>
   );

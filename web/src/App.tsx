@@ -7,10 +7,15 @@ import { Chat } from "./pages/Chat";
 import { Dashboard } from "./pages/Dashboard";
 import { Health } from "./pages/Health";
 import { RoutesPage } from "./pages/RoutesPage";
+import { Login } from "./pages/Login";
 import { Settings } from "./pages/Settings";
 import { Sync } from "./pages/Sync";
+import { useAuthStore } from "./store/authStore";
 
 export default function App() {
+  const token = useAuthStore((s) => s.token);
+  if (!token) return <Login />;
+
   return (
     <div className="flex h-screen overflow-hidden bg-bg-app text-text-primary">
       <Sidebar />

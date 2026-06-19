@@ -1,12 +1,19 @@
 // Settings tab API client — mirrors the http() pattern in lib/api.ts (kept local;
 // api.ts's http() is module-private). Typed functions for api/routers/settings.py.
 
+import { authHeaders } from "./api";
+import { forceLogout } from "../store/authStore";
+
 // ── Local fetch helper (6-line pattern copied from api.ts) ──────────────────────
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     ...init,
   });
+  if (res.status === 401) {
+    forceLogout();
+    throw new Error("Session expired — please log in again.");
+  }
   if (!res.ok) {
     const detail = await res.text().catch(() => res.statusText);
     throw new Error(`API ${res.status}: ${detail}`);
