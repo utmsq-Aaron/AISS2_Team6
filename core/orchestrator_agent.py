@@ -39,7 +39,7 @@ def _ask_tool(spec: str, url: str, collected: List[dict],
     async def _ask(question: str) -> str:
         await status(f"Consulting {spec} agent…")
         try:
-            answer, artifacts = await call_agent(url, question)
+            answer, artifacts = await call_agent(url, question, metadata={"delegation_depth": 1})
         except Exception as exc:  # specialist down / transport error — degrade gracefully
             await status(f"{spec} agent unavailable.")
             return f"(The {spec} specialist is currently unavailable: {type(exc).__name__})"

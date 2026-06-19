@@ -35,12 +35,15 @@ async def call_agent(
     on_status: Optional[Callable[[str], None]] = None,
     on_token: Optional[Callable[[str], None]] = None,
     timeout: float = DEFAULT_TIMEOUT,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """Send ``prompt`` to the A2A agent at ``url``; return ``(answer, data_artifacts)``.
 
     ``data_artifacts`` is the list of DataPart payloads the agent attached (for a
     specialist: its ``{"agent", "tool_calls", ...}`` record; for the orchestrator:
-    the assembled ``trace`` dict).
+    the assembled ``trace`` dict). ``metadata`` rides on the A2A Message (used to
+    carry the delegation depth for the peer-to-peer mesh; read server-side via
+    ``context.message.metadata``).
     """
     base = url.rstrip("/")
     token_chunks: List[str] = []
@@ -52,7 +55,8 @@ async def call_agent(
         client = A2AClient(hc, agent_card=card)
         msg = Message(role=Role.user,
                       parts=[Part(root=TextPart(text=prompt))],
-                      message_id=uuid.uuid4().hex)
+                      message_id=uuid.uuid4().hex,
+                      metadata=metadata)
         req = SendStreamingMessageRequest(id=uuid.uuid4().hex,
                                           params=MessageSendParams(message=msg))
 

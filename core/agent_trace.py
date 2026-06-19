@@ -152,6 +152,28 @@ def flythrough_from_results(results: List[Dict]) -> Optional[Dict]:
 
 # ── Trace assembly ────────────────────────────────────────────────────────────
 
+def _flatten_artifacts(artifacts: Optional[List[Dict]]) -> List[Dict]:
+    """Depth-first flatten of specialist artifacts incl. peer ``sub_artifacts``.
+
+    In the peer-to-peer mesh a specialist may consult others; it nests their
+    artifacts under ``sub_artifacts``. Flattening here means every agent that ran
+    (orchestrator's direct specialists AND the peers they consulted) gets its own
+    row in ``agents`` and its MCP calls in ``tool_calls`` — so route maps/charts
+    stay complete regardless of who fetched the data.
+    """
+    flat: List[Dict] = []
+
+    def _walk(arts: Optional[List[Dict]]) -> None:
+        for a in arts or []:
+            if not isinstance(a, dict):
+                continue
+            flat.append(a)
+            _walk(a.get("sub_artifacts"))
+
+    _walk(artifacts)
+    return flat
+
+
 def build_trace(
     *,
     user_input: str,
@@ -171,7 +193,7 @@ def build_trace(
     """
     results: List[Dict[str, Any]] = []
     agents: List[Dict[str, Any]] = []
-    for i, art in enumerate(specialist_artifacts or [], start=1):
+    for i, art in enumerate(_flatten_artifacts(specialist_artifacts), start=1):
         tcs = art.get("tool_calls") or []
         for r in tcs:
             r.setdefault("label", r.get("tool", ""))

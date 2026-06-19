@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import List
+from typing import Awaitable, Callable, List
 
 import uvicorn
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -26,8 +26,10 @@ from a2a.types import (AgentCapabilities, AgentCard, AgentSkill, DataPart, Part,
 from a2a.utils import new_task
 from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage
+from langchain_core.tools import StructuredTool
 
 from agents.prompts import specialist_prompt
+from core.a2a_client import call_agent
 from core.config import A2A_AGENTS, AGENT_MCP_SCOPE, AGENT_PORTS
 from core.llm import get_chat_model
 from core.mcp_langchain import build_tools, scoped_host
@@ -51,6 +53,88 @@ def last_text(messages: list) -> str:
     return ""
 
 
+# ── peer-to-peer mesh ─────────────────────────────────────────────────────────
+
+def _mesh_enabled() -> bool:
+    return os.getenv("AGENT_MESH", "1").strip().lower() not in ("0", "false", "no", "off", "")
+
+
+def _max_peer_depth() -> int:
+    try:
+        return int(os.getenv("AGENT_MAX_PEER_DEPTH", "2"))
+    except ValueError:
+        return 2
+
+
+def _incoming_depth(context: RequestContext) -> int:
+    """Delegation depth carried on the inbound A2A message (orchestrator sends 1)."""
+    meta = getattr(getattr(context, "message", None), "metadata", None) or {}
+    try:
+        return int(meta.get("delegation_depth", 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _peers_for(name: str, depth: int) -> List[str]:
+    """Specialists this agent may consult, given how deep we already are.
+
+    Full mesh (every specialist may consult every other), capped by depth so a
+    consulted peer cannot re-delegate — that bounds the call tree and rules out
+    cycles (A→B→A). Toggle with AGENT_MESH=0; cap with AGENT_MAX_PEER_DEPTH.
+    """
+    if not _mesh_enabled() or depth >= _max_peer_depth():
+        return []
+    return [s for s in AGENT_MCP_SCOPE if s != name]
+
+
+_PEER_GUIDANCE = (
+    "\n\nPEER CONSULTATION\n"
+    "When a question genuinely needs another domain, you may consult a fellow "
+    "specialist via these tools:\n{tools}\n"
+    "Use them sparingly — only when their data is actually needed (e.g. you need "
+    "today's weather, or recovery status to qualify your advice). Pass a focused, "
+    "self-contained question and fold the answer into yours. Never delegate work "
+    "your own tools can already do."
+)
+
+
+def _peer_prompt(peers: List[str]) -> str:
+    tools = "\n".join(f"  • ask_{p} — the {p} specialist" for p in peers)
+    return _PEER_GUIDANCE.format(tools=tools)
+
+
+def _peer_tool(caller: str, peer: str, depth: int, sink: List[dict],
+               status: Callable[[str], Awaitable[None]]) -> StructuredTool:
+    """An ``ask_<peer>`` tool: A2A-call a fellow specialist one level deeper.
+
+    The peer's artifact is stashed in ``sink`` (surfaced as ``sub_artifacts`` so
+    the trace stays complete); the peer runs at ``depth + 1`` so it cannot itself
+    re-delegate once the cap is reached.
+    """
+    url = A2A_AGENTS[peer]
+
+    async def _ask(question: str) -> str:
+        await status(f"{caller} → consulting {peer}…")
+        try:
+            ans, arts = await call_agent(url, question, metadata={"delegation_depth": depth + 1})
+        except Exception as exc:  # peer down — degrade, don't fail the caller
+            return f"(the {peer} specialist is unavailable: {type(exc).__name__})"
+        for a in arts:
+            if isinstance(a, dict):
+                sink.append(a)
+        return ans or f"(no answer from {peer})"
+
+    return StructuredTool(
+        name=f"ask_{peer}",
+        description=f"Consult the {peer} specialist for its domain. Pass a focused, self-contained question.",
+        args_schema={"type": "object",
+                     "properties": {"question": {"type": "string",
+                                    "description": f"Self-contained question for the {peer} specialist."}},
+                     "required": ["question"]},
+        coroutine=_ask,
+    )
+
+
 class SpecialistExecutor(AgentExecutor):
     """Runs one domain specialist; emits {agent, duration_ms, tool_calls} artifact."""
 
@@ -62,6 +146,7 @@ class SpecialistExecutor(AgentExecutor):
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         t0 = time.perf_counter()
         user_text = context.get_user_input() or ""
+        depth = _incoming_depth(context)
         task = context.current_task
         if task is None:
             task = new_task(context.message)
@@ -69,16 +154,25 @@ class SpecialistExecutor(AgentExecutor):
         updater = TaskUpdater(event_queue, task.id, task.context_id)
         await updater.start_work()
 
+        async def status(msg: str) -> None:
+            await updater.update_status(
+                TaskState.working,
+                message=updater.new_agent_message([Part(root=TextPart(text=msg))]),
+            )
+
         recorder: List[dict] = []
+        peer_artifacts: List[dict] = []
         answer = ""
         try:
             host = scoped_host(self.server_names)
             tools = await build_tools(host, recorder)
-            await updater.update_status(
-                TaskState.working,
-                message=updater.new_agent_message([Part(root=TextPart(text=f"{self.name}: analysing…"))]),
-            )
-            agent = create_agent(model=get_chat_model(), tools=tools, system_prompt=self.system_prompt)
+            peers = _peers_for(self.name, depth)
+            prompt = self.system_prompt
+            if peers:
+                tools = tools + [_peer_tool(self.name, p, depth, peer_artifacts, status) for p in peers]
+                prompt = prompt + _peer_prompt(peers)
+            await status(f"{self.name}: analysing…")
+            agent = create_agent(model=get_chat_model(), tools=tools, system_prompt=prompt)
             with trace_span(f"{self.name}_agent", service=self.name,
                             role="specialist", question=user_text):
                 out = await agent.ainvoke({"messages": [HumanMessage(user_text)]})
@@ -87,8 +181,11 @@ class SpecialistExecutor(AgentExecutor):
             answer = f"({self.name} specialist error: {type(exc).__name__}: {exc})"
 
         dur = int((time.perf_counter() - t0) * 1000)
+        data = {"agent": self.name, "duration_ms": dur, "tool_calls": recorder}
+        if peer_artifacts:
+            data["sub_artifacts"] = peer_artifacts
         await updater.add_artifact(
-            [Part(root=DataPart(data={"agent": self.name, "duration_ms": dur, "tool_calls": recorder}))],
+            [Part(root=DataPart(data=data))],
             name=f"{self.name}_artifact",
         )
         await updater.complete(message=updater.new_agent_message([Part(root=TextPart(text=answer))]))
