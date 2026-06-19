@@ -39,3 +39,12 @@ def search(q: str, k: int = 5, user: str = Depends(current_user)) -> dict[str, A
     """Recall the user's most relevant past conversation turns for query ``q``."""
     hits = get_user_memory(user).recall(q, k=k)
     return {"user": user, "query": q, "results": hits}
+
+
+@router.post("/soul/refresh")
+def refresh_soul(user: str = Depends(current_user)) -> dict[str, Any]:
+    """Force an immediate LLM soul refresh from recent conversation (ignores the
+    every-N-turns throttle). Returns whether the soul actually changed."""
+    mem = get_user_memory(user)
+    changed = mem.refresh_soul()
+    return {"user": user, "updated": changed, "content": mem.read_soul()}

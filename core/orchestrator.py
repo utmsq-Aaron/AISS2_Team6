@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -102,6 +103,7 @@ class FitDashOrchestrator:
         final = trace.get("answer") or answer
         if mem is not None and final and not trace.get("error"):
             mem.remember(user_input, final)  # best-effort; never raises
+            _spawn_soul_refresh(mem)          # throttled LLM distillation, off-thread
         return final, trace
 
 
@@ -117,6 +119,21 @@ def _get_memory(user: Optional[str]):
     except Exception as exc:  # noqa: BLE001 — memory must never break chat
         print(f"[orchestrator] user memory unavailable: {exc}", flush=True)
         return None
+
+
+def _spawn_soul_refresh(mem) -> None:
+    """Fire the throttled soul refresh in a daemon thread so it never blocks the
+    chat response. It no-ops until enough new turns have accrued."""
+    def _work() -> None:
+        try:
+            mem.maybe_refresh_soul()
+        except Exception as exc:  # noqa: BLE001 — best-effort
+            print(f"[orchestrator] soul refresh thread error: {exc}", flush=True)
+
+    try:
+        threading.Thread(target=_work, daemon=True).start()
+    except Exception:  # noqa: BLE001 — thread spawn must never break the turn
+        pass
 
 
 def _flatten_history(history: List[Dict], user_input: str) -> str:

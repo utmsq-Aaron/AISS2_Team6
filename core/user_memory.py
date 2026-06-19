@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -73,6 +74,27 @@ def _topk() -> int:
         return 4
 
 
+def _soul_every() -> int:
+    """Refresh the soul once this many new turns have accumulated since the last."""
+    try:
+        return max(1, int(_env("USER_MEMORY_SOUL_EVERY", "3")))
+    except ValueError:
+        return 3
+
+
+# Per-user lock so two overlapping refreshes can't clobber one soul.md.
+_soul_locks: Dict[str, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _soul_lock(slug: str) -> threading.Lock:
+    with _locks_guard:
+        lock = _soul_locks.get(slug)
+        if lock is None:
+            lock = _soul_locks[slug] = threading.Lock()
+        return lock
+
+
 _DEFAULT_SOUL = """\
 # {name} — soul
 
@@ -90,6 +112,29 @@ so keep it short, factual, and current. Edit freely.
 
 ## Notes
 - (anything else worth remembering long-term)
+"""
+
+_SOUL_SYSTEM = """\
+You maintain a concise, durable PROFILE ("soul") of one user of a sports-training
+assistant. You are given the user's CURRENT profile (markdown) and the most RECENT
+conversation turns (the user's questions + the assistant's answers). Produce an
+UPDATED profile that folds in any new, durable facts about this person.
+
+Rules:
+- Keep the existing markdown structure and headings (About / Goals / Preferences /
+  Notes). Add bullets under the right heading; revise stale ones.
+- Record ONLY durable, long-term facts: training goals, target events, sport
+  background, recurring preferences (units, coaching tone), constraints, injuries,
+  schedule patterns. The kind of thing worth remembering across many sessions.
+- IGNORE one-off questions and transient data values (today's heart rate, a single
+  day's weather, a specific date's workout). Those live in the conversation log,
+  not the profile.
+- Never invent or infer beyond what the conversation supports. If nothing new is
+  durable, return the profile essentially unchanged.
+- Replace the placeholder "(…)" template hints with real content once you have it;
+  if a section still has nothing real, leave its placeholder.
+- Be concise. Output ONLY the profile markdown — no preamble, no commentary, no
+  code fences.
 """
 
 
@@ -174,10 +219,83 @@ class UserMemory:
                 "user": self.user,
             })
             store.save(self.conv_dir)
+            meta = self._read_meta()
+            meta["turns"] = int(meta.get("turns", 0)) + 1
+            self._write_meta(meta)
             return True
         except Exception as exc:  # noqa: BLE001 — never let a write break chat
             print(f"[user_memory] remember skipped for {self.slug}: {exc}", flush=True)
             return False
+
+    # ── self-updating soul (LLM distillation of recent turns) ─────────────────
+
+    @property
+    def meta_path(self) -> Path:
+        return self.dir / "meta.json"
+
+    def _read_meta(self) -> Dict[str, Any]:
+        try:
+            return json.loads(self.meta_path.read_text(encoding="utf-8")) if self.meta_path.exists() else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _write_meta(self, meta: Dict[str, Any]) -> None:
+        try:
+            self.dir.mkdir(parents=True, exist_ok=True)
+            self.meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError:
+            pass
+
+    def _recent_turns(self, limit: int) -> List[Dict[str, Any]]:
+        """The newest ``limit`` stored Q&A turns (chunks are appended in order)."""
+        try:
+            from core.fitness_rag import VectorStore
+            if not VectorStore.exists(self.conv_dir):
+                return []
+            chunks = VectorStore.load(self.conv_dir).chunks
+            return chunks[-limit:]
+        except Exception:  # noqa: BLE001
+            return []
+
+    def soul_update_due(self) -> bool:
+        meta = self._read_meta()
+        pending = int(meta.get("turns", 0)) - int(meta.get("last_soul_update_turn", 0))
+        return pending >= _soul_every()
+
+    def maybe_refresh_soul(self) -> bool:
+        """Refresh the soul iff enough new turns have accrued. Best-effort, safe to
+        call after every turn (it no-ops until the threshold is reached)."""
+        if not memory_enabled() or not self.soul_update_due():
+            return False
+        return self.refresh_soul()
+
+    def refresh_soul(self, max_turns: int = 12) -> bool:
+        """Distill recent conversation into the soul via the LLM. Never raises."""
+        lock = _soul_lock(self.slug)
+        if not lock.acquire(blocking=False):
+            return False  # a refresh for this user is already running
+        try:
+            turns = self._recent_turns(max_turns)
+            if not turns:
+                return False
+            current = self.read_soul().strip() or _DEFAULT_SOUL.format(name=self.user)
+            updated = _distill_soul(self.user, current, turns)
+            meta = self._read_meta()
+            meta["last_soul_update_turn"] = int(meta.get("turns", 0))
+            if updated and updated.strip() != current.strip():
+                self.write_soul(updated)
+                meta["soul_updated_ts"] = datetime.utcnow().isoformat() + "Z"
+                self._write_meta(meta)
+                print(f"[user_memory] soul refreshed for {self.slug}", flush=True)
+                return True
+            # Still advance the counter so we don't retry the same turns every turn.
+            self._write_meta(meta)
+            return False
+        except Exception as exc:  # noqa: BLE001
+            print(f"[user_memory] soul refresh skipped for {self.slug}: {exc}", flush=True)
+            return False
+        finally:
+            lock.release()
 
     # ── context assembly (injected into the agent prompt) ─────────────────────
 
@@ -211,6 +329,48 @@ class UserMemory:
             "your answer when relevant; don't recite it back unless asked.\n\n"
             + "\n\n".join(sections)
         )
+
+
+_FENCE_RE = re.compile(r"^```[a-zA-Z]*\n(.*)\n```$", re.S)
+
+
+def _strip_fence(text: str) -> str:
+    m = _FENCE_RE.match(text.strip())
+    return m.group(1).strip() if m else text.strip()
+
+
+def _distill_soul(user: str, current_soul: str, turns: List[Dict[str, Any]]) -> str:
+    """Ask the LLM to merge recent turns into the profile. Returns "" on any failure."""
+    try:
+        from langchain_core.messages import HumanMessage, SystemMessage
+        from core.llm import get_chat_model
+    except Exception as exc:  # noqa: BLE001 — langchain/llm seam unavailable
+        print(f"[user_memory] soul distill unavailable: {exc}", flush=True)
+        return ""
+
+    convo = "\n\n".join(
+        f"[{(t.get('ts') or '')[:10]}] Q: {t.get('question', '')}\nA: {t.get('answer', '')}"
+        for t in turns
+    )
+    human = (
+        f"CURRENT PROFILE:\n{current_soul}\n\n"
+        f"RECENT CONVERSATIONS (oldest first):\n{convo}\n\n"
+        "Return the updated profile markdown only."
+    )
+    try:
+        resp = get_chat_model().invoke(
+            [SystemMessage(content=_SOUL_SYSTEM), HumanMessage(content=human)]
+        )
+        text = getattr(resp, "content", None) or str(resp)
+    except Exception as exc:  # noqa: BLE001 — gateway error / timeout
+        print(f"[user_memory] soul distill LLM call failed: {exc}", flush=True)
+        return ""
+
+    text = _strip_fence(text if isinstance(text, str) else str(text))
+    # Sanity bounds: reject empty/degenerate or runaway output, keep the old soul.
+    if len(text) < 20 or len(text) > 12000 or "#" not in text:
+        return ""
+    return text
 
 
 def get_user_memory(user: str) -> UserMemory:

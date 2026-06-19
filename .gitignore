@@ -70,6 +70,9 @@ server/dist/
 # corpus via `python -m scripts.build_fitness_index` (the launch scripts do this).
 data/fitness_library/index/
 
-# Per-user conversation vector stores — runtime memory, grows as users chat.
-# The seed soul.md profiles ARE committed; the embedded conversation data is not.
+# Per-user conversation vector stores + turn bookkeeping — runtime memory that
+# grows as users chat. The seed soul.md profiles ARE tracked (the agent rewrites
+# them over time, so those edits show up as diffs); the embedded conversation
+# vectors and the turn counter are per-deployment runtime state, not committed.
 data/user_memory/*/conversations/
+data/user_memory/*/meta.json
