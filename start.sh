@@ -41,6 +41,21 @@ run_mcps() {
   cleanup() { echo; echo "stopping backend…"; for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null; done; }
   trap cleanup EXIT INT TERM
 
+  echo "=== MLflow tracking server ==="
+  # Port 5001, not 5000 — macOS Control Center/AirPlay Receiver squats on :5000.
+  if port_busy 5001; then
+    echo "✓ MLflow already on :5001 (reusing)"
+  else
+    echo "→ starting MLflow on :5001  (UI at http://localhost:5001)"
+    python -m mlflow server --host 127.0.0.1 --port 5001 \
+      --backend-store-uri "sqlite:///mlflow.db" >/tmp/mlflow.log 2>&1 &
+    pids+=($!)
+    for _ in $(seq 1 40); do
+      curl -sf http://127.0.0.1:5001/health >/dev/null 2>&1 && { echo "  MLflow ready"; break; }
+      sleep 0.5
+    done
+  fi
+
   echo "=== MCP servers ==="
   for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrough:8107; do
     name="${s%%:*}"; port="${s##*:}"

@@ -35,3 +35,4 @@ langchain>=1,<2
 langchain-core>=1.4,<2
 langchain-openai>=1.3,<2     # ChatOpenAI against the OpenAI-compatible KIT gateway
 langchain-google-genai>=2,<4 # optional: LLM_PROVIDER=gemini (Google Gemini)
+mlflow>=3,<4                 # tracing the agent layer (LangGraph + LLM + tool spans); UI on :5000

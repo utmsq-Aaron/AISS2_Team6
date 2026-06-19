@@ -31,6 +31,7 @@ from agents.prompts import specialist_prompt
 from core.config import A2A_AGENTS, AGENT_MCP_SCOPE, AGENT_PORTS
 from core.llm import get_chat_model
 from core.mcp_langchain import build_tools, scoped_host
+from core.tracing import setup_tracing, trace_span
 
 
 def last_text(messages: list) -> str:
@@ -78,7 +79,9 @@ class SpecialistExecutor(AgentExecutor):
                 message=updater.new_agent_message([Part(root=TextPart(text=f"{self.name}: analysing…"))]),
             )
             agent = create_agent(model=get_chat_model(), tools=tools, system_prompt=self.system_prompt)
-            out = await agent.ainvoke({"messages": [HumanMessage(user_text)]})
+            with trace_span(f"{self.name}_agent", service=self.name,
+                            role="specialist", question=user_text):
+                out = await agent.ainvoke({"messages": [HumanMessage(user_text)]})
             answer = last_text(out.get("messages", []))
         except Exception as exc:  # noqa: BLE001 — degrade gracefully, report upstream
             answer = f"({self.name} specialist error: {type(exc).__name__}: {exc})"
@@ -100,6 +103,7 @@ def run_agent_server(name: str, executor: AgentExecutor, *, description: str,
     port = AGENT_PORTS[name]
     url = A2A_AGENTS[name]
     bind_host = os.getenv("A2A_BIND_HOST", "127.0.0.1")
+    setup_tracing(name)  # enable MLflow autologging for this agent process
     card = AgentCard(
         name=f"FitDash {name.capitalize()} Agent",
         description=description,

@@ -30,6 +30,7 @@ from core.a2a_client import call_agent
 from core.agent_trace import build_trace
 from core.config import A2A_AGENTS, ORCHESTRATOR_SPECIALISTS
 from core.llm import get_chat_model
+from core.tracing import trace_span
 
 
 def _ask_tool(spec: str, url: str, collected: List[dict],
@@ -85,7 +86,9 @@ class OrchestratorExecutor(AgentExecutor):
             agent = create_agent(model=get_chat_model(), tools=tools,
                                  system_prompt=orchestrator_prompt(ORCHESTRATOR_SPECIALISTS))
             await status("Coordinating specialists…")
-            out = await agent.ainvoke({"messages": [HumanMessage(user_text)]})
+            with trace_span("orchestrator_agent", service="orchestrator",
+                            role="orchestrator", question=user_text):
+                out = await agent.ainvoke({"messages": [HumanMessage(user_text)]})
             answer = last_text(out.get("messages", []))
         except Exception as exc:  # noqa: BLE001 — surface as trace error
             error = f"{type(exc).__name__}: {exc}"

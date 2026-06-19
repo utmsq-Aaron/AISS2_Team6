@@ -19,6 +19,10 @@ __pycache__/
 *.db
 *.sqlite3
 
+# MLflow tracing store (mlflow.db is covered by *.db above; these are artifact dirs)
+mlruns/
+mlartifacts/
+
 # Runtime API cache (regenerated on demand)
 .cache/
 

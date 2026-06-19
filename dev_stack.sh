@@ -17,6 +17,22 @@ trap cleanup EXIT INT TERM
 
 port_busy() { lsof -ti "tcp:$1" -sTCP:LISTEN >/dev/null 2>&1; }
 
+# 0. MLflow tracking server — agent + LLM tracing UI at http://localhost:5001.
+#    Started before the agents so they can register the experiment on boot.
+#    Port 5001, not 5000 — macOS Control Center/AirPlay Receiver squats on :5000.
+if port_busy 5001; then
+  echo "✓ MLflow already on :5001"
+else
+  echo "→ starting MLflow on :5001"
+  "$PY" -m mlflow server --host 127.0.0.1 --port 5001 \
+    --backend-store-uri "sqlite:///mlflow.db" >/tmp/mlflow.log 2>&1 &
+  pids+=($!)
+  for _ in $(seq 1 40); do
+    curl -sf http://127.0.0.1:5001/health >/dev/null 2>&1 && { echo "  MLflow ready"; break; }
+    sleep 0.5
+  done
+fi
+
 # 1. MCP servers (telegram is optional / manual)
 for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrough:8107; do
   name="${s%%:*}"; port="${s##*:}"

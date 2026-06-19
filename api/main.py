@@ -11,6 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from api.routers import chat, charts, health, settings, sync, tools  # noqa: E402
+from core.tracing import setup_tracing  # noqa: E402
+
+setup_tracing("api")  # MLflow autologging for the chart-service LLM calls
 
 app = FastAPI(title="FitDash API", version="0.1.0")
 
