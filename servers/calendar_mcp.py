@@ -10,10 +10,10 @@ Standardized per the Anthropic/MCP model:
     never enters a tool's arguments or the model's context — the vault pattern.
 
 Scopes: the read tools (``list_calendars`` / ``list_events`` / ``get_event``) need
-only ``calendar.readonly``; ``create_event`` writes, so the connected token must
-carry ``calendar.events`` (or ``calendar``). The OAuth start-flow requests the
-write scope (see ``api/settings_service._GOOGLE_SCOPE``); a read-only token will
-get a 403 on create until you reconnect.
+only ``calendar.readonly``; the write tools (``create_event`` / ``update_event`` /
+``delete_event``) need ``calendar.events`` (or ``calendar``). The OAuth start-flow
+requests the write scope (see ``api/settings_service._GOOGLE_SCOPE``); a read-only
+token gets a 403 on any write until you reconnect.
 
 Run locally:   python -m servers.calendar_mcp
 Endpoint:      http://127.0.0.1:8105/mcp
@@ -46,7 +46,8 @@ CAL_TZ = os.getenv("CALENDAR_TZ", "Europe/Berlin")
 
 mcp = FastMCP(
     "calendar",
-    instructions="Read-only Google Calendar: list calendars, list events in a time range, get one event.",
+    instructions="Google Calendar: list calendars, list/get events, and create, "
+                 "update or delete events (full read/write).",
     host=HOST,
     port=PORT,
     stateless_http=True,
@@ -138,6 +139,44 @@ def _post(path: str, body: Dict[str, Any]) -> Dict[str, Any]:
     if not resp.ok:
         return {"error": f"Google Calendar API {resp.status_code}: {resp.text[:200]}"}
     return resp.json() if resp.text else {}
+
+
+def _patch(path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    token = _access_token()
+    if not token:
+        return {"error": "Not authorized for Google Calendar. Connect a Google account (with write access) first."}
+    resp = requests.patch(f"{CAL_API}{path}",
+                          headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                          json=body, timeout=20)
+    if resp.status_code == 401:
+        return {"error": "Google Calendar token expired or invalid — reconnect."}
+    if resp.status_code == 403:
+        return {"error": "Google Calendar 403 — the connected token is read-only "
+                         "(needs the calendar.events scope). Reconnect Google to grant write access. "
+                         f"Detail: {resp.text[:160]}"}
+    if resp.status_code == 404:
+        return {"error": "Event not found — check the event_id (list_events to get it)."}
+    if not resp.ok:
+        return {"error": f"Google Calendar API {resp.status_code}: {resp.text[:200]}"}
+    return resp.json() if resp.text else {}
+
+
+def _delete(path: str) -> Dict[str, Any]:
+    token = _access_token()
+    if not token:
+        return {"error": "Not authorized for Google Calendar. Connect a Google account (with write access) first."}
+    resp = requests.delete(f"{CAL_API}{path}",
+                           headers={"Authorization": f"Bearer {token}"}, timeout=20)
+    if resp.status_code in (200, 204):
+        return {"deleted": True}
+    if resp.status_code == 401:
+        return {"error": "Google Calendar token expired or invalid — reconnect."}
+    if resp.status_code == 403:
+        return {"error": "Google Calendar 403 — the connected token is read-only "
+                         "(needs the calendar.events scope). Reconnect Google to grant write access."}
+    if resp.status_code in (404, 410):
+        return {"error": "Event not found (already deleted?) — check the event_id."}
+    return {"error": f"Google Calendar API {resp.status_code}: {resp.text[:200]}"}
 
 
 def _iso(value: Optional[str]) -> Optional[str]:
@@ -297,6 +336,85 @@ def create_event(
         "end": data.get("end"),
         "htmlLink": data.get("htmlLink"),
     }
+
+
+@mcp.tool()
+def update_event(
+    event_id: str,
+    summary: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    calendar_id: str = "primary",
+    description: Optional[str] = None,
+    location: Optional[str] = None,
+    time_zone: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Edit an existing event. WRITES to the user's calendar (partial update).
+
+    Call this when the user asks to move / reschedule / rename / change a session —
+    e.g. "move my Saturday run to 9am", "rename the Tuesday workout", "make the
+    long run 2 hours". First get the event_id from list_events; then pass ONLY the
+    fields that change — omitted fields are left untouched.
+
+    Times: same format as create_event — "YYYY-MM-DDTHH:MM:SS" (timed, interpreted
+    in time_zone) or "YYYY-MM-DD" (all-day). If you change start or end, pass the
+    full new value.
+
+    Args:
+        event_id: The event to edit (from list_events). Required.
+        summary: New title, if changing.
+        start: New start time, if changing.
+        end: New end time, if changing.
+        calendar_id: Calendar the event lives on (default "primary").
+        description: New notes, if changing.
+        location: New location, if changing.
+        time_zone: IANA zone for timed start/end (default server's CALENDAR_TZ).
+    """
+    if not event_id:
+        return {"error": "event_id is required (get it from list_events)"}
+    tz = time_zone or CAL_TZ
+    body: Dict[str, Any] = {}
+    if summary is not None:
+        body["summary"] = summary
+    if description is not None:
+        body["description"] = description
+    if location is not None:
+        body["location"] = location
+    if start:
+        body["start"] = _event_time(start, tz)
+    if end:
+        body["end"] = _event_time(end, tz)
+    if not body:
+        return {"error": "Nothing to update — pass at least one field to change."}
+
+    data = _patch(f"/calendars/{calendar_id}/events/{event_id}", body)
+    if "error" in data:
+        return data
+    return {
+        "updated": True,
+        "id": data.get("id"),
+        "summary": data.get("summary"),
+        "start": data.get("start"),
+        "end": data.get("end"),
+        "htmlLink": data.get("htmlLink"),
+    }
+
+
+@mcp.tool()
+def delete_event(event_id: str, calendar_id: str = "primary") -> Dict[str, Any]:
+    """Delete an event. WRITES to the user's calendar (permanent).
+
+    Call this when the user asks to remove / cancel / delete a calendar entry.
+    Get the event_id from list_events first, and confirm WHICH event with the user
+    (name + date) before deleting — deletion cannot be undone.
+
+    Args:
+        event_id: The event to delete (from list_events). Required.
+        calendar_id: Calendar the event lives on (default "primary").
+    """
+    if not event_id:
+        return {"error": "event_id is required (get it from list_events)"}
+    return _delete(f"/calendars/{calendar_id}/events/{event_id}")
 
 
 if __name__ == "__main__":

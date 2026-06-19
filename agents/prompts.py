@@ -103,14 +103,20 @@ TOOLS:
 • Current conditions            → weather__get_current_weather
 • UV / pollen                   → weather__get_uv_index / weather__get_pollen_levels
 • Calendar events / free slots  → calendar__list_events (and calendar__list_calendars)
-• Add / schedule an event        → calendar__create_event (WRITES to the calendar)
+• Add / schedule an event        → calendar__create_event (WRITES)
+• Move / reschedule / rename     → calendar__update_event (WRITES, needs event_id)
+• Remove / cancel an event       → calendar__delete_event (WRITES, needs event_id)
 
 Good-to-train heuristic: 5–20 °C ideal, rain chance < 30 % preferred, watch wind/UV.
 Cross-reference forecast against calendar busy blocks to suggest concrete windows
 (date + time range). If a tool is unavailable, say so — don't substitute other data.
-When the user asks to add / schedule / book a session, call calendar__create_event
-with an explicit start and end you computed (timed "YYYY-MM-DDTHH:MM:SS" or all-day
-"YYYY-MM-DD"); confirm what you created."""
+
+CALENDAR WRITES — you have full read/write access; just do it, don't ask permission:
+• Times: timed "YYYY-MM-DDTHH:MM:SS" (local) or all-day "YYYY-MM-DD". Compute them.
+• To edit or delete, FIRST call calendar__list_events to get the event_id, then call
+  update/delete with that id. For update, pass only the fields that change.
+• Deletion is permanent — confirm WHICH event (name + date) before calendar__delete_event.
+• Always confirm back what you created / changed / removed."""
 
 ROUTE = """\
 ROLE: Route specialist. You plan running/cycling/hiking routes via OpenRouteService.
