@@ -46,10 +46,17 @@ for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrou
 done
 sleep 2
 
+# 1a. Fitness RAG vector index — build once (skipped instantly if it already
+#     exists). First run downloads the local embedding model (~90 MB) and embeds
+#     the public-domain corpus; the fitness agent (:9005) reads this index.
+echo "→ ensuring fitness RAG index"
+"$PY" -m scripts.build_fitness_index --if-missing \
+  || echo "⚠ fitness index unavailable — the fitness agent will degrade gracefully"
+
 # 1b. A2A agent layer — LangGraph specialists + orchestrator (each its own server).
 #     Specialists first, orchestrator (:9000) last. The orchestrator resolves the
 #     specialists lazily per request, so startup order isn't load-bearing.
-for a in recovery:9001 load:9002 context:9003 route:9004 orchestrator:9000; do
+for a in recovery:9001 load:9002 context:9003 route:9004 fitness:9005 orchestrator:9000; do
   name="${a%%:*}"; port="${a##*:}"
   if [ "$name" = "orchestrator" ]; then mod="core.orchestrator_agent"; else mod="agents.${name}_agent"; fi
   if port_busy "$port"; then

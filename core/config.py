@@ -47,6 +47,7 @@ AGENT_PORTS: dict[str, int] = {
     "load":         9002,
     "context":      9003,
     "route":        9004,
+    "fitness":      9005,
 }
 
 A2A_AGENTS: dict[str, str] = {name: _a2a_url(name, port) for name, port in AGENT_PORTS.items()}
@@ -59,6 +60,9 @@ AGENT_MCP_SCOPE: dict[str, list[str]] = {
     "load":     ["strava", "garmin"],
     "context":  ["weather", "calendar"],
     "route":    ["routes"],
+    # fitness has NO MCP scope — it answers from a RAG vector DB of fitness
+    # literature (core.fitness_rag), not from a live MCP server.
+    "fitness":  [],
 }
 
 # Which specialists the orchestrator may delegate to (one A2A ask_* tool each).
@@ -66,5 +70,5 @@ AGENT_MCP_SCOPE: dict[str, list[str]] = {
 # Unreachable specialists degrade gracefully — the orchestrator reports them as
 # unavailable rather than failing the whole turn.
 ORCHESTRATOR_SPECIALISTS: list[str] = [
-    s.strip() for s in os.getenv("ORCHESTRATOR_SPECIALISTS", "recovery,load,context,route").split(",") if s.strip()
+    s.strip() for s in os.getenv("ORCHESTRATOR_SPECIALISTS", "recovery,load,context,route,fitness").split(",") if s.strip()
 ]

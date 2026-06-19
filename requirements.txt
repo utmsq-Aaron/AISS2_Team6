@@ -36,3 +36,10 @@ langchain-core>=1.4,<2
 langchain-openai>=1.3,<2     # ChatOpenAI against the OpenAI-compatible KIT gateway
 langchain-google-genai>=2,<4 # optional: LLM_PROVIDER=gemini (Google Gemini)
 mlflow>=3,<4                 # tracing the agent layer (LangGraph + LLM + tool spans); UI on :5000
+
+# ── Fitness Expert agent: local RAG over a vector DB of fitness literature ─────
+# The fitness specialist has no MCP server; it retrieves from a local vector index
+# built from public-domain fitness books. Embeddings come from a small LOCAL model
+# (default all-MiniLM-L6-v2) — sentence-transformers pulls torch, which ships a
+# CPU/MPS build automatically on Apple Silicon. No external embedding API needed.
+sentence-transformers>=3,<6

@@ -69,8 +69,12 @@ run_mcps() {
   done
   sleep 2
 
+  echo "=== Fitness RAG index (build once; skipped if present) ==="
+  python -m scripts.build_fitness_index --if-missing \
+    || echo "⚠ fitness index unavailable — the fitness agent will degrade gracefully"
+
   echo "=== A2A agents (LangGraph specialists + orchestrator) ==="
-  for a in recovery:9001 load:9002 context:9003 route:9004 orchestrator:9000; do
+  for a in recovery:9001 load:9002 context:9003 route:9004 fitness:9005 orchestrator:9000; do
     name="${a%%:*}"; port="${a##*:}"
     if [ "$name" = "orchestrator" ]; then mod="core.orchestrator_agent"; else mod="agents.${name}_agent"; fi
     if port_busy "$port"; then

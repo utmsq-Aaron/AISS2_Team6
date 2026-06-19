@@ -65,3 +65,7 @@ server/dist/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Fitness RAG built vector index — derived artifact, rebuilt from the committed
+# corpus via `python -m scripts.build_fitness_index` (the launch scripts do this).
+data/fitness_library/index/

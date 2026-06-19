@@ -29,7 +29,8 @@ python -m agents.recovery_agent &      # :9001  (→ garmin MCP)
 python -m agents.load_agent &          # :9002  (→ strava + garmin)
 python -m agents.context_agent &       # :9003  (→ weather + calendar)
 python -m agents.route_agent &         # :9004  (→ routes)
-python -m core.orchestrator_agent &    # :9000  (coordinates the four via A2A)
+python -m agents.fitness_agent &       # :9005  (→ RAG vector DB, no MCP)
+python -m core.orchestrator_agent &    # :9000  (coordinates the five via A2A)
 
 # Terminal 2 — the UI
 streamlit run app.py              # http://localhost:8501
@@ -62,6 +63,7 @@ The chat engine is a multi-agent system. Each agent is its own **A2A server** (o
 
 - **Orchestrator** — `core/orchestrator_agent.py` (:9000). A LangGraph agent (`langchain.agents.create_agent`) whose only tools are `ask_<specialist>` — each performs an A2A call to a specialist. It decomposes the request, delegates (in parallel when the model emits multiple tool calls), collects each specialist's DataPart artifact, and assembles the `trace` via `core/agent_trace.build_trace`. It has **no MCP access** of its own.
 - **Specialists** — `agents/{recovery,load,context,route}_agent.py` (:9001–:9004). Each is a LangGraph ReAct agent over a **ToolHost scoped to its MCP servers** (`core/mcp_langchain.scoped_host` + `build_tools`; scope map in `core/config.AGENT_MCP_SCOPE`): recovery→garmin, load→strava+garmin, context→weather+calendar, route→routes. Tools are still *discovered, never hardcoded* — just narrowed per agent. Each returns its raw MCP calls (FULL results, JSON strings) as a DataPart artifact so the orchestrator can build route maps / charts / the debug trace.
+- **Fitness Expert** — `agents/fitness_agent.py` (:9005). The one specialist with **no MCP server**: it answers training / technique / exercise-science questions from a local **vector DB of public-domain fitness books** via RAG (`core/fitness_rag.py`; built by `scripts/build_fitness_index.py`; executor `agents/_rag_executor.py`). Its single `search_fitness_literature` tool is recorded into the same artifact shape, so it flows into the trace like any MCP call. Embeddings use a small **local** model (`sentence-transformers`, all-MiniLM-L6-v2) — no embedding API. See [`docs/fitness-rag.md`](docs/fitness-rag.md).
 - **Glue** — `core/a2a_client.py` (A2A client used by both the orchestrator's ask-tools and the run() adapter); `core/mcp_langchain.py` (ToolHost→LangChain tool wrapper that records the full result and clips the model's copy); `core/agent_trace.py` (the trace helpers + `build_trace` — the exact UI/chart/route contract, so preserve its keys); `agents/prompts.py` (the old `_SYSTEM` split into per-domain prompts + the orchestrator routing prompt).
 - Agents run **non-streaming** (`ainvoke`) for robustness against the KIT gateway; progress is surfaced as A2A status messages, not token streaming. `core/llm.get_chat_model()` builds the LangChain `ChatOpenAI` on the same gateway; **`AGENT_LLM_MODEL`** overrides the model for the agent layer (recommend `kit.gpt-4.1` — `glm-4.7` is flaky for the multi-call loops). Registry: `core/config.A2A_AGENTS` (name→URL, env-overridable like `RECOVERY_A2A_URL=…`); `ORCHESTRATOR_SPECIALISTS` selects which specialists are enabled (unreachable ones degrade gracefully).
 
