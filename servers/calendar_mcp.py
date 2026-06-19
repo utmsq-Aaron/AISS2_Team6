@@ -1,15 +1,19 @@
-"""Google Calendar — native FastMCP server (Streamable HTTP), read-only.
+"""Google Calendar — native FastMCP server (Streamable HTTP).
 
 Standardized per the Anthropic/MCP model:
   - Native MCP server (FastMCP) over Streamable HTTP — own vs external servers are
     identical to the host; this one just happens to be ours.
-  - Read-only tools with prescriptive descriptions.
+  - Prescriptive tool descriptions so the model picks the right one.
   - Auth is SEPARATE from the tool: the access token is provided to the *server*
     (per-request ``Authorization: Bearer`` header injected by the host's vault, or a
     local token for single-user dev) and used only for the upstream Google call. It
     never enters a tool's arguments or the model's context — the vault pattern.
 
-Least privilege: only ``calendar.readonly`` is needed for these tools.
+Scopes: the read tools (``list_calendars`` / ``list_events`` / ``get_event``) need
+only ``calendar.readonly``; ``create_event`` writes, so the connected token must
+carry ``calendar.events`` (or ``calendar``). The OAuth start-flow requests the
+write scope (see ``api/settings_service._GOOGLE_SCOPE``); a read-only token will
+get a 403 on create until you reconnect.
 
 Run locally:   python -m servers.calendar_mcp
 Endpoint:      http://127.0.0.1:8105/mcp
@@ -30,6 +34,7 @@ CAL_API = "https://www.googleapis.com/calendar/v3"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 TOKEN_FILE = Path(".tokens/google.json")          # fixed: project-root relative (branch used ../)
 SCOPE_READONLY = "https://www.googleapis.com/auth/calendar.readonly"
+SCOPE_EVENTS = "https://www.googleapis.com/auth/calendar.events"  # needed by create_event
 
 HOST = os.getenv("CALENDAR_MCP_HOST", "127.0.0.1")
 PORT = int(os.getenv("CALENDAR_MCP_PORT", "8105"))
@@ -110,6 +115,26 @@ def _get(path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     return resp.json() if resp.text else {}
 
 
+def _post(path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    token = _access_token()
+    if not token:
+        return {"error": "Not authorized for Google Calendar. Connect a Google account (with write access) first."}
+    resp = requests.post(f"{CAL_API}{path}",
+                         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                         json=body, timeout=20)
+    if resp.status_code == 401:
+        return {"error": "Google Calendar token expired or invalid — reconnect."}
+    if resp.status_code == 403:
+        # Almost always an insufficient-scope token: the connected account was
+        # authorized read-only. Reconnect to mint a calendar.events token.
+        return {"error": "Google Calendar 403 — the connected token is read-only "
+                         "(needs the calendar.events scope). Reconnect Google to grant write access. "
+                         f"Detail: {resp.text[:160]}"}
+    if not resp.ok:
+        return {"error": f"Google Calendar API {resp.status_code}: {resp.text[:200]}"}
+    return resp.json() if resp.text else {}
+
+
 def _iso(value: Optional[str]) -> Optional[str]:
     """Accept RFC3339 or YYYY-MM-DD; return an API-friendly UTC timestamp."""
     if not value:
@@ -118,6 +143,13 @@ def _iso(value: Optional[str]) -> Optional[str]:
         return value
     from datetime import datetime, timezone
     return datetime.fromisoformat(value).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _event_time(value: str) -> Dict[str, str]:
+    """Build a Google event start/end object: all-day (date) vs timed (dateTime)."""
+    if "T" in value:                       # timed event → RFC3339 dateTime (UTC)
+        return {"dateTime": _iso(value)}
+    return {"date": value}                  # date-only → all-day event
 
 
 # ── Tools (read-only) ─────────────────────────────────────────────────────────
@@ -191,6 +223,61 @@ def get_event(event_id: str, calendar_id: str = "primary") -> Dict[str, Any]:
     if not event_id:
         return {"error": "event_id is required"}
     return _get(f"/calendars/{calendar_id}/events/{event_id}")
+
+
+@mcp.tool()
+def create_event(
+    summary: str,
+    start: str,
+    end: str,
+    calendar_id: str = "primary",
+    description: Optional[str] = None,
+    location: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create a new calendar event. WRITES to the user's calendar.
+
+    Call this when the user asks to add / schedule / book something — e.g.
+    "add a long run Saturday 8am", "block 2 hours tomorrow afternoon", "put my
+    race on the calendar". Compute explicit start/end yourself.
+
+    Times: pass RFC3339 with a "T" for a timed event (e.g. "2026-06-21T08:00:00"),
+    or a bare "YYYY-MM-DD" for an all-day event. ``start`` and ``end`` must be the
+    same kind (both timed or both all-day). Timed values are treated as UTC.
+
+    Requires a Google token with the calendar.events (write) scope — if the
+    account was connected read-only, this returns a 403 asking you to reconnect.
+
+    Args:
+        summary: Event title (required).
+        start: Start time — RFC3339 ("…T…") or "YYYY-MM-DD" for all-day.
+        end: End time — same kind as start.
+        calendar_id: Target calendar (default "primary").
+        description: Optional event notes.
+        location: Optional location text.
+    """
+    if not summary or not start or not end:
+        return {"error": "summary, start and end are required"}
+    body: Dict[str, Any] = {
+        "summary": summary,
+        "start": _event_time(start),
+        "end": _event_time(end),
+    }
+    if description:
+        body["description"] = description
+    if location:
+        body["location"] = location
+
+    data = _post(f"/calendars/{calendar_id}/events", body)
+    if "error" in data:
+        return data
+    return {
+        "created": True,
+        "id": data.get("id"),
+        "summary": data.get("summary"),
+        "start": data.get("start"),
+        "end": data.get("end"),
+        "htmlLink": data.get("htmlLink"),
+    }
 
 
 if __name__ == "__main__":

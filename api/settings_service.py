@@ -190,7 +190,10 @@ def strava_save_token(token: dict) -> dict:
 
 _GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-_GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
+# Read + write: calendar.readonly powers list/get; calendar.events lets the
+# create_event tool add events. (calendar.events alone does not grant reads.)
+_GOOGLE_SCOPE = ("https://www.googleapis.com/auth/calendar.readonly "
+                 "https://www.googleapis.com/auth/calendar.events")
 
 # The redirect must point at an *always-running* endpoint and be registered in the
 # Google Cloud Console. We use the FastAPI server's own public callback route

@@ -103,10 +103,14 @@ TOOLS:
 • Current conditions            → weather__get_current_weather
 • UV / pollen                   → weather__get_uv_index / weather__get_pollen_levels
 • Calendar events / free slots  → calendar__list_events (and calendar__list_calendars)
+• Add / schedule an event        → calendar__create_event (WRITES to the calendar)
 
 Good-to-train heuristic: 5–20 °C ideal, rain chance < 30 % preferred, watch wind/UV.
 Cross-reference forecast against calendar busy blocks to suggest concrete windows
-(date + time range). If a tool is unavailable, say so — don't substitute other data."""
+(date + time range). If a tool is unavailable, say so — don't substitute other data.
+When the user asks to add / schedule / book a session, call calendar__create_event
+with an explicit start and end you computed (timed "YYYY-MM-DDTHH:MM:SS" or all-day
+"YYYY-MM-DD"); confirm what you created."""
 
 ROUTE = """\
 ROLE: Route specialist. You plan running/cycling/hiking routes via OpenRouteService.

@@ -27,7 +27,8 @@ TOKEN_FILE   = Path(".tokens/google.json")
 REDIRECT_URI = "http://localhost:8888/callback"
 AUTH_URL     = "https://accounts.google.com/o/oauth2/auth"
 TOKEN_URL    = "https://oauth2.googleapis.com/token"
-SCOPE        = "https://www.googleapis.com/auth/calendar.readonly"
+SCOPE        = ("https://www.googleapis.com/auth/calendar.readonly "
+                "https://www.googleapis.com/auth/calendar.events")  # read + create_event writes
 
 
 class GoogleOAuthManager:
