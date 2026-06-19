@@ -8,12 +8,18 @@ from typing import Dict, Optional
 
 from dotenv import dotenv_values
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from api import connections as conn
 from api import settings_service as svc
 
 router = APIRouter()
+
+# Public router (mounted WITHOUT the Bearer-token guard): Google redirects the
+# browser straight to the callback with no Authorization header, so this one
+# route must be reachable unauthenticated. CSRF is covered by the OAuth `state`.
+public_router = APIRouter()
 
 # Keys editable from the Settings tab and whether to mask them in responses.
 _EDITABLE_KEYS = {
@@ -127,6 +133,30 @@ def google_connect():
 def google_disconnect():
     svc.revoke("google")
     return {"ok": True}
+
+
+def _google_result_page(title: str, body: str, color: str) -> HTMLResponse:
+    return HTMLResponse(
+        "<html><head><meta charset='utf-8'><title>FitDash · Google</title></head>"
+        "<body style='font-family:sans-serif;text-align:center;padding:60px'>"
+        f"<h1 style='color:{color}'>{title}</h1><p>{body}</p>"
+        "<script>setTimeout(function(){window.close()},3000)</script>"
+        "</body></html>"
+    )
+
+
+@public_router.get("/settings/google/callback")
+def google_callback(code: str = "", state: str = "", error: str = ""):
+    """Google's OAuth redirect target (public — no Bearer token on a browser redirect)."""
+    if error:
+        return _google_result_page("Google sign-in cancelled", error, "#d33")
+    try:
+        svc.google_handle_callback(code, state)
+    except Exception as exc:  # noqa: BLE001 — show the reason in the browser tab
+        return _google_result_page("Connection failed", str(exc), "#d33")
+    return _google_result_page(
+        "✓ Google Calendar connected!",
+        "You can close this window and return to FitDash.", "#4285F4")
 
 
 # ── Garmin ──────────────────────────────────────────────────────────────────

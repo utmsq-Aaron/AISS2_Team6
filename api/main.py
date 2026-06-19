@@ -31,8 +31,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Auth routes are public (you log in here); everything else requires a Bearer token.
+# Public routes (no Bearer token): auth login + the Google OAuth callback, which
+# Google reaches via a browser redirect that carries no Authorization header.
 app.include_router(auth.router, prefix="/api")
+app.include_router(settings.public_router, prefix="/api")
 
 _PROTECTED = [Depends(current_user)]
 for r in (health.router, tools.router, chat.router, charts.router,

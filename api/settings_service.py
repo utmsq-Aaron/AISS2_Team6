@@ -188,57 +188,77 @@ def strava_save_token(token: dict) -> dict:
 
 # ── Google OAuth ────────────────────────────────────────────────────────────────
 
+_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
+_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
+
+# The redirect must point at an *always-running* endpoint and be registered in the
+# Google Cloud Console. We use the FastAPI server's own public callback route
+# (no fragile single-shot localhost listener). Override with GOOGLE_OAUTH_REDIRECT
+# (e.g. behind a different host/port or the Node BFF).
+_GOOGLE_REDIRECT_DEFAULT = "http://localhost:8000/api/settings/google/callback"
+
+# CSRF state → issued-at, validated in the callback. Module-level so it survives
+# between the connect request and Google's redirect (two separate HTTP requests).
+_google_states: Dict[str, float] = {}
+_GOOGLE_STATE_TTL = 600  # seconds a pending auth attempt stays valid
+
+
+def google_redirect_uri() -> str:
+    return os.getenv("GOOGLE_OAUTH_REDIRECT", _GOOGLE_REDIRECT_DEFAULT)
+
+
 def google_start_flow() -> str:
+    """Build the Google consent URL and remember the CSRF state.
+
+    No local listener — Google redirects the browser to ``google_redirect_uri()``
+    (the FastAPI ``/settings/google/callback`` route), which calls
+    :func:`google_handle_callback` to finish the exchange.
+    """
     cid = os.getenv("GOOGLE_CLIENT_ID", "")
     csec = os.getenv("GOOGLE_CLIENT_SECRET", "")
     if not cid or not csec:
         raise RuntimeError("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set")
-    AUTH = "https://accounts.google.com/o/oauth2/auth"
-    TOKEN = "https://oauth2.googleapis.com/token"
-    REDIRECT = "http://localhost:8888/callback"
-    SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
-    state = secrets.token_urlsafe(16)
-    params = {"client_id": cid, "response_type": "code", "redirect_uri": REDIRECT,
-              "scope": SCOPE, "access_type": "offline", "prompt": "consent", "state": state}
-    auth_url = f"{AUTH}?{urllib.parse.urlencode(params)}"
 
+    state = secrets.token_urlsafe(16)
+    now = time.time()
+    # Opportunistically drop expired states so the dict can't grow unbounded.
+    for s, ts in list(_google_states.items()):
+        if now - ts > _GOOGLE_STATE_TTL:
+            _google_states.pop(s, None)
+    _google_states[state] = now
+
+    params = {
+        "client_id": cid, "response_type": "code", "redirect_uri": google_redirect_uri(),
+        "scope": _GOOGLE_SCOPE, "access_type": "offline", "prompt": "consent", "state": state,
+    }
+    return f"{_GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
+
+
+def google_handle_callback(code: str, state: str) -> None:
+    """Exchange the auth ``code`` for tokens and persist them. Raises on failure."""
     import requests
 
-    class _Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            if "code" in q and q.get("state", [""])[0] == state:
-                try:
-                    resp = requests.post(TOKEN, data={
-                        "client_id": cid, "client_secret": csec, "code": q["code"][0],
-                        "grant_type": "authorization_code", "redirect_uri": REDIRECT,
-                    }, timeout=15)
-                    tok = resp.json()
-                    tok["expires_at"] = time.time() + int(tok.get("expires_in", 3600))
-                    TOKENS.mkdir(exist_ok=True)
-                    (TOKENS / "google.json").write_text(json.dumps(tok, indent=2))
-                    self.send_response(200)
-                    self.send_header("Content-type", "text/html; charset=utf-8")
-                    self.end_headers()
-                    self.wfile.write(b"<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h1 style='color:#4285F4'>Google Calendar connected!</h1><script>setTimeout(window.close,3000)</script></body></html>")
-                except Exception as exc:  # noqa: BLE001
-                    self.send_error(500, str(exc))
-            else:
-                self.send_error(400, "Invalid callback")
+    ts = _google_states.pop(state or "", None)
+    if ts is None:
+        raise RuntimeError("Unknown or expired OAuth state — start the connect flow again.")
+    if time.time() - ts > _GOOGLE_STATE_TTL:
+        raise RuntimeError("OAuth attempt expired — start the connect flow again.")
+    if not code:
+        raise RuntimeError("No authorization code in callback.")
 
-        def log_message(self, *a):
-            pass
-
-    def _serve():
-        try:
-            srv = HTTPServer(("localhost", 8888), _Handler)
-            srv.timeout = 300
-            srv.handle_request()
-        except Exception:
-            pass
-
-    threading.Thread(target=_serve, daemon=True).start()
-    return auth_url
+    cid = os.getenv("GOOGLE_CLIENT_ID", "")
+    csec = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    resp = requests.post(_GOOGLE_TOKEN_URL, data={
+        "client_id": cid, "client_secret": csec, "code": code,
+        "grant_type": "authorization_code", "redirect_uri": google_redirect_uri(),
+    }, timeout=15)
+    if resp.status_code != 200:
+        raise RuntimeError(f"Token exchange failed: {resp.status_code} {resp.text}")
+    tok = resp.json()
+    tok["expires_at"] = time.time() + int(tok.get("expires_in", 3600))
+    TOKENS.mkdir(exist_ok=True)
+    (TOKENS / "google.json").write_text(json.dumps(tok, indent=2))
 
 
 # ── Garmin credential login (background thread + MFA) ──────────────────────────
