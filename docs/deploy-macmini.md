@@ -55,35 +55,59 @@ Useful flags:
 - `SKIP_BUILD=1 ./serve.sh` — reuse an existing `web/dist` (fast restarts).
 - `HOST=0.0.0.0 ./serve.sh` — also reachable directly on the LAN at
   `http://<mac-ip>:3000` (only do this on a trusted network).
-- `DO_LOCK=true APP_PIN=1234 ./serve.sh` — add a shared PIN gate (see Security).
+- `DO_LOCK=true APP_PIN=1234 ./serve.sh` — enable the BFF's shared PIN gate. ⚠ needs a
+  frontend PIN screen first (see Security) — don't enable it on a public URL yet.
 
-## 3. Make it public with a Cloudflare Tunnel
+## 3. Make it public with Tailscale Funnel (recommended)
 
-Install once: `brew install cloudflared`.
+Tailscale Funnel gives you a **stable, free, public HTTPS URL** under `*.ts.net` — no
+domain to buy, no router/firewall changes, certificates handled for you.
 
-**Quick (throwaway URL, zero account):**
+Install + sign in once:
 ```bash
-cloudflared tunnel --url http://127.0.0.1:3000
-```
-It prints a `https://<random>.trycloudflare.com` URL — share that. Good for a demo;
-the URL changes each run and there's no uptime guarantee.
-
-**Stable (your own subdomain, needs a free Cloudflare account + a domain on it):**
-```bash
-cloudflared tunnel login
-cloudflared tunnel create fitdash
-# map a hostname to the local BFF:
-cloudflared tunnel route dns fitdash fitdash.example.com
-cloudflared tunnel --hostname fitdash.example.com --url http://127.0.0.1:3000
-# (or run it as a managed service: `sudo cloudflared service install` with a config.yml)
+brew install tailscale          # or the macOS app from tailscale.com/download
+sudo tailscale up               # log in (free Personal plan is enough)
 ```
 
-Cloudflare terminates TLS, so users get HTTPS for free and the SPA's same-origin
-`/api` calls (including the chat SSE stream) work unchanged.
+One-time admin-console setup (https://login.tailscale.com/admin):
+1. **DNS → enable MagicDNS** and **enable HTTPS certificates**.
+2. **Access controls (ACLs)** → grant this node the Funnel attribute. Add to the policy:
+   ```jsonc
+   "nodeAttrs": [
+     { "target": ["autogroup:member"], "attr": ["funnel"] }
+   ]
+   ```
+   (or scope `target` to just the mini's tag/host.)
 
-> Alternatives: **Tailscale Funnel** (`tailscale funnel 3000`) gives an HTTPS
-> `*.ts.net` URL with similar simplicity; **ngrok** also works. Cloudflare Tunnel is
-> the most "set-and-forget" for a fixed domain.
+Then publish the BFF:
+```bash
+tailscale funnel 3000
+```
+It prints your public URL — a **stable** hostname like
+`https://macmini.<your-tailnet>.ts.net` that does **not** change across restarts.
+Share that. The SPA's same-origin `/api` calls (incl. the chat SSE stream) work
+unchanged because Funnel forwards everything to `127.0.0.1:3000`.
+
+Rename for a cleaner URL (optional): change the **machine name** (admin console → the
+device → rename) and/or the **tailnet name** (Settings → General) so it reads e.g.
+`https://fitdash.marvin.ts.net`. It's always under `.ts.net` — a truly custom domain
+is the only thing that costs money.
+
+Make it survive reboots — run Funnel as a background service:
+```bash
+sudo tailscale funnel --bg 3000     # persists; `tailscale funnel status` to check, `--https=off`… to stop
+```
+
+> **Private instead of public?** If only your five teammates need it, skip Funnel and
+> use plain Tailscale: each teammate installs Tailscale and joins your tailnet, then
+> reaches the mini at `http://macmini.<tailnet>.ts.net:3000` (or `:443` via `tailscale
+> serve`). Same stable hostname, **zero public exposure** — the safest option, and it
+> sidesteps the login weakness below entirely.
+
+> **Alternative — Cloudflare Tunnel.** `brew install cloudflared` then
+> `cloudflared tunnel --url http://127.0.0.1:3000` for a throwaway
+> `*.trycloudflare.com` URL (changes each run), or a named tunnel on your own domain
+> for a fixed hostname. Good if you already use Cloudflare; otherwise Funnel is simpler.
 
 ## 4. Keep it running (autostart + no sleep)
 
@@ -106,8 +130,9 @@ sudo pmset -a sleep 0 disksleep 0      # never sleep the machine/disk
    ```
    Logs: `/tmp/fitdash.serve.out` / `.err`. Stop: `launchctl unload -w ~/Library/LaunchAgents/com.fitdash.serve.plist`.
 
-Run `cloudflared` as a service too (`sudo cloudflared service install`) so the public
-URL also survives reboots.
+Run the tunnel as a service too so the public URL survives reboots:
+`sudo tailscale funnel --bg 3000` (Tailscale), or `sudo cloudflared service install`
+(Cloudflare).
 
 ## 5. Security — read before sharing the URL
 
@@ -116,12 +141,13 @@ password. Anyone with the public URL can sign in as any teammate. That's fine in
 trusted group; it is **not** safe for a truly open audience. Mitigations:
 
 - **Set `AUTH_SECRET`** (step 1) so tokens use a real signing key.
-- **Add a shared PIN gate** in front of the whole app: run with `DO_LOCK=true
-  APP_PIN=<pin>` (or the plist env). The BFF then requires the PIN before serving the
-  SPA or proxying `/api`. Share the PIN out-of-band with your five users.
-- **Or keep it private**: instead of a public tunnel, put the mini on a **Tailscale**
-  network and have your teammates join it — then it's reachable only by them, no
-  public exposure at all (`http://<mini>.<tailnet>.ts.net:3000`).
+- **Prefer private over public.** The strongest, simplest option: skip Funnel and keep
+  it **private on Tailscale** (teammates join your tailnet). Only they can reach it; the
+  weak login never faces the open internet.
+- **Shared PIN gate (needs a small fix first).** The BFF can require a shared PIN before
+  serving anything (`DO_LOCK=true APP_PIN=<pin>`), but the React app currently has **no
+  screen to enter that PIN**, so turning it on today locks everyone out. Ask to have the
+  PIN entry screen wired into the SPA before relying on this for a public Funnel URL.
 - Don't expose MLflow (`:5001`), FastAPI (`:8000`), or the agent/MCP ports — `serve.sh`
   keeps them on localhost; only front the BFF.
 
