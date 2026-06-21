@@ -78,3 +78,6 @@ data/fitness_library/index/
 # the soul.md profiles (rewritten by the agent over time), the embedded
 # conversation vectors, and the turn counter. Created on demand at runtime.
 data/user_memory/
+
+# Registered accounts (email → created/last_login) — per-deployment runtime state.
+data/accounts.json

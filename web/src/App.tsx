@@ -14,6 +14,7 @@ import { useAuthStore } from "./store/authStore";
 
 export default function App() {
   const token = useAuthStore((s) => s.token);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
   if (!token) return <Login />;
 
   return (
@@ -30,7 +31,10 @@ export default function App() {
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/sync" element={<Sync />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route
+              path="/settings"
+              element={isAdmin ? <Settings /> : <Navigate to="/dashboard" replace />}
+            />
           </Routes>
         </main>
       </div>

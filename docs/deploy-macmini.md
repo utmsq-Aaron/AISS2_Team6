@@ -30,14 +30,32 @@ nothing to forward and no inbound firewall rule to add.
 - **Node 18+** (`brew install node`).
 - **`.env`** filled in (LLM keys, Strava/Garmin/Google client creds, etc.). For a
   public deployment also set:
-  - `AUTH_SECRET=<random string>` — signs the login Bearer tokens. **Set this** so
-    tokens aren't signed with the dev default. Generate one: `openssl rand -hex 32`.
-- **Connect Google once, from the mini itself.** The OAuth redirect is
-  `http://localhost:8000/api/settings/google/callback`, which only resolves on the
-  Mac mini. So open the app **on the mini** (`http://localhost:3000`) → Settings →
-  Connect Google. Remote users then share that one connection (you chose
-  identity-only, shared data). Don't try to connect Google from a remote browser —
-  the localhost redirect won't reach the mini.
+  - `AUTH_SECRET=<random string>` — signs the login Bearer tokens **and** the PIN-gate
+    cookie. **Set this** (`openssl rand -hex 32`) so they don't use the dev default.
+  - `ADMIN_EMAIL=kit.aiss2026@gmail.com` — the only account allowed into Settings
+    (this is the default; override if needed).
+- **Login is email + OTP.** There are no preset accounts. A visitor enters their email,
+  receives a 6-digit code (emailed from the admin Gmail), and enters it; the first time
+  is registration. Accounts are stored in `data/accounts.json` (gitignored). Only
+  `ADMIN_EMAIL` can open **Settings**.
+- **Connect Google once, on the mini — this also powers OTP email.** The Google
+  connection now carries `calendar` **and** `gmail.send`, so the app can email login
+  codes *as* the admin mailbox. Two ways:
+  - Easiest / bootstrap-proof: run the CLI on the mini — `python auth/google_oauth.py`
+    (a browser opens; sign in as **kit.aiss2026@gmail.com**, approve calendar + send-email).
+    This writes `.tokens/google.json` without needing to log into the app first.
+  - Or in-app: open the app **on the mini** (`http://localhost:3000`), log in (see the
+    bootstrap note below), Settings → Connect Google.
+  Either way, **enable both the Calendar API and the Gmail API** in the Cloud project
+  (console → APIs & Services → Library), and keep the redirect URI
+  `http://localhost:8000/api/settings/google/callback` registered. Don't connect Google
+  from a remote browser — the localhost redirect only resolves on the mini.
+- **First-run bootstrap (chicken-and-egg).** OTP email needs Google connected, but the
+  in-app connect lives behind the admin login, which needs an email. Break the loop one
+  of two ways: run `python auth/google_oauth.py` **before** first login (recommended), or
+  start once with `OTP_DEV_ECHO=1` so codes are printed to the server log
+  (`/tmp/fitdash_api.log`) — log in as the admin, connect Google, then restart **without**
+  `OTP_DEV_ECHO`. Never leave `OTP_DEV_ECHO` on for a public URL.
 - Same idea for **Strava/Garmin**: do those connects on the mini once. Tokens live in
   `.tokens/` (gitignored) and are reused.
 
@@ -137,9 +155,11 @@ Run the tunnel as a service too so the public URL survives reboots:
 
 ## 5. Security — read before sharing the URL
 
-The per-user login is **identity only** — typing one of five names, no password. On a
-public URL you therefore want the **shared PIN gate** in front of everything (or keep it
-private). The gate is now hardened and safe to expose:
+Login is **email + OTP**: a real per-user identity (a code emailed to an address the
+person controls), and only `ADMIN_EMAIL` can open Settings. That's the primary auth.
+Registration is **open** — anyone who can receive an OTP can create an account — so on a
+public URL you still want the **shared PIN gate** in front as a coarse first wall (it
+limits who can even reach the login screen). The gate is hardened and safe to expose:
 
 **Turn it on** (the only secure way to run a public URL):
 ```bash

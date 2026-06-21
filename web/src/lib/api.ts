@@ -32,17 +32,36 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ── Auth ────────────────────────────────────────────────────────────────────
+// ── Auth (email + OTP) ───────────────────────────────────────────────────────
 
-export const getKnownUsers = () => http<{ users: string[] }>("/auth/users");
-
-/** Exchange a name for a Bearer token. Throws on an unknown name (401). */
-export async function loginUser(name: string): Promise<{ token: string; user: string }> {
-  return http<{ token: string; user: string }>("/auth/login", {
+/** POST to an /api/auth route without the 401→logout behavior of http() (there's
+ *  no session yet during login). Surfaces FastAPI's `detail` as the error message. */
+async function authPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
     method: "POST",
-    body: JSON.stringify({ name }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error((data as any)?.detail || `Request failed (${res.status})`);
+    (e as any).status = res.status;
+    throw e;
+  }
+  return data as T;
 }
+
+/** Request a one-time login code for `email` (emails it). `new_account` hints whether
+ *  this email is registering for the first time. */
+export const requestOtp = (email: string) =>
+  authPost<{ ok: boolean; new_account: boolean; dev_echo?: boolean }>("/auth/request-otp", { email });
+
+/** Verify the code → Bearer token + identity. Throws (status 400) on a bad code. */
+export const verifyOtp = (email: string, code: string) =>
+  authPost<{ token: string; user: string; is_admin: boolean; new_account: boolean }>(
+    "/auth/verify-otp",
+    { email, code },
+  );
 
 /** Call an MCP tool by namespaced name `server__tool`. Returns parsed JSON data. */
 export async function callTool<T = unknown>(

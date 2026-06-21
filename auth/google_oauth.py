@@ -28,7 +28,8 @@ REDIRECT_URI = "http://localhost:8888/callback"
 AUTH_URL     = "https://accounts.google.com/o/oauth2/auth"
 TOKEN_URL    = "https://oauth2.googleapis.com/token"
 SCOPE        = ("https://www.googleapis.com/auth/calendar.readonly "
-                "https://www.googleapis.com/auth/calendar.events")  # read + create_event writes
+                "https://www.googleapis.com/auth/calendar.events "
+                "https://www.googleapis.com/auth/gmail.send")  # calendar r/w + send OTP mail
 
 
 class GoogleOAuthManager:
