@@ -31,9 +31,10 @@
     <key>SKIP_BUILD</key><string>1</string>
     <key>HOST</key><string>127.0.0.1</string>
     <key>PORT</key><string>3000</string>
-    <!-- uncomment to require a shared PIN in front of everything:
+    <!-- uncomment to require a shared PIN in front of everything (public URLs):
     <key>DO_LOCK</key><string>true</string>
-    <key>APP_PIN</key><string>__PIN__</string> -->
+    <key>APP_PIN</key><string>__LONG_PASSPHRASE__</string>
+    <key>AUTH_SECRET</key><string>__RANDOM_HEX__</string> -->
   </dict>
 
   <key>RunAtLoad</key>

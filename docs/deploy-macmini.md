@@ -55,8 +55,9 @@ Useful flags:
 - `SKIP_BUILD=1 ./serve.sh` — reuse an existing `web/dist` (fast restarts).
 - `HOST=0.0.0.0 ./serve.sh` — also reachable directly on the LAN at
   `http://<mac-ip>:3000` (only do this on a trusted network).
-- `DO_LOCK=true APP_PIN=1234 ./serve.sh` — enable the BFF's shared PIN gate. ⚠ needs a
-  frontend PIN screen first (see Security) — don't enable it on a public URL yet.
+- `DO_LOCK=true APP_PIN='a-long-passphrase' AUTH_SECRET=<random> ./serve.sh` — enable the
+  shared PIN gate in front of the whole app (see Security). Use a long passphrase, not a
+  4-digit PIN, and set `AUTH_SECRET` so sessions survive restarts.
 
 ## 3. Make it public with Tailscale Funnel (recommended)
 
@@ -136,20 +137,35 @@ Run the tunnel as a service too so the public URL survives reboots:
 
 ## 5. Security — read before sharing the URL
 
-This is a **prototype auth**: logging in is just typing one of five known names — no
-password. Anyone with the public URL can sign in as any teammate. That's fine inside a
-trusted group; it is **not** safe for a truly open audience. Mitigations:
+The per-user login is **identity only** — typing one of five names, no password. On a
+public URL you therefore want the **shared PIN gate** in front of everything (or keep it
+private). The gate is now hardened and safe to expose:
 
-- **Set `AUTH_SECRET`** (step 1) so tokens use a real signing key.
-- **Prefer private over public.** The strongest, simplest option: skip Funnel and keep
-  it **private on Tailscale** (teammates join your tailnet). Only they can reach it; the
-  weak login never faces the open internet.
-- **Shared PIN gate (needs a small fix first).** The BFF can require a shared PIN before
-  serving anything (`DO_LOCK=true APP_PIN=<pin>`), but the React app currently has **no
-  screen to enter that PIN**, so turning it on today locks everyone out. Ask to have the
-  PIN entry screen wired into the SPA before relying on this for a public Funnel URL.
+**Turn it on** (the only secure way to run a public URL):
+```bash
+DO_LOCK=true APP_PIN='choose-a-long-passphrase' AUTH_SECRET="$(openssl rand -hex 32)" ./serve.sh
+```
+(or set those three in `deploy/com.fitdash.serve.plist` for the autostart service).
+
+What the gate does:
+- A visitor must enter the PIN before the SPA loads any data or `/api` responds. After
+  success they get a **signed, HMAC-protected session cookie** (keyed by `AUTH_SECRET`) —
+  it can't be forged by setting a constant value, and it carries a server-checked expiry.
+- `/bff/login` is **rate-limited with per-IP lockout** (5 tries, then a 15-min lockout
+  that doubles on repeat) plus a per-attempt delay, so the PIN can't be brute-forced. The
+  PIN is compared in constant time.
+- Behind the tunnel the real client IP (`X-Forwarded-For`) drives the limiter and the
+  cookie is marked `Secure` over HTTPS.
+
+Use a **long passphrase**, not a 4-digit PIN — that's the one thing the rate-limit can't
+fix. Share it with your five users out-of-band.
+
+Other notes:
+- **Even stronger: keep it private.** If only your teammates need it, skip Funnel and use
+  plain Tailscale — no public login surface at all. The PIN gate is for when you genuinely
+  want a public URL.
 - Don't expose MLflow (`:5001`), FastAPI (`:8000`), or the agent/MCP ports — `serve.sh`
-  keeps them on localhost; only front the BFF.
+  keeps them on localhost; only the BFF is fronted.
 
 ## Troubleshooting
 

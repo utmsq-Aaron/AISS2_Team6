@@ -1,13 +1,25 @@
 // FitDash BFF — serves the built React SPA and proxies /api (incl. SSE) to the
-// Python FastAPI. Hosts the optional PIN gate (DO_LOCK + APP_PIN), mirroring the
-// Streamlit gate which is OFF by default.
+// Python FastAPI. Hosts the optional shared PIN gate (DO_LOCK + APP_PIN) — the
+// single secret in front of the whole app for a public deployment.
 //
-//   API_TARGET  FastAPI base URL          (default http://127.0.0.1:8000)
-//   PORT        BFF listen port           (default 3000)
-//   WEB_DIST    built SPA dir             (default ../web/dist)
-//   DO_LOCK     "true" to enable PIN gate (default off)
-//   APP_PIN     required PIN when locked
+//   API_TARGET   FastAPI base URL              (default http://127.0.0.1:8000)
+//   PORT / HOST  BFF listen addr               (default 127.0.0.1:3000)
+//   WEB_DIST     built SPA dir                 (default ../web/dist)
+//   DO_LOCK      "true" to enable the PIN gate (default off)
+//   APP_PIN      required passphrase when locked (use a long one, not 4 digits)
+//   AUTH_SECRET  HMAC key signing the gate cookie — SET THIS in production so
+//                sessions survive restarts and can't be forged (else a random
+//                per-process key is used and everyone re-enters the PIN on restart)
+//
+// Hardening (so a public PIN gate is actually safe):
+//   • the session cookie is HMAC-SIGNED (cookie-parser secret) — it cannot be
+//     forged by setting a constant value; it also carries a server-checked expiry.
+//   • /bff/login is RATE-LIMITED with per-IP lockout + a small delay, so the PIN
+//     can't be brute-forced.
+//   • the PIN is compared in CONSTANT TIME.
+//   • behind a tunnel we trust X-Forwarded-* for the client IP and https flag.
 
+import crypto from "node:crypto";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
@@ -28,26 +40,108 @@ const LOCK = String(process.env.DO_LOCK || "false").toLowerCase() === "true";
 const PIN = process.env.APP_PIN || "";
 const PIN_ENABLED = LOCK && !!PIN;
 
-const app = express();
-app.use(cookieParser());
+// HMAC key that signs the gate cookie. Set AUTH_SECRET in production; otherwise a
+// random per-process key (sessions then reset on restart, which is safe but means
+// everyone re-enters the PIN after a redeploy).
+const SECRET = process.env.AUTH_SECRET || crypto.randomBytes(32).toString("hex");
+if (PIN_ENABLED && !process.env.AUTH_SECRET) {
+  console.warn("[bff] PIN gate ON but AUTH_SECRET unset — using a random key (sessions reset on restart).");
+}
 
-// ── Optional PIN gate ─────────────────────────────────────────────────────────
+const SESSION_MS = 7 * 24 * 60 * 60 * 1000; // gate cookie lifetime
+
+// Brute-force controls for /bff/login (in-memory, per client IP).
+const MAX_FAILS = 5; // failures allowed before a lockout
+const FAIL_WINDOW_MS = 15 * 60 * 1000; // window the failures are counted over
+const LOCKOUT_MS = 15 * 60 * 1000; // base lockout once MAX_FAILS is hit (doubles per repeat)
+const FAIL_DELAY_MS = 300; // small per-failure delay to slow scripted guessing
+const _gateFails = new Map(); // ip -> { count, first, lockUntil, strikes }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const clientIp = (req) => req.ip || req.socket?.remoteAddress || "unknown";
+const isHttps = (req) =>
+  req.secure || String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim() === "https";
+
+function constantTimeEqual(a, b) {
+  const ab = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ab.length !== bb.length) return false; // length leak is unavoidable & harmless here
+  return crypto.timingSafeEqual(ab, bb);
+}
+
+function setGateCookie(req, res) {
+  // Value carries a server-checked expiry; cookie-parser HMAC-signs it (signed:true),
+  // so it can't be forged without SECRET.
+  const exp = Date.now() + SESSION_MS;
+  res.cookie("fd_gate", String(exp), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isHttps(req), // Secure over the tunnel's https; not required for localhost http
+    signed: true,
+    maxAge: SESSION_MS,
+  });
+}
+
+function gateOpen(req) {
+  const v = req.signedCookies?.fd_gate; // false if signature is invalid/forged
+  if (!v) return false;
+  const exp = Number(v);
+  return Number.isFinite(exp) && exp > Date.now();
+}
+
+const app = express();
+app.set("trust proxy", true); // behind the tunnel: trust X-Forwarded-For / -Proto
+app.use(cookieParser(SECRET));
+
+// ── Optional shared PIN gate ────────────────────────────────────────────────────
 if (PIN_ENABLED) {
   app.use(express.json());
-  app.post("/bff/login", (req, res) => {
-    if (req.body?.pin === PIN) {
-      res.cookie("fd_auth", "1", { httpOnly: true, sameSite: "lax", maxAge: 7 * 864e5 });
+
+  app.post("/bff/login", async (req, res) => {
+    const ip = clientIp(req);
+    const now = Date.now();
+    let rec = _gateFails.get(ip);
+    if (rec && now - rec.first > FAIL_WINDOW_MS && (!rec.lockUntil || rec.lockUntil < now)) {
+      rec = undefined; // window elapsed and not locked → reset
+    }
+    if (rec?.lockUntil && rec.lockUntil > now) {
+      const retry = Math.ceil((rec.lockUntil - now) / 1000);
+      res.set("Retry-After", String(retry));
+      return res.status(429).json({ ok: false, error: "Too many attempts.", retryAfter: retry });
+    }
+
+    if (typeof req.body?.pin === "string" && constantTimeEqual(req.body.pin, PIN)) {
+      _gateFails.delete(ip); // success clears the record
+      setGateCookie(req, res);
       return res.json({ ok: true });
     }
-    res.status(401).json({ ok: false, error: "Incorrect PIN" });
+
+    // Failure: count, maybe lock, slow down.
+    rec = rec || { count: 0, first: now, lockUntil: 0, strikes: 0 };
+    rec.count += 1;
+    if (rec.count >= MAX_FAILS) {
+      rec.strikes += 1;
+      rec.lockUntil = now + LOCKOUT_MS * 2 ** (rec.strikes - 1); // exponential backoff
+      rec.count = 0;
+      rec.first = now;
+    }
+    _gateFails.set(ip, rec);
+    await sleep(FAIL_DELAY_MS);
+    if (rec.lockUntil > now) {
+      const retry = Math.ceil((rec.lockUntil - now) / 1000);
+      res.set("Retry-After", String(retry));
+      return res.status(429).json({ ok: false, error: "Too many attempts.", retryAfter: retry });
+    }
+    return res.status(401).json({ ok: false, error: "Incorrect PIN" });
   });
-  app.get("/bff/status", (req, res) => res.json({ locked: true, authed: req.cookies?.fd_auth === "1" }));
+
+  app.get("/bff/status", (req, res) => res.json({ locked: true, authed: gateOpen(req) }));
 
   app.use((req, res, next) => {
     if (req.path === "/bff/login" || req.path === "/bff/status") return next();
-    if (req.cookies?.fd_auth === "1") return next();
+    if (gateOpen(req)) return next();
     if (req.path.startsWith("/api")) return res.status(401).json({ error: "locked" });
-    // For the SPA, let it load; the frontend renders its own PIN screen via /bff/status.
+    // Let the SPA shell load; the frontend's PinGate renders the PIN screen.
     next();
   });
 } else {
