@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd job to keep FitDash serving across logins/reboots/crashes.
+
+  Install (edit the __PLACEHOLDERS__ first — see docs/deploy-macmini.md):
+    cp deploy/com.fitdash.serve.plist ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/com.fitdash.serve.plist
+    launchctl start com.fitdash.serve
+  Logs: /tmp/fitdash.serve.out / .err   ·   Stop: launchctl unload -w ~/Library/LaunchAgents/com.fitdash.serve.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.fitdash.serve</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO__/serve.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- python from your conda env; PATH must include node/npm and conda -->
+    <key>PY</key><string>__PY__</string>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:__CONDA_BIN__</string>
+    <!-- build once by hand, then let the service reuse web/dist for fast restarts -->
+    <key>SKIP_BUILD</key><string>1</string>
+    <key>HOST</key><string>127.0.0.1</string>
+    <key>PORT</key><string>3000</string>
+    <!-- uncomment to require a shared PIN in front of everything:
+    <key>DO_LOCK</key><string>true</string>
+    <key>APP_PIN</key><string>__PIN__</string> -->
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/fitdash.serve.out</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/fitdash.serve.err</string>
+</dict>
+</plist>

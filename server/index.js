@@ -18,6 +18,10 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_TARGET = process.env.API_TARGET || "http://127.0.0.1:8000";
 const PORT = Number(process.env.PORT || 3000);
+// Bind localhost by default so the raw port is never exposed on the network — a
+// tunnel (Cloudflare/Tailscale) reaches it at 127.0.0.1. Set HOST=0.0.0.0 to also
+// serve directly on the LAN (http://<machine-ip>:PORT).
+const HOST = process.env.HOST || "127.0.0.1";
 const WEB_DIST = process.env.WEB_DIST || path.resolve(__dirname, "../web/dist");
 
 const LOCK = String(process.env.DO_LOCK || "false").toLowerCase() === "true";
@@ -77,6 +81,6 @@ if (fs.existsSync(WEB_DIST)) {
   );
 }
 
-app.listen(PORT, () => {
-  console.log(`FitDash BFF → :${PORT}  ·  API ${API_TARGET}  ·  PIN ${PIN_ENABLED ? "ON" : "off"}`);
+app.listen(PORT, HOST, () => {
+  console.log(`FitDash BFF → ${HOST}:${PORT}  ·  API ${API_TARGET}  ·  PIN ${PIN_ENABLED ? "ON" : "off"}`);
 });
