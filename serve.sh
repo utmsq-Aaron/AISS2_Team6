@@ -16,6 +16,8 @@
 #   HOST       BFF bind host       (default 127.0.0.1)
 #   PORT       BFF port            (default 3000)
 #   MLFLOW     "0" to skip MLflow  (default on)
+#   FUNNEL     "1" to also start a public Tailscale Funnel in front of the BFF
+#              (needs `tailscale` installed + `tailscale up` done once)
 set -uo pipefail
 cd "$(dirname "$0")"
 
@@ -24,7 +26,12 @@ BFF_HOST="${HOST:-127.0.0.1}"
 BFF_PORT="${PORT:-3000}"
 
 pids=()
-cleanup() { echo; echo "stopping…"; for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null; done; }
+cleanup() {
+  echo; echo "stopping…"
+  for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null; done
+  # tear down the public tunnel so we don't leave the app exposed after stopping
+  [ "${FUNNEL:-0}" = "1" ] && command -v tailscale >/dev/null 2>&1 && tailscale funnel off >/dev/null 2>&1
+}
 trap cleanup EXIT INT TERM
 port_busy() { lsof -ti "tcp:$1" -sTCP:LISTEN >/dev/null 2>&1; }
 
@@ -92,6 +99,19 @@ echo "→ BFF on ${BFF_HOST}:${BFF_PORT}  (open http://localhost:${BFF_PORT} on 
 ( cd server && HOST="$BFF_HOST" PORT="$BFF_PORT" API_TARGET="http://127.0.0.1:8000" \
     DO_LOCK="${DO_LOCK:-false}" APP_PIN="${APP_PIN:-}" node index.js ) &
 bff=$!; pids+=($bff)
+sleep 2
 
-echo "=== up. Front it with a tunnel for public access (docs/deploy-macmini.md). Ctrl-C to stop. ==="
+# 6. Public tunnel (opt-in) — Tailscale Funnel in front of the BFF.
+if [ "${FUNNEL:-0}" = "1" ]; then
+  if command -v tailscale >/dev/null 2>&1; then
+    echo "→ Tailscale Funnel → public HTTPS in front of :${BFF_PORT}"
+    # --bg registers the funnel with the tailscaled daemon (persists, prints the URL).
+    tailscale funnel --bg "${BFF_PORT}" || echo "⚠ funnel failed — is 'tailscale up' done and Funnel enabled in the admin console?"
+    tailscale funnel status 2>/dev/null | sed -n '1,8p' || true
+  else
+    echo "⚠ FUNNEL=1 but 'tailscale' not found — install it (brew install tailscale) and run 'sudo tailscale up' first."
+  fi
+fi
+
+echo "=== up. ${FUNNEL:+public via Tailscale Funnel · }open http://localhost:${BFF_PORT} on this machine. Ctrl-C to stop. ==="
 wait "$bff"

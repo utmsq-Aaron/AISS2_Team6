@@ -31,6 +31,8 @@
     <key>SKIP_BUILD</key><string>1</string>
     <key>HOST</key><string>127.0.0.1</string>
     <key>PORT</key><string>3000</string>
+    <!-- uncomment so the service also brings up the public Tailscale Funnel:
+    <key>FUNNEL</key><string>1</string> -->
     <!-- uncomment to require a shared PIN in front of everything (public URLs):
     <key>DO_LOCK</key><string>true</string>
     <key>APP_PIN</key><string>__LONG_PASSPHRASE__</string>

@@ -98,11 +98,14 @@ One-time admin-console setup (https://login.tailscale.com/admin):
    ```
    (or scope `target` to just the mini's tag/host.)
 
-Then publish the BFF:
+Then publish the BFF — either as part of the launcher or standalone:
 ```bash
+FUNNEL=1 ./serve.sh      # serve.sh starts the app AND the Funnel in one go
+# …or, if the app is already running:
 tailscale funnel 3000
 ```
-It prints your public URL — a **stable** hostname like
+With `FUNNEL=1`, `serve.sh` runs `tailscale funnel --bg 3000` for you (and tears it
+down on Ctrl-C). It prints your public URL — a **stable** hostname like
 `https://macmini.<your-tailnet>.ts.net` that does **not** change across restarts.
 Share that. The SPA's same-origin `/api` calls (incl. the chat SSE stream) work
 unchanged because Funnel forwards everything to `127.0.0.1:3000`.
