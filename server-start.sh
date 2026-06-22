@@ -30,15 +30,21 @@ ensure_secret() {
 }
 
 tg_configured() { grep -qE "^TELEGRAM_API_ID=[\"']?[A-Za-z0-9]" .env 2>/dev/null; }
+# A dedicated bridge session lets the bridge and the telegram MCP proxy run at the
+# same time (they use DIFFERENT Telegram logins, so neither revokes the other).
+tg_dedicated_session() { grep -qE "^TELEGRAM_BRIDGE_SESSION_STRING=[\"']?[A-Za-z0-9]" .env 2>/dev/null; }
 
 # ── Internal roles (invoked in their own window by --windows) ────────────────────
 case "${1:-}" in
   app)
-    # Backend + agents + FastAPI + BFF + Funnel. The bridge runs in its own window,
-    # so disable it here (TELEGRAM_BRIDGE=0) to avoid two clients on one TG session.
+    # Backend + agents + FastAPI + BFF + Funnel. The bridge runs in its OWN window,
+    # so disable it here (TELEGRAM_BRIDGE=0). Start the telegram MCP here only when a
+    # dedicated bridge session exists — otherwise the MCP (shared session) and the
+    # bridge window would collide on one Telegram login.
     ensure_secret
+    tg_mcp=0; tg_dedicated_session && tg_mcp=1
     exec env DO_LOCK=true APP_PIN="230626" AUTH_SECRET="$(cat "$SECRET_FILE")" \
-      FUNNEL=1 TELEGRAM_BRIDGE=0 TELEGRAM_MCP=0 PY="$PY" ./serve.sh
+      FUNNEL=1 TELEGRAM_BRIDGE=0 TELEGRAM_MCP="$tg_mcp" PY="$PY" ./serve.sh
     ;;
   bridge)
     if ! tg_configured; then
@@ -73,8 +79,18 @@ else
 fi
 command -v tailscale >/dev/null 2>&1 && echo "✓ tailscale present — the app will be published via Funnel" \
   || echo "⚠ 'tailscale' not found — the app will run LOCAL ONLY. Install: brew install tailscale && sudo tailscale up"
-tg_configured && echo "✓ Telegram configured — the bridge (userbot) will start" \
-  || echo "ℹ Telegram not configured in .env — the bridge will be skipped (web app still runs)."
+if tg_configured; then
+  if tg_dedicated_session; then
+    echo "✓ Telegram configured (+ dedicated bridge session) — the bridge AND the telegram MCP will both start"
+  else
+    echo "✓ Telegram configured — the bridge (userbot) will start."
+    echo "  ℹ The telegram MCP proxy is skipped: it shares one Telegram login with the bridge,"
+    echo "    and two clients on one login get revoked. To run BOTH, mint a separate session:"
+    echo "      python telegram_bridge.py --login   # → add TELEGRAM_BRIDGE_SESSION_STRING to .env"
+  fi
+else
+  echo "ℹ Telegram not configured in .env — the bridge will be skipped (web app still runs)."
+fi
 
 # Clean restart: free the app's ports so we always come up on current code.
 echo "→ stopping any previous FitDash processes…"
