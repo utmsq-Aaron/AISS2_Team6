@@ -1,9 +1,10 @@
-import { ChevronRight, LogOut, Search, User } from "lucide-react";
+import { ChevronRight, LogOut, Menu, Search, User } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { NAV, navLabel } from "../nav";
 import { useAuthStore } from "../store/authStore";
+import { useUiStore } from "../store/uiStore";
 
 // Minimalist header — breadcrumb, quick search (page jump), and user profile.
 export function Header() {
@@ -13,6 +14,7 @@ export function Header() {
   const [open, setOpen] = useState(false);
 
   const { user, logout } = useAuthStore();
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const current = navLabel(location.pathname);
   const matches = query
     ? NAV.filter((n) => n.label.toLowerCase().includes(query.toLowerCase()))
@@ -25,16 +27,26 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-14 flex-shrink-0 items-center justify-between gap-4 border-b border-border bg-bg-header px-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm">
-        <span className="text-text-muted">Training Copilot</span>
-        <ChevronRight size={15} className="text-text-muted/60" strokeWidth={2} />
-        <span className="font-semibold text-text-primary">{current}</span>
-      </nav>
+    <header className="flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b border-border bg-bg-header px-4 md:gap-4 md:px-6">
+      {/* Hamburger (mobile) + breadcrumb */}
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          aria-label="Open menu"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-bg-surface hover:text-text-primary md:hidden"
+        >
+          <Menu size={20} strokeWidth={2} />
+        </button>
+        <nav className="flex min-w-0 items-center gap-1.5 text-sm">
+          <span className="hidden text-text-muted sm:inline">Training Copilot</span>
+          <ChevronRight size={15} className="hidden text-text-muted/60 sm:inline" strokeWidth={2} />
+          <span className="truncate font-semibold text-text-primary">{current}</span>
+        </nav>
+      </div>
 
-      {/* Quick search (jump to a page) */}
-      <div className="relative w-full max-w-xs">
+      {/* Quick search (jump to a page) — hidden on small screens; the drawer covers nav */}
+      <div className="relative hidden w-full max-w-xs md:block">
         <Search
           size={15}
           strokeWidth={2}
