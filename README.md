@@ -338,7 +338,8 @@ Open [http://localhost:8501](http://localhost:8501).
 To host the **React app** for others over the internet there's a one-command launcher:
 
 ```bash
-./server-start.sh
+./server-start.sh             # everything in one terminal (logs to /tmp) — headless/launchd-safe
+./server-start.sh --windows   # open separate macOS Terminal windows: App + Telegram bridge
 ```
 
 It builds the SPA and starts everything (MLflow + MCP servers + agents + FastAPI + the
