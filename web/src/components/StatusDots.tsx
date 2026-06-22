@@ -35,12 +35,7 @@ export function StatusDots() {
           <Dot ok={s.service_ok} />
           <span className="ml-1" title="MCP server running">🖥️</span>
           <Dot ok={s.server_up} />
-          <span className="ml-0.5 text-[13px] text-text-primary/80">
-            {s.label}
-            {s.key === "garmin" && data?.garmin_mock && (
-              <span className="ml-1 text-[11px] font-semibold text-metric-amber">(Mock)</span>
-            )}
-          </span>
+          <span className="ml-0.5 text-[13px] text-text-primary/80">{s.label}</span>
         </div>
       ))}
     </div>
