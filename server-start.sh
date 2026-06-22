@@ -14,7 +14,17 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
 
-PY="${PY:-/opt/miniconda3/envs/aiss/bin/python3}"
+# Pick a python: explicit $PY wins; else the currently-activated conda env; else the
+# deploy-server path; else whatever python3 is on PATH.
+if [ -z "${PY:-}" ]; then
+  if [ -n "${CONDA_PREFIX:-}" ] && [ -x "$CONDA_PREFIX/bin/python3" ]; then
+    PY="$CONDA_PREFIX/bin/python3"
+  elif [ -x /opt/miniconda3/envs/aiss/bin/python3 ]; then
+    PY="/opt/miniconda3/envs/aiss/bin/python3"
+  else
+    PY="$(command -v python3 || true)"
+  fi
+fi
 APP_PORTS=(5001 8101 8102 8103 8104 8105 8107 9000 9001 9002 9003 9004 9005 8000 3000)
 
 # Stable signing secret — generated once, reused forever (so sessions persist across
