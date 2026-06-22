@@ -76,17 +76,26 @@ async def chat(req: ChatRequest, user: str = Depends(current_user)):
                 trace = trace or {"error": str(exc), "answer": answer}
                 emit("error", {"message": f"{type(exc).__name__}: {exc}"})
             finally:
+                final_answer = (trace.get("answer") if isinstance(trace, dict) else None) or answer or ""
                 # Persist the turn (best-effort) so it survives restarts / reloads.
                 if req.chat_id:
                     try:
                         chat_store.append_message(user, req.chat_id, "user", req.message)
                         chat_store.append_message(
-                            user, req.chat_id, "assistant",
-                            (trace.get("answer") if isinstance(trace, dict) else None) or answer or "",
+                            user, req.chat_id, "assistant", final_answer,
                             trace=trace if isinstance(trace, dict) else None,
                         )
                     except Exception:  # noqa: BLE001 — persistence must not break the stream
                         pass
+                # Track this turn in the user's own MLflow experiment (best-effort).
+                try:
+                    from core import user_tracking
+                    user_tracking.log_turn(
+                        user, req.chat_id or "adhoc", len(history) // 2,
+                        req.message, final_answer, trace if isinstance(trace, dict) else {},
+                    )
+                except Exception:  # noqa: BLE001 — telemetry must not break the stream
+                    pass
                 emit("done", {})
 
     threading.Thread(target=worker, daemon=True).start()

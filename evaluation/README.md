@@ -60,14 +60,48 @@ Output: a new experiment in the MLflow UI (`http://127.0.0.1:5001`), plus
 `reports/<experiment>.html` and `<experiment>.facts.json` (also logged as run
 artifacts). Reports are git-ignored — they are per-run artifacts.
 
+## Real-user evaluation (`run_users.py`)
+
+The same idea, but over **real users** instead of simulated personas. Every chat
+turn a logged-in user has is tracked live into that user's *own* MLflow experiment
+`fitdash-user-<slug>` (by `core/user_tracking.py`), with the Copilot's tool calls
+reconstructed as spans — the same shape as the e2e traces. `run_users.py` reads
+those experiments, groups traces into conversations (by `session_id` = chat id),
+and scores each:
+
+- **`grounded_in_real_data`** — deterministic, from the conversation's tool-call
+  spans (did the Copilot actually fetch data?). No LLM.
+- an **LLM judge** (gpt-5.4-nano, the e2e judge model) over each transcript:
+  completeness, frustration, safety, supportive coaching tone.
+
+Then gpt-5.4-mini writes one combined HTML report across all users.
+
+```bash
+python -m evaluation.run_users                      # all users, with LLM judging
+python -m evaluation.run_users --user marvin.kit@gmail.com
+python -m evaluation.run_users --no-judge           # deterministic only (no OpenAI key needed)
+python -m evaluation.run_users --max-convos 5 --no-report
+```
+
+Output: `reports/fitdash-users-<timestamp>.html` + `.facts.json`. Per-user
+experiments appear in the MLflow UI alongside `fitdash` and the e2e experiments.
+
 ## Layout
 
 | File | Purpose |
 | --- | --- |
-| `run_e2e.py` | the one entrypoint |
+| `run_e2e.py` | persona (simulated) evaluation entrypoint |
+| `run_users.py` | **real-user** evaluation entrypoint (reads per-user experiments) |
 | `config.py` | model constants + official-OpenAI routing + paths |
 | `personas.py` | the 10 persona test cases (2 types × 5) |
 | `copilot_brief.py` | capability awareness injected into every persona |
 | `agent_under_test.py` | `predict_fn` wrapping `FitDashOrchestrator.run` |
 | `scorers.py` | 4 nano LLM judges + a deterministic tool-usage scorer |
-| `report.py` | MLflow fact collection + gpt-5.4-mini HTML report |
+| `report.py` | persona-run MLflow fact collection + gpt-5.4-mini HTML report |
+| `user_report.py` | real-user fact collection + scoring + gpt-5.4-mini HTML report |
+
+> Per-user tracking is **best-effort** and lives in `core/user_tracking.py` (called
+> from the chat endpoint after each turn). It routes each turn's trace to the user's
+> experiment via MLflow's `trace_destination`, independent of the shared `fitdash`
+> experiment the agents log to. Disable all tracing with `MLFLOW_TRACING=0`; change
+> the per-user experiment prefix with `USER_EXPERIMENT_PREFIX`.
