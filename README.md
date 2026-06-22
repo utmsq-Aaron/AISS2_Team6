@@ -331,6 +331,54 @@ streamlit run app.py
 
 Open [http://localhost:8501](http://localhost:8501).
 
+## Serving it publicly (single host, e.g. a Mac mini)
+
+To host the **React app** for others over the internet there's a one-command launcher:
+
+```bash
+./server-start.sh
+```
+
+It builds the SPA and starts everything (MLflow + MCP servers + agents + FastAPI + the
+Node BFF), puts the app behind a shared **PIN gate** (PIN **`230626`**), and publishes it
+over HTTPS via **Tailscale Funnel** — using a stable signing key persisted in
+`.secrets/auth_secret` so logins survive restarts. Only the BFF (`127.0.0.1:3000`) is
+fronted; FastAPI, the agents and the MCP servers stay on localhost. (`./serve.sh` is the
+underlying launcher if you want to pass your own `APP_PIN` / `AUTH_SECRET` / `FUNNEL`.)
+
+**Auth model:** login is **email + OTP** — a visitor enters their email, gets a 6-digit
+code (emailed *from* the admin Gmail), and enters it; the first time registers the account
+(`data/accounts.json`). The shared PIN gates *reaching* the login screen. Only the **admin**
+(`kit.aiss2026@gmail.com`) sees the **Settings** tab.
+
+**Two one-time setup steps** the launcher can't do for you (it preflight-warns if they're
+missing):
+
+1. **Connect Google/Gmail** (powers OTP email + calendar). On the host, sign in as
+   `kit.aiss2026@gmail.com`:
+   ```bash
+   python auth/google_oauth.py
+   ```
+   …and enable both the **Gmail API** and **Calendar API** for the project in the
+   [Google Cloud console](https://console.cloud.google.com/apis/library). Register the
+   redirect URI `http://localhost:8000/api/settings/google/callback`.
+   *(Chicken-and-egg note: OTP email needs Gmail connected, but in-app Connect is admin-only —
+   so do this CLI step before first login, or start once with `OTP_DEV_ECHO=1` to read codes
+   from `/tmp/fitdash_api.log`.)*
+2. **Install Tailscale** for the public URL:
+   ```bash
+   brew install tailscale && sudo tailscale up   # then enable Funnel + HTTPS in the admin console
+   ```
+   Without it, the app still runs but **local-only** (no public URL).
+
+Then: open the public `https://<host>.<tailnet>.ts.net` URL → enter PIN **230626** → log in
+by email. Full detail (autostart on boot via `launchd`, custom domains, security notes) is in
+[`docs/deploy-macmini.md`](docs/deploy-macmini.md).
+
+**Required env for a public deploy** (in `.env`): the usual `OPENAI_*` / `AGENT_MODEL`, the
+`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, and optionally `ADMIN_EMAIL` (defaults to
+`kit.aiss2026@gmail.com`). `AUTH_SECRET` is generated for you on first run.
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -349,3 +397,8 @@ Open [http://localhost:8501](http://localhost:8501).
 | Telegram bridge silent / no reply | Confirm the MCP servers are up (it logs `Agent ready — N tools`), the message is a **DM** (groups are off unless `TELEGRAM_BRIDGE_ALLOW_GROUPS=true`), and the sender is allowed (`TELEGRAM_ALLOWED_USERS`). |
 | Voice memo not transcribed | First memo downloads the Whisper model (wait a bit); the bridge logs `🎤 transcribed via … (lang=…)`. Ensure `faster-whisper` is installed. The mlx engine additionally needs `brew install ffmpeg`. |
 | New activities not visible | Use **🔄 Refresh data** in the sidebar to clear the cache. |
+| Login OTP request stuck on "Sending…" / `(pending)` | The PIN gate must scope `express.json()` to `/bff/login` only (global parsing hangs proxied POSTs). Restart the BFF (`server-start.sh`) so it picks up `server/index.js`. |
+| OTP email never arrives / `502` on request-otp | Google/Gmail not connected or missing the `gmail.send` scope. Run `python auth/google_oauth.py` (as `kit.aiss2026@gmail.com`) and enable the **Gmail API** in the Cloud console. Check Spam. For local testing without email, start with `OTP_DEV_ECHO=1` and read the code from `/tmp/fitdash_api.log`. |
+| "Invalid or expired code" | Codes expire in 10 min and burn after 5 wrong tries — request a fresh one. |
+| No Settings tab after login | Settings is admin-only — log in as `kit.aiss2026@gmail.com` (the `ADMIN_EMAIL`). |
+| Everyone logged out after a restart | `AUTH_SECRET` changed. `server-start.sh` persists a stable one in `.secrets/auth_secret`; don't pass a different `AUTH_SECRET` over it. |

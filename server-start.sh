@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# FitDash — one-command launcher for the Mac mini.
+# FitDash — one-command server launcher.
 #
 # Starts the whole stack (MCP servers + agents + FastAPI + the web BFF) behind the
 # shared PIN gate, publishes it publicly via Tailscale Funnel, and uses a stable
 # signing key so logins/PINs survive restarts. Just run:
 #
-#     ./macmini-start.sh
+#     ./server-start.sh
 #
 # PIN to enter the app:  230626
 # Admin (Settings):      kit.aiss2026@gmail.com  (log in with that email)
