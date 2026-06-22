@@ -7,10 +7,13 @@ import { MetricCard } from "../MetricCard";
 import { RouteMap } from "../RouteMap";
 import type { MarkerSpec, PolyLineSpec } from "../RouteMap";
 
-// Mirror of ui/chat.py `_render_route_map`. Handles the route tools that the
-// orchestrator surfaces via trace.route_data: plan_route, plan_circular_route and
-// plan_park_loop (all single routes), explore_trails (selection + pagination), and
-// get_isochrone.
+// Mirror of ui/chat.py `_render_route_map` (and core/route_render.py, used by the
+// Telegram bridge). Handles the tools the orchestrator surfaces via trace.route_data
+// (see core.agent_trace.ROUTE_TOOLS): plan_route, plan_circular_route and
+// plan_park_loop (single routes), explore_trails (selection + pagination),
+// get_isochrone, and an activity's recorded GPS track (get_activity_streams /
+// get_activity_gps_track) — the last of which Telegram already drew but the web
+// dropped, so the same run/ride map now renders in both.
 
 const TRAIL_COLORS = ["#f97316", "#1E96FF", "#00C864", "#C832C8", "#FFC800"];
 
@@ -70,6 +73,9 @@ export function RouteResult({ routeData }: { routeData: RouteData }) {
   if (tool === "get_isochrone") {
     return <Isochrone data={data} />;
   }
+  if (tool === "get_activity_streams" || tool === "get_activity_gps_track") {
+    return <ActivityTrack data={data} />;
+  }
   return null;
 }
 
@@ -115,6 +121,68 @@ function SingleRoute({ data }: { data: Record<string, unknown> }) {
             label="Höhenmeter"
             value={elevation?.gain_m != null ? `${Math.round(elevation.gain_m)} m` : "?"}
           />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Activity GPS track (get_activity_streams / get_activity_gps_track) ─────────
+// An activity's recorded GPS track: { points: [{lat, lon, …}] }. The Strava tool
+// also returns an `activity` metadata block (name/distance/pace/HR); the Garmin
+// one returns points only. Mirrors core/route_render.py's track branch.
+interface TrackPoint {
+  lat?: number | null;
+  lon?: number | null;
+}
+interface ActivityMeta {
+  name?: string;
+  date?: string;
+  distance_km?: number | null;
+  pace_display?: string | null;
+  avg_hr?: number | null;
+}
+
+function ActivityTrack({ data }: { data: Record<string, unknown> }) {
+  const points = (data.points as TrackPoint[] | undefined) ?? [];
+  const coords: [number, number][] = points
+    .filter((p) => p.lat != null && p.lon != null)
+    .map((p) => [p.lat as number, p.lon as number]);
+  if (coords.length < 2) return null; // nothing drawable (e.g. an indoor activity)
+
+  const polylines: PolyLineSpec[] = [
+    { coords, color: "#f97316", weight: 4, opacity: 0.9 },
+  ];
+  const markers: MarkerSpec[] = [
+    { lat: coords[0][0], lon: coords[0][1], color: C_GREEN, label: "Start" },
+    {
+      lat: coords[coords.length - 1][0],
+      lon: coords[coords.length - 1][1],
+      color: C_RED,
+      label: "Ziel",
+    },
+  ];
+
+  const meta = (data.activity as ActivityMeta | undefined) ?? {};
+  const distanceKm = meta.distance_km;
+  const pace = meta.pace_display;
+  const avgHr = meta.avg_hr;
+  const hasMetrics = distanceKm != null || !!pace || avgHr != null;
+
+  return (
+    <div className="mt-3 space-y-3">
+      {meta.name && (
+        <div className="fd-label">
+          {meta.name}
+          {meta.date ? ` · ${meta.date}` : ""}
+        </div>
+      )}
+      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
+      {hasMetrics && (
+        <div className="grid grid-cols-3 gap-3">
+          <MetricCard label="Distanz" value={distanceKm != null ? `${distanceKm} km` : "?"} />
+          <MetricCard label="Pace" value={pace ? `${pace} /km` : "?"} />
+          <MetricCard label="Ø HF" value={avgHr != null ? `${Math.round(avgHr)} bpm` : "?"} />
         </div>
       )}
     </div>
