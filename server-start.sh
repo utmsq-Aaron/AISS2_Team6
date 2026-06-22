@@ -46,6 +46,11 @@ else
   echo "⚠ 'tailscale' not found — the app will run LOCAL ONLY (no public URL)."
   echo "    Install: brew install tailscale && sudo tailscale up   (then enable Funnel/HTTPS in the admin console)"
 fi
+if grep -qE "^TELEGRAM_API_ID=[\"']?[A-Za-z0-9]" .env 2>/dev/null; then
+  echo "✓ Telegram configured — the bridge (userbot) will start"
+else
+  echo "ℹ Telegram not configured in .env — the bridge will be skipped (web app still runs)."
+fi
 
 # 4. Clean restart: free the app's ports so we always come up on current code.
 echo "→ stopping any previous FitDash processes…"
@@ -53,15 +58,20 @@ for p in "${APP_PORTS[@]}"; do
   pid="$(lsof -ti "tcp:$p" -sTCP:LISTEN 2>/dev/null || true)"
   [ -n "$pid" ] && kill $pid 2>/dev/null || true
 done
+pkill -f "telegram_bridge.py" 2>/dev/null || true   # the bridge isn't a port
 command -v tailscale >/dev/null 2>&1 && tailscale funnel off >/dev/null 2>&1 || true
 sleep 2
 
-# 5. Go. serve.sh builds the SPA, starts everything, the PIN gate, and the Funnel.
+# 5. Go. serve.sh builds the SPA and starts everything: backend + PIN gate + Funnel
+#    + the Telegram bridge. (TELEGRAM_MCP=1 too, but serve.sh keeps just the bridge
+#    if they'd share one Telegram session — set TELEGRAM_BRIDGE_SESSION_STRING to run both.)
 echo "→ starting FitDash (PIN 230626) …"
 exec env \
   DO_LOCK=true \
   APP_PIN="230626" \
   AUTH_SECRET="$(cat "$SECRET_FILE")" \
   FUNNEL=1 \
+  TELEGRAM_BRIDGE=1 \
+  TELEGRAM_MCP=1 \
   PY="$PY" \
   ./serve.sh

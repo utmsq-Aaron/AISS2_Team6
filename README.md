@@ -342,11 +342,17 @@ To host the **React app** for others over the internet there's a one-command lau
 ```
 
 It builds the SPA and starts everything (MLflow + MCP servers + agents + FastAPI + the
-Node BFF), puts the app behind a shared **PIN gate** (PIN **`230626`**), and publishes it
-over HTTPS via **Tailscale Funnel** — using a stable signing key persisted in
-`.secrets/auth_secret` so logins survive restarts. Only the BFF (`127.0.0.1:3000`) is
-fronted; FastAPI, the agents and the MCP servers stay on localhost. (`./serve.sh` is the
-underlying launcher if you want to pass your own `APP_PIN` / `AUTH_SECRET` / `FUNNEL`.)
+Node BFF + the **Telegram bridge** if configured), puts the app behind a shared **PIN
+gate** (PIN **`230626`**), and publishes it over HTTPS via **Tailscale Funnel** — using a
+stable signing key persisted in `.secrets/auth_secret` so logins survive restarts. Only
+the BFF (`127.0.0.1:3000`) is fronted; FastAPI, the agents and the MCP servers stay on
+localhost. (`./serve.sh` is the underlying launcher if you want to pass your own
+`APP_PIN` / `AUTH_SECRET` / `FUNNEL` / `TELEGRAM_BRIDGE` / `TELEGRAM_MCP`.)
+
+> The Telegram bridge starts when `.env` has the `TELEGRAM_*` config. If both the bridge
+> and the `telegram_mcp` proxy are requested but share one session string, the launcher
+> starts only the bridge (running both on one login risks Telegram revoking it) — set a
+> dedicated `TELEGRAM_BRIDGE_SESSION_STRING` (`python telegram_bridge.py --login`) to run both.
 
 **Auth model:** login is **email + OTP** — a visitor enters their email, gets a 6-digit
 code (emailed *from* the admin Gmail), and enters it; the first time registers the account

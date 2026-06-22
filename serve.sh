@@ -18,6 +18,8 @@
 #   MLFLOW     "0" to skip MLflow  (default on)
 #   FUNNEL     "1" to also start a public Tailscale Funnel in front of the BFF
 #              (needs `tailscale` installed + `tailscale up` done once)
+#   TELEGRAM_BRIDGE  "1" to also start the Telegram bridge (the userbot users chat with)
+#   TELEGRAM_MCP     "1" to also start the telegram MCP proxy on :8106 (needs `uv`)
 set -uo pipefail
 cd "$(dirname "$0")"
 
@@ -38,6 +40,35 @@ port_busy() { lsof -ti "tcp:$1" -sTCP:LISTEN >/dev/null 2>&1; }
 echo "=== FitDash · production serve ==="
 command -v "$PY" >/dev/null 2>&1 || { echo "✗ python not found at $PY (set PY=…)"; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "✗ node not found (install Node 18+)"; exit 1; }
+
+# ── Telegram decisions (opt-in) ───────────────────────────────────────────────
+# env_has KEY → true if .env sets KEY to a real (alphanumeric-leading) value.
+env_has() { grep -qE "^$1=[\"']?[A-Za-z0-9]" .env 2>/dev/null; }
+TG_BRIDGE_ON=false; TG_MCP_ON=false
+if [ "${TELEGRAM_BRIDGE:-0}" = "1" ]; then
+  if env_has TELEGRAM_API_ID && env_has TELEGRAM_API_HASH \
+     && { env_has TELEGRAM_SESSION_STRING || env_has TELEGRAM_BRIDGE_SESSION_STRING; }; then
+    TG_BRIDGE_ON=true
+  else
+    echo "⚠ TELEGRAM_BRIDGE=1 but Telegram isn't configured in .env "
+    echo "  (need TELEGRAM_API_ID + TELEGRAM_API_HASH + a session string) — skipping the bridge."
+  fi
+fi
+if [ "${TELEGRAM_MCP:-0}" = "1" ]; then
+  if command -v uv >/dev/null 2>&1 && env_has TELEGRAM_API_ID && env_has TELEGRAM_SESSION_STRING; then
+    TG_MCP_ON=true
+  else
+    echo "⚠ TELEGRAM_MCP=1 but 'uv' or the TELEGRAM_* .env vars are missing — skipping the telegram MCP server."
+  fi
+fi
+# Same-session collision guard: running the bridge AND the telegram MCP proxy on ONE
+# session makes Telegram revoke the key (AuthKeyDuplicatedError). Keep the bridge;
+# drop the MCP unless a dedicated TELEGRAM_BRIDGE_SESSION_STRING separates them.
+if $TG_BRIDGE_ON && $TG_MCP_ON && ! env_has TELEGRAM_BRIDGE_SESSION_STRING; then
+  echo "⚠ Telegram bridge + MCP proxy would share one login — starting the BRIDGE only."
+  echo "  To run both, give the bridge its own session:  python telegram_bridge.py --login  → TELEGRAM_BRIDGE_SESSION_STRING"
+  TG_MCP_ON=false
+fi
 
 # 0. Build the SPA (skippable for fast restarts)
 if [ "${SKIP_BUILD:-0}" = "1" ] && [ -d web/dist ]; then
@@ -67,6 +98,14 @@ for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrou
     pids+=($!)
   fi
 done
+# Telegram MCP proxy (:8106) — opt-in; gives the agent Telegram tools.
+if $TG_MCP_ON; then
+  if port_busy 8106; then echo "✓ telegram already on :8106"; else
+    echo "→ telegram MCP on :8106"
+    "$PY" -m servers.telegram_mcp >/tmp/mcp_telegram.log 2>&1 &
+    pids+=($!)
+  fi
+fi
 sleep 2
 
 # 2a. Fitness RAG index (built once; instant skip if present)
@@ -113,5 +152,19 @@ if [ "${FUNNEL:-0}" = "1" ]; then
   fi
 fi
 
-echo "=== up. ${FUNNEL:+public via Tailscale Funnel · }open http://localhost:${BFF_PORT} on this machine. Ctrl-C to stop. ==="
+# 7. Telegram bridge (opt-in) — the userbot users chat with (email+OTP login).
+if $TG_BRIDGE_ON; then
+  if pgrep -f "telegram_bridge.py" >/dev/null 2>&1; then
+    echo "✓ telegram bridge already running"
+  else
+    echo "→ telegram bridge (userbot · users sign in with /login)"
+    "$PY" telegram_bridge.py >/tmp/telegram_bridge.log 2>&1 &
+    pids+=($!)
+  fi
+fi
+
+_extra=""
+[ "${FUNNEL:-0}" = "1" ] && _extra="${_extra}public via Tailscale Funnel · "
+$TG_BRIDGE_ON && _extra="${_extra}telegram bridge on · "
+echo "=== up. ${_extra}open http://localhost:${BFF_PORT} on this machine. Ctrl-C to stop. ==="
 wait "$bff"
