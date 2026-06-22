@@ -535,13 +535,10 @@ map.on('load', () => {
           'horizon-blend': 0.07, 'space-color': '#0a1420', 'star-intensity': 0.04,
         });
       } catch(_) {}
-      try {
-        map.addLayer({id:'sky',type:'sky',paint:{
-          'sky-type': 'atmosphere',
-          'sky-atmosphere-sun': [42.0, 58.0],
-          'sky-atmosphere-sun-intensity': 15,
-        }});
-      } catch(_) {}
+      // No sky layer here: MapLibre GL 3.6.2 has no Mapbox-style sky layer type —
+      // addLayer rejects it ASYNchronously during render, so the surrounding
+      // try/catch can't suppress it and it spams the console. setFog above already
+      // supplies the atmospheric haze.
     } else {
       try {
         map.setFog({
