@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ActivityAnalysis } from "../components/dashboard/ActivityAnalysis";
+import FlythroughModal from "../components/FlythroughModal";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { PeriodSelector } from "../components/PeriodSelector";
@@ -176,7 +177,7 @@ export function Dashboard() {
   const [period, setPeriod] = useState<Period>("30 days");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [showFlythroughNote, setShowFlythroughNote] = useState(false);
+  const [flythroughOpen, setFlythroughOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [statsTab, setStatsTab] = useState<"ytd" | "lfw" | "all">("ytd");
 
@@ -277,6 +278,13 @@ export function Dashboard() {
 
   return (
     <div>
+      {flythroughOpen && selected && (
+        <FlythroughModal
+          activityId={selected.id}
+          activityName={selected.name}
+          onClose={() => setFlythroughOpen(false)}
+        />
+      )}
       <PageHeader title="Dashboard" subtitle="Activity overview, weather, training charts" />
 
       {/* Strava error banner — still render weather below */}
@@ -341,11 +349,10 @@ export function Dashboard() {
         selected={selected}
         onSelect={(id) => {
           setSelectedId(id);
-          setShowFlythroughNote(false);
+          setFlythroughOpen(false);
           setConfirmDelete(false);
         }}
-        showFlythroughNote={showFlythroughNote}
-        onFlythrough={() => setShowFlythroughNote((v) => !v)}
+        onFlythrough={() => setFlythroughOpen(true)}
         confirmDelete={confirmDelete}
         onDeleteClick={() => setConfirmDelete(true)}
         onDeleteCancel={() => setConfirmDelete(false)}
@@ -467,7 +474,6 @@ function ActivityMapPanel({
   selectedId,
   selected,
   onSelect,
-  showFlythroughNote,
   onFlythrough,
   confirmDelete,
   onDeleteClick,
@@ -480,7 +486,6 @@ function ActivityMapPanel({
   selectedId: number | null;
   selected: Activity | null;
   onSelect: (id: number | null) => void;
-  showFlythroughNote: boolean;
   onFlythrough: () => void;
   confirmDelete: boolean;
   onDeleteClick: () => void;
@@ -540,7 +545,6 @@ function ActivityMapPanel({
           <SelectedActivityCard
             activity={selected}
             hasRoute={decodeRoute(selected).length > 0}
-            showFlythroughNote={showFlythroughNote}
             onFlythrough={onFlythrough}
             confirmDelete={confirmDelete}
             onDeleteClick={onDeleteClick}
@@ -572,7 +576,6 @@ function ActivityMapPanel({
 function SelectedActivityCard({
   activity,
   hasRoute,
-  showFlythroughNote,
   onFlythrough,
   confirmDelete,
   onDeleteClick,
@@ -583,7 +586,6 @@ function SelectedActivityCard({
 }: {
   activity: Activity;
   hasRoute: boolean;
-  showFlythroughNote: boolean;
   onFlythrough: () => void;
   confirmDelete: boolean;
   onDeleteClick: () => void;
@@ -625,9 +627,6 @@ function SelectedActivityCard({
           <button className="fd-btn-primary w-full" onClick={onFlythrough}>
             🎥 3D Flythrough
           </button>
-          {showFlythroughNote && (
-            <p className="mt-2 text-xs italic text-text-muted">3D Flythrough — ported separately</p>
-          )}
         </div>
       )}
 

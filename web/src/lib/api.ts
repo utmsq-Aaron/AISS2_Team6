@@ -106,6 +106,32 @@ export async function callTool<T = unknown>(
   return r.data;
 }
 
+/** Fetch the standalone 3D flythrough HTML page for an activity (authenticated).
+ *  The React side renders it in an `<iframe srcdoc>`; the in-page Export button
+ *  encodes an MP4 client-side. Returns the raw HTML string. */
+export async function fetchFlythroughHtml(
+  activityId: number,
+  opts: { mode?: string; orientation?: string; resolution?: string; duration?: number } = {},
+): Promise<string> {
+  const qs = new URLSearchParams();
+  if (opts.mode) qs.set("mode", opts.mode);
+  if (opts.orientation) qs.set("orientation", opts.orientation);
+  if (opts.resolution) qs.set("resolution", opts.resolution);
+  if (opts.duration) qs.set("duration", String(opts.duration));
+  const res = await fetch(`/api/flythrough/${activityId}?${qs.toString()}`, {
+    headers: { ...authHeaders() },
+  });
+  if (res.status === 401) {
+    forceLogout();
+    throw new Error("Session expired — please log in again.");
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new Error(`Flythrough ${res.status}: ${detail}`);
+  }
+  return res.text();
+}
+
 export interface ServerStatus {
   key: string;
   label: string;
