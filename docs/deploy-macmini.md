@@ -32,32 +32,36 @@ nothing to forward and no inbound firewall rule to add.
   public deployment also set:
   - `AUTH_SECRET=<random string>` — signs the login Bearer tokens **and** the PIN-gate
     cookie. **Set this** (`openssl rand -hex 32`) so they don't use the dev default.
-  - `ADMIN_EMAIL=kit.aiss2026@gmail.com` — the only account allowed into Settings
-    (this is the default; override if needed).
+  - `ADMIN_EMAIL=kit.aiss2026@gmail.com` — the account with full Settings + the email
+    sender (this is the default; override if needed).
 - **Login is email + OTP.** There are no preset accounts. A visitor enters their email,
   receives a 6-digit code (emailed from the admin Gmail), and enters it; the first time
-  is registration. Accounts are stored in `data/accounts.json` (gitignored). Only
-  `ADMIN_EMAIL` can open **Settings**.
-- **Connect Google once, on the mini — this also powers OTP email.** The Google
-  connection now carries `calendar` **and** `gmail.send`, so the app can email login
-  codes *as* the admin mailbox. Two ways:
-  - Easiest / bootstrap-proof: run the CLI on the mini — `python auth/google_oauth.py`
-    (a browser opens; sign in as **kit.aiss2026@gmail.com**, approve calendar + send-email).
-    This writes `.tokens/google.json` without needing to log into the app first.
-  - Or in-app: open the app **on the mini** (`http://localhost:3000`), log in (see the
-    bootstrap note below), Settings → Connect Google.
-  Either way, **enable both the Calendar API and the Gmail API** in the Cloud project
-  (console → APIs & Services → Library), and keep the redirect URI
-  `http://localhost:8000/api/settings/google/callback` registered. Don't connect Google
-  from a remote browser — the localhost redirect only resolves on the mini.
-- **First-run bootstrap (chicken-and-egg).** OTP email needs Google connected, but the
-  in-app connect lives behind the admin login, which needs an email. Break the loop one
-  of two ways: run `python auth/google_oauth.py` **before** first login (recommended), or
-  start once with `OTP_DEV_ECHO=1` so codes are printed to the server log
-  (`/tmp/fitdash_api.log`) — log in as the admin, connect Google, then restart **without**
-  `OTP_DEV_ECHO`. Never leave `OTP_DEV_ECHO` on for a public URL.
-- Same idea for **Strava/Garmin**: do those connects on the mini once. Tokens live in
-  `.tokens/` (gitignored) and are reused.
+  is registration. Accounts are stored in `data/accounts.json` (gitignored). **Settings**
+  is open to everyone for connecting their own **Strava / Garmin / Google Calendar**; the
+  rest (LLM keys, Telegram, restart, the email Google token) is **admin-only** (`ADMIN_EMAIL`).
+- **Connect the admin email sender once, on the mini** (powers OTP login email). Run the
+  CLI signed in as **kit.aiss2026@gmail.com**:
+  ```bash
+  python auth/google_oauth.py        # writes .tokens/google_mail.json (gmail.send)
+  ```
+  **Enable the Gmail API** (and Calendar API) in the Cloud project (console → APIs &
+  Services → Library), and keep the redirect URI
+  `http://localhost:8000/api/settings/google/callback` registered.
+  - **Two separate tokens, deliberately.** This CLI token (`google_mail.json`, `gmail.send`)
+    is the email sender. The **calendar** integration is a *different* token
+    (`google.json`, calendar scopes only) connected in-app from Settings — by the admin or
+    any user. Keeping them apart means a user reconnecting Calendar can't break login email.
+    (On an existing deployment whose old `google.json` still had `gmail.send`, it's copied to
+    `google_mail.json` automatically on first send.)
+  - Don't connect Google from a remote browser — the localhost redirect only resolves on
+    the mini.
+- **First-run bootstrap (chicken-and-egg).** OTP email needs `google_mail.json` present, but
+  the in-app connect needs you logged in (which needs an email). Break the loop: run
+  `python auth/google_oauth.py` **before** first login (recommended), or start once with
+  `OTP_DEV_ECHO=1` so codes print to the server log (`/tmp/fitdash_api.log`) — log in as the
+  admin, then restart **without** `OTP_DEV_ECHO`. Never leave it on for a public URL.
+- **Strava / Garmin / Calendar**: any logged-in user can connect these from Settings; tokens
+  live in `.tokens/` (gitignored) and are shared across users.
 
 ## 2. Build + run
 
@@ -159,7 +163,8 @@ Run the tunnel as a service too so the public URL survives reboots:
 ## 5. Security — read before sharing the URL
 
 Login is **email + OTP**: a real per-user identity (a code emailed to an address the
-person controls), and only `ADMIN_EMAIL` can open Settings. That's the primary auth.
+person controls); users can connect their own Strava/Garmin/Calendar in Settings, while
+the privileged Settings cards stay `ADMIN_EMAIL`-only. That's the primary auth.
 Registration is **open** — anyone who can receive an OTP can create an account — so on a
 public URL you still want the **shared PIN gate** in front as a coarse first wall (it
 limits who can even reach the login screen). The gate is hardened and safe to expose:

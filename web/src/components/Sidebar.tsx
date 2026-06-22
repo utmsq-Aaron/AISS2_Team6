@@ -2,8 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Dumbbell, RefreshCw } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
-import { visibleNav } from "../nav";
-import { useAuthStore } from "../store/authStore";
+import { NAV } from "../nav";
 import { SPORT_TYPES, useUiStore } from "../store/uiStore";
 import { StatusDots } from "./StatusDots";
 
@@ -11,8 +10,6 @@ import { StatusDots } from "./StatusDots";
 // with the sport filter and data refresh as secondary controls below.
 export function Sidebar() {
   const qc = useQueryClient();
-  const isAdmin = useAuthStore((s) => s.isAdmin);
-  const nav = visibleNav(isAdmin);
   const { sportFilter, setSportFilter, bumpRefresh } = useUiStore();
 
   const refresh = () => {
@@ -37,7 +34,7 @@ export function Sidebar() {
 
       {/* Primary navigation */}
       <nav className="flex flex-col gap-1">
-        {nav.map(({ to, label, icon: Icon }) => (
+        {NAV.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

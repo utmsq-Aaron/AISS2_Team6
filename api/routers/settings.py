@@ -7,12 +7,14 @@ import os
 from typing import Dict, Optional
 
 from dotenv import dotenv_values
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+from api import auth as A
 from api import connections as conn
 from api import settings_service as svc
+from api.auth import current_user, require_admin
 
 router = APIRouter()
 
@@ -41,27 +43,37 @@ def _mask(value: str) -> str:
 
 
 @router.get("/settings")
-def get_settings():
+def get_settings(user: str = Depends(current_user)):
+    integrations = {
+        "strava": conn.strava_connected(),
+        "garmin": conn.garmin_connected(),
+        "garmin_mock": conn.garmin_mock_mode(),
+        "google": conn.google_connected(),
+        "routes": conn.routes_connected(),
+        "telegram": conn.telegram_connected(),
+        "openai": conn.openai_configured(),
+    }
+    admin = A.is_admin(user)
     file_vals = dotenv_values(".env")
     env: Dict[str, Dict] = {}
     for key, secret in _EDITABLE_KEYS.items():
         raw = os.getenv(key) or file_vals.get(key) or ""
-        env[key] = {"set": bool(raw), "value": _mask(raw) if secret else raw, "secret": secret}
+        if admin:
+            # Admin sees non-secret values (and masked secrets) so it can edit them.
+            env[key] = {"set": bool(raw), "value": _mask(raw) if secret else raw, "secret": secret}
+        else:
+            # Non-admins get only presence flags (no values at all) — enough for the
+            # Strava/Garmin/Calendar cards to show "Connect" vs "needs setup", without
+            # leaking keys, base URLs, or the shared Garmin email.
+            env[key] = {"set": bool(raw), "value": "", "secret": secret}
     return {
-        "integrations": {
-            "strava": conn.strava_connected(),
-            "garmin": conn.garmin_connected(),
-            "garmin_mock": conn.garmin_mock_mode(),
-            "google": conn.google_connected(),
-            "routes": conn.routes_connected(),
-            "telegram": conn.telegram_connected(),
-            "openai": conn.openai_configured(),
-        },
+        "integrations": integrations,
+        "is_admin": admin,
         "env": env,
-        "models": svc.KIT_MODELS,
-        "gemini_models": svc.GEMINI_MODELS,
-        "openai_models": svc.OPENAI_MODELS,
-        "bridge_running": svc.bridge_running(),
+        "models": svc.KIT_MODELS if admin else [],
+        "gemini_models": svc.GEMINI_MODELS if admin else [],
+        "openai_models": svc.OPENAI_MODELS if admin else [],
+        "bridge_running": svc.bridge_running() if admin else False,
     }
 
 
@@ -81,7 +93,7 @@ class EnvUpdate(BaseModel):
 
 
 @router.put("/settings/env")
-def put_env(body: EnvUpdate):
+def put_env(body: EnvUpdate, _admin: str = Depends(require_admin)):
     written = []
     for key, value in body.values.items():
         if key not in _EDITABLE_KEYS:
@@ -200,7 +212,7 @@ class Phone(BaseModel):
 
 
 @router.post("/settings/telegram/send-code")
-def tg_send_code(body: Phone):
+def tg_send_code(body: Phone, _admin: str = Depends(require_admin)):
     try:
         return svc.tg_send_code(body.phone)
     except Exception as exc:  # noqa: BLE001
@@ -215,7 +227,7 @@ class TgSignIn(BaseModel):
 
 
 @router.post("/settings/telegram/sign-in")
-def tg_sign_in(body: TgSignIn):
+def tg_sign_in(body: TgSignIn, _admin: str = Depends(require_admin)):
     try:
         res = svc.tg_sign_in(body.inter, body.phone, body.code, body.code_hash)
         if res.get("status") == "ok":
@@ -231,7 +243,7 @@ class TgPassword(BaseModel):
 
 
 @router.post("/settings/telegram/password")
-def tg_password(body: TgPassword):
+def tg_password(body: TgPassword, _admin: str = Depends(require_admin)):
     try:
         res = svc.tg_password(body.inter, body.password)
         svc.save_env("TELEGRAM_SESSION_STRING", res["session"])
@@ -245,13 +257,13 @@ class SessionString(BaseModel):
 
 
 @router.post("/settings/telegram/session")
-def tg_session(body: SessionString):
+def tg_session(body: SessionString, _admin: str = Depends(require_admin)):
     svc.save_env("TELEGRAM_SESSION_STRING", body.session.strip())
     return {"ok": True}
 
 
 @router.post("/settings/telegram/disconnect")
-def tg_disconnect():
+def tg_disconnect(_admin: str = Depends(require_admin)):
     svc.save_env("TELEGRAM_SESSION_STRING", "")
     return {"ok": True}
 
@@ -261,7 +273,7 @@ class BridgeAction(BaseModel):
 
 
 @router.post("/settings/telegram/bridge")
-def tg_bridge(body: BridgeAction):
+def tg_bridge(body: BridgeAction, _admin: str = Depends(require_admin)):
     if body.action == "start":
         svc.bridge_start()
     elif body.action == "stop":
@@ -272,12 +284,12 @@ def tg_bridge(body: BridgeAction):
 
 
 @router.get("/settings/telegram/bridge/status")
-def tg_bridge_status():
+def tg_bridge_status(_admin: str = Depends(require_admin)):
     return {"running": svc.bridge_running()}
 
 
 # ── MCP servers ────────────────────────────────────────────────────────────
 
 @router.post("/settings/servers/restart")
-def restart_servers():
+def restart_servers(_admin: str = Depends(require_admin)):
     return svc.restart_mcp_servers()

@@ -1,10 +1,15 @@
-"""Send OTP emails via the Gmail API, as the connected Google account (the admin).
+"""Send OTP emails via the Gmail API, as the admin Google account.
 
-Reuses the OAuth token in ``.tokens/google.json`` — the same connection the
-calendar uses — which must additionally carry the ``gmail.send`` scope. Connect or
-reconnect Google in Settings (the start-flow now requests ``gmail.send``) and make
-sure the **Gmail API** is enabled in the Cloud project. The "From" is therefore
-always the connected admin mailbox (``kit.aiss2026@gmail.com``).
+The email sender uses its OWN token, ``.tokens/google_mail.json`` (scope
+``gmail.send``), deliberately SEPARATE from the calendar token
+(``.tokens/google.json``). This is so a regular user (re)connecting Google
+*Calendar* in Settings can never overwrite or downgrade the admin's email-sending
+credential. The admin connects this token via ``python auth/google_oauth.py``
+(writes ``google_mail.json``); the **Gmail API** must be enabled in the Cloud
+project. The "From" is always the connected admin mailbox (``kit.aiss2026@gmail.com``).
+
+For convenience on an existing deployment, if ``google_mail.json`` is missing but
+the legacy ``google.json`` still carries ``gmail.send``, it's copied over once.
 
 Best-effort and self-contained: a tiny token reader/refresher mirrors the calendar
 server's, so the API process doesn't depend on an MCP server being up.
@@ -22,7 +27,8 @@ from pathlib import Path
 import requests
 
 _ROOT = Path(__file__).resolve().parent.parent
-TOKEN_FILE = _ROOT / ".tokens" / "google.json"
+TOKEN_FILE = _ROOT / ".tokens" / "google_mail.json"          # admin email sender (gmail.send)
+_LEGACY_TOKEN_FILE = _ROOT / ".tokens" / "google.json"       # shared calendar token (migrate from)
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 
@@ -31,8 +37,25 @@ class EmailError(RuntimeError):
     """Raised when an OTP email could not be sent (surfaced to the client)."""
 
 
+def _migrate_legacy_token() -> None:
+    """One-time: seed google_mail.json from a legacy google.json that has gmail.send,
+    so existing deployments keep sending mail and the email token is then isolated
+    from later calendar reconnects."""
+    if TOKEN_FILE.exists() or not _LEGACY_TOKEN_FILE.exists():
+        return
+    try:
+        data = json.loads(_LEGACY_TOKEN_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if "gmail.send" in (data.get("scope") or ""):
+        TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        TOKEN_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        print("[email] migrated gmail.send credential → .tokens/google_mail.json", flush=True)
+
+
 def _access_token() -> str:
-    """Read .tokens/google.json, refreshing the access token if expired."""
+    """Read the mail token (google_mail.json), refreshing the access token if expired."""
+    _migrate_legacy_token()
     if not TOKEN_FILE.exists():
         return ""
     try:

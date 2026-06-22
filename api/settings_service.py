@@ -190,12 +190,13 @@ def strava_save_token(token: dict) -> dict:
 
 _GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-# Read + write calendar, plus gmail.send so the API can email OTP login codes as
-# the connected (admin) account. calendar.events alone grants no reads; gmail.send
-# is send-only (no inbox access).
+# User-facing Google connect = CALENDAR ONLY (read + write events). This is the
+# integration any logged-in user may (re)connect, so it must NOT request gmail.send
+# — the OTP-email credential lives separately in google_mail.json (api/email_service)
+# and the admin connects it via auth/google_oauth.py. calendar.events alone grants
+# no reads, hence both calendar scopes.
 _GOOGLE_SCOPE = ("https://www.googleapis.com/auth/calendar.readonly "
-                 "https://www.googleapis.com/auth/calendar.events "
-                 "https://www.googleapis.com/auth/gmail.send")
+                 "https://www.googleapis.com/auth/calendar.events")
 
 # The redirect must point at an *always-running* endpoint and be registered in the
 # Google Cloud Console. We use the FastAPI server's own public callback route

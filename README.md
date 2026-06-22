@@ -348,23 +348,31 @@ underlying launcher if you want to pass your own `APP_PIN` / `AUTH_SECRET` / `FU
 
 **Auth model:** login is **email + OTP** — a visitor enters their email, gets a 6-digit
 code (emailed *from* the admin Gmail), and enters it; the first time registers the account
-(`data/accounts.json`). The shared PIN gates *reaching* the login screen. Only the **admin**
-(`kit.aiss2026@gmail.com`) sees the **Settings** tab.
+(`data/accounts.json`). The shared PIN gates *reaching* the login screen. **Settings** is open
+to every logged-in user, but only for connecting their own data sources — **Strava, Garmin,
+Google Calendar**. The privileged cards (LLM keys, Telegram, server restart, env editing) and
+the email Google connection are **admin-only** (`kit.aiss2026@gmail.com`).
+
+> **Two separate Google tokens, on purpose.** The user-connectable **calendar** token
+> (`.tokens/google.json`, calendar scopes only) is kept apart from the admin's **email
+> sender** token (`.tokens/google_mail.json`, `gmail.send`). So a user (re)connecting Google
+> Calendar in Settings can never clobber or downgrade the credential that sends login emails.
 
 **Two one-time setup steps** the launcher can't do for you (it preflight-warns if they're
 missing):
 
-1. **Connect Google/Gmail** (powers OTP email + calendar). On the host, sign in as
+1. **Connect the admin email sender** (powers OTP login emails). On the host, sign in as
    `kit.aiss2026@gmail.com`:
    ```bash
-   python auth/google_oauth.py
+   python auth/google_oauth.py     # writes .tokens/google_mail.json (gmail.send)
    ```
-   …and enable both the **Gmail API** and **Calendar API** for the project in the
+   …and enable the **Gmail API** (and **Calendar API**) for the project in the
    [Google Cloud console](https://console.cloud.google.com/apis/library). Register the
    redirect URI `http://localhost:8000/api/settings/google/callback`.
-   *(Chicken-and-egg note: OTP email needs Gmail connected, but in-app Connect is admin-only —
-   so do this CLI step before first login, or start once with `OTP_DEV_ECHO=1` to read codes
-   from `/tmp/fitdash_api.log`.)*
+   *(Calendar itself is connected in-app from Settings — by the admin or any user. The OTP
+   sender stays in its own token so that can't break it.)*
+   *(Chicken-and-egg note: OTP email needs this connected before the first login — do the CLI
+   step above, or start once with `OTP_DEV_ECHO=1` to read codes from `/tmp/fitdash_api.log`.)*
 2. **Install Tailscale** for the public URL:
    ```bash
    brew install tailscale && sudo tailscale up   # then enable Funnel + HTTPS in the admin console
@@ -400,5 +408,6 @@ by email. Full detail (autostart on boot via `launchd`, custom domains, security
 | Login OTP request stuck on "Sending…" / `(pending)` | The PIN gate must scope `express.json()` to `/bff/login` only (global parsing hangs proxied POSTs). Restart the BFF (`server-start.sh`) so it picks up `server/index.js`. |
 | OTP email never arrives / `502` on request-otp | Google/Gmail not connected or missing the `gmail.send` scope. Run `python auth/google_oauth.py` (as `kit.aiss2026@gmail.com`) and enable the **Gmail API** in the Cloud console. Check Spam. For local testing without email, start with `OTP_DEV_ECHO=1` and read the code from `/tmp/fitdash_api.log`. |
 | "Invalid or expired code" | Codes expire in 10 min and burn after 5 wrong tries — request a fresh one. |
-| No Settings tab after login | Settings is admin-only — log in as `kit.aiss2026@gmail.com` (the `ADMIN_EMAIL`). |
+| Settings only shows Strava/Garmin/Calendar | Expected for non-admins — LLM/Telegram/restart cards are admin-only. Log in as `kit.aiss2026@gmail.com` (the `ADMIN_EMAIL`) for the full Settings. |
+| User's Google Calendar connect broke OTP email | Shouldn't happen — email uses a separate `.tokens/google_mail.json`. If it does, re-run `python auth/google_oauth.py` (as the admin) to refresh that token; calendar connects only touch `.tokens/google.json`. |
 | Everyone logged out after a restart | `AUTH_SECRET` changed. `server-start.sh` persists a stable one in `.secrets/auth_secret`; don't pass a different `AUTH_SECRET` over it. |

@@ -2,7 +2,7 @@ import { ChevronRight, LogOut, Search, User } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { navLabel, visibleNav } from "../nav";
+import { NAV, navLabel } from "../nav";
 import { useAuthStore } from "../store/authStore";
 
 // Minimalist header — breadcrumb, quick search (page jump), and user profile.
@@ -12,12 +12,11 @@ export function Header() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
-  const { user, logout, isAdmin } = useAuthStore();
-  const nav = visibleNav(isAdmin);
+  const { user, logout } = useAuthStore();
   const current = navLabel(location.pathname);
   const matches = query
-    ? nav.filter((n) => n.label.toLowerCase().includes(query.toLowerCase()))
-    : nav;
+    ? NAV.filter((n) => n.label.toLowerCase().includes(query.toLowerCase()))
+    : NAV;
 
   const go = (to: string) => {
     navigate(to);

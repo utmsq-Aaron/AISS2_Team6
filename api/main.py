@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-from api.auth import current_user, require_admin  # noqa: E402
+from api.auth import current_user  # noqa: E402
 from api.routers import auth, chat, charts, health, memory, settings, sync, tools  # noqa: E402
 from core.tracing import setup_tracing  # noqa: E402
 
@@ -38,12 +38,13 @@ app.include_router(settings.public_router, prefix="/api")
 
 _PROTECTED = [Depends(current_user)]
 for r in (health.router, tools.router, chat.router, charts.router,
-          sync.router, memory.router):
+          sync.router, memory.router, settings.router):
     app.include_router(r, prefix="/api", dependencies=_PROTECTED)
 
-# Settings is ADMIN-ONLY (kit.aiss2026@gmail.com): connecting integrations / editing
-# .env is privileged. Its public OAuth callback is mounted separately above.
-app.include_router(settings.router, prefix="/api", dependencies=[Depends(require_admin)])
+# Settings is reachable by any logged-in user, but the privileged actions inside it
+# (env editing, LLM/Telegram config, server restart, the email Google connection)
+# are gated to the admin per-route in api/routers/settings.py via require_admin.
+# Regular users may only connect Strava / Garmin / Google Calendar.
 
 
 @app.get("/api/ping")

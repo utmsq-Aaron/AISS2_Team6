@@ -30,9 +30,3 @@ export const NAV: NavItem[] = [
 export function navLabel(pathname: string): string {
   return NAV.find((n) => pathname.startsWith(n.to))?.label ?? "Dashboard";
 }
-
-// Settings is admin-only — hide it from the nav and quick-search for everyone else.
-export const ADMIN_ONLY = new Set(["/settings"]);
-export function visibleNav(isAdmin: boolean): NavItem[] {
-  return NAV.filter((n) => isAdmin || !ADMIN_ONLY.has(n.to));
-}

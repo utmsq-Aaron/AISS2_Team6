@@ -865,6 +865,12 @@ export function Settings() {
   const data = settingsQ.data;
   const integ = data.integrations;
 
+  // Regular users may only manage their own data sources: Strava, Garmin, Google
+  // Calendar. The admin sees every card plus the Developer (restart) section.
+  const isAdmin = data.is_admin;
+  const USER_CARDS = new Set(["strava", "garmin", "google"]);
+  const cards = isAdmin ? META : META.filter((m) => USER_CARDS.has(m.key));
+
   const requiredOk = integ.strava && integ.openai;
   const allOk = integ.strava && integ.garmin && integ.google && integ.openai;
 
@@ -891,7 +897,7 @@ export function Settings() {
 
       <div className="my-5 h-px bg-border" />
 
-      {META.map((meta, i) => (
+      {cards.map((meta, i) => (
         <div key={meta.key}>
           <CardShell meta={meta} connected={isConnected(meta, integ)}>
             {meta.key === "strava" && <StravaCard data={data} refetch={refetch} />}
@@ -903,13 +909,16 @@ export function Settings() {
             {meta.key === "telegram" && <TelegramCard data={data} refetch={refetch} />}
           </CardShell>
           {meta.key === "telegram" && <BridgeControl data={data} refetch={refetch} />}
-          {i < META.length - 1 && <div className="h-px bg-border" />}
+          {i < cards.length - 1 && <div className="h-px bg-border" />}
         </div>
       ))}
 
-      <div className="my-5 h-px bg-border" />
-
-      <DeveloperSection />
+      {isAdmin && (
+        <>
+          <div className="my-5 h-px bg-border" />
+          <DeveloperSection />
+        </>
+      )}
     </div>
   );
 }

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Google OAuth2 — one-time authorization for Google Calendar access.
+"""Google OAuth2 — one-time authorization for the ADMIN email sender.
 
-Run once from the project root:
+Run once on the host, signed in as the admin Google account (kit.aiss2026@gmail.com):
     python auth/google_oauth.py
 
-Saves tokens to .tokens/google.json. After a successful run, the
-calendar MCP server (servers/calendar_mcp.py) loads the token automatically.
+Saves the token to .tokens/google_mail.json with the gmail.send scope (plus calendar),
+which api/email_service uses to send OTP login emails. This is intentionally a
+SEPARATE file from the user-connectable calendar token (.tokens/google.json), so a
+user (re)connecting Google Calendar in Settings can never clobber the email
+credential. Requires the Gmail API enabled in the Cloud project.
 """
 
 import json
@@ -23,7 +26,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN_FILE   = Path(".tokens/google.json")
+TOKEN_FILE   = Path(".tokens/google_mail.json")   # admin email sender (separate from calendar)
 REDIRECT_URI = "http://localhost:8888/callback"
 AUTH_URL     = "https://accounts.google.com/o/oauth2/auth"
 TOKEN_URL    = "https://oauth2.googleapis.com/token"
