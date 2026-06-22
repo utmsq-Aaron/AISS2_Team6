@@ -32,7 +32,8 @@ cleanup() {
   echo; echo "stopping…"
   for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null; done
   # tear down the public tunnel so we don't leave the app exposed after stopping
-  [ "${FUNNEL:-0}" = "1" ] && command -v tailscale >/dev/null 2>&1 && tailscale funnel off >/dev/null 2>&1
+  # ('reset' is the current verb — 'funnel off' is gone in recent Tailscale).
+  [ "${FUNNEL:-0}" = "1" ] && command -v tailscale >/dev/null 2>&1 && tailscale funnel reset >/dev/null 2>&1
 }
 trap cleanup EXIT INT TERM
 port_busy() { lsof -ti "tcp:$1" -sTCP:LISTEN >/dev/null 2>&1; }
@@ -140,12 +141,48 @@ echo "→ BFF on ${BFF_HOST}:${BFF_PORT}  (open http://localhost:${BFF_PORT} on 
 bff=$!; pids+=($bff)
 sleep 2
 
-# 6. Public tunnel (opt-in) — Tailscale Funnel in front of the BFF.
+# 6. Public tunnel (opt-in) — Tailscale Funnel in front of the BFF (valid public HTTPS).
+# A browser only gets a *trusted* cert on the node's own .ts.net name over 443. So we
+# (a) pre-provision that cert (no first-visit "still issuing" TLS hiccup), (b) bring the
+# funnel up clean on :BFF_PORT, (c) VERIFY the public URL serves a trusted cert with a
+# real curl (no -k — if curl is happy without insecure mode, browsers are too), and
+# (d) print the ONE no-port URL to share. The certificate-warning users hit is almost
+# always a link that still had ":${BFF_PORT}" on it (that port is plain HTTP) or an IP —
+# never the bare https://<name>/ below.
 if [ "${FUNNEL:-0}" = "1" ]; then
   if command -v tailscale >/dev/null 2>&1; then
+    # The node's public name — the ONLY hostname the Let's Encrypt cert is valid for.
+    TS_NAME="$(tailscale status --json 2>/dev/null \
+      | "$PY" -c 'import sys,json;print((json.load(sys.stdin).get("Self") or {}).get("DNSName","").rstrip("."))' 2>/dev/null)"
+    # Clear any stale serve/funnel config so we come up clean on the right port.
+    tailscale funnel reset >/dev/null 2>&1 || true
+    # Pre-provision the HTTPS cert so the FIRST visitor doesn't hit the ~30s on-demand
+    # issuance window (which briefly shows as a TLS error / "not secure" in the browser).
+    if [ -n "$TS_NAME" ]; then
+      tailscale cert --cert-file /tmp/_fitdash_ts.crt --key-file /tmp/_fitdash_ts.key "$TS_NAME" >/dev/null 2>&1 \
+        || echo "⚠ couldn't pre-provision the HTTPS cert — in the Tailscale admin console enable DNS → MagicDNS + 'HTTPS Certificates'."
+    fi
     echo "→ Tailscale Funnel → public HTTPS in front of :${BFF_PORT}"
-    # --bg registers the funnel with the tailscaled daemon (persists, prints the URL).
-    tailscale funnel --bg "${BFF_PORT}" || echo "⚠ funnel failed — is 'tailscale up' done and Funnel enabled in the admin console?"
+    # --bg registers the funnel with the tailscaled daemon (persists across this script).
+    if tailscale funnel --bg "${BFF_PORT}"; then
+      if [ -n "$TS_NAME" ]; then
+        PUB="https://${TS_NAME}/"
+        # Verify a TRUSTED handshake (no -k). 000 = couldn't verify yet (cert still issuing).
+        code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 "$PUB" 2>/dev/null || echo 000)"
+        if [ "$code" != "000" ]; then
+          echo "✓ public HTTPS verified — trusted cert, HTTP $code (no browser warning)."
+        else
+          echo "⚠ public URL not verifiable yet — cert may still be provisioning; retry in ~30s."
+        fi
+        echo "  ┌────────────────────────────────────────────────────────────"
+        echo "  │ SHARE THIS URL (valid HTTPS, no 'proceed anyway' warning):"
+        echo "  │     $PUB"
+        echo "  │ Do NOT share an IP or a ':${BFF_PORT}' link — those WILL warn."
+        echo "  └────────────────────────────────────────────────────────────"
+      fi
+    else
+      echo "⚠ funnel failed — is 'tailscale up' done and the Funnel attribute granted in the admin console?"
+    fi
     tailscale funnel status 2>/dev/null | sed -n '1,8p' || true
   else
     echo "⚠ FUNNEL=1 but 'tailscale' not found — install it (brew install tailscale) and run 'sudo tailscale up' first."

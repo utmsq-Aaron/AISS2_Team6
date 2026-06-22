@@ -109,10 +109,18 @@ FUNNEL=1 ./serve.sh      # serve.sh starts the app AND the Funnel in one go
 tailscale funnel 3000
 ```
 With `FUNNEL=1`, `serve.sh` runs `tailscale funnel --bg 3000` for you (and tears it
-down on Ctrl-C). It prints your public URL — a **stable** hostname like
-`https://macmini.<your-tailnet>.ts.net` that does **not** change across restarts.
-Share that. The SPA's same-origin `/api` calls (incl. the chat SSE stream) work
-unchanged because Funnel forwards everything to `127.0.0.1:3000`.
+down on Ctrl-C). It **pre-provisions** the HTTPS cert, **verifies** the public URL
+serves a trusted cert (a real `curl` handshake), and prints your public URL — a
+**stable** hostname like `https://macmini.<your-tailnet>.ts.net` that does **not**
+change across restarts. The SPA's same-origin `/api` calls (incl. the chat SSE stream)
+work unchanged because Funnel forwards everything to `127.0.0.1:3000`.
+
+> **Share the bare hostname only — no port.** The valid Let's Encrypt cert covers the
+> `*.ts.net` **name on 443**. Funnel maps public `https://<name>/` → local `:3000`, so
+> the link to give people is exactly `https://<name>/` with **no `:3000`**. A link that
+> still has `:3000` (or an IP address) hits plain HTTP / a name the cert doesn't cover,
+> which is what makes a browser show "your connection is not private / proceed anyway".
+> The launcher prints the correct URL in a box labelled *SHARE THIS URL*.
 
 Rename for a cleaner URL (optional): change the **machine name** (admin console → the
 device → rename) and/or the **tailnet name** (Settings → General) so it reads e.g.
@@ -203,5 +211,13 @@ Other notes:
   `/tmp/agent_*.log`. The BFF proxies SSE with no timeout, so a hang is upstream.
 - **Google "redirect_uri_mismatch" when a remote user clicks Connect:** expected —
   connect Google **on the mini** only (step 1).
+- **Browser says "not secure / proceed anyway" on the `.ts.net` URL:** the cert is fine
+  (Tailscale issues a real Let's Encrypt cert for the bare name on 443) — the link being
+  used has a **`:3000`** on it or is an **IP**, both of which the cert doesn't cover.
+  Share the exact `https://<name>/` the launcher prints (no port). If the *bare* name
+  truly warns, the cert hasn't provisioned: admin console → **DNS → enable MagicDNS +
+  "HTTPS Certificates"**, then re-run with `FUNNEL=1` (it pre-provisions and verifies).
+  A one-off first-visit hiccup can also be the ~30s issuance window — reload after a
+  moment. And a *client*-side clock that's wrong will reject any cert as out-of-date.
 - **Everything dies when you close Terminal:** you didn't install the launchd job —
   see step 4 (or run under `tmux`/`caffeinate -s`).
