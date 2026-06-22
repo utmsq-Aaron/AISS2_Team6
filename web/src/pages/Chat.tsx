@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Menu } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { AgentTrace } from "../components/chat/AgentTrace";
@@ -33,6 +34,7 @@ export function Chat() {
 
   const streaming = !!live?.streaming;
   const [input, setInput] = useState("");
+  const [chatListOpen, setChatListOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load this user's chats once (re-runs only if the user changes).
@@ -86,9 +88,18 @@ export function Chat() {
 
   return (
     <div className="flex h-[calc(100vh-6rem)] gap-4">
-      <ChatSidebar />
+      <ChatSidebar open={chatListOpen} onClose={() => setChatListOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* Mobile: open the chat-list drawer */}
+        <button
+          type="button"
+          onClick={() => setChatListOpen(true)}
+          className="mb-2 flex items-center gap-1.5 self-start rounded-card border border-border bg-bg-surface px-3 py-1.5 text-xs text-text-muted hover:border-accent md:hidden"
+        >
+          <Menu size={14} strokeWidth={2} /> Chats
+        </button>
+
         <PageHeader
           title="Ask anything about your fitness data"
           subtitle="The assistant fetches live data from Strava and Garmin before answering — no guessing, only real numbers."

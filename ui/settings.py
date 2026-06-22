@@ -1358,7 +1358,7 @@ def _restart_mcp_servers() -> tuple[int, int]:
     import urllib.parse
     from core.config import MCP_SERVERS
 
-    _optional = {"telegram"}
+    _optional = {"telegram", "google_maps"}
     killed = 0
 
     for name, url in MCP_SERVERS.items():

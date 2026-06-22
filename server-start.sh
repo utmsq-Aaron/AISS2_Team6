@@ -25,7 +25,7 @@ if [ -z "${PY:-}" ]; then
     PY="$(command -v python3 || true)"
   fi
 fi
-APP_PORTS=(5001 8101 8102 8103 8104 8105 8107 9000 9001 9002 9003 9004 9005 8000 3000)
+APP_PORTS=(5001 8101 8102 8103 8104 8105 8107 8108 9000 9001 9002 9003 9004 9005 8000 3000)
 
 # Stable signing secret — generated once, reused forever (so sessions persist across
 # restarts instead of logging everyone out). Needed by the `app` role too.

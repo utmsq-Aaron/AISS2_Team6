@@ -1062,8 +1062,8 @@ function OfficialStatsTab({ stats, tab }: { stats: OfficialStats; tab: "ytd" | "
   return (
     <div>
       {rows.length > 0 ? (
-        <div className="overflow-hidden rounded-card border border-border">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-card border border-border">
+          <table className="w-full min-w-[34rem] text-sm">
             <thead>
               <tr className="bg-bg-surface text-text-muted">
                 <th className="px-4 py-2 text-left font-medium">Sport</th>
