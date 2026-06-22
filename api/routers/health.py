@@ -18,6 +18,7 @@ _LABELS = {
     "strava": "Strava", "garmin": "Garmin", "routes": "Routes",
     "weather": "Open-Meteo", "calendar": "Calendar",
     "telegram": "Telegram", "flythrough": "Flythrough",
+    "google_maps": "Google Maps",
 }
 
 
@@ -40,6 +41,7 @@ def _service_ok(key: str) -> bool:
         "garmin": conn.garmin_connected,
         "routes": conn.routes_connected,
         "telegram": conn.telegram_connected,
+        "google_maps": conn.google_maps_connected,
     }.get(key, lambda: False)()
 
 

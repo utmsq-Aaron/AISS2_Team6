@@ -37,7 +37,7 @@ def _ensure_mcp_servers() -> list:
     import urllib.parse
     from core.config import MCP_SERVERS
 
-    _optional = {"telegram"}  # requires manual setup; skip silently
+    _optional = {"telegram", "google_maps"}  # require manual setup (key + node/npx); skip silently
 
     def _kill_port(port: int) -> None:
         """Terminate whatever process is listening on `port`.
@@ -178,12 +178,13 @@ def _status_dots() -> None:
     """Auto-refreshes every 5 s — checks all server ports in parallel."""
     from concurrent.futures import ThreadPoolExecutor
     from core.config import MCP_SERVERS
-    from ui.shared import strava_connected, garmin_connected, routes_connected, telegram_connected
+    from ui.shared import strava_connected, garmin_connected, routes_connected, telegram_connected, google_maps_connected
 
     _labels = {
         "strava": "Strava", "garmin": "Garmin", "routes": "Routes",
         "weather": "Open-Meteo", "calendar": "Calendar",
         "telegram": "Telegram", "flythrough": "Flythrough",
+        "google_maps": "Google Maps",
     }
 
     def _svc_ok(key: str) -> bool:
@@ -192,6 +193,7 @@ def _status_dots() -> None:
         if key == "garmin":   return garmin_connected()
         if key == "routes":   return routes_connected()
         if key == "telegram": return telegram_connected()
+        if key == "google_maps": return google_maps_connected()
         return False
 
     # All port checks run in parallel — total latency ≤ 0.3 s

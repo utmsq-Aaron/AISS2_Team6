@@ -126,6 +126,19 @@ def telegram_connected() -> bool:
                ("TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_SESSION_STRING"))
 
 
+def google_maps_connected() -> bool:
+    """True when GOOGLE_MAPS_API_KEY is set (env or .env), ignoring the placeholder.
+
+    Configuration presence, not a live ping: the google_maps proxy
+    (servers/google_maps_mcp.py) reads this key on start. Read fresh so Settings-tab
+    edits apply without restarting the app.
+    """
+    from dotenv import dotenv_values
+    file_vals = dotenv_values(".env")
+    v = os.getenv("GOOGLE_MAPS_API_KEY") or file_vals.get("GOOGLE_MAPS_API_KEY") or ""
+    return bool(v) and not v.startswith("your_")
+
+
 # ── Config validation ─────────────────────────────────────────────────────────
 
 def validate_config() -> List[str]:

@@ -30,15 +30,15 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
                      │  Streamable HTTP
      ┌───────────────┼───────────────┐
      ▼               ▼               ▼
- :8101 weather   :8103 strava    :8104 garmin
- :8102 routes    :8105 calendar  :8106 telegram*
+ :8101 weather   :8103 strava    :8104 garmin     :8107 flythrough
+ :8102 routes    :8105 calendar  :8106 telegram*  :8108 google_maps*
  (native FastMCP servers — each an independent process)
- (* telegram = Streamable-HTTP proxy to the external stdio telegram-mcp, optional)
+ (* telegram & google_maps = Streamable-HTTP proxies to external stdio MCP servers; need extra setup)
 ```
 
 All data flows through the MCP servers — the UI never calls Strava or Garmin APIs directly. Each server handles auth, retries, and data formatting; the UI receives clean, ready-to-display JSON.
 
-The **Chat** tab is powered by a **LangGraph + A2A multi-agent** system. An **Orchestrator Agent** (`core/orchestrator_agent.py`, A2A server :9000) decomposes each request and delegates over the **Agent-to-Agent (A2A) protocol** to four specialist agents — **Recovery** :9001, **Training-Load** :9002, **Context** :9003, **Route** :9004 — each a LangGraph ReAct agent scoped to just its MCP servers (recovery→Garmin, load→Strava+Garmin, context→Weather+Calendar, route→Routes). Tools are still discovered via `ToolHost`, never hardcoded — only narrowed per agent. `core/orchestrator.py` is now a thin A2A client adapter, so the Chat tab, the FastAPI layer and the Telegram bridge keep the same interface.
+The **Chat** tab is powered by a **LangGraph + A2A multi-agent** system. An **Orchestrator Agent** (`core/orchestrator_agent.py`, A2A server :9000) decomposes each request and delegates over the **Agent-to-Agent (A2A) protocol** to four specialist agents — **Recovery** :9001, **Training-Load** :9002, **Context** :9003, **Route** :9004 — each a LangGraph ReAct agent scoped to just its MCP servers (recovery→Garmin, load→Strava+Garmin, context→Weather+Calendar, route→Routes+Google Maps). Tools are still discovered via `ToolHost`, never hardcoded — only narrowed per agent. `core/orchestrator.py` is now a thin A2A client adapter, so the Chat tab, the FastAPI layer and the Telegram bridge keep the same interface.
 
 ## Project Layout
 
@@ -73,7 +73,8 @@ fitdash/
 │   ├── strava_mcp.py            # FastMCP server — Strava v3 API, OAuth2 (port 8103)
 │   ├── garmin_mcp.py            # FastMCP server — Garmin Connect (port 8104)
 │   ├── calendar_mcp.py          # FastMCP server — Google Calendar, read-only (port 8105)
-│   └── telegram_mcp.py          # Proxy → external stdio telegram-mcp (port 8106, optional)
+│   ├── telegram_mcp.py          # Proxy → external stdio telegram-mcp (port 8106, optional)
+│   └── google_maps_mcp.py       # Proxy → @modelcontextprotocol/server-google-maps via npx (port 8108)
 │
 └── ui/
     ├── shared.py                # ToolHost singleton, call_tool(), connection checks
@@ -152,6 +153,10 @@ Each server is a self-contained FastMCP service. The UI calls every tool via `ca
 
 Unlike the others, this is **not** a native FastMCP server. [`servers/telegram_mcp.py`](servers/telegram_mcp.py) is a thin proxy that runs the external [chigwell/telegram-mcp](https://github.com/chigwell/telegram-mcp) (stdio-only) unmodified in its own `uv` environment and re-exposes its tools over Streamable HTTP, so `ToolHost` reaches them like any other server. Tools are discovered live (`telegram__send_message`, `telegram__list_chats`, `telegram__search_messages`, …) — send/edit/delete/forward/pin messages, manage chats, contacts, media and drafts. Set `TELEGRAM_EXPOSED_TOOLS=read-only` to expose only read tools. See [Telegram Setup](#telegram-setup).
 
+### Google Maps (port 8108) — optional, 7 tools
+
+Also a proxy, not a native server. [`servers/google_maps_mcp.py`](servers/google_maps_mcp.py) bridges the upstream [`@modelcontextprotocol/server-google-maps`](https://www.npmjs.com/package/@modelcontextprotocol/server-google-maps) (stdio, launched with `npx`) onto the Streamable-HTTP bus, so `ToolHost` reaches it like any other server. Tools are discovered live: `google_maps__maps_geocode`, `maps_reverse_geocode`, `maps_search_places`, `maps_place_details`, `maps_directions`, `maps_distance_matrix`, `maps_elevation` — geocoding, place/POI search, place details, directions, travel-time matrices and elevation. Scoped to the **Route** agent. Needs **Node.js/`npx`** on PATH and **`GOOGLE_MAPS_API_KEY`** (enable the Places API + Geocoding/Directions). Note: the upstream package is the deprecated reference server and calls Google's legacy Places API.
+
 ## Adding a New Server
 
 One file + one line — see [`docs/mcp-architecture.md`](docs/mcp-architecture.md) §3 for the full walkthrough.
@@ -162,7 +167,7 @@ import os
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("example", host="127.0.0.1",
-              port=int(os.getenv("EXAMPLE_MCP_PORT", "8108")), stateless_http=True)
+              port=int(os.getenv("EXAMPLE_MCP_PORT", "8109")), stateless_http=True)
 
 @mcp.tool()
 def my_tool(param: str) -> dict:
@@ -175,7 +180,7 @@ if __name__ == "__main__":
 
 Then one line in `core/config.py`:
 ```python
-"example": _url("example", 8108),
+"example": _url("example", 8109),
 ```
 
 Start with `python -m servers.example_mcp`. `ToolHost` discovers the new tools automatically; the Chat agent can call them immediately — no other file needs to change.

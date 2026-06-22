@@ -91,7 +91,7 @@ if [ "${MLFLOW:-1}" = "1" ]; then
 fi
 
 # 2. MCP servers
-for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrough:8107; do
+for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrough:8107 google_maps:8108; do
   name="${s%%:*}"; port="${s##*:}"
   if port_busy "$port"; then echo "✓ $name already on :$port"; else
     echo "→ $name on :$port"

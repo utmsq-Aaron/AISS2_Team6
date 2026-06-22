@@ -29,6 +29,7 @@ MCP_SERVERS: dict[str, str] = {
     "calendar":   _url("calendar",   8105),
     "telegram":   _url("telegram",   8106),
     "flythrough": _url("flythrough", 8107),
+    "google_maps": _url("google_maps", 8108),
 }
 
 
@@ -59,7 +60,7 @@ AGENT_MCP_SCOPE: dict[str, list[str]] = {
     "recovery": ["garmin"],
     "load":     ["strava", "garmin"],
     "context":  ["weather", "calendar"],
-    "route":    ["routes"],
+    "route":    ["routes", "google_maps"],
     # fitness has NO MCP scope — it answers from a RAG vector DB of fitness
     # literature (core.fitness_rag), not from a live MCP server.
     "fitness":  [],
