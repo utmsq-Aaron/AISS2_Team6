@@ -29,8 +29,12 @@ For each run it:
    - `grounded_in_real_data` — a **deterministic, session-level code scorer** that
      inspects the conversation's **tool-call spans** (not the chat text) and reports
      whether the Copilot actually used its tools to fetch real data. No LLM.
-5. Has **gpt-5.4-mini** write a **structured HTML report** combining the hard
-   MLflow facts with its own analysis → `reports/<experiment>.html`.
+5. Renders a **structured HTML report** → `reports/<experiment>.html`. The layout
+   and styling are a **fixed template defined in `report.py`** (not model-authored);
+   all hard data (header, scorecard, cohort stats, per-persona cards, transcripts) is
+   filled in deterministically. Only the prose fields — executive summary, per-cohort
+   blurbs, per-persona verdicts, recommendations — are written by the model, each via
+   a small completion scoped to just that field's facts.
 
 ## Models (per the brief)
 
@@ -38,7 +42,7 @@ For each run it:
 | --- | --- |
 | Persona / user simulator | `gpt-5.4-mini-2026-03-17` |
 | Scorers / judges | `gpt-5.4-nano-2026-03-17` |
-| Report writer | `gpt-5.4-mini-2026-03-17` |
+| Report prose fields | `gpt-5.4-nano-2026-03-17` |
 
 All three run on the **official OpenAI API**. `config.py` rewrites this
 process's `OPENAI_API_KEY` to `OPENAI_OFFICIAL_API_KEY` from `.env` and clears
@@ -97,7 +101,7 @@ experiments appear in the MLflow UI alongside `fitdash` and the e2e experiments.
 | `copilot_brief.py` | capability awareness injected into every persona |
 | `agent_under_test.py` | `predict_fn` wrapping `FitDashOrchestrator.run` |
 | `scorers.py` | 4 nano LLM judges + a deterministic tool-usage scorer |
-| `report.py` | persona-run MLflow fact collection + gpt-5.4-mini HTML report |
+| `report.py` | persona-run fact collection + fixed-template HTML (prose by nano) |
 | `user_report.py` | real-user fact collection + scoring + gpt-5.4-mini HTML report |
 
 > Per-user tracking is **best-effort** and lives in `core/user_tracking.py` (called

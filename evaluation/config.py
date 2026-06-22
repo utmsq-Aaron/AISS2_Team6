@@ -42,11 +42,15 @@ ENV_PATH = ROOT / ".env"
 REPORTS_DIR = Path(__file__).resolve().parent / "reports"
 
 # ── Models (per the task brief) ───────────────────────────────────────────────
-# The simulated persona "user" agent and the report writer.
+# The simulated persona "user" agent.
 SIMULATOR_MODEL_RAW = "gpt-5.4-mini-2026-03-17"
+# Generic report writer (used by the real-user report, run_users.py).
 REPORT_MODEL_RAW = "gpt-5.4-mini-2026-03-17"
 # The LLM judges that produce the scores.
 JUDGE_MODEL_RAW = "gpt-5.4-nano-2026-03-17"
+# The persona e2e report (report.py) fills a fixed HTML template with deterministic
+# data + small, field-scoped model completions — those run on nano.
+PERSONA_REPORT_MODEL_RAW = "gpt-5.4-nano-2026-03-17"
 
 # MLflow-style URIs (``openai:/<model>``) consumed by the simulator + scorers.
 SIMULATOR_MODEL = f"openai:/{SIMULATOR_MODEL_RAW}"
