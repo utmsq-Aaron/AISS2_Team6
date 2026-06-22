@@ -81,3 +81,6 @@ data/user_memory/
 
 # Registered accounts (email → created/last_login) — per-deployment runtime state.
 data/accounts.json
+
+# Persisted launcher secrets (the stable AUTH_SECRET) — never commit.
+.secrets/
