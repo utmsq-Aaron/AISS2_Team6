@@ -211,6 +211,12 @@ Other notes:
   `/tmp/agent_*.log`. The BFF proxies SSE with no timeout, so a hang is upstream.
 - **Google "redirect_uri_mismatch" when a remote user clicks Connect:** expected —
   connect Google **on the mini** only (step 1).
+- **`.ts.net` URL won't load / "can't establish a secure connection" on macOS:** Tailscale's
+  Funnel/Serve routing needs the Tailscale **Network/System Extension** approved. After
+  installing the macOS app, allow it in **System Settings → General → Login Items &
+  Extensions → Network Extensions** (older macOS: the "System Extension Blocked → Allow"
+  prompt under Privacy & Security), and keep Funnel **sharing** enabled. The cert can be
+  valid while the extension is off — so the funnel just won't route until you approve it.
 - **Browser says "not secure / proceed anyway" on the `.ts.net` URL:** the cert is fine
   (Tailscale issues a real Let's Encrypt cert for the bare name on 443) — the link being
   used has a **`:3000`** on it or is an **IP**, both of which the cert doesn't cover.
