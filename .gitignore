@@ -85,5 +85,8 @@ data/accounts.json
 # Persisted chat sessions (per-user conversation history) — runtime state.
 data/chats/
 
+# Telegram-user → account links (created on /login) — per-deployment runtime state.
+data/telegram_links.json
+
 # Persisted launcher secrets (the stable AUTH_SECRET) — never commit.
 .secrets/

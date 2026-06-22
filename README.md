@@ -282,7 +282,9 @@ It runs as a **userbot** (it replies *as you*) in its own long-running process:
 python telegram_bridge.py
 ```
 
-By default it answers **DMs only** and is open to **anyone** who messages you; restrict with `TELEGRAM_ALLOWED_USERS`, allow groups with `TELEGRAM_BRIDGE_ALLOW_GROUPS=true` (see `.env.example`). ⚠️ Over Telegram the agent keeps **all** its tools — including the ones that read/send messages on your own account — so anyone you allow effectively controls them.
+**Login (email + OTP).** A Telegram user must sign in with the **same email account as the web app** before the agent responds: send **`/login`** → reply with your email → reply with the emailed code. The Telegram id is then **permanently linked** to that account (`core/telegram_link.py`, persisted in `data/telegram_links.json`), so the agent runs **as that email** — same Strava/Garmin connections and the **same per-user memory** as on the web — and you never log in again until you send **`/logout`**. Until logged in, any message gets an automated "please /login" reply. (The OTP email is sent by the admin Gmail, same as the web login.)
+
+By default it answers **DMs only**; restrict who can even reach the login with `TELEGRAM_ALLOWED_USERS`, allow groups with `TELEGRAM_BRIDGE_ALLOW_GROUPS=true` (see `.env.example`). ⚠️ Once logged in, the agent keeps **all** its tools — including the ones that read/send messages on the linked Telegram account.
 
 Reusing your existing session string is fine. Only if you run the bridge **and** the `telegram_mcp` proxy at the same time, give the bridge its own login so Telegram doesn't revoke the shared key:
 

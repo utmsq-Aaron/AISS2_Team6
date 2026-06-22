@@ -11,6 +11,14 @@ Each chat keeps its own short history, so multi-turn "chat back and forth"
 replaces the web UI's interactive widgets (e.g. the agent lists trail options as
 text and you pick one by replying).
 
+Login: a Telegram user must sign in with the SAME email + OTP as the web app
+before using the agent. Send ``/login`` → reply with your email → reply with the
+emailed code. The Telegram id is then permanently linked to that account
+(``core.telegram_link``, persisted), so the agent runs AS that email — same
+Strava/Garmin connections and the same per-user memory as on the web — and you
+never log in again until you send ``/logout``. Until logged in, any message gets
+an automated "please /login" reply.
+
 This runs as a **userbot**: it logs in as *your* Telegram account and replies
 *as you* to whoever messages you. It is a long-running process, separate from
 Streamlit and from the MCP servers.
@@ -91,6 +99,11 @@ _orchestrator = None  # lazily built singleton
 # sends so that when Telethon re-fires them as NewMessage(outgoing) events we
 # simply skip them instead of feeding our own answers back to the orchestrator.
 _skip_ids: set = set()
+
+# In-flight email+OTP login state per Telegram user id (ephemeral — a half-finished
+# login is forgotten on restart; the COMPLETED link is persisted via core.telegram_link).
+#   {telegram_id: {"stage": "await_email"|"await_code", "email": <str>}}
+_pending_login: Dict[int, Dict[str, str]] = {}
 
 
 def _track(*msgs) -> None:
@@ -557,6 +570,104 @@ async def _send_plotly_charts(event, trace: Dict) -> int:
     return n_sent
 
 
+# ── Email + OTP login over Telegram ────────────────────────────────────────────
+# A Telegram user must log in with the SAME email+OTP as the web app before using
+# the agent. On success the Telegram id is linked to that account (core.telegram_link)
+# so they never log in again — until /logout. The agent then runs as that email, so
+# they get the same Strava/Garmin data and the same per-user memory as on the web.
+
+_LOGIN_PROMPT = (
+    "👋 *Welcome to the FitDash Training Copilot.*\n\n"
+    "Before we start, please sign in with your email — the same account you use on "
+    "the web app.\n\n"
+    "Send */login* and I'll email you a one-time code. (Already have an account or "
+    "not — either way, the code both registers and logs you in.)"
+)
+
+
+async def _start_otp(event, uid: int, raw_email: str) -> None:
+    """Validate the email, send a one-time code, and await it."""
+    from api import auth as A
+    from api import email_service as mail
+
+    em = A.normalize_email(raw_email)
+    if not em:
+        _pending_login.pop(uid, None)
+        await _send_text(event, "That doesn't look like a valid email. Send */login* and reply with your email address.")
+        return
+    try:
+        code, _new = A.request_otp(em)  # may raise HTTPException(429) on rate limit
+    except Exception as exc:  # noqa: BLE001
+        detail = getattr(exc, "detail", None) or str(exc)
+        await _send_text(event, f"⚠️ {detail}")
+        return
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(None, mail.send_otp_email, em, code)
+    except Exception as exc:  # noqa: BLE001 — email send failed (Gmail not connected etc.)
+        await _send_text(event, f"⚠️ Couldn't send the code: {exc}\nThe admin may need to connect Google/Gmail first.")
+        return
+    _pending_login[uid] = {"stage": "await_code", "email": em}
+    await _send_text(event, f"📨 I sent a 6-digit code to *{em}*. Reply with the code to finish signing in.")
+
+
+async def _handle_auth(event, uid: int, text: str) -> Optional[str]:
+    """Process login/logout + the OTP flow.
+
+    Returns the linked account email if the user is logged in and ``text`` is a
+    normal message to forward to the agent; otherwise returns None (this function
+    has already replied — a command, a login step, or the not-logged-in prompt).
+    """
+    from api import auth as A
+    from core import telegram_link
+
+    cmd = (text.split() or [""])[0].lower()
+
+    if cmd == "/logout":
+        telegram_link.unlink(uid)
+        _pending_login.pop(uid, None)
+        await _send_text(event, "🔓 Logged out. Send */login* whenever you want to sign in again.")
+        return None
+
+    if cmd == "/login":
+        parts = text.split(maxsplit=1)
+        if len(parts) == 2 and A.normalize_email(parts[1]):
+            await _start_otp(event, uid, parts[1])
+        else:
+            _pending_login[uid] = {"stage": "await_email"}
+            await _send_text(event, "📧 Please reply with your email address to receive a login code.")
+        return None
+
+    email = telegram_link.get_email(uid)
+
+    # Mid-login (not yet linked): interpret the message as the email or the code.
+    if email is None and uid in _pending_login:
+        stage = _pending_login[uid].get("stage")
+        if stage == "await_email":
+            await _start_otp(event, uid, text)
+            return None
+        if stage == "await_code":
+            pending_email = _pending_login[uid].get("email", "")
+            if A.verify_otp(pending_email, text.strip()):
+                telegram_link.link(uid, pending_email)
+                A.register_or_touch(pending_email)
+                _pending_login.pop(uid, None)
+                await _send_text(
+                    event,
+                    f"✅ Signed in as *{pending_email}*. You won't need to log in again on this "
+                    "Telegram account. Ask me anything about your training! (Send */logout* to unlink.)",
+                )
+            else:
+                await _send_text(event, "❌ That code is invalid or expired. Reply with the code again, or send */login* to restart.")
+            return None
+
+    if email is None:
+        await _send_text(event, _LOGIN_PROMPT)
+        return None
+
+    return email  # logged in → caller forwards `text` to the agent as this user
+
+
 # ── Message handler ──────────────────────────────────────────────────────────────
 
 async def _handle_message(event) -> None:
@@ -593,15 +704,24 @@ async def _handle_message(event) -> None:
         await _send_text(event, "I can only process text and voice messages right now. 📝")
         return
 
-    log.info("← chat=%s @%s: %s", chat_id, getattr(sender, "username", ""), text[:120])
+    # Email+OTP gate: handle /login, /logout and the OTP steps. Only a logged-in
+    # user gets their account email back; every other case is already handled
+    # (a command, a login step, or the not-logged-in prompt).
+    uid = int(getattr(sender, "id", 0) or 0)
+    email = await _handle_auth(event, uid, text)
+    if email is None:
+        return
+
+    log.info("← chat=%s @%s (%s): %s", chat_id, getattr(sender, "username", ""), email, text[:120])
     history_before = list(_histories[chat_id])
 
     try:
         async with event.client.action(chat_id, "typing"):
             async with _RUN_LOCK:
                 loop = asyncio.get_running_loop()
+                # Run AS the linked account → same data + same per-user memory.
                 answer, trace = await loop.run_in_executor(
-                    None, _get_orchestrator().run, text, history_before
+                    None, lambda: _get_orchestrator().run(text, history_before, user=email)
                 )
     except Exception as exc:
         log.exception("orchestrator run failed")
@@ -611,6 +731,14 @@ async def _handle_message(event) -> None:
     # Record the turn only after a successful run.
     _histories[chat_id].append({"role": "user", "content": text})
     _histories[chat_id].append({"role": "assistant", "content": answer or ""})
+
+    # Track this turn in the user's own MLflow experiment (best-effort).
+    try:
+        from core import user_tracking
+        user_tracking.log_turn(email, f"tg-{chat_id}", len(history_before) // 2,
+                               text, answer or "", trace or {})
+    except Exception:  # noqa: BLE001 — telemetry must never break a reply
+        pass
 
     await _send_text(event, answer or "(no response)")
 
