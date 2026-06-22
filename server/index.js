@@ -95,9 +95,10 @@ app.use(cookieParser(SECRET));
 
 // ── Optional shared PIN gate ────────────────────────────────────────────────────
 if (PIN_ENABLED) {
-  app.use(express.json());
-
-  app.post("/bff/login", async (req, res) => {
+  // IMPORTANT: parse JSON ONLY on /bff/login. A global express.json() would consume
+  // the body stream of every proxied /api POST (login OTP, chat, tools…), leaving the
+  // proxy waiting forever for a body that was already read → requests hang "pending".
+  app.post("/bff/login", express.json(), async (req, res) => {
     const ip = clientIp(req);
     const now = Date.now();
     let rec = _gateFails.get(ip);
