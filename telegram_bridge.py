@@ -26,7 +26,8 @@ Streamlit and from the MCP servers.
 Run (after the MCP servers are up, inside the app's Python env):
 
     python telegram_bridge.py            # start listening
-    python telegram_bridge.py --login    # one-time: generate a session string
+    python telegram_bridge.py --login    # one-time: phone+code session (code arrives IN the Telegram app)
+    python telegram_bridge.py --login-qr # one-time: QR session — scan with your phone, no code needed
 
 Configuration (.env):
     TELEGRAM_API_ID, TELEGRAM_API_HASH          required (my.telegram.org/apps)
@@ -851,7 +852,9 @@ async def _login() -> None:
     if not API_HASH:
         raise SystemExit("Set TELEGRAM_API_ID and TELEGRAM_API_HASH in .env first.")
     print("\nTraining Copilot Telegram bridge — session login")
-    print("You will be asked for your phone number, the login code, and 2FA password if set.\n")
+    print("Enter your phone in full international format, e.g. +49170…")
+    print("⚠ The login code is sent INSIDE Telegram (the 'Telegram' service chat on your")
+    print("  already-logged-in app/desktop) — NOT by SMS. If no code arrives, try --login-qr.\n")
     client = TelegramClient(StringSession(), _api_id(), API_HASH)
     await client.start()  # prompts for phone / code / password as needed
     session_string = client.session.save()
@@ -861,8 +864,63 @@ async def _login() -> None:
     print("Then start the bridge with:  python telegram_bridge.py")
 
 
+def _print_qr(url: str) -> None:
+    """Render a scannable QR for the login URL (falls back to printing the URL)."""
+    try:
+        import qrcode
+        qr = qrcode.QRCode(border=1)
+        qr.add_data(url)
+        qr.make(fit=True)
+        qr.print_ascii(invert=True)
+    except Exception:  # noqa: BLE001 — qrcode not installed
+        print("(Tip: `pip install qrcode` to render a scannable QR right here.)")
+        print("Otherwise paste this URL into any QR generator and scan the image in Telegram:\n")
+        print(url + "\n")
+
+
+async def _login_qr() -> None:
+    """QR-code login — no SMS / app code needed; scan with your phone.
+
+    In Telegram: Settings → Devices → Link Desktop Device, then scan the QR.
+    """
+    from telethon import TelegramClient
+    from telethon.errors import SessionPasswordNeededError
+    from telethon.sessions import StringSession
+
+    if not API_HASH:
+        raise SystemExit("Set TELEGRAM_API_ID and TELEGRAM_API_HASH in .env first.")
+    print("\nTraining Copilot Telegram bridge — QR login")
+    print("On your phone: Telegram → Settings → Devices → Link Desktop Device, then scan:\n")
+    client = TelegramClient(StringSession(), _api_id(), API_HASH)
+    await client.connect()
+    qr = await client.qr_login()
+    _print_qr(qr.url)
+    print("Waiting for the scan… (the QR auto-refreshes; Ctrl-C to abort)")
+    while True:
+        try:
+            await qr.wait(timeout=30)
+            break
+        except asyncio.TimeoutError:
+            await qr.recreate()
+            print("\n…QR expired — fresh one:\n")
+            _print_qr(qr.url)
+        except SessionPasswordNeededError:
+            import getpass
+            await client.sign_in(password=getpass.getpass("Two-step (2FA) password: "))
+            break
+    session_string = client.session.save()
+    await client.disconnect()
+    print("\n✅ Login successful. Add this line to your .env:\n")
+    print(f"TELEGRAM_BRIDGE_SESSION_STRING={session_string}\n")
+    print("Then start the bridge with:  python telegram_bridge.py")
+
+
 def main() -> None:
-    if "--login" in sys.argv[1:]:
+    args = sys.argv[1:]
+    if "--login-qr" in args:
+        asyncio.run(_login_qr())
+        return
+    if "--login" in args:
         asyncio.run(_login())
         return
     try:
