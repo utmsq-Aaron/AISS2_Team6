@@ -82,5 +82,8 @@ data/user_memory/
 # Registered accounts (email → created/last_login) — per-deployment runtime state.
 data/accounts.json
 
+# Persisted chat sessions (per-user conversation history) — runtime state.
+data/chats/
+
 # Persisted launcher secrets (the stable AUTH_SECRET) — never commit.
 .secrets/

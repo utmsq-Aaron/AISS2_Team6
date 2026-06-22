@@ -9,7 +9,7 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
 - **Dashboard** — activity map, summary metrics, training charts, live weather widget (temperature, wind, UV, pollen).
 - **Activity Analysis** — stream-based charts (HR, pace, elevation, cadence, power) with colourised route overlays selectable by metric.
 - **Health** — Garmin wellness trends: Body Battery, sleep stages, stress, HR, steps, training metrics, HRV.
-- **Chat** — AI sports analyst backed by a LangGraph + A2A multi-agent system: an orchestrator delegates to recovery / training-load / context / route specialists (each scoped to its own MCP tools) and synthesises a data-driven answer from live data only.
+- **Chat** — AI sports analyst backed by a LangGraph + A2A multi-agent system: an orchestrator delegates to recovery / training-load / context / route specialists (each scoped to its own MCP tools) and synthesises a data-driven answer from live data only. **Persistent per-user chat sessions** — a chat list on the left, "New chat", and history that survives server restarts; answers keep streaming even when you switch chats or panels.
 - **Routes** — route planning powered by OpenRouteService: circular routes, A→B routes, trail search, isochrone maps.
 - **Sync** — export Garmin activities to Strava as FIT files with preview and selection controls.
 - **Settings** — configure all API connections (LLM key, Strava OAuth, Garmin, ORS) directly in the app.

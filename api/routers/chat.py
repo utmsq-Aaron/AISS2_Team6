@@ -24,6 +24,7 @@ from pydantic import BaseModel
 
 from api.auth import current_user
 from api.deps import get_orchestrator, orchestrator_lock
+from core import chat_store
 
 router = APIRouter()
 
@@ -31,6 +32,7 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     message: str
     history: List[Dict[str, Any]] = []  # prior [{role, content}], excluding this message
+    chat_id: str | None = None          # when set, history is loaded + the turn persisted here
 
 
 def _sse(event: str, data: Any) -> str:
@@ -55,18 +57,36 @@ async def chat(req: ChatRequest, user: str = Depends(current_user)):
         else:
             emit("token", {"delta": delta})
 
+    # When tied to a stored chat, history is server-authoritative (survives restarts
+    # and any client). Otherwise fall back to the client-supplied history (legacy).
+    history = chat_store.history_messages(user, req.chat_id) if req.chat_id else req.history
+
     def worker() -> None:
         orch = get_orchestrator()
         with orchestrator_lock:
+            answer, trace = "", {}
             try:
-                answer, trace = orch.run(req.message, req.history, progress_cb, text_cb, user=user)
+                answer, trace = orch.run(req.message, history, progress_cb, text_cb, user=user)
                 trace = dict(trace or {})
                 trace.setdefault("question", req.message)
                 trace.setdefault("answer", answer)
                 emit("trace", trace)
             except Exception as exc:  # noqa: BLE001 — surface to the client
+                answer = answer or f"⚠ {type(exc).__name__}: {exc}"
+                trace = trace or {"error": str(exc), "answer": answer}
                 emit("error", {"message": f"{type(exc).__name__}: {exc}"})
             finally:
+                # Persist the turn (best-effort) so it survives restarts / reloads.
+                if req.chat_id:
+                    try:
+                        chat_store.append_message(user, req.chat_id, "user", req.message)
+                        chat_store.append_message(
+                            user, req.chat_id, "assistant",
+                            (trace.get("answer") if isinstance(trace, dict) else None) or answer or "",
+                            trace=trace if isinstance(trace, dict) else None,
+                        )
+                    except Exception:  # noqa: BLE001 — persistence must not break the stream
+                        pass
                 emit("done", {})
 
     threading.Thread(target=worker, daemon=True).start()

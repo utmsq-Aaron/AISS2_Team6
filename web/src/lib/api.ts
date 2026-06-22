@@ -63,6 +63,37 @@ export const verifyOtp = (email: string, code: string) =>
     { email, code },
   );
 
+// ── Chat sessions (persistent, per-user) ──────────────────────────────────────
+
+export interface ChatSummary {
+  id: string;
+  title: string;
+  created_at?: string;
+  updated_at?: string;
+  message_count: number;
+}
+export interface StoredMessage {
+  role: "user" | "assistant";
+  content: string;
+  ts?: string;
+  trace?: ChatTrace;
+}
+export interface StoredChat {
+  id: string;
+  title: string;
+  created_at?: string;
+  updated_at?: string;
+  messages: StoredMessage[];
+}
+
+export const listChats = () => http<{ chats: ChatSummary[] }>("/chats").then((r) => r.chats);
+export const createChat = () => http<StoredChat>("/chats", { method: "POST", body: "{}" });
+export const getChat = (id: string) => http<StoredChat>(`/chats/${id}`);
+export const renameChat = (id: string, title: string) =>
+  http<{ ok: boolean }>(`/chats/${id}`, { method: "PATCH", body: JSON.stringify({ title }) });
+export const deleteChat = (id: string) =>
+  http<{ ok: boolean }>(`/chats/${id}`, { method: "DELETE" });
+
 /** Call an MCP tool by namespaced name `server__tool`. Returns parsed JSON data. */
 export async function callTool<T = unknown>(
   name: string,
@@ -124,11 +155,14 @@ export interface ChatHandlers {
   onDone?: () => void;
 }
 
-/** POST a chat turn and consume the SSE stream. Returns an abort function. */
+/** POST a chat turn and consume the SSE stream. Returns an abort function.
+ *  When `chatId` is set the server loads history from (and persists the turn to)
+ *  that stored chat. */
 export function streamChat(
   message: string,
   history: ChatMessage[],
   handlers: ChatHandlers,
+  chatId?: string,
 ): () => void {
   const controller = new AbortController();
 
@@ -137,7 +171,7 @@ export function streamChat(
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ message, history }),
+        body: JSON.stringify({ message, history, chat_id: chatId }),
         signal: controller.signal,
       });
       if (res.status === 401) {
