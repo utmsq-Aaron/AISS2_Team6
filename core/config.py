@@ -29,6 +29,7 @@ MCP_SERVERS: dict[str, str] = {
     "calendar":   _url("calendar",   8105),
     "telegram":   _url("telegram",   8106),
     "flythrough": _url("flythrough", 8107),
+    "google_maps": _url("google_maps", 8108),
 }
 
 

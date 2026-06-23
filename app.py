@@ -35,32 +35,31 @@ def _ensure_mcp_servers() -> list:
     import sys
     import time
     import urllib.parse
+    import psutil
     from core.config import MCP_SERVERS
 
     _optional = {"telegram"}  # requires manual setup; skip silently
 
-    def _kill_port(port: int) -> None:
-        """Terminate whatever process is listening on `port`.
+    def _port_open(port: int) -> bool:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.2)
+            return s.connect_ex(("127.0.0.1", port)) == 0
 
-        Uses `lsof` rather than psutil.net_connections(): on macOS the latter
-        inspects every process and raises AccessDenied for any we don't own,
-        aborting the whole scan. `lsof -ti` only reports PIDs we can see and
-        needs no elevated privileges for our own listeners.
-        """
+    def _kill_port(port: int) -> None:
         try:
-            out = subprocess.run(
-                ["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
-                capture_output=True,
-                text=True,
-                check=False,
-            ).stdout
-        except (FileNotFoundError, OSError):
-            return  # lsof unavailable; nothing we can do safely
-        for pid_str in out.split():
-            try:
-                os.kill(int(pid_str), signal.SIGTERM)
-            except (ValueError, ProcessLookupError, PermissionError):
-                pass
+            connections = psutil.net_connections(kind="inet")
+        except psutil.AccessDenied:
+            # macOS may deny global socket enumeration for unrelated processes.
+            # Treat this as "cannot clean up"; the start phase will reuse an
+            # already-open port instead of crashing or spawning a duplicate.
+            return
+
+        for conn in connections:
+            if conn.laddr and conn.laddr.port == port and conn.pid:
+                try:
+                    psutil.Process(conn.pid).terminate()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
 
     # Kill any existing MCP servers so we always start fresh
     for name, url in MCP_SERVERS.items():
@@ -76,6 +75,9 @@ def _ensure_mcp_servers() -> list:
     procs: list[subprocess.Popen] = []
     for name, url in MCP_SERVERS.items():
         if name in _optional:
+            continue
+        port = urllib.parse.urlparse(url).port
+        if port and _port_open(port):
             continue
         proc = subprocess.Popen(
             [sys.executable, "-m", f"servers.{name}_mcp"],
