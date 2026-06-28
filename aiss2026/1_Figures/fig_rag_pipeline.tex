@@ -1,0 +1,29 @@
+\begin{figure}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=0.4cm and 0.5cm,
+    every node/.style={font=\small},
+    block/.style={draw, thick, rounded corners=3pt, minimum height=0.7cm, minimum width=2.0cm, align=center},
+    data/.style={draw, thick, rounded corners=1pt, minimum height=0.5cm, align=center, font=\scriptsize},
+    arr/.style={-{Stealth[length=5pt]}, thick},
+]
+    \node[block, draw=tcblue, fill=tcblue!8] (query) {User Query};
+    \node[block, draw=tcgreen, fill=tcgreen!8, right=1.0cm of query] (embed) {Embed\\{\scriptsize all-MiniLM-L6-v2}};
+    \node[block, draw=tccyan, fill=tccyan!8, right=1.0cm of embed] (store) {Cosine Search\\{\scriptsize (N$\times$384 float32)}};
+    \node[block, draw=tcyellow!80!black, fill=tcyellow!8, right=1.0cm of store] (topk) {Top-$k$\\Passages};
+    \node[block, draw=tcblue, fill=tcblue!8, below=1.0cm of topk] (llm) {ReAct Agent\\{\scriptsize (LLM synthesis)}};
+    \node[block, draw=tcgreen, fill=tcgreen!8, below=1.0cm of llm] (answer) {Grounded Answer\\+ Sources};
+    \node[data, draw=tcgrey!40, fill=tcgrey!4, below=0.4cm of store] (corpus) {8 books, $\sim$3k chunks};
+
+    \draw[arr, color=tcgrey] (query) -- (embed);
+    \draw[arr, color=tcgreen] (embed) -- node[above, font=\scriptsize]{384-d vector} (store);
+    \draw[arr, color=tccyan] (store) -- node[above, font=\scriptsize]{top 5} (topk);
+    \draw[arr, color=tcyellow!80!black] (topk) -- (llm);
+    \draw[arr, color=tcgreen] (llm) -- node[right, font=\scriptsize]{+ ensure\_sources()} (answer);
+    \draw[arr, dashed, color=tcgrey!40] (corpus) -- (store);
+
+\end{tikzpicture}%
+}% end resizebox
+\caption[RAG pipeline of the fitness specialist]{RAG pipeline of the fitness specialist. The user query is embedded locally, compared against the normalised chunk vectors via dot product, and the top-$k$ passages are fed to the ReAct agent for synthesis. The \texttt{ensure\_sources()} step guarantees that book citations survive the orchestrator's synthesis.}\label{fig:rag_pipeline}
+\end{figure}

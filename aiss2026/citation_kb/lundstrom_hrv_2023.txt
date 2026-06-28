@@ -1,0 +1,15 @@
+Citation: lundstrom_hrv_2023
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 32
+Claim: [CITE] provided a more recent review of HRV practices for endurance athletes, discussing practical limitations of consumer-grade HRV measurement and the implementation of HRV-guided training, where daily readings inform go/no-go decisions.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF confirms this is a review article titled "Practices and Applications of Heart Rate Variability Monitoring in Endurance Athletes" (Lundstrom et al., Int J Sports Med 2023; 44: 9-19). The abstract states: "This review provides a brief overview of HRV in the context of endurance athletes, addresses technical considerations, factors affecting daily HRV, the implementation of HRV-guided training, and alternative and future uses of HRV for athletes." The paper discusses practical limitations of consumer-grade measurement (Section "Monitoring tools" covering PPG accuracy issues) and HRV-guided training with go/no-go decisions (Section "HRV monitoring for athletes").
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract: "This review provides a brief overview of HRV in the context of endurance athletes, addresses technical considerations, factors affecting daily HRV, the implementation of HRV-guided training." Section "Monitoring tools" discusses consumer-grade limitations: "accuracy during exercise depends on the model of watch and type of exercise, with notable increases in error during exercise that is either vigorous or involves arm movement." The paper covers HRV-guided training implementations where daily readings inform decisions.
+Notes: No discrepancies. The KB claim accurately characterizes the paper.
+Verified: 2026-06-28

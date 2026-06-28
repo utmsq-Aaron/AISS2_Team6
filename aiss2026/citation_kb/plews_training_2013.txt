@@ -1,0 +1,14 @@
+Citation: plews_training_2013
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 32
+Claim: [CITE] reviewed HRV monitoring for elite endurance athletes, revealing that both increases and decreases can indicate negative adaptation, and recommending interpretation relative to individual baselines---the approach taken by Training Copilot's recovery specialist.
+
+============================================================
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: The abstract explicitly states: "in elite athletes, studies have revealed both increases and decreases in HRV to be associated with negative adaptation." (p.773). Section 2.3 Literature Summary confirms: "It has been suggested that increases and decreases in HRV are associated with positive [4, 9-13] and negative [6, 7, 32] adaptation to endurance training regimens, respectively. However, the bell-shaped relationship typically apparent between both HRV and training load [15, 18, 21, 22], and HRV and fitness [14, 18, 40], in elites and athletes with extensive training histories, makes it difficult to practically use HRV to maximize training in these populations." (p.775). On individual baselines, the Conclusion states: "it is clear that HRV responses are individual and dependent on fitness level and training history... we suggest that longitudinal monitoring is required to understand each athlete's optimal HRV to R-R interval fingerprint" (p.779). The recommendation of "interpretation relative to individual baselines" in the KB claim is supported by Section 3: "both weekly [1, 42] and 7-day rolling [1] averages have been shown to provide better methodological validity compared with values taken on a single day" (p.775).
+Notes: No discrepancies. The KB claim accurately captures the paper's key finding that both HRV increases and decreases can signal negative adaptation in elite athletes, and that individual baseline interpretation is recommended.
+Verified: 2026-06-28

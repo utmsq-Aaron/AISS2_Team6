@@ -1,0 +1,43 @@
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+    every node/.style={font=\small},
+]
+    % Draw circles
+    \begin{scope}[opacity=0.85]
+    \fill[tcblue!15] (-1.6, 1.0) circle (2.3cm);
+    \fill[tccyan!15] (1.6, 1.0) circle (2.3cm);
+    \fill[tcyellow!15] (0, -1.2) circle (2.3cm);
+    \end{scope}
+
+    \draw[tcblue, thick] (-1.6, 1.0) circle (2.3cm);
+    \draw[tccyan, thick] (1.6, 1.0) circle (2.3cm);
+    \draw[tcyellow!80!black, thick] (0, -1.2) circle (2.3cm);
+
+    % Circle labels
+    \node[font=\small\bfseries, text=tcblue, align=center] at (-2.8, 2.2) {Multi-Source\\Integration};
+    \node[font=\small\bfseries, text=tccyan, align=center] at (2.8, 2.2) {Cross-Domain\\Reasoning};
+    \node[font=\small\bfseries, text=tcyellow!80!black, align=center] at (0, -2.9) {Conversational\\Interaction};
+
+    % Pairwise intersection labels
+    \node[font=\scriptsize, text=tcgrey!50, align=center] at (-0.8, 1.8) {Dashboards};
+    \node[font=\scriptsize, text=tcgrey!50, align=center] at (0.8, 1.8) {Expert\\systems};
+    \node[font=\scriptsize, text=tcgrey!50, align=center] at (-1.0, -0.5) {Data\\chatbots};
+
+    % Center: Training Copilot (KIT green)
+    \node[font=\normalsize\bfseries, text=tcgreen, align=center, fill=white, fill opacity=0.75, text opacity=1, rounded corners=2pt, inner sep=3pt] at (0, 0.5) {\textsc{Training Copilot}};
+
+    % Marginal platform labels
+    \node[font=\scriptsize, text=tcgrey!60, anchor=east] at (-4.0, 1.0) {Strava};
+    \node[font=\scriptsize, text=tcgrey!60, anchor=east] at (-4.0, 0.5) {Garmin Connect};
+    \draw[tcgrey!40, thin, ->] (-3.9, 1.0) -- (-3.3, 1.3);
+    \draw[tcgrey!40, thin, ->] (-3.9, 0.5) -- (-3.3, 0.9);
+
+    \node[font=\scriptsize, text=tcgrey!60, anchor=west] at (4.0, 1.0) {TrainingPeaks};
+    \draw[tcgrey!40, thin, ->] (3.9, 1.0) -- (3.3, 1.3);
+
+    \node[font=\scriptsize, text=tcgrey!60, anchor=north] at (0, -3.8) {ChatGPT, Gemini};
+    \draw[tcgrey!40, thin, ->] (0, -3.7) -- (0, -3.1);
+\end{tikzpicture}
+\caption[Market gap: intersection of integration, reasoning, and conversation]{The Training Copilot market gap. Existing platforms cover at most two of the three capabilities. Training Copilot is positioned at the intersection of all three, combining multi-source data integration (MCP layer), cross-domain contextual reasoning (multi-agent system), and conversational interaction (chat interface).}\label{fig:market_gap}
+\end{figure}

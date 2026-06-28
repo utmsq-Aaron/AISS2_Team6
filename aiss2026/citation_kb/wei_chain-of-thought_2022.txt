@@ -1,0 +1,10 @@
+Citation: wei_chain-of-thought_2022
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 8
+Claim: The Transformer architecture [CITE], chain-of-thought prompting [CITE], and the scaling of model capacity to hundreds of billions of parameters [CITE] laid the groundwork for this shift by demonstrating that LLMs can perform multi-step reasoning when prompted to generate intermediate steps.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models" (NeurIPS 2022). Standard reference for CoT prompting.

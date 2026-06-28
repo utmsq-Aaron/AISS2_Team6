@@ -1,0 +1,16 @@
+Citation: yao_taubench_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 7_evaluation, Line: 8
+Claim: Our deterministic grounding scorer is conceptually aligned with the $$-bench approach by [CITE], which evaluates tool-agent-user interaction by comparing database state after a conversation against annotated goal states rather than relying on chat-text judgement alone---motivating our decision to co
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "tau-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains" (arXiv 2024). Abstract confirms state-based evaluation comparing database state after conversation against annotated goal states, and pass^k metric for reliability.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Title confirms tool-agent-user focus: "tau-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains." Abstract (p.1): "We employ an efficient and faithful evaluation process that compares the database state at the end of a conversation with the annotated goal state." Section 3, Reward (p.4): "The reward r = r_action x r_output is based on (1) whether the final database is identical to the unique ground truth outcome database (r_action), and (2) whether the agent's responses to the user contain all necessary information (r_output)." This directly confirms state-based scoring against annotated goal states. The contrast with chat-text-only evaluation is supported by the Introduction (p.1): existing benchmarks "only contain a single-step user interaction, where the human interacting with the agent provides an initial instruction containing all the required information" -- tau-bench instead uses database state comparison as its primary metric, which the authors call "fast to compute and faithful" (p.4).
+Notes: No discrepancies found. The KB accurately characterizes tau-bench's state-based evaluation approach and its contrast with chat-text judgement methods.
+Verified: 2026-06-28

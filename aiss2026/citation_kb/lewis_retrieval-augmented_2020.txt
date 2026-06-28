@@ -1,0 +1,21 @@
+Citation: lewis_retrieval-augmented_2020
+Cited 3 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 27
+Claim: A sixth specialist employs Retrieval-Augmented Generation (RAG) [CITE] over exercise-science literature to ground training advice in published sources.
+
+Chapter: 3_state_of_the_art, Line: 42
+Claim: [CITE] introduced the foundational RAG architecture, in which a generative language model is augmented with a retrieval component that queries an external document index at inference time.
+
+Chapter: 5_data_sources, Line: 22
+Claim: org/ via RAG [CITE].
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF confirms this is "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks" by Lewis et al. (Facebook AI Research / UCL / NYU, 2020). The abstract states: "We explore a general-purpose fine-tuning recipe for retrieval-augmented generation (RAG) -- models which combine pre-trained parametric and non-parametric memory for language generation." The paper introduces the foundational RAG architecture with a retriever (DPR) querying a document index and a generator (BART) conditioned on retrieved passages, exactly as the KB claims.
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract: "We introduce RAG models where the parametric memory is a pre-trained seq2seq model and the non-parametric memory is a dense vector index of Wikipedia, accessed with a pre-trained neural retriever." Page 2: "We build RAG models where the parametric memory is a pre-trained seq2seq transformer, and the non-parametric memory is a dense vector index of Wikipedia, accessed with a pre-trained neural retriever." Two model variants: RAG-Sequence and RAG-Token are described.
+Notes: All three KB claims are accurate: (1) RAG is correctly attributed as the foundational architecture, (2) the generative model is augmented with retrieval at inference time, (3) the paper is correctly used as the seminal RAG reference.
+Verified: 2026-06-28

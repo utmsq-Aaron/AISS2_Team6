@@ -1,0 +1,10 @@
+Citation: strava_year_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 4
+Claim: Wearable devices from manufacturers such as Garmin, Polar, and Apple now capture heart rate, GPS trajectories, sleep stages, heart-rate variability (HRV), and stress levels continuously [CITE], while platforms like Strava aggregate activity data from more than 135 million athletes worldwide [CITE].
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - Strava Year in Sport 2024 annual report. Referenced for platform usage and 135M+ athlete count. Standard annual report reference.

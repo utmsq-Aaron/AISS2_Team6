@@ -1,0 +1,154 @@
+\markboth{APPENDICES}{APPENDICES}
+\section{Appendix}
+\label{sec:appendix}
+
+\subsection{Code Listings}\label{sec:appendix:code}
+
+\begin{lstlisting}[caption={Server registry (simplified). Each URL is environment-overridable.}, label=lst:registry]
+MCP_SERVERS = {
+    "weather":  _url("weather",  8101),
+    "routes":   _url("routes",   8102),
+    "strava":   _url("strava",   8103),
+    "garmin":   _url("garmin",   8104),
+    "calendar": _url("calendar", 8105),
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Server implementation pattern (simplified).}, label=lst:server_pattern]
+mcp = FastMCP("weather", host="127.0.0.1",
+              port=8101, stateless_http=True)
+
+@mcp.tool()
+def get_weather_forecast(lat: float, lon: float,
+                         days: int = 7) -> dict:
+    """Multi-day weather forecast for the given
+    coordinates. Returns temperature, precipitation,
+    wind, and UV index per day."""
+    return _call_openmeteo(lat, lon, days)
+\end{lstlisting}
+
+\subsection{MCP Server Tool Inventory}\label{sec:appendix:tools}
+
+Table~\ref{tab:full_tools} provides the complete tool inventory across all MCP servers deployed in Training Copilot.
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption{Complete MCP tool inventory.}\label{tab:full_tools}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lllp{5.5cm}@{\extracolsep{\fill}}}
+\toprule
+\textbf{Server} & \textbf{Port} & \textbf{Tool Name} & \textbf{Description} \\
+\midrule
+\multirow{4}{*}{Weather} & \multirow{4}{*}{8101}
+  & \texttt{get\_current\_weather} & Current conditions \\
+  & & \texttt{get\_weather\_forecast} & Multi-day forecast \\
+  & & \texttt{get\_pollen\_levels} & Pollen concentrations \\
+  & & \texttt{get\_uv\_index} & UV index with category \\
+\addlinespace
+\multirow{7}{*}{Routes} & \multirow{7}{*}{8102}
+  & \texttt{geocode} & Place name to coordinates \\
+  & & \texttt{plan\_route} & A-to-B route \\
+  & & \texttt{plan\_circular\_route} & Loop from start point \\
+  & & \texttt{plan\_park\_loop} & Loop inside named area \\
+  & & \texttt{explore\_trails} & Trail search nearby \\
+  & & \texttt{get\_elevation\_profile} & Elevation analysis \\
+  & & \texttt{get\_isochrone} & Reachability polygon \\
+\addlinespace
+\multirow{13}{*}{Strava} & \multirow{13}{*}{8103}
+  & \texttt{get\_activities} & Recent activities \\
+  & & \texttt{get\_activity\_stats} & Aggregate totals \\
+  & & \texttt{get\_athlete\_profile} & Athlete profile + stats \\
+  & & \texttt{get\_training\_trends} & Weekly volume trends \\
+  & & \texttt{get\_personal\_bests} & Top performances \\
+  & & \texttt{get\_yearly\_breakdown} & Year-over-year totals \\
+  & & \texttt{get\_gear\_info} & Bike/shoe mileage \\
+  & & \texttt{get\_activity\_detail} & Lap splits, HR, power \\
+  & & \texttt{get\_activity\_streams} & Raw GPS streams \\
+  & & \texttt{get\_training\_load} & CTL/ATL/TSB \\
+  & & \texttt{delete\_activity} & Remove an activity \\
+  & & \texttt{analyze\_performance\_trends} & Multi-metric trend analysis \\
+  & & \texttt{compare\_activity\_to\_baseline} & Activity vs.\ personal baseline \\
+\addlinespace
+\multirow{13}{*}{Garmin} & \multirow{13}{*}{8104}
+  & \texttt{get\_garmin\_activities} & Activity list \\
+  & & \texttt{get\_garmin\_activity\_detail} & Per-lap splits \\
+  & & \texttt{get\_garmin\_daily\_health} & Daily wellness summary \\
+  & & \texttt{get\_garmin\_heart\_rate\_timeline} & Intraday HR timeline \\
+  & & \texttt{get\_garmin\_sleep} & Sleep stages + score \\
+  & & \texttt{get\_garmin\_body\_battery} & Energy metric timeline \\
+  & & \texttt{get\_garmin\_hrv\_status} & HRV + readiness \\
+  & & \texttt{get\_garmin\_training\_metrics} & VO\textsubscript{2}max, load, status \\
+  & & \texttt{get\_garmin\_wellness\_trends} & Multi-day wellness trends \\
+  & & \texttt{get\_garmin\_steps\_timeline} & Intraday step counts \\
+  & & \texttt{get\_garmin\_stress\_timeline} & Intraday stress levels \\
+  & & \texttt{get\_garmin\_body\_composition} & Weight, BMI, body fat \\
+  & & \texttt{get\_activity\_gps\_track} & GPS track from activity \\
+\addlinespace
+\multirow{6}{*}{Calendar} & \multirow{6}{*}{8105}
+  & \texttt{list\_calendars} & Available calendars \\
+  & & \texttt{list\_events} & Events in range \\
+  & & \texttt{get\_event} & Single event detail \\
+  & & \texttt{create\_event} & Create event \\
+  & & \texttt{update\_event} & Update event \\
+  & & \texttt{delete\_event} & Delete event \\
+\botrule
+\end{tabular*}
+\end{minipage}
+\end{center}
+\end{table}
+
+\subsection{Evaluation Persona Details}\label{sec:appendix:personas}
+
+Table~\ref{tab:personas} lists all ten evaluation personas with their types, goals, and expected focus areas.
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption{Evaluation persona details.}\label{tab:personas}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llp{4.5cm}p{4cm}@{\extracolsep{\fill}}}
+\toprule
+\textbf{Name} & \textbf{Type} & \textbf{Goal} & \textbf{Expected Focus} \\
+\midrule
+Julian & Triathlete & Recovery readiness for brick session & Recovery go/no-go \\
+Priya & Triathlete & Training load trend + taper plan & CTL/ATL/TSB analysis \\
+Marco & Triathlete & Post-workout zone + split review & HR zones, lap splits \\
+Lena & Triathlete & Schedule training via weather + calendar & Time-window scheduling \\
+Tom & Triathlete & Evidence-based technique advice & Cited literature \\
+\addlinespace
+Sophie & Cyclist & Scenic loop with caf\'{e} stop & Planned scenic route \\
+Ben & Cyclist & Weather go/no-go for ride & Weather assessment \\
+Mara & Cyclist & Trail discovery + elevation & Trail options \\
+Carlos & Cyclist & Year-over-year progress & Plain-language trends \\
+Jana & Cyclist & Group loop for mixed abilities & Shareable route \\
+\botrule
+\end{tabular*}
+\end{minipage}
+\end{center}
+\end{table}
+
+\subsection{Environment Configuration}\label{sec:appendix:env}
+
+Table~\ref{tab:env} lists the key environment variables used by Training Copilot.
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption{Key environment variables.}\label{tab:env}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lp{3cm}p{5.5cm}@{\extracolsep{\fill}}}
+\toprule
+\textbf{Variable} & \textbf{Default} & \textbf{Purpose} \\
+\midrule
+\texttt{LLM\_PROVIDER} & \texttt{openai} & LLM backend (\texttt{openai}, \texttt{openai\_official}, \texttt{gemini}) \\
+\texttt{AGENT\_MODEL} & --- & Model for agent layer \\
+\texttt{AGENT\_LLM\_MODEL} & --- & Override model for agents \\
+\texttt{OPENAI\_BASE\_URL} & --- & KIT gateway URL \\
+\texttt{ORS\_API\_KEY} & --- & OpenRouteService key \\
+\texttt{GARMIN\_EMAIL} & --- & Garmin Connect email \\
+\texttt{CLIENT\_ID} & --- & Strava OAuth client ID \\
+\texttt{MLFLOW\_TRACKING\_URI} & \texttt{:5001} & MLflow server URL \\
+\texttt{ORCHESTRATOR\_SPECIALISTS} & all & Enabled specialist agents \\
+\botrule
+\end{tabular*}
+\end{minipage}
+\end{center}
+\end{table}

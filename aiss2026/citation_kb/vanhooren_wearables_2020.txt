@@ -1,0 +1,15 @@
+Citation: vanhooren_wearables_2020
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 34
+Claim: [CITE] reviewed real-time wearable feedback in running, identifying challenges around feedback timing, modality, and injury risk communication that inform Training Copilot's route and activity planning features for running-oriented users.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF confirms this is a review of real-time wearable feedback in running. Title: "Real-time feedback by wearables in running: Current approaches, challenges and suggestions for improvements" (Van Hooren et al., 2020, Journal of Sports Sciences, 38:2, 214-230). The abstract states: "We discuss these limitations and challenges and provide a framework to optimise real-time feedback for reducing injury risk and improving performance and motivation." The paper explicitly addresses feedback timing, modality (Section on "Feedback modalities"), and injury risk communication (Section on "Workload" and "Injuries"), matching the KB claim.
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract: "Real-time feedback from wearables can reduce discontinuation by reducing injury risk and improving performance and motivation." Figure 1 presents the framework linking Motives, Technique, Workload, Motor learning strategies, Feedback modalities, Performance & motivation, and Injuries. The paper covers all elements claimed: feedback timing, modality, and injury risk communication.
+Notes: No discrepancies found. The paper is correctly characterized.
+Verified: 2026-06-28

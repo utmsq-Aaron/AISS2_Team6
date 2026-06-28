@@ -1,0 +1,81 @@
+\contentsline {section}{Acronyms}{v}{section*.2}%
+\contentsline {section}{List of Figures}{vii}{section*.4}%
+\contentsline {section}{List of Tables}{ix}{section*.6}%
+\contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Problem Statement}{1}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Proposed Solution}{2}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Contributions}{2}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}Structure of This Paper}{3}{subsection.1.4}%
+\contentsline {section}{\numberline {2}Market Analysis}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Market Size and Growth}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Competitive Landscape}{4}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}The Market Gap}{6}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Target Users}{7}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Personal Motivation}{8}{subsection.2.5}%
+\contentsline {section}{\numberline {3}State of the Art}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Agentic AI and Multi-Agent Systems}{9}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Reasoning Architectures}{9}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}Agent-Internal Architecture}{9}{subsubsection.3.1.2}%
+\contentsline {subsubsection}{\numberline {3.1.3}Multi-Agent Coordination}{10}{subsubsection.3.1.3}%
+\contentsline {subsection}{\numberline {3.2}Tool Integration Protocols}{10}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Tool-Augmented Language Models}{11}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}From Ad-hoc Integration to Standardised Protocols}{11}{subsubsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.3}Sports Analytics and Wearable Technology}{12}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Training Load: Monitoring and Injury Prevention}{12}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Recovery: From Single Metrics to Multi-Signal Assessment}{12}{subsubsection.3.3.2}%
+\contentsline {subsubsection}{\numberline {3.3.3}Wearable Reliability and Data Ecosystem Biases}{13}{subsubsection.3.3.3}%
+\contentsline {subsection}{\numberline {3.4}Retrieval-Augmented Generation}{14}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}AI-Assisted Sports Coaching}{14}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Summary and Research Gap}{15}{subsection.3.6}%
+\contentsline {section}{\numberline {4}System Architecture}{17}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Design Principles}{17}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Design Rationale}{17}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Architecture Overview}{18}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Layer 1: The MCP Data Layer}{19}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Layer 2: The Agent Layer}{20}{subsection.4.5}%
+\contentsline {subsection}{\numberline {4.6}Layer 3: The LLM Integration Seam}{20}{subsection.4.6}%
+\contentsline {subsection}{\numberline {4.7}Supporting Subsystems}{21}{subsection.4.7}%
+\contentsline {subsection}{\numberline {4.8}Deployment}{22}{subsection.4.8}%
+\contentsline {section}{\numberline {5}Data Sources and Integration}{25}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Strava --- Activity Tracking}{25}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Garmin Connect --- Wellness and Recovery}{25}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Weather, Routes, and Calendar}{26}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Fitness Literature --- RAG Knowledge Base}{26}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Telegram --- External Server Bridge}{26}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Summary}{26}{subsection.5.6}%
+\contentsline {section}{\numberline {6}Agent Interaction and Communication}{28}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Communication Protocols}{28}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Delegation Patterns}{29}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Prompt Architecture}{29}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Recording, Clipping, and Trace Assembly}{29}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Observability and Graceful Degradation}{30}{subsection.6.5}%
+\contentsline {section}{\numberline {7}Evaluation Framework}{31}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Evaluation Framework}{31}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Persona Design}{31}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Scoring Dimensions}{32}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Trace Reconstruction}{33}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}Model Separation}{34}{subsection.7.5}%
+\contentsline {subsection}{\numberline {7.6}Expected Outcomes}{34}{subsection.7.6}%
+\contentsline {section}{\numberline {8}Discussion}{36}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Architectural Trade-offs}{36}{subsection.8.1}%
+\contentsline {subsubsection}{\numberline {8.1.1}Multi-Agent vs.\ Single-Agent Design}{36}{subsubsection.8.1.1}%
+\contentsline {subsubsection}{\numberline {8.1.2}MCP vs.\ Direct API Integration}{36}{subsubsection.8.1.2}%
+\contentsline {subsection}{\numberline {8.2}Scope and Focus}{37}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Limitations}{37}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Ethical Considerations}{38}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Lessons Learned}{38}{subsection.8.5}%
+\contentsline {section}{\numberline {9}Conclusion and Outlook}{40}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Summary}{40}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Next Steps}{40}{subsection.9.2}%
+\contentsline {subsubsection}{\numberline {9.2.1}Scalability and Dedicated Hosting}{40}{subsubsection.9.2.1}%
+\contentsline {subsubsection}{\numberline {9.2.2}Account Setup and Onboarding}{40}{subsubsection.9.2.2}%
+\contentsline {subsubsection}{\numberline {9.2.3}Field Study with Real Athletes}{41}{subsubsection.9.2.3}%
+\contentsline {subsubsection}{\numberline {9.2.4}Expanded Knowledge Base and Training Plans}{41}{subsubsection.9.2.4}%
+\contentsline {subsubsection}{\numberline {9.2.5}Potential Challenges and Opportunities}{41}{subsubsection.9.2.5}%
+\contentsline {subsection}{\numberline {9.3}Closing Remarks}{42}{subsection.9.3}%
+\contentsline {section}{AI Usage Documentation}{43}{section*.8}%
+\contentsline {section}{\numberline {A}Appendix}{45}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}Code Listings}{45}{subsection.A.1}%
+\contentsline {subsection}{\numberline {A.2}MCP Server Tool Inventory}{45}{subsection.A.2}%
+\contentsline {subsection}{\numberline {A.3}Evaluation Persona Details}{45}{subsection.A.3}%
+\contentsline {subsection}{\numberline {A.4}Environment Configuration}{45}{subsection.A.4}%

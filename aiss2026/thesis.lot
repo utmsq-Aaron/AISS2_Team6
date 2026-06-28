@@ -1,0 +1,9 @@
+\contentsline {table}{\numberline {1}{\ignorespaces Competitive landscape of consumer sports analytics platforms. No existing platform simultaneously provides multi-source integration, cross-domain reasoning, and conversational interaction.}}{5}{table.1}%
+\contentsline {table}{\numberline {2}{\ignorespaces Agent--MCP scope mapping}}{20}{table.2}%
+\contentsline {table}{\numberline {3}{\ignorespaces Summary of integrated data sources}}{27}{table.3}%
+\contentsline {table}{\numberline {4}{\ignorespaces Evaluation scoring dimensions. Four LLM judges run on GPT-5.4-nano; one deterministic scorer inspects tool-call traces directly.}}{33}{table.4}%
+\contentsline {table}{\numberline {5}{\ignorespaces Known incomplete areas}}{37}{table.5}%
+\contentsline {table}{\numberline {6}{\ignorespaces AI usage documentation}}{44}{table.6}%
+\contentsline {table}{\numberline {7}{\ignorespaces Complete MCP tool inventory.}}{46}{table.7}%
+\contentsline {table}{\numberline {8}{\ignorespaces Evaluation persona details.}}{47}{table.8}%
+\contentsline {table}{\numberline {9}{\ignorespaces Key environment variables.}}{47}{table.9}%

@@ -1,0 +1,10 @@
+Citation: jsonrpc_spec_2013
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 20
+Claim: 0 [CITE].
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The JSON-RPC 2.0 Specification (updated 2013-01-04, origin date 2010-03-26) is the official spec document. The title reads "JSON-RPC 2.0 Specification" and describes it as "a stateless, light-weight remote procedure call (RPC) protocol." The claim in the paper references JSON-RPC 2.0 in the context of MCP's transport layer, which is consistent -- MCP uses JSON-RPC 2.0 as its wire protocol. The citation is a standard reference to the specification itself.

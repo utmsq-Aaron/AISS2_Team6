@@ -1,0 +1,10 @@
+Citation: jayanti_enhancing_2026
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 20
+Claim: [CITE] proposed Context-Aware MCP (CA-MCP), an extension that introduces a shared context store accessible by all MCP servers, reducing redundant data fetching in multi-agent workflows.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: Jayanti & Han (2026) "Enhancing Model Context Protocol (MCP) with Context-Aware Server Collaboration" (arXiv:2601.11595v2). The abstract states: "we design and assess the performance of a Context-Aware MCP (CA-MCP) that offloads execution logic to specialized MCP servers that read from and write to a shared context memory." Section 2.1 describes the "Shared Context Store (SCS)" as a centralized blackboard accessible by all MCP servers and the central LLM, reducing redundant data fetching. The paper confirms all elements of the claim: CA-MCP is proposed as an extension introducing a shared context store accessible by all MCP servers, reducing redundant data fetching in multi-agent workflows.

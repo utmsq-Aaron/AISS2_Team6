@@ -1,0 +1,10 @@
+Citation: joerke_gptcoach_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 48
+Claim: Most directly relevant to our work, [CITE] presented GPTCoach, an LLM-based physical activity coaching chatbot that uses wearable history to generate personalised training plans through tool use and motivational interviewing strategies.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: Joerke et al. (2025) "GPTCoach: Towards LLM-Based Physical Activity Coaching" (CHI '25). The abstract confirms GPTCoach is an LLM-based coaching chatbot: it "implements the onboarding conversation from an evidence-based coaching program, uses conversational strategies from motivational interviewing, and incorporates wearable data to create personalized physical activity plans." The system "can query and visualize a user's health data from a wearable device through tool use." The paper describes a lab study with 16 participants using three months of historical data. All elements of the claim are confirmed: LLM-based, physical activity coaching, uses wearable history, generates personalised training plans through tool use, and employs motivational interviewing strategies. Note: the citation key says 2024 but the paper was published at CHI 2025.

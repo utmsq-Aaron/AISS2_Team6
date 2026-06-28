@@ -1,0 +1,16 @@
+Citation: luo_promoting_2020
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 46
+Claim: [CITE] systematically reviewed conversational agents for promoting physical activity, finding that while chatbots show promise for sustained engagement, most existing systems operate without access to the user's actual wearable data.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Promoting Physical Activity Through Conversational Agents: Mixed Methods Systematic Review" (JMIR 2020). Reviews conversational agents for PA promotion. Confirms most operate without access to user wearable data.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Title confirms systematic review: "Promoting Physical Activity Through Conversational Agents: Mixed Methods Systematic Review." Abstract (p.1): "Conversational agents hold promise for PA interventions." Results show chatbots' promise for engagement: "Of the 10 RCTs, 6 (60%) found that participants assigned to the conversational agent group outperformed participants in the control group on PA measures" (p.7). Regarding wearable data access: the paper notes "some digital platforms offer users the option of pairing activity trackers such as pedometers, accelerometers, and heart rate monitors" (p.2) and that 59% (10/17) of agents "limited users to constrained input" via multiple-choice answers (p.7). Table 2 shows most agents were rule-based ECAs with predefined dialog flows, not data-driven systems. Only 40% (8/20) of studies "relied on objective data from pedometers or accelerometers" (p.5), indicating the majority did not integrate live wearable data into agent responses.
+Notes: The KB claim that "most existing systems operate without access to the user's actual wearable data" is a reasonable interpretation supported by the evidence (rule-based dialog, constrained input, minority using objective tracker data), though the paper does not use this exact phrasing. The paper frames the gap more as limited personalization and constrained interaction rather than explicitly as "no wearable data access."
+Verified: 2026-06-28

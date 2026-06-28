@@ -1,0 +1,10 @@
+Citation: idc_wearables_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 8
+Claim: The adjacent wearable fitness technology market, encompassing devices from Garmin, Apple, Fitbit, and Polar, continues to expand rapidly [CITE], indicating a massive and growing install base of data-generating devices.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: IDC "Wearable Devices Market Insights" (updated March 25, 2026) reports: "Global wearable device shipments grew 9.1% year over year in 2025, reaching 611.5 million units." Smartwatches showed solid growth led by Apple and Huawei; wristbands grew 14.7%. Top vendors include Apple, Xiaomi, Huawei, Samsung, and Imagine Marketing. The report projects continued growth (2.2% in 2026, reaching 625M+ units). This confirms the claim of a rapidly expanding wearable fitness technology market with a massive and growing install base. Note: the paper says "idc_wearables_2024" but the source is updated to 2026 data; the claim about rapid expansion and growing install base is fully supported.

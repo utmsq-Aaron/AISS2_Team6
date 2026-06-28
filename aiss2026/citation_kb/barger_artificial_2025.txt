@@ -1,0 +1,13 @@
+Citation: barger_artificial_2025
+Cited 2 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 50
+Claim: [CITE] compared AI and human coaching sessions, finding that the human touch remains critical, supporting a synergy model.
+
+Chapter: 7_evaluation, Line: 73
+Claim: '' This tests the system's ability to remain empathetic under adversarial user behaviour---a property that [CITE] identified as critical for AI coaching acceptance.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Artificial Intelligence vs. Human Coaches" (Frontiers in Psychology, 2025). Examines working alliance in AI coaching sessions. Supports claim about human touch remaining critical.

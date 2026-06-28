@@ -1,0 +1,18 @@
+Citation: park_generative_2023
+Cited 2 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 12
+Claim: [CITE] demonstrated that LLM-powered agents can exhibit believable human-like behaviour in interactive environments when equipped with three core architectural components: a memory stream that records experiences as natural-language observations, a reflection mechanism that synthesises higher-level 
+
+Chapter: 9_conclusion, Line: 37
+Claim: Incorporating episodic memory [CITE] or self-reflection [CITE] could enable specialists to learn from prior interactions, making recommendations more personalised over time.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF confirms this is "Generative Agents: Interactive Simulacra of Human Behavior" by Park et al. (Stanford / Google, UIST '23). The abstract describes "computational software agents that simulate believable human behavior" and states: "To enable generative agents, we describe an architecture that stores, synthesizes, and applies relevant memories to generate believable behavior using a large language model. Our architecture comprises three main components: the memory stream, a long-term memory module that records...the agent's experiences. A memory retrieval model combines relevance, recency, and importance...The second is reflection, which synthesizes memories into higher-level inferences...The third is planning."
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: The abstract explicitly names the three core architectural components: (1) memory stream recording experiences as natural-language observations, (2) reflection mechanism synthesizing higher-level inferences, and (3) planning translating conclusions into high-level action plans. The paper demonstrates 25 agents in a Sims-like sandbox environment exhibiting emergent social behaviors.
+Notes: Both KB claims verified: (1) the three-component architecture (memory stream, reflection, planning) is accurately described, (2) the reference to episodic memory for personalization is a reasonable extension of the paper's memory stream concept.
+Verified: 2026-06-28

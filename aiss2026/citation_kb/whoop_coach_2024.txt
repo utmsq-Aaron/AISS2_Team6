@@ -1,0 +1,10 @@
+Citation: whoop_coach_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 43
+Claim: WHOOP launched WHOOP Coach [CITE], an OpenAI-powered conversational assistant that answers natural-language questions about the user's biometric data---but only WHOOP data, with no access to training load from Strava, weather forecasts, or calendar context.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - WHOOP blog post announcing WHOOP Coach powered by OpenAI. States: "WHOOP Coach is an AI coaching feature powered by OpenAI." Confirms in-app conversational assistant using biometric data.

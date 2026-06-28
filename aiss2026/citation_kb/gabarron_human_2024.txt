@@ -1,0 +1,10 @@
+Citation: gabarron_human_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 50
+Claim: [CITE] reviewed AI-driven solutions for increasing physical activity, finding recommender systems to be the most frequently studied approach, followed by conversational agents, but noting sparse long-term follow-up evidence across both categories.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Human Factors in AI-Driven Digital Solutions for Increasing Physical Activity" (JMIR Human Factors, 2024). Abstract states recommender systems were most common (10/15 studies), followed by conversational agents (4/15). Our paper correctly states this ordering.

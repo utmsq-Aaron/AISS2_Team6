@@ -1,0 +1,10 @@
+Citation: li_wearable_2016
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 36
+Claim: [CITE] and [CITE] examined wearable devices in sports medicine and advanced biomechanical analytics respectively.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Wearable Performance Devices in Sports Medicine" (Sports Health, 2016). Reviews wearable devices for measuring physiological metrics in sports medicine as claimed.

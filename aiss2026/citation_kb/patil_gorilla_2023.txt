@@ -1,0 +1,22 @@
+Citation: patil_gorilla_2023
+Cited 3 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 18
+Claim: [CITE] extended this direction with Gorilla, which fine-tunes LLaMA on a large corpus of API documentation and achieves higher accuracy than GPT-4 on function-call benchmarks, while also reducing the rate at which the model invents non-existent API endpoints---a persistent failure mode of general-pu
+
+Chapter: 8_discussion, Line: 12
+Claim: Research on tool-augmented LLMs has shown that larger tool sets increase the rate of incorrect tool calls [CITE].
+
+Chapter: 8_discussion, Line: 65
+Claim: This aligns with findings by [CITE] on the importance of API documentation quality.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Gorilla: Large Language Model Connected with Massive APIs" (arXiv 2023). Abstract states: "a finetuned LLaMA-based model that surpasses the performance of GPT-4 on writing API calls." Our rephrased claim correctly attributes higher accuracy on function-call benchmarks.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Claim 1 (Ch.3, L.18 -- Gorilla surpasses GPT-4, reduces hallucination): Abstract (p.1): "We release Gorilla, a finetuned LLaMA-based model that surpasses the performance of GPT-4 on writing API calls." Conclusion (p.9): "The finetuned model's performance surpasses prompting the state-of-the-art LLM (GPT-4) in three massive datasets we collected. Gorilla generates reliable API calls to ML models without hallucination." Table 1 (p.7) shows Gorilla zero-shot overall accuracy of 59.13 (TorchHub), 71.68 (HuggingFace), 83.79 (TensorFlow) vs GPT-4 zero-shot of 38.70, 19.80, 18.20. Hallucination rates: Gorilla 0-shot 6.98/10.95/5.40 vs GPT-4 0-shot 36.55/37.16/78.65. Claim 2 (Ch.8, L.12 -- larger tool sets increase incorrect calls): Table 2 (p.8) shows that adding non-optimal retrievers (BM25, GPT-Index) can significantly degrade accuracy (e.g., 21.50% drop in TorchHub, 47.57% drop in HuggingFace). Section 4.1 (p.7): "If we put BM25 or GPT-Index as retriever, results will be significantly dropped." This supports the general idea that scaling tool/API sets with imperfect retrieval increases errors, though the paper frames it as retriever quality rather than explicitly "larger tool sets." Claim 3 (Ch.8, L.65 -- API documentation quality): Section 4.2 (p.8): discusses how "the rapidly evolving nature of API documentation presents a significant challenge" and demonstrates Gorilla's retriever-aware training enables adaptation to test-time documentation changes, directly supporting the importance of documentation quality.
+Notes: Claim 1 is fully and directly confirmed. Claim 2 is a reasonable interpretation but slightly reframed -- the paper shows retriever quality (not tool set size per se) impacts error rates; a larger API corpus with suboptimal retrieval does increase errors. Claim 3 is confirmed -- the paper dedicates Section 4.2 to documentation quality and adaptation.
+Verified: 2026-06-28

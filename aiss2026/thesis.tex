@@ -1,0 +1,134 @@
+\documentclass[pdflatex,sn-apa]{sn-jnl}
+\setlength{\parskip}{0.2cm}
+\setlength{\parindent}{0cm}
+
+% ── Fix: program.sty (loaded by sn-jnl.cls) makes | active, breaking
+% pgf's math parser. Temporarily reset | to a normal character while
+% loading tikz/pgfplots, then restore the active catcode.
+\chardef\savedbarcode=\catcode`\|
+\catcode`\|=12
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\catcode`\|=\savedbarcode
+
+% Packages already loaded by sn-jnl.cls: natbib, graphicx, multirow,
+% xcolor, booktabs, algorithm, algpseudocode, listings, hyperref
+\usepackage{tabularx}
+\usepackage{colortbl}
+
+% ── Brand palette ──────────────────────────────────────────────
+\definecolor{tcgrey}{HTML}{2C333E}
+\definecolor{tclightgrey}{HTML}{D9D9D9}
+\definecolor{tcgreen}{HTML}{009682}
+\definecolor{tcblue}{HTML}{144466}
+\definecolor{tccyan}{HTML}{00838F}
+\definecolor{tcyellow}{HTML}{EEB70D}
+\definecolor{tcred}{HTML}{B2372C}
+\definecolor{tcbabyblue}{HTML}{7DBAE5}
+\definecolor{tclightgreen}{HTML}{6FFFEB}
+
+% Semantic aliases (figures use these)
+\colorlet{mcpblue}{tcblue}
+\colorlet{a2agreen}{tcgreen}
+\colorlet{agentpurple}{tccyan}
+\colorlet{uiorange}{tcyellow}
+\definecolor{codebg}{HTML}{F5F6F7}
+\colorlet{codeframe}{tclightgrey}
+
+% Listings style
+\lstset{
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{mcpblue}\bfseries,
+  commentstyle=\color{a2agreen}\itshape,
+  stringstyle=\color{agentpurple},
+  breaklines=true,
+  columns=flexible,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  tabsize=2,
+  showstringspaces=false,
+  language=Python
+}
+
+\theoremstyle{thmstyleone}
+\newtheorem{theorem}{Theorem}\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{thmstyletwo}
+\newtheorem{example}{Example}
+\newtheorem{remark}{Remark}
+\theoremstyle{thmstylethree}
+\newtheorem{definition}{Definition}
+
+\raggedbottom
+\renewcommand{\baselinestretch}{1.24}
+
+\begin{document}
+
+% Title page
+\include{titlepage}
+
+\mbox{}\thispagestyle{empty}
+\cleardoublepage
+
+\include{declaration}
+
+\thispagestyle{empty}\cleardoublepage
+
+\include{abstract}
+
+\mbox{}\thispagestyle{empty}
+\cleardoublepage
+\rmfamily \setcounter{secnumdepth}{4}
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+\tableofcontents
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{section}{Acronyms}
+
+\include{acronyms}
+
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{section}{List of Tables}
+\listoftables
+\cleardoublepage
+
+\setcounter{page}{2} \pagenumbering{arabic}
+\interfootnotelinepenalty=10000
+
+% ─── CHAPTERS ───────────────────────────────────────────────────
+\include{chapters/1_introduction}
+\include{chapters/2_market_analysis}
+\include{chapters/3_state_of_the_art}
+\include{chapters/4_architecture}
+\include{chapters/5_data_sources}
+\include{chapters/6_agent_interaction}
+\include{chapters/7_evaluation}
+\include{chapters/8_discussion}
+\include{chapters/9_conclusion}
+\include{chapters/ai_usage}
+
+% ─── APPENDIX ───────────────────────────────────────────────────
+\appendix
+\include{appendix}
+
+% ─── REFERENCES ─────────────────────────────────────────────────
+\markboth{REFERENCES}{REFERENCES}
+\bibliography{references}
+\clearpage
+
+\markboth{}{}
+\vspace*{\fill}
+This template is based on the \LaTeX \, template of Springer Nature. The original template is available at \url{https://www.springernature.com/gp/authors/campaigns/latex-author-support}.
+
+\end{document}

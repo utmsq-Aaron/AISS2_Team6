@@ -116,3 +116,29 @@ Mind these: the synchronous `orchestrator.run()` is offloaded to a thread (`run_
 - Add a new data source as a new MCP server + a config line — do **not** add direct API calls in the UI or special-case a tool by name anywhere.
 - Per-server credentials are passed as connection headers via `ToolHost(headers=…)`, never as tool arguments and never into model context.
 - Keep `core/` free of Streamlit imports and of any hardcoded tool name.
+
+## Seminar Paper (`aiss2026/`)
+
+The seminar paper lives in `aiss2026/` and compiles with MiKTeX (`E:\Programme\MiKTeX\miktex\bin\x64\pdflatex.exe`). Build: `pdflatex → bibtex → pdflatex → pdflatex → pdflatex` (4 passes after bibtex for cross-refs). The product is called **Training Copilot** everywhere (never "FitDash" in the paper).
+
+### Citation Knowledge Base — MANDATORY
+
+A citation knowledge base exists at `aiss2026/citation_kb/`, one `.txt` file per bib entry. **Every time you touch a citation in the paper you MUST update the KB:**
+
+1. **Adding a new citation**: Create `aiss2026/citation_kb/{bib_key}.txt` with the claim(s) made, the chapter/line, and verification status. Read the source PDF and confirm the claim is supported. Save a PDF of the source in `aiss2026/sources/{bib_key}.pdf`.
+2. **Changing an existing citation's claim**: Update the corresponding KB file with the new claim text and re-verify against the source.
+3. **Removing a citation**: Delete the KB file and the bib entry. Ensure no `\cite{key}` references remain.
+
+Every source **must** have a real PDF in `aiss2026/sources/` (not a text stub). For websites, print as PDF via Playwright. For paywalled papers we cannot access, find an open-access alternative that supports the same claim — never cite what we haven't read.
+
+KB file format:
+```
+Citation: {key}
+Cited N time(s)
+============================================================
+Chapter: {chapter}, Line: {line}
+Claim: {the sentence from our paper, with [CITE] replacing \cite{}}
+============================================================
+VERIFICATION STATUS: CONFIRMED | ISSUE: {description}
+SOURCE CONFIRMS: {actual text from the source supporting the claim}
+```

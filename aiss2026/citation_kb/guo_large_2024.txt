@@ -1,0 +1,15 @@
+Citation: guo_large_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 14
+Claim: [CITE] surveyed multi-agent LLM systems across five dimensions: frameworks, orchestration, cooperative problem solving, world simulation, and benchmarking.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF confirms this is "Large Language Model based Multi-Agents: A Survey of Progress and Challenges" by Guo et al. (Notre Dame / KAUST / UMass Boston, 2024). The paper surveys multi-agent LLM systems. Section 3 dissects these systems across four key aspects: (1) agents-environment interface, (2) agent profiling, (3) agent communication, and (4) agent capability acquisition. Section 4 categorizes applications into problem-solving and world simulation. Section 5 covers tools, resources, datasets, and benchmarks. The KB claim about "five dimensions" requires verification against the paper's actual structure.
+--- VERIFICATION ---
+Status: ISSUE (minor)
+Evidence: The paper organizes its survey into: Background (Section 2, covering single-agent systems), Dissecting LLM-MA Systems (Section 3, with four aspects: interface, profiling, communication, capabilities), Applications (Section 4: problem solving + world simulation), Tools and Resources (Section 5), and Challenges (Section 6). The abstract mentions "frameworks, orchestration, cooperative problem solving, world simulation, and benchmarking" -- but these are not the paper's formal section taxonomy. The paper's actual structure covers four system-design aspects + applications + tools/benchmarks.
+Notes: The KB claim says "five dimensions: frameworks, orchestration, cooperative problem solving, world simulation, and benchmarking." This is a reasonable high-level summary but does not match the paper's formal section structure exactly. The paper is still correctly cited as a multi-agent LLM survey. This is a minor framing issue, not a factual error.
+Verified: 2026-06-28

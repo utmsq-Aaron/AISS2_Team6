@@ -1,0 +1,19 @@
+Citation: qu_tool_2024
+Cited 4 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 8
+Claim: At the same time, large language models (LLMs) have demonstrated the ability to reason across heterogeneous information sources when equipped with tool-calling capabilities [CITE].
+
+Chapter: 3_state_of_the_art, Line: 18
+Claim: [CITE] provided a comprehensive survey identifying four key workflow stages---task planning, tool selection, tool calling, and response generation---that correspond directly to the stages of Training Copilot's agent execution loop.
+
+Chapter: 6_agent_interaction, Line: 22
+Claim: A recurring challenge in tool-augmented systems is that tool results can be large---GPS streams with thousands of points, full-day timelines---while the LLM's context window is finite and expensive [CITE].
+
+Chapter: 8_discussion, Line: 12
+Claim: Research on tool-augmented LLMs has shown that larger tool sets increase the rate of incorrect tool calls [CITE].
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Tool Learning with Large Language Models: A Survey" (Frontiers of Computer Science, 2024). Identifies four workflow stages: task planning, tool selection, tool calling, response generation. Also discusses context window limitations with large tool sets.

@@ -1,0 +1,334 @@
+\markboth{INTRODUCTION}{INTRODUCTION}
+\section{Introduction}\label{sec:intro}
+
+\lipsum \, First reference is cited here: \cite{buschmann1998}. 
+
+
+\section{This is an example for first level head---section head}
+
+\subsection{This is an example for second level head---subsection head}\label{subsec:test1}
+
+\subsubsection{This is an example for third level head---subsubsection head}\label{subsec:test2}
+
+\lipsum[1-2]
+
+\markboth{EQUATIONS}{EQUATIONS}
+\section{Equations}\label{sec:equations}
+
+Equations in \LaTeX\ can either be inline or on-a-line by itself (``display equations''). For
+inline equations use the \verb+$...$+ commands. E.g.: The equation
+$H\psi = E \psi$ is written via the command \verb+$H \psi = E \psi$+.
+
+For display equations (with auto generated equation numbers)
+one can use the equation or align environments:
+\begin{equation}
+\|\tilde{X}(k)\|^2 \leq\frac{\sum\limits_{i=1}^{p}\left\|\tilde{Y}_i(k)\right\|^2+\sum\limits_{j=1}^{q}\left\|\tilde{Z}_j(k)\right\|^2 }{p+q}.\label{eq1}
+\end{equation}
+where,
+\begin{align}
+D_\mu &=  \partial_\mu - ig \frac{\lambda^a}{2} A^a_\mu \nonumber \\
+F^a_{\mu\nu} &= \partial_\mu A^a_\nu - \partial_\nu A^a_\mu + g f^{abc} A^b_\mu A^a_\nu \label{eq2}
+\end{align}
+Notice the use of \verb+\nonumber+ in the align environment at the end
+of each line, except the last, so as not to produce equation numbers on
+lines where no equation numbers are required. The \verb+\label{}+ command
+should only be used at the last line of an align environment where
+\verb+\nonumber+ is not used.
+\begin{equation}
+Y_\infty = \left( \frac{m}{\textrm{GeV}} \right)^{-3}
+    \left[ 1 + \frac{3 \ln(m/\textrm{GeV})}{15}
+    + \frac{\ln(c_2/5)}{15} \right]
+\end{equation}
+The class file also supports the use of \verb+\mathbb{}+, \verb+\mathscr{}+ and
+\verb+\mathcal{}+ commands. As such \verb+\mathbb{R}+, \verb+\mathscr{R}+
+and \verb+\mathcal{R}+ produces $\mathbb{R}$, $\mathscr{R}$ and $\mathcal{R}$
+respectively (refer Subsubsection~\ref{subsec:test2}).
+
+\markboth{TABLES}{TABLES}
+\section{Tables}\label{sec:tables}
+
+Tables can be inserted via the normal table and tabular environment. To put
+footnotes inside tables you should use \verb+\footnotetext[]{...}+ tag.
+The footnote appears just below the table itself (refer Tables~\ref{tab1} and \ref{tab2}). 
+For the corresponding footnotemark use \verb+\footnotemark[...]+
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{174pt}
+\caption{Caption text}\label{tab1}%
+\begin{tabular}{@{}llll@{}}
+\toprule
+Column 1 & Column 2  & Column 3 & Column 4\\
+\midrule
+row 1    & data 1   & data 2  & data 3  \\
+row 2    & data 4   & data 5\footnotemark[1]  & data 6  \\
+row 3    & data 7   & data 8  & data 9\footnotemark[2]  \\
+\botrule
+\end{tabular}
+\footnotetext{Source: This is an example of table footnote. This is an example of table footnote.}
+\footnotetext[1]{Example for a first table footnote. This is an example of table footnote.}
+\footnotetext[2]{Example for a second table footnote. This is an example of table footnote.}
+\end{minipage}
+\end{center}
+\end{table}
+
+\noindent
+The input format for the above table is as follows:
+
+%%=============================================%%
+%% For presentation purpose, we have included  %%
+%% \bigskip command. please ignore this.       %%
+%%=============================================%%
+\bigskip
+\begin{verbatim}
+\begin{table}[<placement-specifier>]
+\begin{center}
+\begin{minipage}{<preferred-table-width>}
+\caption{<table-caption>}\label{<table-label>}%
+\begin{tabular}{@{}llll@{}}
+\toprule
+Column 1 & Column 2 & Column 3 & Column 4\\
+\midrule
+row 1 & data 1 & data 2	 & data 3 \\
+row 2 & data 4 & data 5\footnotemark[1] & data 6 \\
+row 3 & data 7 & data 8	 & data 9\footnotemark[2]\\
+\botrule
+\end{tabular}
+\footnotetext{Source: This is an example of table footnote. 
+This is an example of table footnote.}
+\footnotetext[1]{Example for a first table footnote.
+This is an example of table footnote.}
+\footnotetext[2]{Example for a second table footnote. 
+This is an example of table footnote.}
+\end{minipage}
+\end{center}
+\end{table}
+\end{verbatim}
+\bigskip
+%%=============================================%%
+%% For presentation purpose, we have included  %%
+%% \bigskip command. please ignore this.       %%
+%%=============================================%%
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption{Example of a lengthy table which is set to full textwidth}\label{tab2}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccc@{\extracolsep{\fill}}}
+\toprule%
+& \multicolumn{3}{@{}c@{}}{Element 1\footnotemark[1]} & \multicolumn{3}{@{}c@{}}{Element 2\footnotemark[2]} \\\cmidrule{2-4}\cmidrule{5-7}%
+Project & Energy & $\sigma_{calc}$ & $\sigma_{expt}$ & Energy & $\sigma_{calc}$ & $\sigma_{expt}$ \\
+\midrule
+Element 3  & 990 A & 1168 & $1547\pm12$ & 780 A & 1166 & $1239\pm100$\\
+Element 4  & 500 A & 961  & $922\pm10$  & 900 A & 1268 & $1092\pm40$\\
+\botrule
+\end{tabular*}
+\footnotetext{Note: This is an example of table footnote. This is an example of table footnote this is an example of table footnote this is an example of~table footnote this is an example of table footnote.}
+\footnotetext[1]{Example for a first table footnote.}
+\footnotetext[2]{Example for a second table footnote.}
+\end{minipage}
+\end{center}
+\end{table}
+
+In case of double column layout, tables which do not fit in single column width should be set to full text width. For this, you need to use \verb+\begin{table*}+ \verb+...+ \verb+\end{table*}+ instead of \verb+\begin{table}+ \verb+...+ \verb+\end{table}+ environment. Lengthy tables which do not fit in textwidth should be set as rotated table. For this, you need to use \verb+\begin{sidewaystable}+ \verb+...+ \verb+\end{sidewaystable}+ instead of \verb+\begin{table*}+ \verb+...+ \verb+\end{table*}+ environment. This environment puts tables rotated to single column width. For tables rotated to double column width, use \verb+\begin{sidewaystable*}+ \verb+...+ \verb+\end{sidewaystable*}+.
+
+\begin{sidewaystable}
+\sidewaystablefn%
+\begin{center}
+\begin{minipage}{\textheight}
+\caption{Tables which are too long to fit, should be written using the ``sidewaystable'' environment as shown here}\label{tab3}
+\begin{tabular*}{\textheight}{@{\extracolsep{\fill}}lcccccc@{\extracolsep{\fill}}}
+\toprule%
+& \multicolumn{3}{@{}c@{}}{Element 1\footnotemark[1]}& \multicolumn{3}{@{}c@{}}{Element\footnotemark[2]} \\\cmidrule{2-4}\cmidrule{5-7}%
+Projectile & Energy	& $\sigma_{calc}$ & $\sigma_{expt}$ & Energy & $\sigma_{calc}$ & $\sigma_{expt}$ \\
+\midrule
+Element 3 & 990 A & 1168 & $1547\pm12$ & 780 A & 1166 & $1239\pm100$ \\
+Element 4 & 500 A & 961  & $922\pm10$  & 900 A & 1268 & $1092\pm40$ \\
+Element 5 & 990 A & 1168 & $1547\pm12$ & 780 A & 1166 & $1239\pm100$ \\
+Element 6 & 500 A & 961  & $922\pm10$  & 900 A & 1268 & $1092\pm40$ \\
+\botrule
+\end{tabular*}
+\footnotetext{Note: This is an example of table footnote this is an example of table footnote this is an example of table footnote this is an example of~table footnote this is an example of table footnote.}
+\footnotetext[1]{This is an example of table footnote.}
+\end{minipage}
+\end{center}
+\end{sidewaystable}
+
+\markboth{FIGURES}{FIGURES}
+\section{Figures}\label{sec:figures}
+
+As per the \LaTeX\ standards you need to use eps images for \LaTeX\ compilation and \verb+pdf/jpg/png+ images for \verb+PDFLaTeX+ compilation. This is one of the major difference between \LaTeX\ and \verb+PDFLaTeX+. Each image should be from a single input .pdf. The package used to insert images in \verb+LaTeX/PDFLaTeX+ is the graphicx package. Figures can be inserted via the normal figure environment as shown in the below example:
+
+%%=============================================%%
+%% For presentation purpose, we have included  %%
+%% \bigskip command. please ignore this.       %%
+%%=============================================%%
+\bigskip
+\begin{verbatim}
+\begin{figure}[<placement-specifier>]
+\centering
+\includegraphics{<pdf-file>}
+\caption{<figure-caption>}\label{<figure-label>}
+\end{figure}
+\end{verbatim}
+\bigskip
+%%=============================================%%
+%% For presentation purpose, we have included  %%
+%% \bigskip command. please ignore this.       %%
+%%=============================================%%
+
+\begin{figure}[ht]%
+\centering
+\includegraphics[width=0.9\textwidth]{1_Figures/example.pdf}
+\caption{This is a widefig. This is an example of long caption this is an example of long caption  this is an example of long caption this is an example of long caption}\label{fig1}
+\end{figure}
+
+In case of double column layout, the above format puts figure captions/images to single column width. To get spanned images, we need to provide \verb+\begin{figure*}+ \verb+...+ \verb+\end{figure*}+.
+
+For sample purpose, we have included the width of images in the optional argument of \verb+\includegraphics+ tag. Please ignore this. 
+
+\markboth{ALGORITHMS, PROGRAM CODES AND LISTINGS}{ALGORITHMS, PROGRAM CODES AND LISTINGS}
+\section{Algorithms, Program codes and Listings}\label{sec7}
+
+Packages \verb+algorithm+, \verb+algorithmicx+ and \verb+algpseudocode+ are used for setting algorithms in \LaTeX\ using the format:
+
+%%=============================================%%
+%% For presentation purpose, we have included  %%
+%% \bigskip command. please ignore this.       %%
+%%=============================================%%
+\bigskip
+\begin{verbatim}
+\begin{algorithm}
+\caption{<alg-caption>}\label{<alg-label>}
+\begin{algorithmic}[1]
+. . .
+\end{algorithmic}
+\end{algorithm}
+\end{verbatim}
+\bigskip
+%%=============================================%%
+%% For presentation purpose, we have included  %%
+%% \bigskip command. please ignore this.       %%
+%%=============================================%%
+
+You may refer above listed package documentations for more details before setting \verb+algorithm+ environment. For program codes, the ``program'' package is required and the command to be used is \verb+\begin{program}+ \verb+...+ \verb+\end{program}+. A fast exponentiation procedure:
+
+\begin{program}
+\BEGIN \\ %
+  \FOR i:=1 \TO 10 \STEP 1 \DO
+     |expt|(2,i); \\ |newline|() \OD %
+\rcomment{Comments will be set flush to the right margin}
+\WHERE
+\PROC |expt|(x,n) \BODY
+          z:=1;
+          \DO \IF n=0 \THEN \EXIT \FI;
+             \DO \IF |odd|(n) \THEN \EXIT \FI;
+\COMMENT{This is a comment statement};
+                n:=n/2; x:=x*x \OD;
+             \{ n>0 \};
+             n:=n-1; z:=z*x \OD;
+          |print|(z) \ENDPROC
+\END
+\end{program}
+
+
+\begin{algorithm}
+\caption{Calculate $y = x^n$}\label{algo1}
+\begin{algorithmic}[1]
+\Require $n \geq 0 \vee x \neq 0$
+\Ensure $y = x^n$ 
+\State $y \Leftarrow 1$
+\If{$n < 0$}\label{algln2}
+        \State $X \Leftarrow 1 / x$
+        \State $N \Leftarrow -n$
+\Else
+        \State $X \Leftarrow x$
+        \State $N \Leftarrow n$
+\EndIf
+\While{$N \neq 0$}
+        \If{$N$ is even}
+            \State $X \Leftarrow X \times X$
+            \State $N \Leftarrow N / 2$
+        \Else[$N$ is odd]
+            \State $y \Leftarrow y \times X$
+            \State $N \Leftarrow N - 1$
+        \EndIf
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+\bigskip
+%%=============================================%%
+%% For presentation purpose, we have included  %%
+%% \bigskip command. please ignore this.       %%
+%%=============================================%%
+
+Similarly, for \verb+listings+, use the \verb+listings+ package. \verb+\begin{lstlisting}+ \verb+...+ \verb+\end{lstlisting}+ is used to set environments similar to \verb+verbatim+ environment. Refer to the \verb+lstlisting+ package documentation for more details.
+
+%%=============================================%%
+%% For presentation purpose, we have included  %%
+%% \bigskip command. please ignore this.       %%
+%%=============================================%%
+\bigskip
+\begin{minipage}{\hsize}%
+\lstset{frame=single,framexleftmargin=-10pt,framexrightmargin=-17pt,framesep=12pt,linewidth=0.98\textwidth,language=pascal}% Set your language (you can change the language for each code-block optionally)
+%%% Start your code-block
+\begin{lstlisting}
+for i:=maxint to 0 do
+begin
+{ do nothing }
+end;
+Write('Case insensitive ');
+Write('Pascal keywords.');
+\end{lstlisting}
+\end{minipage}
+
+\lipsum[1-2]
+
+\markboth{CROSS REFERENCING}{CROSS REFERENCING}
+\section{Cross referencing}\label{sec:cross-ref}
+
+Environments such as figure, table, equation and align can have a label
+declared via the \verb+\label{#label}+ command. For figures and table
+environments use the \verb+\label{}+ command inside or just
+below the \verb+\caption{}+ command. You can then use the
+\verb+\ref{#label}+ command to cross-reference them. As an example, consider
+the label declared for Figure~\ref{fig1} which is
+\verb+\label{fig1}+. To cross-reference it, use the command 
+\verb+Figure \ref{fig1}+, for which it comes up as
+``Figure~\ref{fig1}''. 
+
+To reference line numbers in an algorithm, consider the label declared for the line number 2 of Algorithm~\ref{algo1} is \verb+\label{algln2}+. To cross-reference it, use the command \verb+\ref{algln2}+ for which it comes up as line~\ref{algln2} of Algorithm~\ref{algo1}.
+
+\subsection{Details on reference citations}\label{subsec7}
+
+Standard \LaTeX\ permits only numerical citations. To support both numerical and author-year citations this template uses \verb+natbib+ \LaTeX\ package. For style guidance please refer to the template user manual.
+
+Here is an example for \verb+\cite{...}+: \cite{buschmann1998}. Another example for \verb+\citep{...}+: \citep{cardoso2015fundamentals}. For author-year citation mode, \verb+\cite{...}+ prints Jones et al. (1990) and \verb+\citep{...}+ prints (Jones et al., 1990).
+
+All cited bib entries are printed at the end of this article: \cite{Twitter2016}, \cite{cardoso2015fundamentals}, \cite{buschmann1998}.
+
+\markboth{DEFINITIONS AND QUOTES}{DEFINITIONS AND QUOTES}
+\section{Definitions and Quotes}\label{sec:def}
+
+For theorem like environments, we require \verb+amsthm+ package. There are three types of predefined theorem styles exists---\verb+thmstyleone+, \verb+thmstyletwo+ and \verb+thmstylethree+ 
+
+\begin{definition}[Definition sub head]
+\lipsum[1]
+\end{definition}
+
+\noindent
+For a quote environment, use \verb+\begin{quote}...\end{quote}+
+\begin{quote}
+Quoted text example. \lipsum[1]
+\end{quote}
+
+\markboth{DISCUSSION}{DISCUSSION}
+\section{Discussion}\label{sec:discussion}
+
+\lipsum[1-3]
+
+\markboth{CONCLUSION}{CONCLUSION}
+\section{Conclusion}\label{sec:conclusion}
+
+\lipsum[1-3]
+

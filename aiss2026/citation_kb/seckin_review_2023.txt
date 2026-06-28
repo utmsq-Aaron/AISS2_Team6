@@ -1,0 +1,13 @@
+Citation: seckin_review_2023
+Cited 2 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 4
+Claim: Wearable devices from manufacturers such as Garmin, Polar, and Apple now capture heart rate, GPS trajectories, sleep stages, heart-rate variability (HRV), and stress levels continuously [CITE], while platforms like Strava aggregate activity data from more than 135 million athletes worldwide [CITE].
+
+Chapter: 3_state_of_the_art, Line: 36
+Claim: [CITE] conducted a comprehensive review of wearable technology in sports, identifying actionable insight generation as the dominant gap between data collection capabilities and coaching utility---the gap Training Copilot addresses.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Review on Wearable Technology in Sports" (Applied Sciences, 2023). Comprehensive review identifying actionable insight generation as a gap.

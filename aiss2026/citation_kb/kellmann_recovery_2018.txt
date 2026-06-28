@@ -1,0 +1,14 @@
+Citation: kellmann_recovery_2018
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 30
+Claim: Beyond load monitoring, [CITE] published a consensus statement arguing that an adequate balance between stress and recovery is essential for sustained high-level performance, and that systematic recovery monitoring should be integral to any training programme---motivating Training Copilot's dedicate
+
+============================================================
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: The paper is titled "Recovery and Performance in Sport: Consensus Statement" and the abstract states: "An adequate balance between stress (training and competition load, other life demands) and recovery is essential to achieve continuous high-level performance of athletes." (p.1, lines 2-5). On systematic recovery monitoring: "A systematic monitoring of recovery and the subsequent implementation of recovery routines aims to maximize performance and to prevent negative developments such as underrecovery, non-functional overreaching, the overtraining syndrome, injuries, or illnesses." (p.1, lines 7-10). The paper explicitly frames itself as a consensus statement from a symposium at Technical University Munich (September 2016) where "international experts from many disciplines and research areas gathered to discuss and share their knowledge on recovery for performance enhancement" (p.1, lines 15-17). The paper further argues recovery monitoring should be integral: "Monitoring of the recovery-fatigue continuum represents the first step towards performance enhancement. Based on a systematic and comprehensive monitoring of training and competition loads, interventions need to be derived and established to maximize performance." (p.5, lines 146-148).
+Notes: The KB claim that this is a "consensus statement arguing that an adequate balance between stress and recovery is essential for sustained high-level performance, and that systematic recovery monitoring should be integral to any training programme" is directly and accurately supported by the source text. No discrepancies found.
+Verified: 2026-06-28

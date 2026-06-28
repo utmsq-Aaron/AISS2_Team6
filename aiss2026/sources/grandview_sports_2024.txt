@@ -1,0 +1,20 @@
+﻿Source: https://www.grandviewresearch.com/industry-analysis/sports-analytics-market
+Captured: 2026-06-28
+Citation key: grandview_sports_2024
+
+=== SPORTS ANALYTICS MARKET REPORT ===
+
+NOTE: The Grand View Research website returned HTTP 403 Forbidden, blocking automated
+access. The page is behind anti-bot protection.
+
+EXPECTED CONTENT (from prior public references):
+The Grand View Research report on the global sports analytics market is frequently cited
+for the following data points:
+- Market size estimate and forecast
+- Compound annual growth rate (CAGR)
+- Segmentation by component, deployment, application, end-use, and region
+
+This source could not be captured via web fetch. Manual browser access is required to
+capture this page.
+
+STATUS: BLOCKED (HTTP 403)

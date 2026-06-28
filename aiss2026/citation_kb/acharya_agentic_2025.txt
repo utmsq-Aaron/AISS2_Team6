@@ -1,0 +1,10 @@
+Citation: acharya_agentic_2025
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 14
+Claim: More broadly, [CITE] provided a survey distinguishing agentic AI from traditional automation by its ability to pursue complex goals autonomously through perception, reasoning, planning, and action, positioning systems like Training Copilot in the ``tool-augmented reasoning agent'' category.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The paper is titled "Agentic AI: Autonomous Intelligence for Complex Goals -- A Comprehensive Survey" (IEEE Access, 2025). The abstract states: "Agentic AI, an emerging paradigm in artificial intelligence, refers to autonomous systems designed to pursue complex goals with minimal human intervention. Unlike traditional AI, which depends on structured instructions and close oversight, Agentic AI demonstrates adaptability, advanced decision-making capabilities and self-sufficiency." Section II defines agentic AI as systems with "perception, reasoning, planning, and action" capabilities, distinguishing them from traditional automation. The paper explicitly covers tool-augmented agents (Table 2 lists "Hybrid, including RAG and Memory" as a learning type for Agentic AI). The paper's claim about distinguishing agentic AI from traditional automation through perception/reasoning/planning/action and positioning tool-augmented reasoning agents is fully supported.

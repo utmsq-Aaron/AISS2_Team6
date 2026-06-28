@@ -1,0 +1,16 @@
+Citation: venter_bias_2023
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 38
+Claim: Strava's large-scale crowdsourced data has attracted research interest, though [CITE] quantified selection bias in Strava's data, finding overrepresentation of recreationally active users, males, and middle-aged adults (35--54), a limitation that must be considered when interpreting aggregate metric
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: Abstract states: "Strava users are biased toward cyclists (8% higher than observed), males (15.7% higher) and middle-aged people (20.4% higher for ages 35-54)." Also notes underrepresentation of young, elderly, and low socioeconomic groups. Our claim about overrepresentation of males and middle-aged adults (35-54) is directly confirmed.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract (p.1): "Strava users are biased toward cyclists (8 % higher than observed), males (15.7 % higher) and middle-aged people (20.4 % higher for ages 35-54)." Section 3.3 (p.4): "Strava recreationists were biased toward cyclists (Fig. 5A), males (Fig. 5B) and middle age groups (Fig. 5C)." Fig. 5 (p.6) visualizes percentage differences across activity type, sex, and age categories. Discussion (p.5): "Strava cyclists are more skewed to the middle-age range (between 35 and 55) compared to pedestrians which are more skewed to younger-age range (20 to 35)."
+Notes: The KB claim accurately captures all three bias dimensions (recreationally active users, males, middle-aged 35-54). The paper also identifies additional biases toward higher income brackets and education levels (Fig. 7, p.7) not mentioned in the claim but consistent with the overall finding. No discrepancies found.
+Verified: 2026-06-28

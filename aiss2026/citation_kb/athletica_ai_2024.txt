@@ -1,0 +1,10 @@
+Citation: athletica_ai_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 43
+Claim: ai [CITE] dynamically adjust endurance training plans based on Garmin and Strava data, but operate as plan-output systems without a conversational interface or cross-domain reasoning.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - Athletica.ai website. Describes adaptive endurance training plans for runners, cyclists, triathletes. Confirms AI-driven plan adaptation from Garmin/Strava data.

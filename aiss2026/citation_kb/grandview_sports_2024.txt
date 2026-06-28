@@ -1,0 +1,10 @@
+Citation: grandview_sports_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 8
+Claim: Grand View Research projects the sports analytics market to grow at a compound annual growth rate (CAGR) of approximately 27\,\% through 2030 [CITE].
+
+============================================================
+VERIFICATION STATUS: PENDING
+SOURCE CONFIRMS: PENDING - Source is a paywall stub. Cannot verify the specific 27% CAGR claim. User is obtaining the PDF separately.

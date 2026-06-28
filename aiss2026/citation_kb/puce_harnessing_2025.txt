@@ -1,0 +1,16 @@
+Citation: puce_harnessing_2025
+Cited 3 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 49
+Claim: Third, general-purpose LLMs such as ChatGPT can reason and converse, but they have no access to the athlete's actual data, producing generic advice that ignores individual context [CITE].
+
+Chapter: 3_state_of_the_art, Line: 50
+Claim: [CITE] conducted a systematic review of generative AI for exercise prescription, finding that current systems still lack sufficient individualisation and the ability to adapt to real-time physiological feedback---a finding that directly motivates Training Copilot's architecture.
+
+Chapter: 3_state_of_the_art, Line: 54
+Claim: LLM-based agents can now reason and act autonomously through standardised protocols; tool integration through MCP and A2A has solved the $M N$ fragmentation problem; sports science provides validated physiological metrics and decision frameworks that consumer tools merely display without reasoning a
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Harnessing Generative AI for Exercise and Training Prescription" (Applied Sciences, 2025). Systematic review finding current models lack individualisation and real-time physiological adaptation.

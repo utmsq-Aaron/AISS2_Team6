@@ -1,0 +1,16 @@
+Citation: strava_api_update_2026
+Cited 3 time(s)
+============================================================
+
+Chapter: 5_data_sources, Line: 8
+Claim: Strava announced in June 2026 that API access now requires a Strava subscription for Standard Tier developers, alongside the launch of an official Strava MCP server for AI-native data access [CITE]---a development that validates Training Copilot's MCP-first architecture.
+
+Chapter: 8_discussion, Line: 55
+Claim: Strava now requires a subscription for Standard Tier API access [CITE], and Garmin Connect has no official public API---the third-party library used may break with platform changes.
+
+Chapter: 9_conclusion, Line: 35
+Claim: MCP's growing industry adoption [CITE] is already materialising in the fitness domain: Strava announced its own official MCP server in June 2026 [CITE], offering AI-native access to subscriber data.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - Strava Developer Hub blog post (June 2026). States: "Starting today, all current and future applications will automatically receive access to the Standard developer tier." and "Subscription required for all new Standard Tier developers" effective June 1, 2026. Also announces "Strava MCP" for AI-native data access.

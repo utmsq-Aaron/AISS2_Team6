@@ -1,0 +1,16 @@
+Citation: grgic_periodization_2017
+Cited 3 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 28
+Claim: Regarding periodization, [CITE] found that structured variation produces superior outcomes regardless of the specific pattern, informing future plan-generation capabilities.
+
+Chapter: 8_discussion, Line: 53
+Claim: While the principles of progressive overload, periodisation, and recovery are timeless [CITE], modern exercise science has advanced substantially, and contemporary open-access publications would improve the specialist's relevance.
+
+Chapter: 9_conclusion, Line: 26
+Claim: Training Copilot currently provides session-level recommendations but does not generate multi-week periodised plans [CITE]; integrating structured plan generation with load monitoring and calendar writes is a natural extension.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Effects of Linear and Daily Undulating Periodized Resistance Training Programs" (PeerJ, 2017). Meta-analysis finding structured periodization produces superior outcomes regardless of specific variation pattern.

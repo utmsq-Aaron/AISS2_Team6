@@ -1,0 +1,10 @@
+Citation: statista_fitness_apps_2025
+Cited 1 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 10
+Claim: 22 million in 2025 [CITE].
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - Statista PDF shows data chart with 41.37M downloads (2017) rising to 135.22M (2025) for health & fitness apps in Germany. Numbers verified from the actual PDF data.

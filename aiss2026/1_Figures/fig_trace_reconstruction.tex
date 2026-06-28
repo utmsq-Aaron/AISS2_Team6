@@ -1,0 +1,34 @@
+\begin{figure}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=0.3cm and 0.5cm,
+    every node/.style={font=\small},
+    spanbox/.style={draw, thick, rounded corners=2pt, minimum height=0.55cm, align=center, font=\small},
+    rootspan/.style={spanbox, draw=tcblue, fill=tcblue!8, minimum width=9cm},
+    agentspan/.style={spanbox, draw=tcyellow!80!black, fill=tcyellow!8, minimum width=4cm},
+    toolspan/.style={spanbox, draw=tccyan, fill=tccyan!6, minimum width=3.2cm},
+    arr/.style={-{Stealth[length=4pt]}, thick, tcgrey!50},
+]
+    \node[rootspan] (root) {\texttt{fitdash\_copilot} (AGENT span)};
+
+    \node[agentspan, below left=0.6cm and 0.3cm of root] (ag1) {\texttt{agent:recovery}};
+    \node[agentspan, below right=0.6cm and 0.3cm of root] (ag2) {\texttt{agent:context}};
+
+    \node[toolspan, below left=0.5cm and -0.2cm of ag1] (t1) {\texttt{garmin\_\_sleep}};
+    \node[toolspan, right=0.15cm of t1] (t2) {\texttt{garmin\_\_hrv}};
+
+    \node[toolspan, below left=0.5cm and -0.2cm of ag2] (t3) {\texttt{weather\_\_forecast}};
+    \node[toolspan, right=0.15cm of t3] (t4) {\texttt{calendar\_\_events}};
+
+    \draw[arr] (root.south) -- (ag1.north);
+    \draw[arr] (root.south) -- (ag2.north);
+    \draw[arr] (ag1.south) -- (t1.north);
+    \draw[arr] (ag1.south) -- (t2.north);
+    \draw[arr] (ag2.south) -- (t3.north);
+    \draw[arr] (ag2.south) -- (t4.north);
+
+\end{tikzpicture}%
+}% end resizebox
+\caption[Reconstructed span tree in the evaluation trace]{Reconstructed span tree in the evaluation trace. Agent and tool spans are rebuilt from the Copilot's \texttt{trace} dict and nested under the root evaluation span. Each tool span carries four custom attributes: \texttt{fitdash.tool} (name), \texttt{fitdash.tool\_ok} (success), \texttt{fitdash.tool\_error} (message), and \texttt{fitdash.duration\_ms} (latency).}\label{fig:trace_reconstruction}
+\end{figure}

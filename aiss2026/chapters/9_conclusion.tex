@@ -1,0 +1,46 @@
+\markboth{CONCLUSION AND OUTLOOK}{CONCLUSION AND OUTLOOK}
+\section{Conclusion and Outlook}\label{sec:conclusion}
+
+\subsection{Summary}\label{sec:conclusion:summary}
+
+This paper presented Training Copilot, an open-source, multi-agent sports analytics platform that unifies heterogeneous fitness data behind a single conversational interface. The system addresses data fragmentation across wearable ecosystems, the lack of cross-domain contextual reasoning, and the rigid architectures of current platforms.
+
+The MCP-based integration layer achieves single-line extensibility---verified empirically by adding the Telegram proxy and flythrough servers during development. The LangGraph-based multi-agent system coordinates five domain-scoped specialists via A2A, with parallel orchestration keeping latency manageable and scoped ToolHosts reducing tool misuse. The recording-and-clipping pattern decouples data fidelity from LLM context constraints, and a RAG-based fitness specialist grounds advice in verifiable published sources with explicit citation preservation. The automated evaluation framework combines LLM judges with a deterministic trace-based grounding scorer for reproducible quality assessment.
+
+\subsection{Next Steps}\label{sec:conclusion:next}
+
+\subsubsection{Scalability and Dedicated Hosting}
+
+The current deployment assumes a single-machine setup where all services run locally. Moving toward production requires horizontal scalability: MCP servers and agent processes should be deployed behind a load balancer, with stateless request handling (already the case---no server holds per-request state). The orchestrator is the only bottleneck, as it coordinates all specialist calls; scaling it horizontally requires externalising the trace assembly into a shared store (e.g., Redis) rather than accumulating it in-process. We envision a Kubernetes deployment where each MCP server and agent is an independently scalable pod, with the declarative registry replaced by service discovery (e.g., DNS-based resolution within the cluster).
+
+\subsubsection{Account Setup and Onboarding}
+
+The current authentication flow requires manual configuration: setting environment variables for API keys, running \texttt{garmin\_setup.py} for MFA, and triggering Strava OAuth separately. A production-quality onboarding experience would consolidate these into a guided setup wizard within the React UI---step-by-step OAuth flows for Strava and Google Calendar, a Garmin login form with MFA handling, and secure credential storage in an encrypted vault rather than plaintext \texttt{.tokens/} files. Multi-tenant isolation (per-user credential vaults, session-scoped ToolHost instances) is architecturally supported but requires implementing the security measures outlined in Section~\ref{sec:discussion:limitations}.
+
+\subsubsection{Field Study with Real Athletes}
+
+The most important validation step is a controlled field study with real athletes over multiple weeks. We plan to recruit 10--20 participants from the KIT sports community, deploy Training Copilot as their primary training assistant for four weeks, and measure both quantitative metrics (training consistency, load progression) and qualitative feedback (perceived usefulness, trust, interaction quality). While the automated persona-driven evaluation assesses conversational quality at scale, only longitudinal human evaluation can measure impact on actual training decisions.
+
+\subsubsection{Expanded Knowledge Base and Training Plans}
+
+The RAG corpus is limited to eight public-domain books. Incorporating contemporary open-access exercise-science publications (e.g., PubMed Central) would improve relevance and allow the fitness specialist to cite current research---requiring automated metadata extraction and rigorous licensing verification. Training Copilot currently provides session-level recommendations but does not generate multi-week periodised plans~\cite{grgic_periodization_2017}; integrating structured plan generation with load monitoring and calendar writes is a natural extension.
+
+\subsubsection{Potential Challenges and Opportunities}
+
+Several challenges and opportunities emerge from this work:
+
+\begin{itemize}
+\item \textbf{LLM reliability.} The system's quality is bounded by the underlying model's tool-calling accuracy and reasoning capability. Gateway instabilities (rate limits, timeouts, streaming failures) required disabling token streaming entirely. As LLM providers stabilise and models improve at multi-step tool use, the architecture's ceiling rises without code changes.
+
+\item \textbf{External MCP ecosystem.} The architecture's extensibility could be leveraged by community-contributed servers---nutrition tracking, air quality monitoring, social ride coordination---each installable with a single URL. MCP's growing industry adoption~\cite{anthropic_mcp_announcement_2024} is already materialising in the fitness domain: Strava announced its own official MCP server in June 2026~\cite{strava_api_update_2026}, offering AI-native access to subscriber data. This development validates Training Copilot's MCP-first architecture and suggests that first-party MCP servers from data providers will progressively replace the third-party API wrappers our current servers implement.
+
+\item \textbf{Advanced agent capabilities.} Incorporating episodic memory~\cite{shinn_reflexion_2023} or self-reflection~\cite{park_generative_2023} could enable specialists to learn from prior interactions, making recommendations more personalised over time. The per-user memory module already maintains conversation history; distilling patterns into agent-accessible context is a natural next step.
+
+\item \textbf{Reduced latency.} Enabling token-level SSE streaming (already supported by A2A) and caching frequently repeated tool calls (today's weather, this week's activities) would improve perceived responsiveness without violating data freshness guarantees for volatile metrics.
+
+\item \textbf{Regulatory compliance.} As AI-assisted health recommendations face increasing regulatory scrutiny, clear disclaimers, audit trails (already provided by the trace system and MLflow), and the ability to explain \textit{why} a recommendation was made (traceable to specific tool calls and data points) position Training Copilot well for compliance requirements.
+\end{itemize}
+
+\subsection{Closing Remarks}\label{sec:conclusion:closing}
+
+Training Copilot demonstrates that protocol-based data integration (MCP), multi-agent coordination (A2A), and domain-scoped specialist agents (LangGraph ReAct) can bridge the gap between fragmented fitness data and actionable training insight. The system runs in real time on commodity hardware and is designed to be extended by anyone who can write a Python function and a one-line configuration entry. As standardised agent protocols mature and wearable ecosystems become more interoperable, architectures like Training Copilot's---where intelligence is in the coordination layer, not in the data layer---offer a viable pattern for agentic applications across domains beyond sports analytics.

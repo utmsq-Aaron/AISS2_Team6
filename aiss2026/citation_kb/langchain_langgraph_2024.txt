@@ -1,0 +1,13 @@
+Citation: langchain_langgraph_2024
+Cited 2 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 27
+Claim: Five specialist agents---recovery, training load, environmental context, route planning, and fitness knowledge---each operate as autonomous LangGraph [CITE] ReAct agents [CITE] scoped to their respective MCP servers.
+
+Chapter: 4_architecture, Line: 26
+Claim: The agent layer uses LangGraph [CITE] for agent execution and A2A [CITE] for inter-agent communication.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - Standard framework reference. LangGraph is LangChain's framework for building stateful multi-actor LLM applications. The paper cites it for agent execution, which is its primary purpose.

@@ -1,0 +1,15 @@
+Citation: vemuri_multiagent_2021
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 48
+Claim: At the architectural level, [CITE] proposed a generic multi-agent architecture for health coaching applications involving wearable sensors, with separate modules for analysis, communication, goal formation, and scheduling.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF confirms this paper proposes SMART-ALEC (System to Monitor, Adapt, and Refine Target goals by Agent-based Learning in Everyday Contexts), a generic multi-agent architecture for health coaching with wearable sensors. The abstract states: "we propose a novel generic multi-agent architecture which serves as a template for health coaching applications involving wearable sensors. Analyzer and communication modules allow different functionalities like goal formation, planning, scheduling, event detection, learning, inter-agent + human communication and long-term data collection." The paper describes separate modules exactly as claimed.
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract: "we propose a novel generic multi-agent architecture which serves as a template for health coaching applications involving wearable sensors." Section 3 (SMART-ALEC Implementation) describes modules: Planner (goal formation, scheduling), Analyser, Communicator, and Learning components. Two implementations are demonstrated: (1) Fitbit-based static coaching and (2) Apple Watch-based dynamic coaching.
+Notes: The KB claim accurately describes the paper's contribution. The specific modules listed (analysis, communication, goal formation, scheduling) all appear in the architecture.
+Verified: 2026-06-28

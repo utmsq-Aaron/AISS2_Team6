@@ -1,0 +1,32 @@
+\markboth{AGENT INTERACTION}{AGENT INTERACTION}
+\section{Agent Interaction and Communication}\label{sec:agents}
+
+This section details how the six agents coordinate to answer user queries: communication protocols, delegation patterns, prompt architecture, the recording/clipping strategy for large tool results, and observability infrastructure.
+
+\subsection{Communication Protocols}\label{sec:agents:protocols}
+
+Training Copilot employs two protocols at different layers. \textbf{A2A} governs inter-agent communication: the orchestrator calls specialists via \texttt{ask\_<name>} tools, each performing a streaming A2A request. The specialist processes the request, emits status updates (relayed as progress messages), and returns its answer along with a \texttt{DataPart} artifact containing the full tool-call results---separating user-facing text (concise enough for the LLM's context) from the data artifact (for trace rendering). \textbf{MCP} governs all data access: each specialist calls its servers via a scoped \texttt{ToolHost} over Streamable HTTP, enforcing domain boundaries at the infrastructure level rather than relying on prompt instructions alone. Figure~\ref{fig:interaction_flow} illustrates the complete flow for a representative multi-domain query.
+
+\input{1_Figures/fig_interaction_flow}
+
+\subsection{Delegation Patterns}\label{sec:agents:delegation}
+
+The orchestrator employs three delegation patterns. \textbf{Single-specialist delegation} routes a query cleanly to one domain (e.g., ``What's my VO\textsubscript{2}max?'' $\to$ load specialist). \textbf{Parallel multi-specialist delegation}---the most common pattern---emits multiple \texttt{ask\_*} calls in a single LLM step, reducing latency to the duration of the slowest specialist rather than the sum. \textbf{Sequential delegation} occurs when a later specialist depends on an earlier one's output; the LLM naturally handles this across multiple reasoning steps.
+
+\subsection{Prompt Architecture}\label{sec:agents:prompts}
+
+A shared \textbf{base prompt} defines the agent identity (``Training Copilot''), the current date, home location, and five behavioural rules: use tools for data questions, execute immediately, parallelise independent calls, compute absolute dates, and synthesise data into insight. \textbf{Specialist blocks} enumerate each specialist's available tools with \textit{when}-to-use guidance. The \textbf{orchestrator prompt} instructs routing policy: always delegate through specialists, never answer from its own knowledge, pick the minimal specialist set, and preserve source citations from the fitness specialist.
+
+\subsection{Recording, Clipping, and Trace Assembly}\label{sec:agents:recording}
+
+A recurring challenge in tool-augmented systems is that tool results can be large---GPS streams with thousands of points, full-day timelines---while the LLM's context window is finite and expensive~\cite{qu_tool_2024}. Training Copilot solves this with a \textit{record-full, clip-for-model} pattern (Figure~\ref{fig:recording_clipping}): the MCP-to-LangChain bridge records the complete result into the trace artifact, then returns a clipped copy to the LLM where large arrays are replaced with placeholders (e.g., \texttt{[847 items]}) and the JSON is capped at 6\,000 characters. The UI renders maps and charts from the \textit{full} trace, not from the model's response---decoupling data fidelity from context-window constraints.
+
+\input{1_Figures/fig_recording_clipping}
+
+Every interaction produces a structured \textit{trace} (via \texttt{core/agent\_trace.py}) capturing the complete provenance: run ID, timestamp, original input, all tool calls with arguments, results, duration, and error status, agents consulted, extracted route data, chart hints, and the final answer. The trace serves transparency (collapsible debug panel in the chat UI), rendering (route maps and charts), and evaluation (the \texttt{grounded\_in\_real\_data} scorer in Section~\ref{sec:evaluation:scorers} reads tool spans directly from it).
+
+\subsection{Observability and Graceful Degradation}\label{sec:agents:observability}
+
+All agent runs are traced to an MLflow tracking server~\cite{mlflow_multiturn_2025}. Each process calls \texttt{setup\_tracing(name)} at startup, enabling LangChain autologging and wrapping each \texttt{ainvoke} in a labelled root span. The result is a hierarchical span tree per run, filterable by service, with LLM and tool calls as child spans. Tracing is strictly best-effort: a missing \texttt{mlflow} or unreachable server logs once and is ignored.
+
+Graceful degradation is systematic at every layer: unreachable MCP servers are skipped during discovery; unavailable specialists return descriptive errors rather than causing task failure; tool errors are returned as structured JSON for agent reasoning; and MLflow tracing never blocks the critical path. This means Training Copilot provides useful answers even when some data sources or agents are offline---essential for a system depending on multiple external APIs.

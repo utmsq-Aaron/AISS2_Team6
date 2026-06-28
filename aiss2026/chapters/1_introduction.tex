@@ -1,0 +1,45 @@
+﻿\markboth{INTRODUCTION}{INTRODUCTION}
+\section{Introduction}\label{sec:intro}
+
+The quantified-self movement has transformed recreational and competitive sport over the past decade. Wearable devices from Garmin, Polar, and Apple now capture heart rate, GPS trajectories, sleep stages, heart-rate variability (HRV), and stress levels continuously~\cite{seckin_review_2023}. Platforms like Strava aggregate activity data from more than 135~million athletes worldwide~\cite{strava_year_2024}. The result is an unprecedented volume of training data---yet it remains fragmented across proprietary ecosystems with incompatible interfaces, making holistic analysis impractical for anyone without a sports-science background~\cite{bourdon_monitoring_2017}.
+
+A real-world example illustrates this fragmentation. During user research, we encountered an endurance cyclist who, after every ride, exports his Strava data, uploads it to ChatGPT, and asks the model to analyse his progress. This five-step process is both time-consuming and error-prone, because the general-purpose LLM has no access to his Garmin recovery data, the weather forecast, or his calendar. More broadly, preparing for a training session requires cross-referencing a Garmin watch for recovery, Strava for load trends, a weather service for conditions, a calendar for scheduling, and possibly a route planner for elevation and distance. Each task requires a separate application and a separate mental model. The cognitive overhead is substantial, and the integration is left entirely to the athlete.
+
+At the same time, large language models (LLMs) have demonstrated the ability to reason across heterogeneous information sources when equipped with tool-calling capabilities~\cite{schick_toolformer_2023, qu_tool_2024}. The emergence of open interoperability protocols---Anthropic's Model Context Protocol (MCP)~\cite{anthropic_mcp_2024} for tool integration and Google's Agent-to-Agent (A2A)~\cite{google_a2a_2025} for inter-agent communication---creates the opportunity to build a system that bridges the gap between fragmented fitness data and actionable, data-grounded training insight.
+
+\subsection{Problem Statement}\label{sec:intro:problem}
+
+We identify three concrete problems that motivate the design of Training Copilot:
+
+\textbf{Data fragmentation.} Training and wellness data is distributed across multiple platforms (Strava, Garmin Connect, Google Calendar, weather APIs, route services), each with its own authentication model, data format, and access pattern. No single interface provides a unified view, and manual cross-referencing is error-prone and time-consuming~\cite{halson_monitoring_2014}.
+
+\textbf{Lack of contextual reasoning.} Existing fitness dashboards display data in isolation---a sleep score here, a training load chart there---without synthesising these signals into actionable recommendations. An athlete's readiness to train depends on the interplay of recovery status, cumulative workload, environmental conditions, and personal schedule~\cite{bourdon_monitoring_2017, gabbett_training_2016}, yet no consumer tool reasons across all four dimensions simultaneously.
+
+\textbf{Rigid, non-extensible architectures.} Most fitness applications are monolithic: adding a new data source (e.g., a nutrition tracker or an air-quality index) requires deep code changes, new API client libraries, and UI modifications. This stands in contrast to microservice design principles~\cite{dragoni_microservices_2017}, which advocate for independent, composable services that can be added or replaced without affecting the rest of the system.
+
+\subsection{Proposed Solution}\label{sec:intro:solution}
+
+This paper presents \textit{Training Copilot}, an open-source sports analytics platform that addresses these problems through two architectural innovations:
+
+\begin{enumerate}
+\item \textbf{Model Context Protocol (MCP) as a uniform data layer.} Each external API---Strava, Garmin, weather, routes, calendar---is encapsulated in an independent MCP server~\cite{anthropic_mcp_2024}. A single host client discovers and routes tool calls to any reachable server without hardcoding provider-specific logic. Adding a new data source requires exactly one server file and one configuration line; no host, agent, or UI code changes.
+
+\item \textbf{A multi-agent system for contextual reasoning.} Five specialist agents---recovery, training load, environmental context, route planning, and fitness knowledge---each operate as autonomous LangGraph~\cite{langchain_langgraph_2024} ReAct agents~\cite{yao_react_2023} scoped to their respective MCP servers. An orchestrator agent decomposes user queries, delegates to the appropriate specialists in parallel via the Agent-to-Agent (A2A) protocol~\cite{google_a2a_2025}, and synthesises their findings into a single, data-grounded recommendation. A sixth specialist employs Retrieval-Augmented Generation (RAG)~\cite{lewis_retrieval-augmented_2020} over exercise-science literature to ground training advice in published sources.
+\end{enumerate}
+
+The conversational interface allows athletes to ask natural-language questions (``Should I train today?'', ``Plan a 30\,km loop from Turmberg'', ``How's my sleep been this week?'') and receive answers that integrate live data from all connected sources---without navigating multiple apps or interpreting raw metrics.
+
+\subsection{Contributions}\label{sec:intro:contributions}
+
+The main contributions of this work are:
+
+\begin{itemize}
+\item The design and implementation of an MCP-based integration architecture that treats own and external data sources uniformly, achieving single-line extensibility for new APIs.
+\item A multi-agent system using five domain-scoped specialists coordinated via A2A, demonstrating how agent specialisation and parallel delegation produce contextually richer recommendations than monolithic single-agent approaches.
+\item A RAG-based fitness knowledge agent that grounds exercise-science advice in verifiable, public-domain literature, combining the factual precision of retrieval with the fluency of generative models.
+\item An end-to-end evaluation framework using MLflow's conversation simulation~\cite{mlflow_multiturn_2025} with persona-driven test cases and five scoring dimensions, designed to assess multi-agent sports analytics systems in a reproducible manner.
+\end{itemize}
+
+\subsection{Structure of This Paper}\label{sec:intro:structure}
+
+The remainder of this paper is organised as follows. Section~\ref{sec:market} analyses the sports analytics market and identifies the gap Training Copilot addresses. Section~\ref{sec:sota} reviews the state of the art in agentic AI, multi-agent systems, and sports technology. Section~\ref{sec:architecture} presents the system architecture, covering the MCP layer, the agent layer, and the LLM integration seam. Section~\ref{sec:data} describes the data sources and their integration via MCP servers. Section~\ref{sec:agents} details the agent interaction patterns and communication protocols. Section~\ref{sec:evaluation} describes the evaluation methodology. Section~\ref{sec:discussion} discusses the design trade-offs, ethical considerations, and limitations observed during implementation. Section~\ref{sec:conclusion} concludes with a summary and directions for future work.

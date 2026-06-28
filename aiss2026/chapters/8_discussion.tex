@@ -1,0 +1,73 @@
+\markboth{DISCUSSION}{DISCUSSION}
+\section{Discussion}\label{sec:discussion}
+
+This section discusses the architectural trade-offs encountered during implementation, the scope boundaries we deliberately set, the limitations of the current system, and the practical lessons we drew from building Training Copilot.
+
+\subsection{Architectural Trade-offs}\label{sec:discussion:tradeoffs}
+
+\subsubsection{Multi-Agent vs.\ Single-Agent Design}
+
+The multi-agent architecture introduces coordination overhead: each query traverses the orchestrator, one or more specialists, and their MCP servers, accumulating latency from multiple LLM calls and network round-trips. A single-agent design would eliminate the A2A layer entirely. However, three concrete benefits justified the added complexity.
+
+First, with over 40 tools across all servers, a single agent frequently selected incorrect tools. Research confirms that larger tool sets increase misselection rates~\cite{qu_tool_2024, patil_gorilla_2023}. Scoping each specialist to at most two servers (5--15 tools) substantially improved accuracy. Second, each specialist carries a domain-optimised prompt: the recovery specialist interprets HRV relative to baseline, the route specialist geocodes before routing. A single system prompt embedding all domain knowledge was unwieldy and the model frequently failed to follow it; the modular prompt architecture~\cite{wang_survey_2024} solved this. Third, cross-domain queries benefit from parallel execution: the orchestrator's concurrent \texttt{ask\_*} calls reduce latency to the slowest specialist rather than the sum.
+
+\subsubsection{MCP vs.\ Direct API Integration}
+
+Encapsulating each API behind an MCP server introduces a process boundary: every tool call involves an HTTP round-trip. Direct API integration would eliminate this overhead. However, the MCP abstraction provides three properties that justify the cost, consistent with established microservice principles~\cite{dragoni_microservices_2017}: independence (each server manages its own authentication, rate limiting, and retry logic---restarting one does not affect others), uniform discovery (adding the Telegram proxy and flythrough servers required one file and one configuration line each, confirming the ``single-line extensibility'' promise), and deployment flexibility (servers are independently containerisable, with URLs swapped via environment variables for Docker Compose).
+
+\subsection{Scope and Focus}\label{sec:discussion:scope}
+
+Training Copilot is a research prototype designed to validate two hypotheses: that MCP-based data integration can achieve single-line extensibility, and that multi-agent coordination can produce contextually richer recommendations than monolithic approaches. We deliberately focused development effort on the \textit{core conversational analysis and planning workflow}---the path from a natural-language question through agent coordination to a data-grounded, synthesised answer---and accepted known incompleteness in peripheral features. The capabilities we consider production-quality for a research prototype are: training readiness assessment (combining recovery, weather, and calendar data), training load analysis (CTL/ATL/TSB trends), route planning with interactive maps, RAG-grounded fitness advice with source citations, and schedule-aware planning with calendar event creation.
+
+Several features are architecturally present but not fully polished. We document them in Table~\ref{tab:known_issues} as conscious scope decisions rather than oversights.
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption[Known incomplete areas]{Known incomplete areas and their root causes.}\label{tab:known_issues}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{3.2cm}p{3.5cm}p{5.5cm}@{\extracolsep{\fill}}}
+\toprule
+\textbf{Feature} & \textbf{Status} & \textbf{Root Cause} \\
+\midrule
+Chart generation & Functional but inconsistently triggered & Orchestrator chart-hint propagation does not reliably signal the frontend \\
+\addlinespace
+3D flythrough & Works from Dashboard, not from chat & Trace action wiring gap; MCP payload not lifted into chat trace \\
+\addlinespace
+Map overlays & Default tiles only & HR/pace/altitude overlays supported by stack but not exposed in chat \\
+\addlinespace
+Context management & Occasional topic bleed & Full history flattened into A2A; no within-session windowing \\
+\addlinespace
+Calendar writes & Occasional date errors & LLM struggles with relative$\to$absolute temporal conversion \\
+\addlinespace
+Route time estimates & No sport-profile distinction & Agent does not always infer hiking vs.\ running from context \\
+\botrule
+\end{tabular*}
+\end{minipage}
+\end{center}
+\end{table}
+
+\subsection{Limitations}\label{sec:discussion:limitations}
+
+\textbf{Latency.} Complex cross-domain queries typically take 8--15 seconds end-to-end in our development setup, which is acceptable for training planning but not for in-workout guidance. The LLM inference time dominates; MCP round-trips contribute less than 500\,ms in aggregate. Token-level streaming would improve perceived responsiveness but is currently disabled for compatibility with the KIT university gateway, which has exhibited instabilities under streaming load.
+
+\textbf{Knowledge currency.} The RAG-based fitness specialist draws from eight public-domain books from Project Gutenberg, which are necessarily historical. While the principles of progressive overload, periodisation, and recovery are timeless~\cite{grgic_periodization_2017}, modern exercise science has advanced substantially, and contemporary open-access publications would improve the specialist's relevance.
+
+\textbf{Platform dependencies.} Training Copilot depends on external APIs with varying availability. Strava now requires a subscription for Standard Tier API access~\cite{strava_api_update_2026}, and Garmin Connect has no official public API---the third-party library used may break with platform changes. The MCP architecture mitigates this---each server is independently replaceable---but does not eliminate the dependency.
+
+\textbf{Single-user focus.} Multi-tenant deployment with per-user credential vaults and session isolation is architecturally supported but not yet implemented. The security implications---SSRF prevention, tool-output sanitisation, egress control for user-added MCP servers, and encrypted token storage---remain open and are prerequisite to any public deployment.
+
+\subsection{Ethical Considerations}\label{sec:discussion:ethics}
+
+An AI system that provides training recommendations bears responsibility for athlete safety. Training Copilot explicitly does not provide medical advice; system prompts instruct all specialists to recommend professional consultation for injury-related questions or abnormal metrics. Consumer wearable devices have known accuracy limitations~\cite{fuller_reliability_2020}, and the system mitigates this partially through multi-source corroboration (cross-referencing HRV, sleep, and Body Battery rather than relying on any single metric) but cannot fully compensate for sensor inaccuracies. The fitness RAG corpus reflects early 20th-century biases and limited demographic scope; expanding it with contemporary, demographically inclusive literature is a priority for future work.
+
+\subsection{Lessons Learned}\label{sec:discussion:lessons}
+
+\textbf{Tool docstrings are the interface.} We found that the quality of an MCP tool's docstring has a disproportionate impact on tool selection accuracy. Vague descriptions led to incorrect tool calls; precise, prescriptive descriptions stating \textit{when} to call a tool (not just what it does) substantially improved accuracy. This aligns with findings by \cite{patil_gorilla_2023} on the importance of API documentation quality. We invested considerable effort in refining docstrings, treating them as the primary interface between the model and the data layer.
+
+\textbf{Graceful degradation is not optional.} In a system with seven external dependencies, partial outages are the norm. The three-layer graceful degradation strategy---skip missing MCP servers, report unavailable specialists, surface tool errors as structured data---proved essential during development, where individual services frequently restarted or returned partial data. We initially treated degradation as a nice-to-have; it quickly became load-bearing.
+
+\textbf{Record full, clip for the model.} The recording-and-clipping pattern (Section~\ref{sec:agents:recording}) was one of our most impactful design decisions. GPS streams and intraday timelines can exceed 100\,KB; the UI renders from the full trace, not from the model's response, preserving data fidelity without burdening the LLM. We recommend this pattern for any tool-augmented agent handling large structured results.
+
+\textbf{Scoping constrains and enables.} Restricting each specialist to its own MCP servers was initially a simplification, but proved to be a design strength: it prevents tool confusion, reduces prompt complexity, and makes each specialist independently testable.
+
+\textbf{Source preservation requires explicit engineering.} The orchestrator's synthesis step dropped citations in approximately one-third of fitness-related answers until we added an explicit \texttt{ensure\_sources()} post-processing step. Automated synthesis and citation preservation are fundamentally in tension; engineering solutions are needed to bridge this gap.

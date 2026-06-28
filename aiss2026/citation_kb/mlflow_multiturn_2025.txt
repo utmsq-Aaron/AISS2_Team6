@@ -1,0 +1,16 @@
+Citation: mlflow_multiturn_2025
+Cited 3 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 40
+Claim: An end-to-end evaluation framework using MLflow's conversation simulation [CITE] with persona-driven test cases and five scoring dimensions, designed to assess multi-agent sports analytics systems in a reproducible manner.
+
+Chapter: 6_agent_interaction, Line: 30
+Claim: All agent runs are traced to an MLflow tracking server [CITE].
+
+Chapter: 7_evaluation, Line: 8
+Claim: We adopt MLflow's end-to-end conversation simulation framework [CITE], which enables automated, reproducible evaluation of multi-turn agent systems.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - MLflow blog post on multi-turn conversation evaluation. The paper cites it for the evaluation framework, which is exactly what the blog describes.

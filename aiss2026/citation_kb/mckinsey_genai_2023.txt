@@ -1,0 +1,10 @@
+Citation: mckinsey_genai_2023
+Cited 1 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 10
+Claim: 4 trillion annually across industries, with particular impact in knowledge-intensive domains where synthesis of heterogeneous information is the primary task [CITE].
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - McKinsey report "The Economic Potential of Generative AI" (June 2023). The $2.6-4.4 trillion figure is the most widely cited finding from this report.

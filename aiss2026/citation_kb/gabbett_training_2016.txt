@@ -1,0 +1,17 @@
+Citation: gabbett_training_2016
+Cited 2 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 16
+Claim: An athlete's readiness to train depends on the interplay of recovery status, cumulative workload, environmental conditions, and personal schedule [CITE], yet no consumer tool reasons across all four dimensions simultaneously.
+
+Chapter: 3_state_of_the_art, Line: 28
+Claim: [CITE] identified the ``training--injury prevention paradox'': while rapid spikes in training load substantially elevate injury risk, well-developed chronic training loads are actually protective.
+
+============================================================
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: The paper's title is "The training--injury prevention paradox: should athletes be training smarter *and* harder?" (p. 1). The abstract explicitly states: "This paper describes the 'Training-Injury Prevention Paradox' model; a phenomenon whereby athletes accustomed to high training loads have *fewer* injuries than athletes training at lower workloads." On p. 6 (Figure 6 caption): "practitioners should aim to maintain the acute:chronic workload ratio within a range of approximately 0.8-1.3" and body text: "acute:chronic workload ratios within the range of 0.8-1.3 could be considered the training 'sweet spot', while acute:chronic workload ratios >=1.5 represent the 'danger zone'." The "training-injury paradox" concept is formally proposed on p. 7: "This paper proposes the training-injury prevention paradox. Physically hard (and appropriate) training may protect against injuries."
+Notes: Both KB claims are fully supported. Claim 1 (introduction, interplay of recovery/workload/environment/schedule) is a reasonable paraphrase of the paper's discussion of multiple load dimensions affecting readiness (internal/external load, training phase, recovery). Claim 2 (training-injury prevention paradox with protective chronic loads and spike-related risk) matches the paper's central thesis precisely.
+Verified: 2026-06-28

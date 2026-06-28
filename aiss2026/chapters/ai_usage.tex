@@ -1,0 +1,58 @@
+\markboth{AI USAGE DOCUMENTATION}{AI USAGE DOCUMENTATION}
+\section*{AI Usage Documentation}
+\addcontentsline{toc}{section}{AI Usage Documentation}
+\label{sec:ai_usage}
+
+\vspace{0.5cm}
+
+The following table documents all uses of generative AI tools during the development of this seminar paper and the Training Copilot software system. All AI-generated outputs were reviewed, verified, and adapted by the authors before inclusion.
+
+\vspace{0.5cm}
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption[AI usage documentation]{Documentation of AI tool usage throughout the project.}\label{tab:ai_usage}
+\small
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} p{1.8cm} p{2.2cm} p{1.8cm} p{2.2cm} p{3.6cm} @{\extracolsep{\fill}}}
+\toprule
+\textbf{Scope} & \textbf{Activity} & \textbf{AI Tool} & \textbf{Prompt (example)} & \textbf{Remark} \\
+\midrule
+
+All sections & Grammar and spelling corrections & LanguageTool & --- & Accepted grammatical corrections \\
+\addlinespace
+
+All sections & Formulation and sentence-level rewriting & Claude Sonnet & ``Rephrase this paragraph for clarity\ldots'' & Partially accepted; all rephrased text reviewed against sources \\
+\addlinespace
+
+All sections & Translation of German drafts to English & DeepL & --- & Used as a starting point; manually revised for academic tone \\
+\addlinespace
+
+Literature review & Paper discovery and screening & NotebookLM, Claude & ``Find relevant papers on multi-agent sports coaching\ldots'' & Used to identify candidate papers; each paper was then read in full and verified manually \\
+\addlinespace
+
+Literature review & Summarisation of paper content & NotebookLM & --- & Used for initial summaries; all claims verified against the original PDF before citing \\
+\addlinespace
+
+All \LaTeX{} figures and tables & Formatting improvements and TikZ code & Claude Sonnet & ``Make this TikZ diagram fit within the text width\ldots'' & Accepted formatting; verified visual output via PDF rendering \\
+\addlinespace
+
+Citation verification & Fact-checking claims against source PDFs & Claude Sonnet & ``Read this PDF and verify the claim\ldots'' & Used to cross-reference; all verifications documented in citation knowledge base \\
+\addlinespace
+
+Code (full system) & Code generation, debugging, architecture & GitHub Copilot, Claude Sonnet & ``Write a FastMCP server that\ldots'', ``Debug this async event loop\ldots'' & Code explanations, generation, syntax corrections, library research, refactoring \\
+\addlinespace
+
+Code (agents) & Prompt engineering for specialist agents & Claude Sonnet & ``Write a system prompt for a recovery specialist that\ldots'' & Iteratively refined; final prompts reviewed for correctness \\
+\addlinespace
+
+Code (evaluation) & Evaluation framework and persona design & Claude Sonnet & ``Design a persona for an ambitious triathlete\ldots'' & Persona descriptions and scorer prompts generated, then manually refined \\
+\addlinespace
+
+Data & Synthetic test data for UI development & GitHub Copilot & ``Generate mock Garmin sleep data in this JSON format\ldots'' & Used to develop UI components without a connected device \\
+
+\botrule
+\end{tabular*}
+\end{minipage}
+\end{center}
+\end{table}

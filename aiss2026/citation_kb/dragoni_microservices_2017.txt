@@ -1,0 +1,16 @@
+Citation: dragoni_microservices_2017
+Cited 3 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 18
+Claim: This stands in contrast to microservice design principles [CITE], which advocate for independent, composable services that can be added or replaced without affecting the rest of the system.
+
+Chapter: 4_architecture, Line: 8
+Claim: The architecture adheres to six principles derived from the MCP specification and microservice design patterns [CITE]: (1) tool-agnostic---the model discovers tools via list\_tools() and decides autonomously which to call; (2) one call path--- ToolHost.
+
+Chapter: 8_discussion, Line: 16
+Claim: However, the MCP abstraction provides three properties that justify the cost, consistent with established microservice principles [CITE]: independence (each server manages its own authentication, rate limiting, and retry logic---restarting one does not affect others), uniform discovery (adding the T
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Microservices: Yesterday, Today, and Tomorrow" (Springer, 2017). Standard reference for microservice design principles including independent, composable services.

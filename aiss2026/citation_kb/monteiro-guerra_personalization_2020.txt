@@ -1,0 +1,14 @@
+Citation: monteiro-guerra_personalization_2020
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 46
+Claim: [CITE] conducted a scoping review of 17 real-time physical activity coaching applications and found that while feedback and goal setting were universally implemented, deeper personalisation mechanisms such as context-awareness and adaptive difficulty remained rare---a gap that motivates Training Cop
+
+============================================================
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract (p.1738): "28 papers describing 17 different mobile applications were included." and "The most used personalization concepts were Feedback (17/17), Goal Setting (15/17), User Targeting (9/17) and Inter-human Interaction (8/17), while the less commonly covered were Self-Learning (4/17), Context Awareness (3/17) and Adaptation (2/17)." Results Section B (p.1741): "The most frequent used concepts were Feedback (used in all 17 apps), Goal Setting (15 apps), User Targeting (9 apps) and Inter-human Interaction (8 apps). The less frequent were Self Learning (4 apps), Context Awareness (3 apps) and Adaptation (2 apps)."
+Notes: Minor imprecision in the KB claim: "feedback and goal setting were universally implemented" -- Feedback was indeed universal (17/17), but Goal Setting was 15/17, not universal. The KB term "adaptive difficulty" does not appear in the paper; the paper uses "Adaptation" (2/17) which refers to directing information based on key behavioral factors, not specifically difficulty adjustment. The characterization of context-awareness and adaptation as rare and the identification of this as a gap are accurate. The "scoping review" and "17 applications" are confirmed.
+Verified: 2026-06-28

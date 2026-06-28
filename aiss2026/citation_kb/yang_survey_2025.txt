@@ -1,0 +1,10 @@
+Citation: yang_survey_2025
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 22
+Claim: [CITE] surveyed the emerging landscape of AI agent protocols, providing a taxonomy that distinguishes context-oriented protocols (MCP) from inter-agent protocols (A2A) and evaluating them across efficiency, scalability, and security dimensions.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "A Survey of AI Agent Protocols" (arXiv 2025). Provides taxonomy distinguishing context-oriented (MCP) from inter-agent (A2A) protocols across efficiency, scalability, security dimensions as claimed.

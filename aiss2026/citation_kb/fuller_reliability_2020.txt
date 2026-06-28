@@ -1,0 +1,17 @@
+Citation: fuller_reliability_2020
+Cited 2 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 36
+Claim: [CITE] systematically reviewed the validity of consumer-grade wearables (including Garmin, Fitbit, and Apple Watch) and concluded that step counting and heart-rate tracking perform well under controlled conditions, but that precision degrades across different device generations, body placements, and
+
+Chapter: 8_discussion, Line: 61
+Claim: Consumer wearable devices have known accuracy limitations [CITE], and the system mitigates this partially through multi-source corroboration (cross-referencing HRV, sleep, and Body Battery rather than relying on any single metric) but cannot fully compensate for sensor inaccuracies.
+
+============================================================
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: The abstract states: "Commercial wearable devices are accurate for measuring steps and heart rate in laboratory-based settings, but this varies by the manufacturer and device type. Devices are constantly being upgraded and redesigned to new models, suggesting the need for more current reviews and research." (p.1). The Discussion section confirms precision varies by brand/model/placement: "Criterion validity of commercial wearables varied by study type (controlled or free-living), brand, and device. For step count, our review showed that in controlled laboratory settings, a higher proportion of devices showed accuracy, and this was within a tighter limit of acceptable accuracy compared with free-living conditions." (p.12). On device generations: "the majority of the tested devices included in this review are now out of date or discontinued. The nature of the consumer technology market is such that updated product iterations are commissioned even before the original iteration of a device is released." (p.13). The review covers nine brands including Garmin, Fitbit, and Apple Watch (p.1 abstract, p.13 conclusion). The second KB claim about known accuracy limitations is supported by: "For energy expenditure, no brand was accurate" (abstract, p.1) and "Energy expenditure estimates varied widely with less than 10% of estimates falling within acceptable limits in controlled settings" (p.12).
+Notes: The KB claim about "precision degrades across different device generations, body placements" is well supported. The PDF explicitly discusses variation by brand, model, wear location (foot/ankle/wrist/hip), and the rapid obsolescence of device generations. No discrepancies found.
+Verified: 2026-06-28

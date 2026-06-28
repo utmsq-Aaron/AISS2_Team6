@@ -1,0 +1,13 @@
+Citation: halson_monitoring_2014
+Cited 2 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 14
+Claim: No single interface provides a unified view, and manual cross-referencing is error-prone and time-consuming [CITE].
+
+Chapter: 3_state_of_the_art, Line: 26
+Claim: [CITE] surveyed the landscape of fatigue biomarkers and concluded that no single indicator is sufficiently validated on its own, making a compelling case for combining multiple metrics simultaneously---which is precisely what Training Copilot's recovery specialist implements by combining sleep, HRV,
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: Halson (2014) "Monitoring Training Load to Understand Fatigue in Athletes" (Sports Med, 44 Suppl 2:S139-S147) is a review article surveying fatigue biomarkers. The abstract states: "very few of these markers have strong scientific evidence supporting their use, and there is yet to be a single, definitive marker described in the literature." Section 3 reiterates: "very few of these markers have strong scientific evidence supporting their use, and there is yet to be a single, definitive marker of fatigue described in the literature." Table 1 lists 16 monitoring variables (frequency, time, intensity, sleep, psychology, biochemistry, etc.), making the case for combining multiple metrics. Both claims are well-supported: (1) no single unified interface/marker, and (2) multi-metric monitoring is necessary.

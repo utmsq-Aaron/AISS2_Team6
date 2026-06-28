@@ -1,0 +1,29 @@
+Citation: bourdon_monitoring_2017
+Cited 6 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 4
+Claim: The result is an unprecedented volume of training and wellness data available to individual athletes---yet this data remains fragmented across proprietary ecosystems with incompatible interfaces, making holistic analysis impractical for anyone without a sports-science background [CITE].
+
+Chapter: 1_introduction, Line: 16
+Claim: An athlete's readiness to train depends on the interplay of recovery status, cumulative workload, environmental conditions, and personal schedule [CITE], yet no consumer tool reasons across all four dimensions simultaneously.
+
+Chapter: 2_market_analysis, Line: 57
+Claim: Contextual, cross-domain reasoning --- the capability to synthesise signals from recovery status, training load trends, weather forecasts, and schedule availability into a single, coherent recommendation, rather than presenting isolated metrics [CITE].
+
+Chapter: 3_state_of_the_art, Line: 26
+Claim: [CITE] published an international consensus statement that formalises the distinction between external load (work performed, measured by GPS and power meters) and internal load (the psychophysiological response, measured by heart rate and HRV), emphasising that the resulting adaptation is inherently
+
+Chapter: 3_state_of_the_art, Line: 38
+Claim: The professional adoption of wearable monitoring---GPS, heart rate, and accelerometry are now standard in elite team sports [CITE]---is increasingly reaching consumer athletes through platforms like Strava and Garmin Connect.
+
+Chapter: 5_data_sources, Line: 8
+Claim: Its thirteen tools cover recent activities, aggregate statistics, year-over-year breakdowns, personal records, gear mileage, deep single-activity detail with lap splits and power data, GPS streams at sub-second resolution, performance trend analysis against personal baselines, and---critically---the
+
+============================================================
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: The paper is titled "Monitoring Athlete Training Loads: Consensus Statement" (International Journal of Sports Physiology and Performance, 2017, 12, S2-161-S2-170). On p. S2-161 (Defining Training Load): "Measures of training load can be categorized as either internal or external. For the context of this paper internal training loads are defined as the relative biological (both physiological and psychological) stressors imposed on the athlete during training or competition. Measures such as heart rate, blood lactate, oxygen consumption, and ratings of perceived exertion (RPE) are commonly used to assess internal load. On the other hand, external training loads are objective measures of the work performed by the athlete during training or competition and are assessed independently of internal workloads. Common measures of external load include power output, speed, acceleration, time-motion analysis, global positioning system (GPS) parameters, and accelerometer-derived parameters." The paper also states: "internal and external training loads should be used in combination to provide greater insight to training stress." On GPS in team sports (p. S2-163): "External training load in team sports is routinely measured using GPS." The abstract confirms it is a consensus statement from a conference at Aspire Academy, Doha, Qatar, February 2016.
+Notes: All six KB claims are supported. The consensus statement format, the external/internal load distinction, the emphasis on holistic multi-dimensional monitoring, and the description of GPS/HR/accelerometry as standard in elite sport are all explicitly present in the paper. The claim about fragmented data across proprietary ecosystems (Ch. 1) is a reasonable inference from the paper's discussion of the need for integrated monitoring approaches, though the paper does not use the exact word "fragmented." The Strava tool claim (Ch. 5) is project-specific and not directly from this source -- it cites Bourdon for context about what monitoring entails, which is appropriate.
+Verified: 2026-06-28

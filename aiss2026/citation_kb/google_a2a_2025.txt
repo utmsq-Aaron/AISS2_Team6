@@ -1,0 +1,19 @@
+Citation: google_a2a_2025
+Cited 4 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 8
+Claim: The emergence of open interoperability protocols---Anthropic's Model Context Protocol (MCP) [CITE] for tool integration and Google's Agent-to-Agent (A2A) [CITE] for inter-agent communication---creates the opportunity to build a system that bridges the gap between fragmented fitness data and actionab
+
+Chapter: 1_introduction, Line: 27
+Claim: An orchestrator agent decomposes user queries, delegates to the appropriate specialists in parallel via the Agent-to-Agent (A2A) protocol [CITE], and synthesises their findings into a single, data-grounded recommendation.
+
+Chapter: 3_state_of_the_art, Line: 22
+Claim: For inter-agent communication, the Agent-to-Agent (A2A) protocol [CITE], announced by Google in April 2025 and subsequently donated to the Linux Foundation, provides a JSON-RPC\,2.
+
+Chapter: 4_architecture, Line: 26
+Claim: The agent layer uses LangGraph [CITE] for agent execution and A2A [CITE] for inter-agent communication.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - A2A protocol specification on GitHub. States it operates under Linux Foundation governance. Agent Cards for capability advertisement confirmed in the README.

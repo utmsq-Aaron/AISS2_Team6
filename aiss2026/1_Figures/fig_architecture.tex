@@ -1,0 +1,69 @@
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+    node distance=0.7cm and 0.8cm,
+    every node/.style={font=\small},
+    uibox/.style={draw=tcblue, fill=tcblue!8, rounded corners=3pt, minimum width=2.6cm, minimum height=0.7cm, thick, align=center},
+    corebox/.style={draw=tcgreen, fill=tcgreen!8, rounded corners=3pt, minimum width=2.4cm, minimum height=0.7cm, thick, align=center},
+    agentbox/.style={draw=tcyellow!80!black, fill=tcyellow!8, rounded corners=3pt, minimum width=2.0cm, minimum height=0.7cm, thick, align=center},
+    serverbox/.style={draw=tccyan, fill=tccyan!6, rounded corners=3pt, minimum width=1.6cm, minimum height=0.7cm, thick, align=center},
+    arr/.style={-{Stealth[length=5pt]}, thick},
+    darr/.style={-{Stealth[length=5pt]}, thick, dashed},
+    layerlabel/.style={font=\scriptsize\bfseries, rotate=90, anchor=south},
+]
+
+    % UI Layer (blue)
+    \node[uibox] (ui1) {Streamlit\\Chat Tab};
+    \node[uibox, right=0.6cm of ui1] (ui2) {React\\Frontend};
+    \node[uibox, right=0.6cm of ui2] (ui3) {Telegram\\Bridge};
+    \node[layerlabel, text=tcblue] at ([xshift=-1.2cm]ui1.west) {UI Layer};
+
+    % Core layer (green)
+    \node[corebox, below=1.0cm of ui2] (orch_adapter) {Orchestrator\\Adapter};
+    \node[layerlabel, text=tcgreen] at ([xshift=-1.2cm]orch_adapter.west |- orch_adapter) {Core};
+
+    % Agent layer (golden)
+    \node[agentbox, below=1.0cm of orch_adapter] (orch_agent) {Orchestrator\\Agent :9000};
+    \node[agentbox, below left=0.8cm and 1.8cm of orch_agent] (recovery) {Recovery\\:9001};
+    \node[agentbox, below left=0.8cm and 0.2cm of orch_agent] (load) {Load\\:9002};
+    \node[agentbox, below right=0.8cm and -0.4cm of orch_agent] (context) {Context\\:9003};
+    \node[agentbox, below right=0.8cm and 1.2cm of orch_agent] (route) {Route\\:9004};
+    \node[agentbox, below right=0.8cm and 2.8cm of orch_agent] (fitness) {Fitness\\:9005};
+    \node[layerlabel, text=tcyellow!80!black] at ([xshift=-1.2cm]recovery.west |- orch_agent) {Agents (A2A)};
+
+    % MCP Server layer (cyan)
+    \node[serverbox, below=1.5cm of recovery] (garmin) {Garmin\\:8104};
+    \node[serverbox, below=1.5cm of load] (strava) {Strava\\:8103};
+    \node[serverbox, below=1.5cm of context] (weather) {Weather\\:8101};
+    \node[serverbox, right=0.3cm of weather] (calendar) {Calendar\\:8105};
+    \node[serverbox, below=1.5cm of route] (routes) {Routes\\:8102};
+    \node[serverbox, below=1.5cm of fitness] (vectordb) {Vector DB\\(RAG)};
+    \node[layerlabel, text=tccyan] at ([xshift=-1.2cm]garmin.west |- garmin) {MCP / Data};
+
+    % UI → Core
+    \draw[arr, color=tcblue!60] (ui1.south) -- (orch_adapter.north west);
+    \draw[arr, color=tcblue!60] (ui2.south) -- (orch_adapter.north);
+    \draw[arr, color=tcblue!60] (ui3.south) -- (orch_adapter.north east);
+
+    % Core → Orchestrator Agent
+    \draw[arr, color=tcgreen] (orch_adapter.south) -- node[right, font=\scriptsize]{A2A} (orch_agent.north);
+
+    % Orchestrator → Specialists (A2A)
+    \draw[arr, color=tcyellow!80!black] (orch_agent.south) -- (recovery.north);
+    \draw[arr, color=tcyellow!80!black] (orch_agent.south) -- (load.north);
+    \draw[arr, color=tcyellow!80!black] (orch_agent.south) -- (context.north);
+    \draw[arr, color=tcyellow!80!black] (orch_agent.south) -- (route.north);
+    \draw[arr, color=tcyellow!80!black] (orch_agent.south) -- (fitness.north);
+
+    % Specialists → MCP Servers
+    \draw[arr, color=tccyan] (recovery.south) -- node[left, font=\scriptsize]{MCP} (garmin.north);
+    \draw[arr, color=tccyan] (load.south) -- (strava.north);
+    \draw[darr, color=tccyan!60] (load.south east) -- (garmin.north east);
+    \draw[arr, color=tccyan] (context.south) -- (weather.north);
+    \draw[darr, color=tccyan!60] (context.south east) -- (calendar.north);
+    \draw[arr, color=tccyan] (route.south) -- (routes.north);
+    \draw[arr, color=tccyan] (fitness.south) -- (vectordb.north);
+
+\end{tikzpicture}
+\caption[System architecture]{Training Copilot system architecture. Solid arrows indicate primary communication paths; dashed arrows indicate secondary/fallback paths. Agents communicate via A2A; specialists access data via scoped MCP connections.}\label{fig:architecture}
+\end{figure}

@@ -1,0 +1,10 @@
+Citation: alzahrani_advanced_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 36
+Claim: [CITE] and [CITE] examined wearable devices in sports medicine and advanced biomechanical analytics respectively.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The paper is titled "Advanced biomechanical analytics: Wearable technologies for precision health monitoring in sports performance" (Digital Health, 2024, Vol 10). The abstract confirms it "investigated the impact of wearable technologies, particularly advanced biomechanical analytics and machine learning, on sports performance monitoring and intervention strategies." It uses inertial sensors, EMG sensors, pressure sensors, and haptic feedback sensors to capture biomechanical parameters. The paper directly examines "advanced biomechanical analytics" as claimed in the citation.

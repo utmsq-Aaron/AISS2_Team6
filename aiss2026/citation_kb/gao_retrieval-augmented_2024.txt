@@ -1,0 +1,10 @@
+Citation: gao_retrieval-augmented_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 42
+Claim: [CITE] surveyed the progression from Na\"ive RAG through Advanced RAG to Modular RAG; Training Copilot implements a Na\"ive RAG approach with a lightweight local model, which is sufficient for its curated corpus of a few thousand chunks.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "Retrieval-Augmented Generation for Large Language Models: A Survey" (arXiv:2312.10997). Surveys progression from Naive RAG through Advanced RAG to Modular RAG as claimed.

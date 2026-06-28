@@ -1,0 +1,98 @@
+﻿\markboth{EVALUATION}{EVALUATION}
+\section{Evaluation Framework}\label{sec:evaluation}
+
+Evaluating a multi-agent conversational system requires assessing multiple dimensions simultaneously: does it call the right tools? Are answers grounded in fetched data? Does it maintain a supportive tone? Does the user achieve their goal across multiple turns? This section describes the evaluation framework, covering conversation simulation, persona design, and scoring methodology.
+
+\subsection{Evaluation Framework}\label{sec:evaluation:framework}
+
+We adopt MLflow's end-to-end conversation simulation framework~\cite{mlflow_multiturn_2025} for automated, reproducible evaluation of multi-turn agent systems. The scorer design draws on \cite{shankar_validates_2024}, who showed that LLM-based evaluators must be aligned with human preferences to produce reliable judgements. Our deterministic grounding scorer follows the $\tau$-bench approach by \cite{yao_taubench_2024}, which evaluates tool-agent-user interaction by comparing system state against annotated goals rather than relying on chat-text judgement alone. This motivates our combination of LLM judges with a trace-based grounding scorer. The framework consists of three components:
+
+\begin{enumerate}
+\item A \textbf{conversation simulator} that uses an LLM to role-play a user persona, maintaining a coherent multi-turn conversation with the system under test.
+\item A set of \textbf{scorers} (LLM-based judges and deterministic code checkers) that evaluate each conversation along defined quality dimensions.
+\item An \textbf{experiment tracker} (MLflow) that records every conversation, its traces, scorer verdicts, and aggregate metrics for reproducible comparison across runs.
+\end{enumerate}
+
+The evaluation is designed to be fully automated: a single command (\texttt{python -m evaluation.run\_e2e}) starts the simulator, drives all persona conversations against the live Training Copilot, scores them, and generates an HTML report summarising the findings.
+
+\subsection{Persona Design}\label{sec:evaluation:personas}
+
+We define ten synthetic personas across two user archetypes, directly informed by the market analysis in Section~\ref{sec:market:users}. The persona design follows the principle that evaluation should exercise the system across both user sophistication levels and all five specialist domains.
+
+\textbf{Type A: Ambitious triathletes} (5 personas). Structured, metrics-driven endurance athletes who train by plan, wear Garmin watches, and expect precise, data-driven decisions. Each persona pursues a different multi-turn goal:
+
+\begin{itemize}
+\item \textit{Julian}: Recovery readiness assessment for a key brick session (recovery + context).
+\item \textit{Priya}: Training load trend analysis (CTL/ATL/TSB) and taper planning (load).
+\item \textit{Marco}: Post-workout execution review with HR zones and lap splits (load + garmin detail).
+\item \textit{Lena}: Calendar + weather scheduling for optimal training windows (context, with calendar writes).
+\item \textit{Tom}: Evidence-based exercise-science guidance with source citations (fitness/RAG).
+\end{itemize}
+
+\textbf{Type B: Hobby cyclists} (5 personas). Recreational riders who train by feel, care about scenic routes and social rides, and prefer plain-language guidance:
+
+\begin{itemize}
+\item \textit{Sophie}: Scenic loop planning with a caf\'e stop (route).
+\item \textit{Ben}: Weather-based go/no-go decision for a casual ride (context).
+\item \textit{Mara}: Trail discovery with elevation context (route).
+\item \textit{Carlos}: Year-over-year fitness progress in plain language (load).
+\item \textit{Jana}: Group-ride loop planning for mixed abilities (route).
+\end{itemize}
+
+Each persona is constructed with four elements consumed by the \texttt{ConversationSimulator}: a \textit{goal} (what the persona wants to achieve), a \textit{persona identity} (background, fitness level, communication style), \textit{simulation guidelines} (behavioural instructions for the simulator LLM, e.g., ``push for concrete specifics'', ``stay in character''), and \textit{expectations} (the expected focus area, used for scorer calibration). The common guidelines instruct the simulator to ``have a natural multi-turn conversation'', ``react to the assistant's actual answer before moving on'', and ``end the conversation once the goal is genuinely met or clearly cannot be met''. The simulator LLM (GPT-5.4-mini) role-plays each persona for up to five turns per conversation.
+
+\subsection{Scoring Dimensions}\label{sec:evaluation:scorers}
+
+Each conversation is evaluated by five scorers, combining LLM-based judges with a deterministic code scorer (Table~\ref{tab:scorers}).
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption{Evaluation scoring dimensions. Four LLM judges run on GPT-5.4-nano; one deterministic scorer inspects tool-call traces directly.}\label{tab:scorers}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{3.8cm}p{1.8cm}p{7cm}@{\extracolsep{\fill}}}
+\toprule
+\textbf{Scorer} & \textbf{Type} & \textbf{Assessment} \\
+\midrule
+Conversation Completeness & LLM judge & Were the user's questions fully and satisfactorily answered? \\
+\addlinespace
+User Frustration & LLM judge & Did the user become frustrated, and did the agent worsen or mitigate it? \\
+\addlinespace
+Safety & LLM judge & Is the content safe and free of harmful advice? \\
+\addlinespace
+Supportive Coaching Tone & LLM judge & Does the assistant maintain a supportive, encouraging tone throughout, even when the user pushes back? \\
+\addlinespace
+Grounded in Real Data & Deterministic & Did the Copilot actually use its MCP tools to fetch real data, or did it answer from parametric knowledge alone? \\
+\botrule
+\end{tabular*}
+\end{minipage}
+\end{center}
+\end{table}
+
+The fifth scorer, \texttt{grounded\_in\_real\_data}, deserves particular attention. Rather than asking an LLM to guess whether the agent used tools (which would be unreliable), this scorer inspects the tool-call \textit{spans} reconstructed in each turn's MLflow trace. It counts the number of tool calls, identifies which tools were invoked and whether they succeeded, and produces a per-turn breakdown. The verdict is binary (``yes'' if at least one tool was called across the conversation, ``no'' otherwise), but the rationale provides granular visibility into grounding quality. This approach is intentionally \textit{not} an LLM judge: a factual ``did it call tools or not?'' question is far more reliably answered from the trace than guessed by a model reading the chat text.
+
+The \texttt{supportive\_coaching\_tone} scorer implements a \texttt{ConversationalGuidelines} assertion with the natural-language rule: ``The assistant maintains a supportive, encouraging coaching tone throughout, even when the user is impatient, sceptical, or pushing for specifics. It does not become dismissive, condescending, or robotic.'' This tests the system's ability to remain empathetic under adversarial user behaviour---a property that \cite{barger_artificial_2025} identified as critical for AI coaching acceptance.
+
+\subsection{Trace Reconstruction}\label{sec:evaluation:trace}
+
+A technical challenge in evaluating the multi-agent system is that the deep tool-call spans---produced by the agent server processes---live in a separate MLflow experiment from the evaluation's conversation traces. The evaluation process addresses this by reconstructing the Copilot's specialist and tool-call structure from the \texttt{trace} dict returned by \texttt{orchestrator.run()} and emitting them as real child spans within the evaluation trace (Figure~\ref{fig:trace_reconstruction}).
+
+\input{1_Figures/fig_trace_reconstruction}
+
+Each reconstructed tool span carries four custom attributes: \texttt{fitdash.tool} (the namespaced tool name), \texttt{fitdash.tool\_ok} (boolean success), \texttt{fitdash.tool\_error} (error message if any), and \texttt{fitdash.duration\_ms} (tool-call latency). The grounding scorer reads only these attributes, never the chat text, making its verdict deterministic and model-independent.
+
+\subsection{Model Separation}\label{sec:evaluation:models}
+
+A critical design decision is the separation of models used for evaluation from those used by the system under test. The evaluation framework will use official OpenAI models (GPT-5.4-mini for persona simulation and report generation; GPT-5.4-nano for the four LLM judges), while the Training Copilot itself runs on the KIT university gateway with its own model configuration. The \texttt{apply\_openai\_routing()} function rewrites the evaluation process's environment to use the official OpenAI key and default base URL, ensuring that the judges and the system under test do not share weights, biases, or provider-specific behaviour.
+
+\subsection{Expected Outcomes}\label{sec:evaluation:expected}
+
+We expect the evaluation to validate the following hypotheses:
+
+\begin{itemize}
+\item \textbf{High grounding scores}: Since the system is architecturally constrained to answer through tool calls (the orchestrator has no MCP access of its own; specialists must call tools to access data), the \texttt{grounded\_in\_real\_data} scorer should report tool usage in the majority of turns.
+\item \textbf{Specialist coverage}: The ten personas collectively exercise all five specialist domains, so the evaluation should demonstrate that the orchestrator correctly routes queries to the appropriate specialists.
+\item \textbf{Coaching tone resilience}: The ambitious-triathlete personas are designed to be demanding and sceptical (e.g., Julian is ``slightly impatient with hand-waving''; Tom ``distrusts influencer fitness tips''), stress-testing the system's ability to maintain a supportive tone under pushback.
+\item \textbf{Potential weaknesses}: We anticipate that multi-step sequential queries (where a later specialist's input depends on an earlier one's output) may exhibit higher latency and occasionally lose context, and that the fitness specialist's public-domain corpus may not satisfy users expecting contemporary sports-science references.
+\end{itemize}
+
+The quantitative evaluation results will be reported in the final submission and will inform iterative improvements to the prompt architecture and specialist scoping.

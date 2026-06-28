@@ -1,0 +1,15 @@
+Citation: shankar_validates_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 7_evaluation, Line: 8
+Claim: The scorer design draws on the recommendations of [CITE], who showed that LLM-based evaluators must be aligned with human preferences to produce reliable judgements.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF confirms this is "Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences" by Shankar et al. (UIST '24, ACM). The paper introduces EvalGen, which assists users in aligning LLM-generated evaluation functions with human preferences. The abstract states: "We present a mixed-initiative approach to 'validate the validators'---aligning LLM-generated evaluation functions (be it prompts or code) with human requirements." The paper demonstrates that LLM-based evaluators must be validated against human preferences for reliable evaluation, supporting the KB claim.
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract: "We present a mixed-initiative approach to 'validate the validators'---aligning LLM-generated evaluation functions (be it prompts or code) with human requirements." The paper identifies "criteria drift" where evaluation criteria are dependent on observed outputs. Section 2 discusses the need for aligning evaluators with human preferences, including issues of "Over-trust and Over-generalization" of LLM evaluators.
+Notes: The KB claim that "LLM-based evaluators must be aligned with human preferences to produce reliable judgements" is an accurate summary of the paper's central thesis.
+Verified: 2026-06-28

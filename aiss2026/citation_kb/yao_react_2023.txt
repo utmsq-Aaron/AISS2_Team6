@@ -1,0 +1,16 @@
+Citation: yao_react_2023
+Cited 3 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 27
+Claim: Five specialist agents---recovery, training load, environmental context, route planning, and fitness knowledge---each operate as autonomous LangGraph [CITE] ReAct agents [CITE] scoped to their respective MCP servers.
+
+Chapter: 3_state_of_the_art, Line: 10
+Claim: [CITE] introduced the ReAct framework, which interleaves reasoning traces and task-specific actions in a single LLM loop.
+
+Chapter: 4_architecture, Line: 26
+Claim: Five specialist agents handle distinct analytical domains, each a LangGraph ReAct agent [CITE] with access to a scoped ToolHost that discovers tools only from assigned servers (Table tab:agent_scope ).
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "ReAct: Synergizing Reasoning and Acting in Language Models" (ICLR 2023). Abstract confirms interleaving reasoning traces and task-specific actions. Standard reference for the ReAct framework used in our agent design.

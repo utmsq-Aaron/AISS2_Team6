@@ -1,0 +1,14 @@
+Citation: rothschild_predicting_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 32
+Claim: [CITE] took this further by applying machine learning to predict daily recovery status from training, sleep, HRV, and subjective well-being data in 43 endurance athletes over 12 weeks---demonstrating that multi-signal recovery prediction is feasible and that no single metric suffices, which closely 
+
+============================================================
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract (p.3279): "Self-selected nutrition intake, exercise training, sleep habits, HRV, and subjective well-being of 43 endurance athletes ranging from professional to recreationally trained were monitored daily for 12 weeks (3572 days of tracking). Global and individualized models were constructed using machine learning techniques." Conclusion: "At the group level, daily recovery measures can be predicted based on commonly measured variables, with a small subset of variables providing most of the predictive power. However, at the individual level, the key variables may vary, and additional data may be needed to improve the prediction accuracy." Methods (p.3282): "Among participants included in the analysis (n = 43)."
+Notes: The KB claim omits dietary/nutrition intake, which was a major variable category in the study alongside training, sleep, HRV, and well-being. The study enrolled 55 participants initially but analyzed n=43 after exclusions. The claim that "no single metric suffices" is a fair paraphrase of the finding that key variables vary across individuals and a small subset provides most predictive power at group level.
+Verified: 2026-06-28

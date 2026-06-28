@@ -1,0 +1,56 @@
+\begin{figure}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=0.3cm,
+    every node/.style={font=\small},
+    actor/.style={draw, thick, minimum width=2.0cm, minimum height=0.6cm, rounded corners=2pt, align=center},
+    msg/.style={-{Stealth[length=4pt]}, thick},
+    rmsg/.style={-{Stealth[length=4pt]}, thick, dashed},
+    timelabel/.style={font=\scriptsize\itshape, text=tcgrey!50},
+]
+
+    \node[actor, draw=tcblue, fill=tcblue!10] (user) at (0, 0) {User};
+    \node[actor, draw=tcgreen, fill=tcgreen!8] (orch) at (3.2, 0) {Orchestrator};
+    \node[actor, draw=tcyellow!80!black, fill=tcyellow!10] (rec) at (6.4, 0) {Recovery};
+    \node[actor, draw=tccyan, fill=tccyan!8] (ctx) at (9.6, 0) {Context};
+
+    % Lifelines
+    \draw[thick, tclightgrey] (user.south) -- ++(0, -8.5);
+    \draw[thick, tclightgrey] (orch.south) -- ++(0, -8.5);
+    \draw[thick, tclightgrey] (rec.south) -- ++(0, -8.5);
+    \draw[thick, tclightgrey] (ctx.south) -- ++(0, -8.5);
+
+    % 1. User → Orchestrator
+    \draw[msg, color=tcblue] (0, -1.0) -- node[above, font=\scriptsize] {``Should I train tomorrow?''} (3.2, -1.0);
+    \node[timelabel] at (-1.3, -1.0) {t\textsubscript{0}};
+
+    % 2. Orchestrator → Recovery + Context (parallel)
+    \draw[msg, color=tcyellow!80!black] (3.2, -2.0) -- node[above, font=\scriptsize] {\texttt{ask\_recovery}} (6.4, -2.0);
+    \draw[msg, color=tccyan] (3.2, -2.3) -- node[below, font=\scriptsize] {\texttt{ask\_context}} (9.6, -2.3);
+    \node[timelabel] at (-1.3, -2.15) {t\textsubscript{1} (parallel)};
+
+    % 3. Recovery → Garmin MCP (internal)
+    \node[font=\scriptsize, text=tcgrey, align=left] at (7.2, -3.2) {\texttt{garmin\_\_sleep}\\[1pt]\texttt{garmin\_\_hrv}\\[1pt]\texttt{garmin\_\_body\_battery}};
+
+    % 4. Context → Weather + Calendar MCP (internal)
+    \node[font=\scriptsize, text=tcgrey, align=left] at (10.4, -3.7) {\texttt{weather\_\_forecast}\\[1pt]\texttt{calendar\_\_events}};
+
+    % 5. Recovery → Orchestrator (response)
+    \draw[rmsg, color=tcyellow!80!black] (6.4, -5.0) -- node[above, font=\scriptsize] {answer + DataPart} (3.2, -5.0);
+
+    % 6. Context → Orchestrator (response)
+    \draw[rmsg, color=tccyan] (9.6, -5.5) -- node[above, font=\scriptsize] {answer + DataPart} (3.2, -5.5);
+    \node[timelabel] at (-1.3, -5.25) {t\textsubscript{2}};
+
+    % 7. Orchestrator synthesises
+    \node[font=\scriptsize, text=tcgreen, align=center] at (3.2, -6.5) {Synthesise\\+ build trace};
+
+    % 8. Orchestrator → User
+    \draw[rmsg, color=tcblue] (3.2, -7.5) -- node[above, font=\scriptsize, align=center] {``HRV 12\% below baseline\ldots\\14--17h rain-free. Light session.''} (0, -7.5);
+    \node[timelabel] at (-1.3, -7.5) {t\textsubscript{3}};
+
+\end{tikzpicture}%
+}% end resizebox
+\caption[Sequence diagram for a multi-domain query]{Sequence diagram for the query ``Should I train tomorrow?''. The orchestrator delegates to recovery and context specialists in parallel; each calls its scoped MCP servers, then returns an answer with a data artifact.}\label{fig:interaction_flow}
+\end{figure}

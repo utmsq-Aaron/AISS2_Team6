@@ -1,0 +1,16 @@
+Citation: wu_autogen_2023
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 14
+Claim: More recently, [CITE] introduced AutoGen, a framework for building multi-agent systems through customisable, conversable agents that can incorporate LLMs, tools, and humans in flexible conversation patterns---demonstrating that role-specialised agents with tool access outperform monolithic single-ag
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: CONFIRMED - "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation" (ICLR Workshop 2024). Abstract confirms customisable, conversable agents incorporating LLMs, tools, and humans in flexible conversation patterns.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract (p.1): "AutoGen is an open-source framework that allows developers to build LLM applications via multiple agents that can converse with each other to accomplish tasks. AutoGen agents are customizable, conversable, and can operate in various modes that employ combinations of LLMs, human inputs, and tools." This directly confirms the "customisable, conversable agents" and "LLMs, tools, and humans in flexible conversation patterns" claims. On role-specialised outperformance: Figure 4a (p.7) shows AutoGen achieving 69.48% on MATH vs. 52.5% (ChatGPT+Code), 49.31% (ChatGPT+Plugin), 45.0% (GPT-4 vanilla). Section A4 (p.8): "the multi-agent design boosts the F-1 score in identifying unsafe code by 8% (with GPT-4) and 35% (with GPT-3.5-turbo)" compared to single-agent. Section A3 (p.8): introducing a grounding agent "could bring in a 15% performance gain on average" over the two-agent baseline. Discussion (p.9): "The adoption of AutoGen has resulted in improved performance (over state-of-the-art approaches), reduced development code, and decreased manual burden."
+Notes: No discrepancies found. All three sub-claims in the KB entry are directly supported by the paper.
+Verified: 2026-06-28

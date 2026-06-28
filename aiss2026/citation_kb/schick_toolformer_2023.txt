@@ -1,0 +1,18 @@
+Citation: schick_toolformer_2023
+Cited 2 time(s)
+============================================================
+
+Chapter: 1_introduction, Line: 8
+Claim: At the same time, large language models (LLMs) have demonstrated the ability to reason across heterogeneous information sources when equipped with tool-calling capabilities [CITE].
+
+Chapter: 3_state_of_the_art, Line: 18
+Claim: [CITE] introduced Toolformer, showing that a language model can teach itself---through a self-supervised annotation pipeline---to recognise when an external tool would be helpful, select the appropriate API, and weave the returned result back into its generation.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF confirms this is "Toolformer: Language Models Can Teach Themselves to Use Tools" by Schick et al. (Meta AI Research, 2023). The abstract states: "We show that LMs can teach themselves to use external tools via simple APIs and achieve the best of both worlds. We introduce Toolformer, a model trained to decide which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results into future token prediction. This is done in a self-supervised way." This directly supports the KB claim about self-supervised tool-learning.
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract: "We introduce Toolformer, a model trained to decide which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results into future token prediction. This is done in a self-supervised way, requiring nothing more than a handful of demonstrations for each API." Section 2 describes the three-step approach: (1) sample API calls using in-context learning, (2) execute API calls, (3) filter based on whether calls reduce loss. Tools include calculator, Q&A system, search engine, translation system, and calendar.
+Notes: Both KB claims are accurate: (1) LLMs can reason with tool-calling capabilities, and (2) Toolformer uses a self-supervised annotation pipeline for learning when/how to use external tools. The description of "teach itself" and "self-supervised annotation pipeline" correctly characterizes the approach.
+Verified: 2026-06-28
