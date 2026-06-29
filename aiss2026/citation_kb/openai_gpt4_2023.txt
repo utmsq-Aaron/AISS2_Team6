@@ -3,8 +3,9 @@ Cited 1 time(s)
 ============================================================
 
 Chapter: 3_state_of_the_art, Line: 8
-Claim: The Transformer architecture [CITE], chain-of-thought prompting [CITE], and the scaling of model capacity to hundreds of billions of parameters [CITE] laid the groundwork for this shift by demonstrating that LLMs can perform multi-step reasoning when prompted to generate intermediate steps.
+Claim: The Transformer architecture [CITE], chain-of-thought prompting [CITE], and the scaling of model capacity to hundreds of billions of parameters [CITE] laid the groundwork by demonstrating that LLMs can perform multi-step reasoning when prompted to generate intermediate steps.
+Source quote: "We report the development of GPT-4, a large-scale, multimodal model which can accept image and text inputs and produce text outputs. While less capable than humans in many real-world scenarios, GPT-4 exhibits human-level performance on various professional and academic benchmarks, including passing a simulated bar exam with a score around the top 10% of test takers. GPT-4 is a Transformer-based model pre-trained to predict the next token in a document." (p. 1, Abstract)
+Source quote: "This report focuses on the capabilities, limitations, and safety properties of GPT-4. GPT-4 is a Transformer-style model [39] pre-trained to predict the next token in a document, using both publicly available data (such as internet data) and data licensed from third-party providers." (p. 2, Section 2)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - GPT-4 Technical Report (arXiv:2303.08774). Standard reference for model scaling and multi-step reasoning capabilities.

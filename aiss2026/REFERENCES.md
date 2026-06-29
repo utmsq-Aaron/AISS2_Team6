@@ -1,6 +1,6 @@
 # Reference List for Zotero Import
 
-Total: 60 references
+Total: 63 references
 
 Click each DOI/URL link to open in browser, then import into Zotero.
 
@@ -23,8 +23,8 @@ Use these keys with `\cite{key}` in LaTeX:
 | 11 | `gabbett_training_2016` | Tim J. Gabbett 2016 | Tim J. Gabbett (2016) |
 | 12 | `gao_retrieval-augmented_2024` | Yunfan Gao 2024 | Yunfan Gao and Yun Xiong and Xinyu Gao and Kangxiang Jia and... (2024) |
 | 13 | `google_a2a_2025` | Google Cloud 2025 | Google Cloud (2025) |
-| 14 | `grandview_sports_2024` | Grand View Research 2024 | Grand View Research (2024) |
-| 15 | `grgic_periodization_2017` | Jozo Grgic 2017 | Jozo Grgic and Brad J. Schoenfeld and John Orazem and Filip ... (2017) |
+| 14 | `grandview_sports_2024` | Grand View Research 2026 | Grand View Research (2026) |
+| 15 | `grgic_periodization_2017` | Jozo Grgic 2017 | Jozo Grgic and Pavle Mikulic and Hrvoje Podnar and Zeljko Pe... (2017) |
 | 16 | `guo_large_2024` | Taicheng Guo 2024 | Taicheng Guo and Xiuying Chen and Yaqi Wang and Ruidi Chang ... (2024) |
 | 17 | `halson_monitoring_2014` | Shona L. Halson 2014 | Shona L. Halson (2014) |
 | 18 | `idc_wearables_2024` | IDC 2024 | IDC (2024) |
@@ -37,21 +37,21 @@ Use these keys with `\cite{key}` in LaTeX:
 | 25 | `lewis_retrieval-augmented_2020` | Patrick Lewis 2020 | Patrick Lewis and Ethan Perez and Aleksandra Piktus and Fabi... (2020) |
 | 26 | `li_wearable_2016` | Robert T. Li 2016 | Robert T. Li and Sagar R. Kling and Michael J. Salata and Se... (2016) |
 | 27 | `lundstrom_hrv_2023` | Carl J. Lundstrom 2023 | Carl J. Lundstrom and Nicholas A. Foreman and George P. Bilt... (2023) |
-| 28 | `luo_promoting_2020` | Tiffany Christina Luo 2020 | Tiffany Christina Luo and Adrian Aguilera and Courtney Rees ... (2020) |
+| 28 | `luo_promoting_2021` | Tiffany Christina Luo 2021 | Tiffany Christina Luo and Adrian Aguilera and Courtney Rees ... (2021) |
 | 29 | `mckinsey_genai_2023` | McKinsey & Company 2023 | McKinsey & Company (2023) |
-| 30 | `mlflow_multiturn_2025` | MLflow 2025 | MLflow (2025) |
+| 30 | `mlflow_multiturn_2025` | MLflow 2026 | MLflow (2026) |
 | 31 | `monteiro-guerra_personalization_2020` | Francisco Monteiro-Guerra 2020 | Francisco Monteiro-Guerra and Octavio Rivera-Romero and Luis... (2020) |
 | 32 | `openai_gpt4_2023` | OpenAI 2023 | OpenAI (2023) |
 | 33 | `park_generative_2023` | Joon Sung Park 2023 | Joon Sung Park and Joseph C. O'Brien and Carrie J. Cai and M... (2023) |
 | 34 | `patil_gorilla_2023` | Shishir G. Patil 2023 | Shishir G. Patil and Tianjun Zhang and Xin Wang and Joseph E... (2023) |
 | 35 | `plews_training_2013` | Daniel J. Plews 2013 | Daniel J. Plews and Paul B. Laursen and Andrew E. Stanley an... (2013) |
 | 36 | `puce_harnessing_2025` | Luca Puce 2025 | Luca Puce and Nicola Luigi Bragazzi and Antonio Curr`a (2025) |
-| 37 | `qu_tool_2024` | Changle Qu 2024 | Changle Qu and Sunhao Dai and Xiaochi Wei and Hengyi Cai and... (2024) |
+| 37 | `qu_tool_2024` | Changle Qu 2025 | Changle Qu and Sunhao Dai and Xiaochi Wei and Hengyi Cai and... (2025) |
 | 38 | `reimers_sentence-bert_2019` | Nils Reimers 2019 | Nils Reimers and Iryna Gurevych (2019) |
 | 39 | `rothschild_predicting_2024` | Jeffrey A. Rothschild 2024 | Jeffrey A. Rothschild and Tom Stewart and Andrew E. Kilding ... (2024) |
 | 40 | `schick_toolformer_2023` | Timo Schick 2023 | Timo Schick and Jane Dwivedi-Yu and Roberto Dess`i (2023) |
 | 41 | `seckin_review_2023` | Ahmet Cagdas Seckin 2023 | Ahmet Cagdas Seckin and Bahar Ates and Mine Seckin (2023) |
-| 42 | `shankar_validates_2024` | Shreya Shankar 2024 | Shreya Shankar and Ashwin Paranjape and Christina Bremermann... (2024) |
+| 42 | `shankar_validates_2024` | Shreya Shankar 2024 | Shreya Shankar and J. D. Zamfirescu-Pereira and Bj\"{o}rn Ha... (2024) |
 | 43 | `shen_hugginggpt_2023` | Yongliang Shen 2023 | Yongliang Shen and Kaitao Song and Xu Tan and Dongsheng Li a... (2023) |
 | 44 | `shinn_reflexion_2023` | Noah Shinn 2023 | Noah Shinn and Federico Cassano and Edward Berman and Ashwin... (2023) |
 | 45 | `statista_fitness_apps_2025` | Statista 2025 | Statista (2025) |
@@ -70,6 +70,9 @@ Use these keys with `\cite{key}` in LaTeX:
 | 58 | `yang_survey_2025` | Yingxuan Yang 2025 | Yingxuan Yang and Wenjing Chai and Yuqi Song and Hanwen Qi a... (2025) |
 | 59 | `yao_react_2023` | Shunyu Yao 2023 | Shunyu Yao and Jeffrey Zhao and Dian Yu and Nan Du and Izhak... (2023) |
 | 60 | `yao_taubench_2024` | Shunyu Yao 2024 | Shunyu Yao and Noah Shinn and Pedram Razavi and Karthik Nara... (2024) |
+| 61 | `morton_modeling_1990` | R. Hugh Morton 1990 | R. Hugh Morton and John R. Fitz-Clarke and Eric W. Banister (1990) |
+| 62 | `impellizzeri_training_2020` | Franco M. Impellizzeri 2020 | Franco M. Impellizzeri and Simon Woodcock and Aaron J. Coutts and... (2020) |
+| 63 | `sahoo_prompt_2024` | Pranab Sahoo 2024 | Pranab Sahoo and Ayush Kumar Singh and Sriparna Saha and... (2024) |
 
 
 ## Full References with Links
@@ -185,21 +188,21 @@ Use these keys with `\cite{key}` in LaTeX:
 
 - Authors: Google Cloud
 - Year: 2025
-- Link: [https://github.com/google/A2A](https://github.com/google/A2A)
+- Link: [https://github.com/a2aproject/A2A](https://github.com/a2aproject/A2A)
 
 ### 14. `grandview_sports_2024`
 
 **Sports Analytics Market Size, Share & Trends Analysis Report**
 
 - Authors: Grand View Research
-- Year: 2024
+- Year: 2026
 - Link: [https://www.grandviewresearch.com/industry-analysis/sports-analytics-market](https://www.grandviewresearch.com/industry-analysis/sports-analytics-market)
 
 ### 15. `grgic_periodization_2017`
 
 **Effects of Linear and Daily Undulating Periodized Resistance Training Programs on Measures of Muscle Hypertrophy: A Systematic Review and Meta-Analysis**
 
-- Authors: Jozo Grgic and Brad J. Schoenfeld and John Orazem and Filip Sabol
+- Authors: Jozo Grgic and Pavle Mikulic and Hrvoje Podnar and Zeljko Pedisic
 - Year: 2017
 - Venue: PeerJ
 - Link: [https://doi.org/10.7717/peerj.3695](https://doi.org/10.7717/peerj.3695)
@@ -269,7 +272,7 @@ Use these keys with `\cite{key}` in LaTeX:
 
 **Recovery and Performance in Sport: Consensus Statement**
 
-- Authors: Michael Kellmann and Melanie Bertollo and Luana Bosquet and Michel Brink and Aaron J. Coutts and Rob Duffield and Daniel Erlacher and Shona L. Halson and Anne M. Hecksteden and Jens Hoorst and Charli Knicker and Tim Meyer and Sarah Rohleder
+- Authors: Michael Kellmann and Maurizio Bertollo and Laurent Bosquet and Michel Brink and Aaron J. Coutts and Rob Duffield and Daniel Erlacher and Shona L. Halson and Anne Hecksteden and Jahan Heidari and K. Wolfgang Kallus and Romain Meeusen and Iñigo Mujika and Claudio Robazza and Sabrina Skorski and Ranel Venter and Jürgen Beckmann
 - Year: 2018
 - Venue: International Journal of Sports Physiology and Performance
 - Link: [https://doi.org/10.1123/IJSPP.2017-0759](https://doi.org/10.1123/IJSPP.2017-0759)
@@ -280,7 +283,7 @@ Use these keys with `\cite{key}` in LaTeX:
 
 - Authors: LangChain
 - Year: 2024
-- Link: [https://langchain-ai.github.io/langgraph/](https://langchain-ai.github.io/langgraph/)
+- Link: [https://docs.langchain.com/oss/python/langgraph/overview](https://docs.langchain.com/oss/python/langgraph/overview)
 
 ### 25. `lewis_retrieval-augmented_2020`
 
@@ -304,19 +307,19 @@ Use these keys with `\cite{key}` in LaTeX:
 
 **Practices and Applications of Heart Rate Variability Monitoring in Endurance Athletes**
 
-- Authors: Carl J. Lundstrom and Nicholas A. Foreman and George P. Biltz
+- Authors: Christopher J. Lundstrom and Nicholas A. Foreman and George Biltz
 - Year: 2023
 - Venue: International Journal of Sports Medicine
-- Link: [https://doi.org/10.1055/a-1886-9648](https://doi.org/10.1055/a-1886-9648)
+- Link: [https://doi.org/10.1055/a-1864-9726](https://doi.org/10.1055/a-1864-9726)
 
-### 28. `luo_promoting_2020`
+### 28. `luo_promoting_2021`
 
 **Promoting Physical Activity Through Conversational Agents: Mixed Methods Systematic Review**
 
 - Authors: Tiffany Christina Luo and Adrian Aguilera and Courtney Rees Lyles and Caroline Astrid Figueroa
-- Year: 2020
+- Year: 2021
 - Venue: Journal of Medical Internet Research
-- Link: [https://doi.org/10.2196/15055](https://doi.org/10.2196/15055)
+- Link: [https://doi.org/10.2196/25486](https://doi.org/10.2196/25486)
 
 ### 29. `mckinsey_genai_2023`
 
@@ -324,14 +327,14 @@ Use these keys with `\cite{key}` in LaTeX:
 
 - Authors: McKinsey & Company
 - Year: 2023
-- Link: [https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier](https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier)
+- Link: [https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier](https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier)
 
 ### 30. `mlflow_multiturn_2025`
 
 **Multi-Turn Conversation Evaluation with MLflow**
 
 - Authors: MLflow
-- Year: 2025
+- Year: 2026
 - Link: [https://mlflow.org/blog/multiturn-evaluation/](https://mlflow.org/blog/multiturn-evaluation/)
 
 ### 31. `monteiro-guerra_personalization_2020`
@@ -393,7 +396,7 @@ Use these keys with `\cite{key}` in LaTeX:
 **Tool Learning with Large Language Models: A Survey**
 
 - Authors: Changle Qu and Sunhao Dai and Xiaochi Wei and Hengyi Cai and Shuaiqiang Wang and Dawei Yin and Jun Xu and Ji-Rong Wen
-- Year: 2024
+- Year: 2025
 - Venue: Frontiers of Computer Science
 - Link: [https://doi.org/10.1007/s11704-024-40678-2](https://doi.org/10.1007/s11704-024-40678-2)
 
@@ -437,7 +440,7 @@ Use these keys with `\cite{key}` in LaTeX:
 
 **Who Validates the Validators? Aligning**
 
-- Authors: Shreya Shankar and Ashwin Paranjape and Christina Bremermann and Bingqing Chen and Karthik Lakshmi Narasimhan and Matei Zaharia
+- Authors: Shreya Shankar and J. D. Zamfirescu-Pereira and Björn Hartmann and Aditya G. Parameswaran and Ian Arawjo
 - Year: 2024
 - Venue: Proceedings of the 37th Annual ACM Symposium on User Interface Software and Technology (UIST)
 - Link: [https://doi.org/10.1145/3654777.3676450](https://doi.org/10.1145/3654777.3676450)
@@ -490,7 +493,7 @@ Use these keys with `\cite{key}` in LaTeX:
 
 - Authors: Strava
 - Year: 2024
-- Link: [https://www.strava.com/year-in-sport](https://www.strava.com/year-in-sport)
+- Link: [https://press.strava.com/articles/strava-releases-year-in-sport-trend-report](https://press.strava.com/articles/strava-releases-year-in-sport-trend-report)
 
 ### 49. `vanhooren_wearables_2020`
 
@@ -516,14 +519,14 @@ Use these keys with `\cite{key}` in LaTeX:
 
 - Authors: Ajith Vemuri and Keith Decker and Mathew Saponaro and Gregory Dominick
 - Year: 2021
-- Venue: Journal of Biomedical Informatics
-- Link: [https://doi.org/10.1016/j.jbi.2021.103842](https://doi.org/10.1016/j.jbi.2021.103842)
+- Venue: Journal of Medical Systems
+- Link: [https://doi.org/10.1007/s10916-021-01771-2](https://doi.org/10.1007/s10916-021-01771-2)
 
 ### 52. `venter_bias_2023`
 
 **Bias and Precision of Crowdsourced Recreational Activity Data from Strava**
 
-- Authors: Zander Venter and Vegard Gundersen and Daniel J. Scott and Barton, Jo
+- Authors: Zander Venter and Vegard Gundersen and Daniel J. Scott and David N. Barton
 - Year: 2023
 - Venue: Landscape and Urban Planning
 - Link: [https://doi.org/10.1016/j.landurbplan.2023.104686](https://doi.org/10.1016/j.landurbplan.2023.104686)
@@ -561,7 +564,7 @@ Use these keys with `\cite{key}` in LaTeX:
 
 - Authors: WHOOP
 - Year: 2024
-- Link: [https://www.whoop.com/us/en/thelocker/whoop-unveils-the-new-whoop-coach-powered-by-openai/](https://www.whoop.com/us/en/thelocker/whoop-unveils-the-new-whoop-coach-powered-by-openai/)
+- Link: [https://openai.com/index/whoop/](https://openai.com/index/whoop/)
 
 ### 57. `wu_autogen_2023`
 
@@ -598,4 +601,35 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2024
 - Venue: arXiv preprint arXiv:2406.12045
 - Link: [https://arxiv.org/abs/2406.12045](https://arxiv.org/abs/2406.12045)
+
+### 61. `morton_modeling_1990`
+
+**Modeling Human Performance in Running**
+
+- Authors: R. Hugh Morton and John R. Fitz-Clarke and Eric W. Banister
+- Year: 1990
+- Venue: Journal of Applied Physiology, 69(3), 1171-1177
+- DOI: [https://doi.org/10.1152/jappl.1990.69.3.1171](https://doi.org/10.1152/jappl.1990.69.3.1171)
+- Note: Canonical reference for the fitness-fatigue impulse-response model (Banister model). Defines CTL/ATL/TSB origin.
+
+### 62. `impellizzeri_training_2020`
+
+**Training Load and Its Role in Injury Prevention, Part 2: Conceptual and Methodologic Pitfalls**
+
+- Authors: Franco M. Impellizzeri and Simon Woodcock and Aaron J. Coutts and Maurizio Fanchini and Alan McCall and Andrew D. Vigotsky
+- Year: 2020
+- Venue: Journal of Athletic Training, 55(9), 893-901
+- DOI: [https://doi.org/10.4085/1062-6050-501-19](https://doi.org/10.4085/1062-6050-501-19)
+- Free: [https://pmc.ncbi.nlm.nih.gov/articles/PMC7534938/](https://pmc.ncbi.nlm.nih.gov/articles/PMC7534938/)
+- Note: ACWR mathematical coupling critique. Shows spurious ACWR-injury associations from simulation.
+
+### 63. `sahoo_prompt_2024`
+
+**A Systematic Survey of Prompt Engineering in Large Language Models: Techniques and Applications**
+
+- Authors: Pranab Sahoo and Ayush Kumar Singh and Sriparna Saha and Vinija Jain and Samrat Mondal and Aman Chadha
+- Year: 2024
+- Venue: arXiv preprint arXiv:2402.07927
+- Link: [https://arxiv.org/abs/2402.07927](https://arxiv.org/abs/2402.07927)
+- Note: Covers 29+ prompt engineering techniques. Used to ground our 3-layer prompt architecture.
 

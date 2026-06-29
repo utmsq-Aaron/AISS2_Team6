@@ -1,10 +1,25 @@
 Citation: joerke_gptcoach_2024
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 48
-Claim: Most directly relevant to our work, [CITE] presented GPTCoach, an LLM-based physical activity coaching chatbot that uses wearable history to generate personalised training plans through tool use and motivational interviewing strategies.
+Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 84)
+Claim: GPTCoach uses GPT-4 with a prompt-chaining architecture (separate LLM calls for dialogue-state classification, motivational-interviewing strategy selection, and tool-call decisions) and two tools that query Apple HealthKit data (three months of step count, heart rate, active energy, and other metrics via HL7 FHIR). In a lab study with 16 participants, it scored 4.8/5 on feeling supported and 4.5/5 on empathy; external MITI coding found 93% MI-consistent behaviour. However, GPTCoach operates as a single agent with only two tools and accesses data from a single source (HealthKit). [CITE]
+Source quote: "GPTCoach builds on the open-source Spezi ecosystem [116] for creating iOS-based digital health apps and uses GPT-4 [4] via the OpenAI Chat Completions API for LLM interactions." (p. 8, Section 4.4)
+Source quote: "We use the Spezi framework [116] (iOS/Swift) to read data from Apple HealthKit, encode it into the HL7 FHIR standard [50], and upload it to Firebase." (p. 8, Section 4.4.1)
+Source quote: "describe(data_source, date, granularity) [...] visualize(data_source, date, granularity)" (p. 8, Section 4.4.1 -- the two tools)
+Source quote: "we constructed three prompt chains [133] to elicit our desired behaviors: a dialogue state chain, a motivational interviewing chain, and a tool call chain." (p. 9, Section 4.4.2)
+Source quote: "We recruited 16 participants from the general population" (p. 9, Section 5.1)
+Source quote: "Age: Mean: 38.2, Median: 32.5, SD: 14.8 [...] Female: 10, Male: 6" (p. 10, Table 3)
+Source quote: "they felt supported (4.8/5 [...]), comfortable sharing concerns (4.8/5) [...] The chatbot was empathetic (4.5/5)" (p. 12, Section 6.1.1)
+Source quote: "only 6.7% of total codes corresponding to our chatbot's responses are inconsistent with MI principles." (p. 15, Section 6.4 -- thus 93.3% MI-consistent or neutral)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (line 102)
+Claim: LLM-based coaches can produce guidance perceived as personalised and actionable [CITE].
+Source quote: "The advice provided was rated as personalized (4.6/5), actionable (4.3/5)" (p. 12, Section 6.1.1)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: Joerke et al. (2025) "GPTCoach: Towards LLM-Based Physical Activity Coaching" (CHI '25). The abstract confirms GPTCoach is an LLM-based coaching chatbot: it "implements the onboarding conversation from an evidence-based coaching program, uses conversational strategies from motivational interviewing, and incorporates wearable data to create personalized physical activity plans." The system "can query and visualize a user's health data from a wearable device through tool use." The paper describes a lab study with 16 participants using three months of historical data. All elements of the claim are confirmed: LLM-based, physical activity coaching, uses wearable history, generates personalised training plans through tool use, and employs motivational interviewing strategies. Note: the citation key says 2024 but the paper was published at CHI 2025.
+NOTE on 93% MI-consistent: Our paper says "93% MI-consistent behaviour." The source says 6.7% MI-inconsistent, with 62.2% MI-consistent and 31.1% neutral (Figure 9, p. 15). Aggregating MI-consistent + neutral = 93.3% non-inconsistent. This is a reasonable interpretation but should be understood as "93% MI-consistent or neutral" rather than "93% MI-consistent." The paper's phrasing is acceptable since the MITI framework treats neutral codes (Giving Information) as non-problematic.
+NOTE on CHI 2025: The paper states "CHI '25, April 26-May 1, 2025, Yokohama, Japan" (p. 1, footer). Our paper's claim of CHI 2025 is CONFIRMED.
+NOTE on single-session: The source confirms: "we focus only on the onboarding conversation to evaluate GPTCoach" (p. 8, Section 4.2). CONFIRMED.
+Verified: 2026-06-29

@@ -4,7 +4,13 @@ Cited 1 time(s)
 
 Chapter: 2_market_analysis, Line: 43
 Claim: WHOOP launched WHOOP Coach [CITE], an OpenAI-powered conversational assistant that answers natural-language questions about the user's biometric data---but only WHOOP data, with no access to training load from Strava, weather forecasts, or calendar context.
+Source quote: "WHOOP Coach is a feature powered by generative AI that delivers personalized health and fitness coaching on demand by analyzing your unique biometric data, goals, and behaviors." (p. 2)
+Source quote: "It uses OpenAI's deep learning technology to identify patterns in your data and produce instant, conversational responses to your questions." (p. 2)
+Source quote: "It provides conversational, in-the-moment answers to your questions. Ask anything from 'How should I train for a 5k?' to 'Why am I so tired?' and receive specific, actionable guidance based on your body's data." (p. 2)
+Source quote: "'WHOOP Coach is an exciting application of GPT-4, and we're eager to learn from WHOOP members on how our models are helping to unlock human performance.' -- Brad Lightcap, COO of OpenAI" (p. 2)
+Source quote: "WHOOP Coach uses your personal biometric data and Journal inputs to provide contextual, individualized answers" (p. 4, How does WHOOP Coach use my data?)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - WHOOP blog post announcing WHOOP Coach powered by OpenAI. States: "WHOOP Coach is an AI coaching feature powered by OpenAI." Confirms in-app conversational assistant using biometric data.
+SOURCE CONFIRMS: The PDF is a web capture of the WHOOP blog post "Introducing WHOOP Coach Powered by OpenAI in the App" (May 22, 2026). It confirms: (1) WHOOP Coach is powered by OpenAI/GPT-4; (2) it provides conversational natural-language interaction; (3) it analyzes the user's biometric data (Recovery, Strain, Sleep, Stress); (4) it uses "personal biometric data and Journal inputs" -- exclusively WHOOP data. The source does not mention integration with Strava, weather, or calendar, confirming our claim that it is limited to WHOOP data only. The blog also describes proprietary algorithms analyzing "connections between your Recovery, Strain, Sleep, and Stress data."
+Verified: 2026-06-29

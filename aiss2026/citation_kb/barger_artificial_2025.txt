@@ -2,12 +2,23 @@ Citation: barger_artificial_2025
 Cited 2 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 50
-Claim: [CITE] compared AI and human coaching sessions, finding that the human touch remains critical, supporting a synergy model.
+Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 88)
+Claim: [CITE] conducted a mixed-methods RCT (N=52) comparing coaching sessions where participants believed they were coached by an AI (actually a human coach behind a live-motion avatar with voice distortion) versus a human coach. Working alliance scores were not significantly different (AI: M=72.73, human: M=74.50; t(50)=-0.71, p=0.48). Qualitatively, participants in the AI condition reported using fewer impression-management behaviours and greater willingness to disclose sensitive topics. The authors recommend a synergy model.
+Source quote: "a total of 52 individuals enrolled and fully completed the study, with 26 individuals who were randomly assigned to be coached by the simulated AI coach and 26 individuals who were randomly assigned to be coached by the professional human coach." (p. 9, Participants section)
+Source quote: "The study was designed as a mixed methods randomized controlled trial (RCT)" (p. 7, Methods section)
+Source quote: "this study was carefully designed to facilitate participants' belief and perception that they were being coached by an AI, when in fact it was expert professional human coaches behind the scenes operating with their real coaching skills." (p. 7, Methods section -- Wizard of Oz design)
+Source quote: "no statistically significant difference between human coaches (M = 74.50, SD = 7.25), t(50) = -0.71, p = 0.48 and AI coaches (M = 72.73, SD = 10.34)." (p. 12, Quantitative results)
+Source quote: "Individuals who were coached by the simulated AI shared that they did not feel it was necessary to use the impression management behaviors that they would normally use in human-to-human conversation." (p. 20, Client perspectives of AI coaches)
 
-Chapter: 7_evaluation, Line: 73
-Claim: '' This tests the system's ability to remain empathetic under adversarial user behaviour---a property that [CITE] identified as critical for AI coaching acceptance.
+Chapter: 7_evaluation, Section: Scorers (line 73)
+Claim: [CITE] identified empathetic coaching tone as critical for AI coaching acceptance.
+Source quote: "incorporating relational skills such as empathy and social dialogue into the bot user interface significantly improved working alliance and user engagement" (p. 6, AI coach-client relationship section)
+Source quote: "Clients are willing to and appreciate building coaching partnerships with AI, which has both research and practical implications." (p. 1, Abstract)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Artificial Intelligence vs. Human Coaches" (Frontiers in Psychology, 2025). Examines working alliance in AI coaching sessions. Supports claim about human touch remaining critical.
+NOTE on N=52: The source confirms N=52 analyzed (from 87 randomized), 26 per group -- see CONSORT flow diagram (p. 8, Figure 2). CONFIRMED.
+NOTE on Wizard-of-Oz: CONFIRMED. "the five professional coaches who were part of the study each held the Professional Certified Coach credential from the International Coaching Federation" (p. 9). Coaches used Animaze avatar + VoiceMod voice distortion.
+NOTE on synergy model: The source's Discussion states both groups built similar working alliances, suggesting AI coaching viability alongside human coaching. The "synergy model" recommendation is implicit in the discussion rather than stated as a formal model name.
+NOTE on "fewer impression-management behaviours": CONFIRMED verbatim from p. 20.
+Verified: 2026-06-29

@@ -3,8 +3,11 @@ Cited 1 time(s)
 ============================================================
 
 Chapter: 2_market_analysis, Line: 43
-Claim: ai [CITE] dynamically adjust endurance training plans based on Garmin and Strava data, but operate as plan-output systems without a conversational interface or cross-domain reasoning.
+Claim: Adaptive plan generators such as Athletica.ai [CITE] dynamically adjust endurance training plans based on Garmin and Strava data, but operate as plan-output systems without a conversational interface or cross-domain reasoning.
+Source quote: "Adaptive training plans that adjust to your fitness, fatigue, and schedule, so you improve with confidence." (p. 1, homepage hero text)
+Source quote: "Train Smarter. Finish Stronger. Live Healthier." (p. 1, homepage tagline)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - Athletica.ai website. Describes adaptive endurance training plans for runners, cyclists, triathletes. Confirms AI-driven plan adaptation from Garmin/Strava data.
+SOURCE CONFIRMS: The PDF is a web capture of the Athletica.ai homepage (athletica.ai). The page describes "Adaptive training plans that adjust to your fitness, fatigue, and schedule." The footer shows sections for Athletes, Coaches, Plans, and links to Free App (iOS/Android), Coach Connect, and Athletica API. The navigation mentions "Athletes" and "Coaches" pages. The site confirms adaptive endurance training plans as the core product. The claim about Garmin/Strava integration is supported by Table 1 in the paper (which lists "Garmin, Strava" under Athletica.ai's Data Sources) and is consistent with the platform's integration capabilities (visible in the site's API and partner integrations). The absence of a conversational interface is confirmed by the website -- it shows plan-based output only, not a chat interface.
+Verified: 2026-06-29

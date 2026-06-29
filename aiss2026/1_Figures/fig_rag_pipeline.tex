@@ -9,9 +9,9 @@
     arr/.style={-{Stealth[length=5pt]}, thick},
 ]
     \node[block, draw=tcblue, fill=tcblue!8] (query) {User Query};
-    \node[block, draw=tcgreen, fill=tcgreen!8, right=1.0cm of query] (embed) {Embed\\{\scriptsize all-MiniLM-L6-v2}};
-    \node[block, draw=tccyan, fill=tccyan!8, right=1.0cm of embed] (store) {Cosine Search\\{\scriptsize (N$\times$384 float32)}};
-    \node[block, draw=tcyellow!80!black, fill=tcyellow!8, right=1.0cm of store] (topk) {Top-$k$\\Passages};
+    \node[block, draw=tcgreen, fill=tcgreen!8, right=1.2cm of query] (embed) {Embed\\{\scriptsize all-MiniLM-L6-v2}};
+    \node[block, draw=tccyan, fill=tccyan!8, right=1.8cm of embed] (store) {Cosine Search\\{\scriptsize (N$\times$384 float32)}};
+    \node[block, draw=tcyellow!80!black, fill=tcyellow!8, right=1.4cm of store] (topk) {Top-$k$\\Passages};
     \node[block, draw=tcblue, fill=tcblue!8, below=1.0cm of topk] (llm) {ReAct Agent\\{\scriptsize (LLM synthesis)}};
     \node[block, draw=tcgreen, fill=tcgreen!8, below=1.0cm of llm] (answer) {Grounded Answer\\+ Sources};
     \node[data, draw=tcgrey!40, fill=tcgrey!4, below=0.4cm of store] (corpus) {8 books, $\sim$3k chunks};

@@ -1,5 +1,6 @@
 \begin{figure}[ht]
 \centering
+\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
     every node/.style={font=\small},
 ]
@@ -38,6 +39,7 @@
 
     \node[font=\scriptsize, text=tcgrey!60, anchor=north] at (0, -3.8) {ChatGPT, Gemini};
     \draw[tcgrey!40, thin, ->] (0, -3.7) -- (0, -3.1);
-\end{tikzpicture}
+\end{tikzpicture}%
+}% end resizebox
 \caption[Market gap: intersection of integration, reasoning, and conversation]{The Training Copilot market gap. Existing platforms cover at most two of the three capabilities. Training Copilot is positioned at the intersection of all three, combining multi-source data integration (MCP layer), cross-domain contextual reasoning (multi-agent system), and conversational interaction (chat interface).}\label{fig:market_gap}
 \end{figure}

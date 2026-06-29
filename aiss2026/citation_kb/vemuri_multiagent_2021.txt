@@ -2,14 +2,26 @@ Citation: vemuri_multiagent_2021
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 48
-Claim: At the architectural level, [CITE] proposed a generic multi-agent architecture for health coaching applications involving wearable sensors, with separate modules for analysis, communication, goal formation, and scheduling.
+Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 86)
+Claim: [CITE] proposed SMART-ALEC, a multi-agent health coaching system with six internal modules per user agent (planner, scheduler, learner, context analyser, executor, communicator) for physical activity promotion. They implemented two prototypes: BeSmart (SMS-based, beta-tested with 250 agents) and a JIT intervention system using Apple Watch with nightly-updated decision trees. While predating MCP and A2A and using ad-hoc coordination (GPGP-style commitment exchange), their design philosophy---modular specialists with a central coordinator, transferable learned policies between similar users---validates the multi-agent approach.
+Source quote: "we propose a novel generic multi-agent architecture, SMART-ALEC (System to Monitor, Adapt, and Refine Target goals by Agent-based Learning in Everyday Contexts)" (p. 2, Section 1)
+Source quote: "Each agent has two major modules, analyser and communicator, running concurrently on different threads." (p. 3, Section 3) [The Analyser contains: (Re)Planner, Scheduler, Learner, Context Analyzer, Executor/Monitor -- visible in Figure 1, p. 10]
+Source quote: "Planner. SMART-ALEC divides top-level goal achievement into three levels: planning, scheduling and learning." (p. 3, Section 3)
+Source quote: "Scheduler. The purpose of scheduler is to determine which actions can be executed now" (p. 4, Section 3)
+Source quote: "Learner. The purpose of learner is to construct policies in domains where how to achieve goals is not explicitly given beforehand." (p. 4, Section 3)
+Source quote: "Context Analyzer. Context analyzer is used for constructing user state in real time." (p. 4, Section 3)
+Source quote: "Executor/Monitor. [...] The executor module not only implements the current complied policy but also acts as a feedback provider for the learner module." (p. 4, Section 3)
+Source quote: "Communicator. The communicator module is responsible for transferability and coordination features of SMART-ALEC architecture. The communicator can transfer learned policies of users to other similar users." (p. 4, Section 3)
+Source quote: "Coordination can be achieved through communicating commitments [13] or personal preferences over actions, enabling agent schedulers to synchronize activities among users." (p. 4, Section 3 -- reference [13] is Lesser et al., the GPGP paper)
+Source quote: "BeSmart architecture is written in python and flask [...] To test time delay, we scripted up to 250 dummy agents to send and receive messages, no significant delay was detected." (p. 5-6, Section 4.1)
+Source quote: "In Walking with JITAIs we built an innovative, remote-delivered and personally tailored JITAI system using Apple watches and IPhones" (p. 6, Section 4.2)
+Source quote: "Decision trees are updated with every new training data point, agent sends an updated model to the watch via phone every night." (p. 7, Section 4.2)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The PDF confirms this paper proposes SMART-ALEC (System to Monitor, Adapt, and Refine Target goals by Agent-based Learning in Everyday Contexts), a generic multi-agent architecture for health coaching with wearable sensors. The abstract states: "we propose a novel generic multi-agent architecture which serves as a template for health coaching applications involving wearable sensors. Analyzer and communication modules allow different functionalities like goal formation, planning, scheduling, event detection, learning, inter-agent + human communication and long-term data collection." The paper describes separate modules exactly as claimed.
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Abstract: "we propose a novel generic multi-agent architecture which serves as a template for health coaching applications involving wearable sensors." Section 3 (SMART-ALEC Implementation) describes modules: Planner (goal formation, scheduling), Analyser, Communicator, and Learning components. Two implementations are demonstrated: (1) Fitbit-based static coaching and (2) Apple Watch-based dynamic coaching.
-Notes: The KB claim accurately describes the paper's contribution. The specific modules listed (analysis, communication, goal formation, scheduling) all appear in the architecture.
-Verified: 2026-06-28
+NOTE on "six internal modules": The paper describes six modules: (Re)Planner, Scheduler, Learner, Context Analyzer, Executor/Monitor, Communicator. Figure 1 (p. 10) shows all six. CONFIRMED.
+NOTE on "BeSmart 250 agents": The source says "250 dummy agents" for scalability testing, not 250 real users. Our paper says "beta-tested with 250 agents" which is accurate -- it was a beta test of the architecture's scalability. CONFIRMED.
+NOTE on "JIT Apple Watch": CONFIRMED -- "Walking with JITAIs" uses Apple Watch with nightly-updated decision trees.
+NOTE on "GPGP-style commitment exchange": Reference [13] in the paper is "Lesser V, Decker K [...] Evolution of the gpgp/taems domain-independent coordination framework." The Communicator module coordinates via "communicating commitments [13]." CONFIRMED.
+NOTE on "transferable learned policies": CONFIRMED -- "The communicator can transfer learned policies of users to other similar users" (p. 4).
+Verified: 2026-06-29

@@ -3,8 +3,17 @@ Cited 1 time(s)
 ============================================================
 
 Chapter: 2_market_analysis, Line: 10
-Claim: 22 million in 2025 [CITE].
+Claim: The demand is particularly pronounced in the German market, where fitness app downloads have risen from 41.37 million in 2017 to a projected 135.22 million in 2025 [CITE].
+Source quote: Chart title: "Anzahl der Downloads in dem Segment 'Gesundheits- & Fitness-Apps' in Deutschland von 2017 bis 2027 (in Millionen Downloads)" (p. 1, chart header)
+Source quote: Bar chart data points: 41.37 (2017), 135.22 (2025) (p. 1, chart bars with labels)
+Source quote: "Statista; Statista Market Insights, (c) Statista 2026" (p. 1, source attribution)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - Statista PDF shows data chart with 41.37M downloads (2017) rising to 135.22M (2025) for health & fitness apps in Germany. Numbers verified from the actual PDF data.
+SOURCE CONFIRMS: The single-page PDF is a German-language Statista chart showing health & fitness app downloads in Germany from 2017 to 2027. The chart data points read 41.37 million (2017) and 135.22 million (2025), exactly matching the paper's claim. The chart is in German, supporting the "German market" framing. Note: 135.22M for 2025 is labeled as a projected/estimated value (chart includes forecast years through 2027).
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Both figures (41.37M in 2017, 135.22M in 2025) are read directly from the bar chart labels.
+Notes: Source is a Statista Market Insights chart printed to PDF. All values confirmed.
+Verified: 2026-06-29

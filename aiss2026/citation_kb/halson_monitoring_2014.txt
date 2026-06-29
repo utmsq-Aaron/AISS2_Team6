@@ -3,11 +3,22 @@ Cited 2 time(s)
 ============================================================
 
 Chapter: 1_introduction, Line: 14
-Claim: No single interface provides a unified view, and manual cross-referencing is error-prone and time-consuming [CITE].
+Claim: Sports science consensus statements emphasise that effective load monitoring requires combining external and internal load from multiple sources [CITE], yet the consumer tools that collect this data do not provide a unified view.
+Source quote: "very few of these markers have strong scientific evidence supporting their use, and there is yet to be a single, definitive marker described in the literature." (p. S139, Abstract)
 
 Chapter: 3_state_of_the_art, Line: 26
-Claim: [CITE] surveyed the landscape of fatigue biomarkers and concluded that no single indicator is sufficiently validated on its own, making a compelling case for combining multiple metrics simultaneously---which is precisely what Training Copilot's recovery specialist implements by combining sleep, HRV,
+Claim: [CITE] surveyed the landscape of fatigue biomarkers and concluded that no single indicator is sufficiently validated on its own, making a compelling case for combining multiple metrics simultaneously.
+Source quote: "very few of these markers have strong scientific evidence supporting their use, and there is yet to be a single, definitive marker of fatigue described in the literature." (p. S139, Abstract / Section 3)
+Source quote: "Despite both the increasing amounts of research and the popularity of load monitoring in high-performance programs, a single definitive tool that is accurate and reliable is not evident." (p. S146, Section 12 Conclusions)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: Halson (2014) "Monitoring Training Load to Understand Fatigue in Athletes" (Sports Med, 44 Suppl 2:S139-S147) is a review article surveying fatigue biomarkers. The abstract states: "very few of these markers have strong scientific evidence supporting their use, and there is yet to be a single, definitive marker described in the literature." Section 3 reiterates: "very few of these markers have strong scientific evidence supporting their use, and there is yet to be a single, definitive marker of fatigue described in the literature." Table 1 lists 16 monitoring variables (frequency, time, intensity, sleep, psychology, biochemistry, etc.), making the case for combining multiple metrics. Both claims are well-supported: (1) no single unified interface/marker, and (2) multi-metric monitoring is necessary.
+SOURCE CONFIRMS: Halson (2014) "Monitoring Training Load to Understand Fatigue in Athletes" (Sports Med, 44 Suppl 2:S139-S147) is a review surveying fatigue biomarkers. The abstract (p. S139) explicitly states no single definitive marker exists. The conclusions (p. S146) reiterate that "a single definitive tool that is accurate and reliable is not evident." Table 1 (p. S140) lists 16 monitoring variables across multiple categories (frequency, time, intensity, type, sleep, psychology, biochemistry), implicitly supporting the need for multi-metric approaches. Both citation uses are well-supported.
+
+PLAGIARISM CHECK: No plagiarism risk. The paper paraphrases the conclusion about no single marker being sufficient.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Abstract p. S139 and Conclusions p. S146 both confirm the "no single marker" finding. Table 1 lists 16 monitoring variables supporting multi-metric monitoring.
+Notes: The paper's claim about "combining multiple metrics simultaneously" is a reasonable inference from the review's presentation of 16+ variables and its conclusion that no single one suffices.
+Verified: 2026-06-29

@@ -3,14 +3,27 @@ Cited 3 time(s)
 ============================================================
 
 Chapter: 2_market_analysis, Line: 49
-Claim: Third, general-purpose LLMs such as ChatGPT can reason and converse, but they have no access to the athlete's actual data, producing generic advice that ignores individual context [CITE].
+Claim: General-purpose LLMs such as ChatGPT can reason and converse, but they have no access to the athlete's actual data, producing generic advice that ignores individual context [CITE].
+Source quote: "Findings indicate that generative AI-generated training programs generally adhere to established exercise guidelines but often lack specificity, progression, and adaptability to real-time physiological feedback." (p. 1, Abstract)
+Source quote: "While ChatGPT-created plans adhered to foundational training principles, they were frequently generic and did not incorporate real-time feedback or individualized adjustments." (p. 6, Section 3 Results)
 
-Chapter: 3_state_of_the_art, Line: 50
-Claim: [CITE] conducted a systematic review of generative AI for exercise prescription, finding that current systems still lack sufficient individualisation and the ability to adapt to real-time physiological feedback---a finding that directly motivates Training Copilot's architecture.
+Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 82)
+Claim: [CITE] confirmed this pattern in a systematic review of 10 studies on generative AI for exercise prescription, finding that AI-generated plans adhere to foundational training principles but lack specificity, progression, and---most critically---the ability to incorporate real-time physiological feedback. Plans did not adapt to individual context, and identical prompts sometimes produced different outputs, raising reproducibility concerns.
+Source quote: "Ultimately, 10 studies [42-51] were included in the systematic review." (p. 4, Section 3 Results)
+Source quote: "the findings suggest that AI-generated exercise programs align with general exercise science principles but often lack specificity, progression, and adaptability." (p. 6, Section 3 Results)
+Source quote: "While ChatGPT-created plans adhered to foundational training principles, they were frequently generic and did not incorporate real-time feedback or individualized adjustments." (p. 6, Section 3 Results)
+Source quote: "reproducibility varied, and expert oversight was deemed essential to ensure the quality and applicability of AI-generated exercise recommendations." (p. 6, Section 3 Results)
+Source quote: "AI-generated running and strength training plans improved when additional user input was provided, but they still fell short of human expert-designed programs" (p. 6, Section 3 Results)
 
-Chapter: 3_state_of_the_art, Line: 54
-Claim: LLM-based agents can now reason and act autonomously through standardised protocols; tool integration through MCP and A2A has solved the $M N$ fragmentation problem; sports science provides validated physiological metrics and decision frameworks that consumer tools merely display without reasoning a
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (line 104)
+Claim: RAG enables grounding in verifiable sources, addressing the reliability concerns raised by [CITE].
+Source quote: "its role remains complementary rather than substitutive to expert guidance." (p. 1, Abstract)
+Source quote: "limitations in individualization and contextual adaptation persisted." (p. 1, Abstract)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Harnessing Generative AI for Exercise and Training Prescription" (Applied Sciences, 2025). Systematic review finding current models lack individualisation and real-time physiological adaptation.
+NOTE on "10 studies": CONFIRMED. PRISMA flowchart (p. 5, Figure 1) shows n=10 included. "A total of 2891 records were initially identified [...] Ultimately, 10 studies [42-51] were included" (p. 4).
+NOTE on "specificity, progression, real-time feedback": All three limitations confirmed verbatim from the source.
+NOTE on "reproducibility concerns": CONFIRMED -- "reproducibility varied" (p. 6).
+NOTE on "systematic review": The paper is titled "A Systematic Literature Review" -- CONFIRMED.
+Verified: 2026-06-29

@@ -2,13 +2,26 @@ Citation: rothschild_predicting_2024
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 32
-Claim: [CITE] took this further by applying machine learning to predict daily recovery status from training, sleep, HRV, and subjective well-being data in 43 endurance athletes over 12 weeks---demonstrating that multi-signal recovery prediction is feasible and that no single metric suffices, which closely 
+Chapter: 3_state_of_the_art, Section: Recovery (line 62)
+Claim: [CITE] tracked 43 endurance athletes (67% triathletes) over 12 weeks (3,572 person-days), collecting daily training load, dietary intake, sleep, subjective well-being, and resting HRV. They tested nine ML algorithms (Ridge, LASSO, SVM, XGBoost, LightGBM, among others) to predict daily perceived recovery status (PRS). The best group model (LASSO) achieved R^2 = 0.31 (RMSE 11.8 on a 0-100 scale); individual models using each athlete's top-5 features reached R^2 = 0.35 +/- 0.20, with RMSE varying more than fivefold across participants (5.5-23.6). The most predictive features were soreness, sleep index, and prior-day PRS---not HRV alone.
+Source quote [43 athletes, 67% triathletes]: "Fifty-five endurance athletes (61.8% male, age 42.6 +/- 9.1 years, training 11.6 +/- 3.9 h/week) took part in the study. The primary sports represented were triathlon (67.3%), running (20.0%), cycling (10.9%), and rowing (1.8%)." (p. 3280, Participants section)
+Note: 55 recruited, 43 analyzed (12 excluded). Our paper correctly says "43 endurance athletes."
+Source quote [12 weeks, 3572 days]: "A total of 3572 days of tracking were included in the analysis (83.1 +/- 9.9 per participant)." (p. 3284, Results section); "This observational study monitored the daily self-selected nutrition intake, exercise training, sleep habits, HRV, and subjective well-being of endurance athletes for 12 weeks." (p. 3280, Study design section)
+Source quote [9 algorithms]: "Nine different learning algorithms, including parametric and non-parametric methods, were trained for each model using the Tidymodels ecosystem in R. These included three linear regression models with regularization (Ridge, least absolute shrinkage and selection operator (LASSO), and LASSO with pre-specified interaction terms), three non-linear regression models (multivariate adaptive regression spline (MARS), support vector machine (SVM), and K-nearest neighbors (KNN)), two ensembles of decision trees (XGBoost and Light GBM), and a single layer neural network (NNET)." (p. 3282, Models section)
+Source quote [LASSO R^2=0.31, RMSE 11.8]: Table 2 (p. 3284): "AM PRS | LASSO | MAIN | RMSE 11.8 [10.7, 12.9] | R^2 0.31 [0.26, 0.34]"
+Source quote [individual R^2=0.35+/-0.20, RMSE 5.5-23.6]: Table 3 (p. 3284): "AM PRS | Linear | Top five from individual MAIN | RMSE 12.0 +/- 5.2 | R^2 0.35 +/- 0.20"
+Note on RMSE range: The abstract states "RMSE range 5.5-23.6" for AM PRS individual models. Table 3 shows RMSE 12.0 +/- 5.2 for the individual MAIN model. The 5.5-23.6 range is visible in Figure 1 (p. 3285) showing individual RMSE variation. CONFIRMED.
+Source quote [top features]: "These include muscle soreness, life stress, and sleep quality for AM PRS scores" (p. 3287, Variable importance section). Figure 2 (p. 3285) shows top importance order: Soreness, Sleep index, AM PRS score yesterday, Stress, Training load yesterday. Figure 4 (p. 3286) individual models: Soreness, Sleep index, Resting HR, Sleep quality.
 
 ============================================================
-
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Abstract (p.3279): "Self-selected nutrition intake, exercise training, sleep habits, HRV, and subjective well-being of 43 endurance athletes ranging from professional to recreationally trained were monitored daily for 12 weeks (3572 days of tracking). Global and individualized models were constructed using machine learning techniques." Conclusion: "At the group level, daily recovery measures can be predicted based on commonly measured variables, with a small subset of variables providing most of the predictive power. However, at the individual level, the key variables may vary, and additional data may be needed to improve the prediction accuracy." Methods (p.3282): "Among participants included in the analysis (n = 43)."
-Notes: The KB claim omits dietary/nutrition intake, which was a major variable category in the study alongside training, sleep, HRV, and well-being. The study enrolled 55 participants initially but analyzed n=43 after exclusions. The claim that "no single metric suffices" is a fair paraphrase of the finding that key variables vary across individuals and a small subset provides most predictive power at group level.
-Verified: 2026-06-28
+VERIFICATION STATUS: CONFIRMED
+All numbers verified precisely against the source:
+- 43 athletes (55 recruited, 43 analyzed): CONFIRMED
+- 67% triathletes (67.3% in source): CONFIRMED
+- 12 weeks: CONFIRMED
+- 3,572 person-days: CONFIRMED
+- 9 ML algorithms (Ridge, LASSO, SVM, XGBoost, LightGBM, KNN, MARS, NNET, LASSO+interactions): CONFIRMED
+- LASSO R^2=0.31 [0.26, 0.34], RMSE=11.8 [10.7, 12.9]: CONFIRMED (Table 2)
+- Individual top-5: R^2=0.35+/-0.20, RMSE=12.0+/-5.2, range 5.5-23.6: CONFIRMED (Table 3, Abstract, Fig 1)
+- Top features soreness, sleep index, prior-day PRS: CONFIRMED (Fig 2, Discussion)
+Verified: 2026-06-29

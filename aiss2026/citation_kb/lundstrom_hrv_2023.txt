@@ -2,14 +2,22 @@ Citation: lundstrom_hrv_2023
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 32
-Claim: [CITE] provided a more recent review of HRV practices for endurance athletes, discussing practical limitations of consumer-grade HRV measurement and the implementation of HRV-guided training, where daily readings inform go/no-go decisions.
+Chapter: 3_state_of_the_art, Line: 60
+Claim: [CITE] reviewed the practical limitations of consumer-grade HRV and the implementation of HRV-guided go/no-go decisions.
+Source quote [review purpose]: "This review provides a brief overview of HRV in the context of endurance athletes, addresses technical considerations, factors affecting daily HRV, the implementation of HRV-guided training, and alternative and future uses of HRV for athletes." (p. 9, Abstract)
+Source quote [consumer-grade monitoring tools]: "Previously available only to researchers and the technically savvy, daily HRV can now be monitored at home using a variety of devices, apps, or software. Some of these options provide raw data while others utilize HRV as part of black box algorithms to provide the user with a recovery score or strain score." (p. 12, Factors affecting resting HRV / Monitoring tools subsection, first paragraph)
+Source quote [consumer device accuracy limitations]: "On the other hand, accuracy during exercise depends on the model of watch and type of exercise, with notable increases in error during exercise that is either vigorous or involves arm movement." (p. 11, Monitoring tools section)
+Source quote [clinical vs consumer gap]: "The gold standard of HRV monitoring is through the use of ECG, though chest strap heart rate monitors have been used extensively and have shown high reliability. Pulse rate variability, as measured through photoplethysmography (PPG) has been used increasingly owing to the ease of use. The accuracy of PPG may depend on the tool and condition in which it is used. Watches with embedded PPG have been shown to be relatively accurate at rest [...] On the other hand, accuracy during exercise depends on the model of watch and type of exercise" (p. 11, Monitoring tools section)
+Source quote [HRV-guided training]: "The use of HRV-guided training prescription has been investigated in the literature and is being used in the real world to make training decisions. Most studies of this approach have compared a training schedule with a set schedule of workouts with one that varies the inclusion of higher intensity work depending on the daily HRV score." (p. 13, HRV-guided training section)
+Source quote [go/no-go implementation]: "Typically, an individual baseline resting HRV is established over a period ranging from 3 days to 4 weeks. Protocols of HRV-guided training vary, but typically moderate and higher intensity workouts are performed only when the HRV score falls within the normal range. Lower intensity workouts and/or rest days are prescribed until HRV returns to normal." (p. 13, HRV-guided training section)
+Source quote [systematic review of HRV-guided training]: "A systematic review on HRV-guided training for runners found greater improvements in performance in the HRV-based groups than in those who followed a predetermined training plan." (p. 13, HRV-guided training section)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The PDF confirms this is a review article titled "Practices and Applications of Heart Rate Variability Monitoring in Endurance Athletes" (Lundstrom et al., Int J Sports Med 2023; 44: 9-19). The abstract states: "This review provides a brief overview of HRV in the context of endurance athletes, addresses technical considerations, factors affecting daily HRV, the implementation of HRV-guided training, and alternative and future uses of HRV for athletes." The paper discusses practical limitations of consumer-grade measurement (Section "Monitoring tools" covering PPG accuracy issues) and HRV-guided training with go/no-go decisions (Section "HRV monitoring for athletes").
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Abstract: "This review provides a brief overview of HRV in the context of endurance athletes, addresses technical considerations, factors affecting daily HRV, the implementation of HRV-guided training." Section "Monitoring tools" discusses consumer-grade limitations: "accuracy during exercise depends on the model of watch and type of exercise, with notable increases in error during exercise that is either vigorous or involves arm movement." The paper covers HRV-guided training implementations where daily readings inform decisions.
-Notes: No discrepancies. The KB claim accurately characterizes the paper.
-Verified: 2026-06-28
+Our paper's claim that Lundstrom "reviewed the practical limitations of consumer-grade HRV and the implementation of HRV-guided go/no-go decisions" is accurately supported:
+- The paper is a review of HRV practices and applications for endurance athletes: CONFIRMED
+- It addresses consumer-grade monitoring tool limitations (PPG accuracy, device variability): CONFIRMED (p. 11)
+- It covers HRV-guided training implementation (go/no-go based on daily HRV vs baseline): CONFIRMED (p. 13)
+- The clinical vs consumer gap is discussed in the Monitoring tools section: CONFIRMED (p. 11)
+No discrepancies found.
+Verified: 2026-06-29

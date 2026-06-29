@@ -1,10 +1,14 @@
 Citation: li_wearable_2016
-Cited 1 time(s)
+Cited 0 time(s) -- NO LONGER CITED IN PAPER (bib entry exists but no \cite{} references remain)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 36
-Claim: [CITE] and [CITE] examined wearable devices in sports medicine and advanced biomechanical analytics respectively.
+Chapter: (none -- citation removed from current paper)
+Claim: Previously cited alongside alzahrani_advanced_2024 for examining wearable devices in sports medicine.
+Source quote: "Wearable performance devices and sensors are becoming more readily available to the general population and athletic teams. Advances in technology have allowed individual endurance athletes, sports teams, and physicians to monitor functional movements, workloads, and biometric markers to maximize performance and minimize injury." (p. 74, Context/Abstract)
+Source quote: "The purpose of this review article is to familiarize health care professionals and team physicians with the various available types of wearable sensors, discuss their current utilization, and present future applications in sports medicine." (p. 74)
+Source quote: "Wearable devices are valuable instruments for the improvement of sports performance. Evidence for use of these devices in professional sports is still limited." (p. 77, Conclusion)
 
 ============================================================
-VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Wearable Performance Devices in Sports Medicine" (Sports Health, 2016). Reviews wearable devices for measuring physiological metrics in sports medicine as claimed.
+VERIFICATION STATUS: CONFIRMED (source supports the original claim, but citation has been removed from the paper)
+SOURCE CONFIRMS: The paper is "Wearable Performance Devices in Sports Medicine" (Sports Health, 2016, Vol 8, No 1, pp. 74-78). It reviews pedometers, accelerometers/gyroscopes, GPS, heart rate monitors, temperature sensors, and integrated sensors in sports medicine. The bib entry should be removed since it is no longer cited.
+Verified: 2026-06-29

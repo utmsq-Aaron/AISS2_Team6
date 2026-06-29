@@ -1,16 +1,26 @@
 Citation: strava_trends_2025
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
+Chapter: 1_introduction, Line: 4
+Claim: Strava alone aggregates activity data from over 180 million users [CITE].
+Source quote: "A community of over 180 million users." (p. 2, sidebar)
+Source quote: "survey data from 30,494 respondents, drawn from both Strava's community of more than 180 million users and a random sampling of active people who are not on Strava" (p. 2, methodology note)
+
 Chapter: 2_market_analysis, Line: 10
-Claim: Strava's 2025 trend report reveals that 30\,\% of Generation Z plan to increase their fitness spending in 2026, and---critically for our work---46\,\% of surveyed athletes indicated they would use AI as a smart coach, with Generation Z embracing the idea at an even higher rate [CITE].
+Claim: Strava's 2025 trend report, based on a survey of 30,494 respondents drawn from both its 180-million-user community and a random sample of non-users, reveals that 30% of Generation Z plan to increase their fitness spending in 2026 and that 46% of all respondents would use AI as a smart coach for sports---with Generation Z embracing AI-driven workout insights at a higher rate than older cohorts, though the report does not break out a separate Gen Z percentage for this question [CITE].
+Source quote: "30% of Gen Z say they plan to spend more on fitness in 2026" (p. 17)
+Source quote: "46% said they would use AI as a smart coach for sports." (p. 32)
+Source quote: "According to our survey, Gen Z has embraced AI to get insights into their workouts at a higher level than other generations." (p. 32)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - Strava Year in Sport Trend Report 2025. Page 17: "30% of Gen Z say they plan to spend more on fitness in 2026." Page 32: "46% said they would use AI as a smart coach for sports." Both numbers verified from the actual PDF.
+SOURCE CONFIRMS: All claims verified against the PDF. The 180M figure is on p. 2 (both in sidebar and methodology note). The 30,494 respondent count is on p. 2 (methodology). The 30% Gen Z spending figure is on p. 17. The 46% AI coach figure is on p. 32. The Gen Z qualifier is a qualitative comparison ("at a higher level than other generations"), not a separate percentage -- confirmed by checking that no separate Gen Z percentage for AI coaching exists on the page. The paper correctly notes this.
+
+PLAGIARISM CHECK: No plagiarism risk. Numbers are cited with attribution; no text is reproduced.
 
 --- VERIFICATION ---
 Status: CONFIRMED
-Evidence: Page 17 (Trend 2: Gen Z invested in exercise): "30% of Gen Z say they plan to spend more on fitness in 2026." Page 32 (Trend 4: The year in gear, ft. AI): "46% said they would use AI as a smart coach for sports." Same page: "According to our survey, Gen Z has embraced AI to get insights into their workouts at a higher level than other generations."
-Notes: Both specific statistics (30% spending, 46% AI coach) are directly confirmed. The KB claim that "46% of surveyed athletes" would use AI as a smart coach is confirmed -- the report presents it as 46% of all survey respondents (not specifically "athletes," though the survey base is Strava's community of 180M+ users plus a random sample of active people). The claim that Gen Z embraces AI coaching "at an even higher rate" is confirmed by the report's statement that Gen Z embraced AI insights "at a higher level than other generations." No material discrepancies.
-Verified: 2026-06-28
+Evidence: All five data points verified with page numbers. No separate Gen Z AI percentage exists.
+Notes: Source is "Strava Year In Sport 2025" trend report PDF, 40 pages.
+Verified: 2026-06-29

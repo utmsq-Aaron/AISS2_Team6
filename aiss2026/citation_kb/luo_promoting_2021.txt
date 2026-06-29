@@ -1,0 +1,17 @@
+Citation: luo_promoting_2021
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 82 (Section: AI-Assisted Sports Coaching)
+Claim: [CITE] reached a similar conclusion for conversational agents specifically: chatbots show promise for sustained engagement, but most operate without access to wearable data.
+Source quote: "Conversational agents hold promise for PA interventions. However, there is a lack of rigorous research on long-term intervention effectiveness and patient safety." (p. 1, Abstract, Conclusions)
+Source quote: "59% (10/17) of the conversational agents limited users to constrained input, whereby users selected answers from a multiple-choice list of options, and conversational agents responded according to predefined templates" (p. 7, Section: Overview of Conversational Agents)
+Source quote: "A total of 60% (12/20) studies used subjective measures to gauge intervention effectiveness and user satisfaction, and the other 40% (8/20) studies relied on objective data from pedometers or accelerometers." (p. 5, Section: Overview of Included Studies)
+Source quote: "The most common challenges were related to the capabilities of conversational agents. In 59% (10/17) of the conversational agents, users were required to respond via multiple-choice answers. This format limited user freedom [12,13] and lacked the personalization necessary to address more complex issues [14]." (p. 10, Section: Challenges and Areas for Improvement, Conversational Agent Constraints)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+NOTE on "chatbots show promise for sustained engagement": The abstract confirms "Conversational agents hold promise for PA interventions." RCT data shows 6/10 RCTs found conversational agent groups outperformed controls (p. 7). CONFIRMED.
+NOTE on "most operate without access to wearable data": The source reports that only 40% (8/20) of studies used objective data from pedometers/accelerometers. 59% of agents limited users to constrained multiple-choice input. Most agents were rule-based with predefined dialog flows. Our claim that "most operate without access to wearable data" is a reasonable interpretation -- the majority relied on subjective measures and constrained inputs rather than live wearable data streams. CONFIRMED as reasonable interpretation.
+NOTE on publication year: The source PDF header says "J Med Internet Res 2021;23(9):e25486" confirming 2021 publication. The source file is named luo_promoting_2020.pdf but the bib key uses 2021. The paper itself is 2021. No issue with citation.
+Verified: 2026-06-29

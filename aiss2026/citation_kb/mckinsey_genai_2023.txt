@@ -3,8 +3,16 @@ Cited 1 time(s)
 ============================================================
 
 Chapter: 2_market_analysis, Line: 10
-Claim: 4 trillion annually across industries, with particular impact in knowledge-intensive domains where synthesis of heterogeneous information is the primary task [CITE].
+Claim: McKinsey estimates that generative AI could contribute between USD 2.6 trillion and USD 4.4 trillion annually across industries, with particular impact in knowledge-intensive domains where synthesis of heterogeneous information is the primary task [CITE].
+Source quote: "generative AI could add the equivalent of $2.6 trillion to $4.4 trillion annually across the 63 use cases we analyzed" (p. 5, Key Insights #1)
+Source quote: "generative AI has more impact on knowledge work associated with occupations that have higher wages and educational requirements than on other types of work" (p. 5, Key Insights #4)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - McKinsey report "The Economic Potential of Generative AI" (June 2023). The $2.6-4.4 trillion figure is the most widely cited finding from this report.
+SOURCE CONFIRMS: The $2.6-4.4T annual figure is verbatim from p. 5, Key Insight #1. The "knowledge-intensive domains" claim is supported by Key Insight #4, which states generative AI has greater impact on "knowledge work associated with occupations that have higher wages and educational requirements." Our paper's phrasing "knowledge-intensive domains where synthesis of heterogeneous information is the primary task" is an editorial paraphrase -- the source says "knowledge work" without specifying "synthesis of heterogeneous information." This is an acceptable paraphrase of the underlying concept but not a direct quote.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: USD 2.6-4.4T figure is exact from p. 5. Knowledge-intensive domain claim is a reasonable paraphrase of Key Insight #4.
+Notes: Source is "The economic potential of generative AI: The next productivity frontier" (McKinsey, June 2023). The phrase "synthesis of heterogeneous information" is our interpretation, not from the source.
+Verified: 2026-06-29

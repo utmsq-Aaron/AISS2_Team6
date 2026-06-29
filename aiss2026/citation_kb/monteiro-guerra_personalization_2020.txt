@@ -2,13 +2,19 @@ Citation: monteiro-guerra_personalization_2020
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 46
-Claim: [CITE] conducted a scoping review of 17 real-time physical activity coaching applications and found that while feedback and goal setting were universally implemented, deeper personalisation mechanisms such as context-awareness and adaptive difficulty remained rare---a gap that motivates Training Cop
+Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 82)
+Claim: [CITE] reviewed 28 papers covering 17 real-time physical-activity coaching applications and classified them along seven personalisation dimensions. Feedback (17/17 apps) and goal setting (15/17) were universal, but context-awareness appeared in only 3 of 17 systems, and adaptation in only 2 of 17. Of the three context-aware systems, only one provided implementation details.
+Source quote: "In total, we included 28 papers [39]-[66] that covered 17 different PA coaching applications that explore personalization strategies in their design." (p. 1741, Section III Results)
+Source quote: "The most frequent used concepts were Feedback (used in all 17 apps), Goal Setting (15 apps), User Targeting (9 apps) and Inter-human Interaction (8 apps). The less frequent were Self Learning (4 apps), Context Awareness (3 apps) and Adaptation (2 apps)." (p. 1741, Section III.B Personalization)
+Source quote: "Context Awareness (CA) is used in 3 out of the 17 included systems. However, the papers do not provide much details on its use and implementation, except for the one describing On11." (p. 1745, Section III.B.6)
 
 ============================================================
-
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Abstract (p.1738): "28 papers describing 17 different mobile applications were included." and "The most used personalization concepts were Feedback (17/17), Goal Setting (15/17), User Targeting (9/17) and Inter-human Interaction (8/17), while the less commonly covered were Self-Learning (4/17), Context Awareness (3/17) and Adaptation (2/17)." Results Section B (p.1741): "The most frequent used concepts were Feedback (used in all 17 apps), Goal Setting (15 apps), User Targeting (9 apps) and Inter-human Interaction (8 apps). The less frequent were Self Learning (4 apps), Context Awareness (3 apps) and Adaptation (2 apps)."
-Notes: Minor imprecision in the KB claim: "feedback and goal setting were universally implemented" -- Feedback was indeed universal (17/17), but Goal Setting was 15/17, not universal. The KB term "adaptive difficulty" does not appear in the paper; the paper uses "Adaptation" (2/17) which refers to directing information based on key behavioral factors, not specifically difficulty adjustment. The characterization of context-awareness and adaptation as rare and the identification of this as a gap are accurate. The "scoping review" and "17 applications" are confirmed.
-Verified: 2026-06-28
+VERIFICATION STATUS: CONFIRMED
+NOTE on "28 papers": Abstract says "28 papers describing 17 different mobile applications were included." CONFIRMED.
+NOTE on "seven personalisation dimensions": The seven are listed in Table II header and text: FB (Feedback), GS (Goal Setting), UT (User Targeting), IHI (Inter-human Interaction), Ad (Adaptation), CA (Context Awareness), SL (Self Learning). CONFIRMED.
+NOTE on Feedback 17/17: The source says "Feedback (used in all 17 apps)." CONFIRMED.
+NOTE on Goal Setting 15/17: The source says "Goal Setting (15 apps)." Our paper says "goal setting (15/17) were universal" -- calling 15/17 "universal" is a slight overstatement but the number is correct.
+NOTE on Context Awareness 3/17: CONFIRMED.
+NOTE on Adaptation 2/17: CONFIRMED.
+NOTE on "only one provided implementation details": CONFIRMED -- "except for the one describing On11" (p. 1745).
+Verified: 2026-06-29

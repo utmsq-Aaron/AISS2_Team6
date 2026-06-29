@@ -3,16 +3,33 @@ Cited 2 time(s)
 ============================================================
 
 Chapter: 1_introduction, Line: 8
-Claim: At the same time, large language models (LLMs) have demonstrated the ability to reason across heterogeneous information sources when equipped with tool-calling capabilities [CITE].
+Claim: Large language models have demonstrated the ability to reason across heterogeneous information sources when equipped with tool-calling capabilities [CITE].
+Source quote: "In this paper, we show that LMs can teach themselves to use external tools via simple APIs and achieve the best of both worlds. We introduce Toolformer, a model trained to decide which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results into future token prediction." (p. 1, Abstract)
+Note: General capability claim, confirmed by the paper's thesis.
 
-Chapter: 3_state_of_the_art, Line: 18
-Claim: [CITE] introduced Toolformer, showing that a language model can teach itself---through a self-supervised annotation pipeline---to recognise when an external tool would be helpful, select the appropriate API, and weave the returned result back into its generation.
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 32
+Claim: [CITE] demonstrated that a 6.7B-parameter model (GPT-J) can teach itself to use tools through a self-supervised pipeline: candidate API calls are sampled at each position in the training text, executed, and retained only if including the result reduces the cross-entropy loss over subsequent tokens. Trained on five tools (calculator, QA system, Wikipedia search, machine translation, calendar), the model selected the correct tool in 97.9% of cases on mathematics benchmarks and outperformed GPT-3 (175B) despite being 25x smaller---but is limited to a single tool call per example and cannot reformulate queries when results are unhelpful.
+Source quote (GPT-J 6.7B): "Toolformer, which is based on a pretrained GPT-J model (Wang and Komatsuzaki, 2021) with 6.7B parameters" (p. 2, Section 1)
+Source quote (self-supervised pipeline): "Given just a handful of human-written examples of how an API can be used, we let a LM annotate a huge language modeling dataset with potential API calls. We then use a self-supervised loss to determine which of these API calls actually help the model in predicting future tokens." (p. 2, Section 1)
+Source quote (filtering criterion): "we thus only keep API calls for which L_i^- - L_i^+ >= tau_f holds, i.e., adding the API call and its result reduces the loss by at least tau_f" (p. 3, Section 2, Filtering API Calls)
+Source quote (five tools): "We explore the following five tools: a question answering system, a Wikipedia search engine, a calculator, a calendar, and a machine translation system." (p. 5, Section 3)
+Source quote (97.9% calculator): "This is because across all benchmarks, for 97.9% of all examples the model decides to ask the calculator tool for help." (p. 7, Section 4.2.2)
+Source quote (outperforms GPT-3): Table 4 (p. 7): "Toolformer: ASDiv 40.4, SVAMP 29.4, MAWPS 44.0" vs "GPT-3 (175B): 14.0, 10.0, 19.8"
+Source quote (single tool call limit): "we only allow at most one API call per input to make sure the model does not get stuck in a loop where it constantly calls APIs without producing any actual output." (p. 6, Section 4.2)
+Source quote (cannot reformulate): "Toolformer still lags behind the much larger GPT-3 (175B) model. This is likely due to both the simplicity of our search engine (in many cases, it returns results that are clearly not a good match for a given query) and the inability of Toolformer to interact with it, e.g., by reformulating its query if results are not helpful" (p. 8, Section 4.2.3)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The PDF confirms this is "Toolformer: Language Models Can Teach Themselves to Use Tools" by Schick et al. (Meta AI Research, 2023). The abstract states: "We show that LMs can teach themselves to use external tools via simple APIs and achieve the best of both worlds. We introduce Toolformer, a model trained to decide which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results into future token prediction. This is done in a self-supervised way." This directly supports the KB claim about self-supervised tool-learning.
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Abstract: "We introduce Toolformer, a model trained to decide which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results into future token prediction. This is done in a self-supervised way, requiring nothing more than a handful of demonstrations for each API." Section 2 describes the three-step approach: (1) sample API calls using in-context learning, (2) execute API calls, (3) filter based on whether calls reduce loss. Tools include calculator, Q&A system, search engine, translation system, and calendar.
-Notes: Both KB claims are accurate: (1) LLMs can reason with tool-calling capabilities, and (2) Toolformer uses a self-supervised annotation pipeline for learning when/how to use external tools. The description of "teach itself" and "self-supervised annotation pipeline" correctly characterizes the approach.
-Verified: 2026-06-28
+All numbers match the source exactly:
+- GPT-J 6.7B parameters: confirmed (p. 2)
+- Five tools (calculator, QA [Atlas], Wikipedia search [BM25], machine translation [NLLB 600M], calendar): confirmed (p. 5)
+- Self-supervised pipeline with cross-entropy loss filtering: confirmed (p. 2-3)
+- 97.9% correct tool on math benchmarks (calculator): confirmed (p. 7)
+- Outperforms GPT-3 175B on math: confirmed (p. 7, Table 4: 40.4 vs 14.0 ASDiv)
+- Limited to single API call per example: confirmed (p. 6)
+- Cannot reformulate queries: confirmed (p. 8)
+- "25x smaller" claim: GPT-J is 6.7B, GPT-3 is 175B; 175/6.7 = 26.1x. Our paper says "25x" which is approximate -- acceptable rounding.
+No plagiarism risk -- our paper paraphrases with attribution.
+Verified: 2026-06-29

@@ -3,27 +3,36 @@ Cited 6 time(s)
 ============================================================
 
 Chapter: 1_introduction, Line: 4
-Claim: The result is an unprecedented volume of training and wellness data available to individual athletes---yet this data remains fragmented across proprietary ecosystems with incompatible interfaces, making holistic analysis impractical for anyone without a sports-science background [CITE].
+Claim: Training data remains fragmented across proprietary ecosystems with incompatible interfaces, making holistic analysis impractical for anyone without a sports-science background [CITE].
+Source quote: "Monitoring the load placed on athletes in both training and competition has become a very hot topic in sport science. Both scientists and coaches routinely monitor training loads using multidisciplinary approaches" (p. S2-161, Abstract)
+Note: The paper establishes that load monitoring is complex and multidisciplinary; our paper uses this to argue fragmentation makes it impractical for non-experts. This is a reasonable inference, not a direct claim.
 
-Chapter: 1_introduction, Line: 16
-Claim: An athlete's readiness to train depends on the interplay of recovery status, cumulative workload, environmental conditions, and personal schedule [CITE], yet no consumer tool reasons across all four dimensions simultaneously.
+Chapter: 1_introduction, Line: 14
+Claim: Sports science consensus statements emphasise that effective load monitoring requires combining external and internal load from multiple sources [CITE].
+Source quote: "internal and external training loads should be used in combination to provide greater insight to training stress" (p. S2-161, Defining Training Load section)
 
 Chapter: 2_market_analysis, Line: 57
-Claim: Contextual, cross-domain reasoning --- the capability to synthesise signals from recovery status, training load trends, weather forecasts, and schedule availability into a single, coherent recommendation, rather than presenting isolated metrics [CITE].
+Claim: Contextual, cross-domain reasoning --- synthesising signals from recovery status, training load trends, weather forecasts, and schedule availability [CITE].
+Source quote: "internal and external training loads should be used in combination to provide greater insight to training stress. For example, athletes repeating the exact same session on different days may maintain the same power output for the same duration (ie, same external load) but experience quite different internal loads (heart rate, blood lactate, RPE, etc) depending on their state of fatigue, emotional disturbances, recent training history, or illness." (p. S2-161, Defining Training Load section)
 
-Chapter: 3_state_of_the_art, Line: 26
-Claim: [CITE] published an international consensus statement that formalises the distinction between external load (work performed, measured by GPS and power meters) and internal load (the psychophysiological response, measured by heart rate and HRV), emphasising that the resulting adaptation is inherently
+Chapter: 3_state_of_the_art, Section: Training Load (line 52)
+Claim: [CITE] published an international consensus statement (11 authors from five countries) formalising the distinction between external load---objective measures of work performed (distance, speed, acceleration, power output, measured by GPS and accelerometers)---and internal load---the psychophysiological response (heart rate, HRV, session RPE, blood lactate). Their central recommendation is that both must be monitored in combination. They establish the ACWR with 0.8-1.3 as the low-risk range.
+Source quote [authors]: "Pitre C. Bourdon, Marco Cardinale, Andrew Murray, Paul Gastin, Michael Kellmann, Matthew C. Varley, Tim J. Gabbett, Aaron J. Coutts, Darren J. Burgess, Warren Gregson, and N. Timothy Cable" (p. S2-161, title page) -- 11 authors CONFIRMED
+Source quote [affiliations/countries]: "Primary affiliations: Bourdon, Cardinale, Murray, and Cable, Sport Science, and Varley and Gregson, Football Performance and Science, Aspire Academy, Doha, Qatar. Gastin, School of Exercise and Nutrition Sciences, Deakin University, Melbourne, Australia. Kellmann, Faculty of Sport Science, Ruhr-University Bochum, Germany. Gabbett, Inst for Resilient Regions, University of Southern Queensland, Ipswich, Australia. Coutts, Sport and Exercise Discipline Group, University of Technology Sydney, Australia. Burgess, Port Adelaide Football Club, Adelaide, Australia. Secondary affiliations: [...] Cardinale, University of St Mark & St John, Plymouth, UK. Murray, Athletics Dept, University of Oregon, Eugene." (p. S2-161, footnote) -- Five countries: Qatar, Australia, Germany, UK, USA. CONFIRMED
+Source quote [external load]: "external training loads are objective measures of the work performed by the athlete during training or competition and are assessed independently of internal workloads. Common measures of external load include power output, speed, acceleration, time-motion analysis, global positioning system (GPS) parameters, and accelerometer-derived parameters." (p. S2-161, Defining Training Load section)
+Source quote [internal load]: "For the context of this paper internal training loads are defined as the relative biological (both physiological and psychological) stressors imposed on the athlete during training or competition. Measures such as heart rate, blood lactate, oxygen consumption, and ratings of perceived exertion (RPE) are commonly used to assess internal load." (p. S2-161, Defining Training Load section)
+Source quote [combination]: "internal and external training loads should be used in combination to provide greater insight to training stress" (p. S2-161, Defining Training Load section)
+Source quote [ACWR 0.8-1.3]: "When the ACWR was in the range of 0.8 to 1.3 (ie, the acute training load was approximately equal to the chronic training load), the risk of injury was relatively low." (p. S2-166, Athlete-Load Monitoring and Injury Prevention section; also shown in Figure 1 as 'Sweet Spot')
 
-Chapter: 3_state_of_the_art, Line: 38
-Claim: The professional adoption of wearable monitoring---GPS, heart rate, and accelerometry are now standard in elite team sports [CITE]---is increasingly reaching consumer athletes through platforms like Strava and Garmin Connect.
+Chapter: 3_state_of_the_art, Section: Wearable Reliability (line 68)
+Claim: Professional adoption of wearable monitoring is now standard in elite team sports [CITE].
+Source quote: "External training load in team sports is routinely measured using GPS." (p. S2-163, GPS Measures in Team Sports section)
 
-Chapter: 5_data_sources, Line: 8
-Claim: Its thirteen tools cover recent activities, aggregate statistics, year-over-year breakdowns, personal records, gear mileage, deep single-activity detail with lap splits and power data, GPS streams at sub-second resolution, performance trend analysis against personal baselines, and---critically---the
+Chapter: 5_data_sources, Line: 10
+Claim: CTL/ATL/TSB derived from the fitness-fatigue impulse-response model widely used in endurance sports [CITE].
+Source quote: "The original fitness-fatigue model reported by Banister et al used a systems-theory approach to analyze the responses to physical training and is described as: Modeled performance = fitness from training model - K(fatigue from training model)" (p. S2-165, Fitness-Fatigue Model section)
 
 ============================================================
-
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: The paper is titled "Monitoring Athlete Training Loads: Consensus Statement" (International Journal of Sports Physiology and Performance, 2017, 12, S2-161-S2-170). On p. S2-161 (Defining Training Load): "Measures of training load can be categorized as either internal or external. For the context of this paper internal training loads are defined as the relative biological (both physiological and psychological) stressors imposed on the athlete during training or competition. Measures such as heart rate, blood lactate, oxygen consumption, and ratings of perceived exertion (RPE) are commonly used to assess internal load. On the other hand, external training loads are objective measures of the work performed by the athlete during training or competition and are assessed independently of internal workloads. Common measures of external load include power output, speed, acceleration, time-motion analysis, global positioning system (GPS) parameters, and accelerometer-derived parameters." The paper also states: "internal and external training loads should be used in combination to provide greater insight to training stress." On GPS in team sports (p. S2-163): "External training load in team sports is routinely measured using GPS." The abstract confirms it is a consensus statement from a conference at Aspire Academy, Doha, Qatar, February 2016.
-Notes: All six KB claims are supported. The consensus statement format, the external/internal load distinction, the emphasis on holistic multi-dimensional monitoring, and the description of GPS/HR/accelerometry as standard in elite sport are all explicitly present in the paper. The claim about fragmented data across proprietary ecosystems (Ch. 1) is a reasonable inference from the paper's discussion of the need for integrated monitoring approaches, though the paper does not use the exact word "fragmented." The Strava tool claim (Ch. 5) is project-specific and not directly from this source -- it cites Bourdon for context about what monitoring entails, which is appropriate.
-Verified: 2026-06-28
+VERIFICATION STATUS: CONFIRMED
+All claims verified with verbatim quotes from the source PDF. 11 authors confirmed by name. Five countries confirmed from affiliations (Qatar, Australia, Germany, UK, USA). External/internal load definitions match. ACWR 0.8-1.3 low-risk range confirmed from p. S2-166 text and Figure 1.
+Verified: 2026-06-29

@@ -3,8 +3,9 @@ Cited 1 time(s)
 ============================================================
 
 Chapter: 3_state_of_the_art, Line: 8
-Claim: The Transformer architecture [CITE], chain-of-thought prompting [CITE], and the scaling of model capacity to hundreds of billions of parameters [CITE] laid the groundwork for this shift by demonstrating that LLMs can perform multi-step reasoning when prompted to generate intermediate steps.
+Claim: The Transformer architecture [CITE], chain-of-thought prompting [CITE], and the scaling of model capacity to hundreds of billions of parameters [CITE] laid the groundwork by demonstrating that LLMs can perform multi-step reasoning when prompted to generate intermediate steps.
+Source quote: "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train." (p. 1, Abstract)
+Source quote: "In this work we propose the Transformer, a model architecture eschewing recurrence and instead relying entirely on an attention mechanism to draw global dependencies between input and output." (p. 2, Section 1)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Attention Is All You Need" (NeurIPS 2017). Standard reference for the Transformer architecture.

@@ -3,56 +3,41 @@
 \addcontentsline{toc}{section}{AI Usage Documentation}
 \label{sec:ai_usage}
 
-\vspace{0.5cm}
+\vspace{0.3cm}
 
 The following table documents all uses of generative AI tools during the development of this seminar paper and the Training Copilot software system. All AI-generated outputs were reviewed, verified, and adapted by the authors before inclusion.
 
-\vspace{0.5cm}
+\vspace{0.3cm}
 
 \begin{table}[ht]
 \begin{center}
 \begin{minipage}{\textwidth}
 \caption[AI usage documentation]{Documentation of AI tool usage throughout the project.}\label{tab:ai_usage}
 \small
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} p{1.8cm} p{2.2cm} p{1.8cm} p{2.2cm} p{3.6cm} @{\extracolsep{\fill}}}
+\begin{tabularx}{\textwidth}{p{2.8cm}p{2.2cm}X}
 \toprule
-\textbf{Scope} & \textbf{Activity} & \textbf{AI Tool} & \textbf{Prompt (example)} & \textbf{Remark} \\
+\textbf{Scope} & \textbf{AI Tool} & \textbf{Usage and Verification} \\
 \midrule
 
-All sections & Grammar and spelling corrections & LanguageTool & --- & Accepted grammatical corrections \\
+Writing (all sections) & DeepL & Translation of German drafts to English as a starting point; manually revised for academic tone. \\
 \addlinespace
 
-All sections & Formulation and sentence-level rewriting & Claude Sonnet & ``Rephrase this paragraph for clarity\ldots'' & Partially accepted; all rephrased text reviewed against sources \\
+Writing (all sections) & LanguageTool & Grammar and spelling corrections; accepted after review. \\
 \addlinespace
 
-All sections & Translation of German drafts to English & DeepL & --- & Used as a starting point; manually revised for academic tone \\
+Writing (all sections) & Claude Code & Sentence-level rewriting, paragraph restructuring, and formulation improvements. All rephrased text reviewed against sources. \\
 \addlinespace
 
-Literature review & Paper discovery and screening & NotebookLM, Claude & ``Find relevant papers on multi-agent sports coaching\ldots'' & Used to identify candidate papers; each paper was then read in full and verified manually \\
+Literature review & Claude Projects & Paper discovery, screening, and summarisation of paper content. Each paper was read in full and all claims verified against the original PDF before citing. Verifications documented in a citation knowledge base. \\
 \addlinespace
 
-Literature review & Summarisation of paper content & NotebookLM & --- & Used for initial summaries; all claims verified against the original PDF before citing \\
+\LaTeX{} figures / tables & Claude Code & TikZ diagram generation, table formatting, and layout adjustments. Verified via PDF rendering. \\
 \addlinespace
 
-All \LaTeX{} figures and tables & Formatting improvements and TikZ code & Claude Sonnet & ``Make this TikZ diagram fit within the text width\ldots'' & Accepted formatting; verified visual output via PDF rendering \\
-\addlinespace
-
-Citation verification & Fact-checking claims against source PDFs & Claude Sonnet & ``Read this PDF and verify the claim\ldots'' & Used to cross-reference; all verifications documented in citation knowledge base \\
-\addlinespace
-
-Code (full system) & Code generation, debugging, architecture & GitHub Copilot, Claude Sonnet & ``Write a FastMCP server that\ldots'', ``Debug this async event loop\ldots'' & Code explanations, generation, syntax corrections, library research, refactoring \\
-\addlinespace
-
-Code (agents) & Prompt engineering for specialist agents & Claude Sonnet & ``Write a system prompt for a recovery specialist that\ldots'' & Iteratively refined; final prompts reviewed for correctness \\
-\addlinespace
-
-Code (evaluation) & Evaluation framework and persona design & Claude Sonnet & ``Design a persona for an ambitious triathlete\ldots'' & Persona descriptions and scorer prompts generated, then manually refined \\
-\addlinespace
-
-Data & Synthetic test data for UI development & GitHub Copilot & ``Generate mock Garmin sleep data in this JSON format\ldots'' & Used to develop UI components without a connected device \\
+Software development & Claude Code, GitHub Copilot & Code generation, debugging, architecture design, prompt engineering for specialist agents, evaluation framework and persona design, and synthetic test data generation. All code reviewed and tested before integration. \\
 
 \botrule
-\end{tabular*}
+\end{tabularx}
 \end{minipage}
 \end{center}
 \end{table}

@@ -35,7 +35,7 @@ Table~\ref{tab:full_tools} provides the complete tool inventory across all MCP s
 \begin{center}
 \begin{minipage}{\textwidth}
 \caption{Complete MCP tool inventory.}\label{tab:full_tools}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lllp{5.5cm}@{\extracolsep{\fill}}}
+\begin{tabularx}{\textwidth}{lllX}
 \toprule
 \textbf{Server} & \textbf{Port} & \textbf{Tool Name} & \textbf{Description} \\
 \midrule
@@ -92,7 +92,7 @@ Table~\ref{tab:full_tools} provides the complete tool inventory across all MCP s
   & & \texttt{update\_event} & Update event \\
   & & \texttt{delete\_event} & Delete event \\
 \botrule
-\end{tabular*}
+\end{tabularx}
 \end{minipage}
 \end{center}
 \end{table}
@@ -105,7 +105,7 @@ Table~\ref{tab:personas} lists all ten evaluation personas with their types, goa
 \begin{center}
 \begin{minipage}{\textwidth}
 \caption{Evaluation persona details.}\label{tab:personas}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llp{4.5cm}p{4cm}@{\extracolsep{\fill}}}
+\begin{tabularx}{\textwidth}{llXp{3.5cm}}
 \toprule
 \textbf{Name} & \textbf{Type} & \textbf{Goal} & \textbf{Expected Focus} \\
 \midrule
@@ -121,7 +121,7 @@ Mara & Cyclist & Trail discovery + elevation & Trail options \\
 Carlos & Cyclist & Year-over-year progress & Plain-language trends \\
 Jana & Cyclist & Group loop for mixed abilities & Shareable route \\
 \botrule
-\end{tabular*}
+\end{tabularx}
 \end{minipage}
 \end{center}
 \end{table}
@@ -134,7 +134,7 @@ Table~\ref{tab:env} lists the key environment variables used by Training Copilot
 \begin{center}
 \begin{minipage}{\textwidth}
 \caption{Key environment variables.}\label{tab:env}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lp{3cm}p{5.5cm}@{\extracolsep{\fill}}}
+\begin{tabularx}{\textwidth}{lp{2cm}X}
 \toprule
 \textbf{Variable} & \textbf{Default} & \textbf{Purpose} \\
 \midrule
@@ -148,7 +148,7 @@ Table~\ref{tab:env} lists the key environment variables used by Training Copilot
 \texttt{MLFLOW\_TRACKING\_URI} & \texttt{:5001} & MLflow server URL \\
 \texttt{ORCHESTRATOR\_SPECIALISTS} & all & Enabled specialist agents \\
 \botrule
-\end{tabular*}
+\end{tabularx}
 \end{minipage}
 \end{center}
 \end{table}

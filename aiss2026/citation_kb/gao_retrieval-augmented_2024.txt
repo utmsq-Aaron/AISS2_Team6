@@ -2,9 +2,13 @@ Citation: gao_retrieval-augmented_2024
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 42
-Claim: [CITE] surveyed the progression from Na\"ive RAG through Advanced RAG to Modular RAG; Training Copilot implements a Na\"ive RAG approach with a lightweight local model, which is sufficient for its curated corpus of a few thousand chunks.
+Chapter: 3_state_of_the_art, Line: 76
+Claim: [CITE] surveyed the progression from Naive RAG (retrieve-then-generate) through Advanced RAG (with query rewriting and re-ranking) to Modular RAG (pluggable components). Training Copilot implements a Naive RAG approach: embed, retrieve by cosine similarity, generate with retrieved context---which is sufficient for its curated corpus of ~3,000 chunks from eight public-domain books.
+Source quote: "This comprehensive review paper offers a detailed examination of the progression of RAG paradigms, encompassing the Naive RAG, the Advanced RAG, and the Modular RAG." (p. 1, Abstract)
+Source quote: "The RAG research paradigm is continuously evolving, and we categorize it into three stages: Naive RAG, Advanced RAG, and Modular RAG, as showed in Figure 3." (p. 2, Section II)
+Source quote: "The Naive RAG research paradigm represents the earliest methodology, which gained prominence shortly after the widespread adoption of ChatGPT. The Naive RAG follows a traditional process that includes indexing, retrieval, and generation, which is also characterized as a 'Retrieve-Read' framework [7]." (p. 3, Section II-A)
+Source quote: "Advanced RAG introduces specific improvements to overcome the limitations of Naive RAG. Focusing on enhancing retrieval quality, it employs pre-retrieval and post-retrieval strategies." (p. 3, Section II-B)
+Source quote: "The modular RAG architecture advances beyond the former two RAG paradigms, offering enhanced adaptability and versatility." (p. 4, Section II-C)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Retrieval-Augmented Generation for Large Language Models: A Survey" (arXiv:2312.10997). Surveys progression from Naive RAG through Advanced RAG to Modular RAG as claimed.

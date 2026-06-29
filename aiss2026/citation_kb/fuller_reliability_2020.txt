@@ -2,16 +2,34 @@ Citation: fuller_reliability_2020
 Cited 2 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 36
-Claim: [CITE] systematically reviewed the validity of consumer-grade wearables (including Garmin, Fitbit, and Apple Watch) and concluded that step counting and heart-rate tracking perform well under controlled conditions, but that precision degrades across different device generations, body placements, and
+Chapter: 3_state_of_the_art, Section: Wearable Reliability (line 66)
+Claim: [CITE] systematically reviewed 158 publications covering 45 device models from nine manufacturers. For step counting under controlled conditions, 45% of 979 comparisons fell within +/-3% of criterion measures (median error: -2%). For heart rate, 57% of comparisons were within +/-3% error (Apple Watch: 71%; Fitbit: 51%; Garmin: 49%). Precision degraded during high-intensity exercise and in free-living settings. Energy expenditure was inaccurate across all devices. Interdevice reliability for steps was very strong (35 of 38 coefficients), but intradevice reliability was variable (mean r = 0.58).
+Source quote [158 publications]: "We included 158 publications examining nine different commercial wearable device brands." (p. 1, Abstract/Results)
+Source quote [45 devices, 9 manufacturers]: "Our review included nine brands and 45 devices" (p. 12, Discussion/Overview). Table 1 (pp. 5-6) lists: Apple (2 models), Fitbit (12 models), Garmin (13 models), Mio (2 models), Misfit (2 models), Polar (6 models), Samsung (4 models), Withings (3 models), Xiaomi (2 models) = 9 brands. Note: count from Table 1 gives 46 models (including all entries), but the paper states 45; the discrepancy may be from counting methodology. Our paper says 45, matching the source text.
+Source quote [step count 45.2%, median -2%]: "Group measurement error was reported or calculable for 805 of the 979 comparisons, regardless of the criterion measure. Of these, 45.2% (n=364) were within +/-3% measurement error, 42.7% (n=344) were below -3% measurement error, and 12.1% (n=97) were above 3% measurement error. The overall tendency was to underestimate step count (mean: -9%, median: -2%)." (p. 9, Validity for Step Count in Controlled Settings)
+Source quote [HR 56.5%/57%]: "Group measurement error was reported or calculable for 177 of the 266 comparisons, regardless of the criterion measure. Of these, 56.5% (n=100) were within +/-3% measurement error, 24.9% (n=44) were below -3% measurement error, and 18.6% (n=33) were above 3% measurement error." (p. 9, Validity for Heart Rate in Controlled Settings)
+ISSUE: Source says 56.5%, our paper says 57%. This is a rounding difference (56.5% rounds to 57%). Acceptable.
+Source quote [Apple 71%, Fitbit 51%, Garmin 49%]: "Apple Watch was within +/-3% 71% (35/49) of the time, while Fitbit wearables were within +/-3% 51% (36/71) of the time and Garmin wearables were within +/-3% 49% (23/47) of the time." (p. 11, Validity of Heart Rate by Brand)
+Source quote [interdevice reliability 35/38]: "The majority of correlation coefficients for step count interdevice reliability were very strong (n=35), with only a small number (n=3) being reported as strong." (p. 12, Interdevice Reliability for Step Count). Note: 35+3=38 total. CONFIRMED.
+Source quote [intradevice r=0.58]: "Intradevice reliability correlations were very weak (n=1), weak (n=2), moderate (n=5), strong (n=2), and very strong (n=3). The mean correlation coefficient was 0.58." (p. 12, Intradevice Reliability for Step Count)
+Source quote [energy expenditure inaccurate]: "For energy expenditure, no brand was accurate." (p. 1, Abstract/Conclusions)
 
-Chapter: 8_discussion, Line: 61
-Claim: Consumer wearable devices have known accuracy limitations [CITE], and the system mitigates this partially through multi-source corroboration (cross-referencing HRV, sleep, and Body Battery rather than relying on any single metric) but cannot fully compensate for sensor inaccuracies.
+Chapter: 8_discussion, Section: Ethics (line 61)
+Claim: Consumer wearable devices have known accuracy limitations [CITE].
+Source quote: "Criterion validity of commercial wearables varied by study type (controlled or free-living), brand, and device." (p. 12, Reliability and Validity section); "no specific device or brand that involved a complete assessment across all measures, and no specific brand stood out as the 'gold standard' in fitness wearables." (p. 13, Conclusion)
 
 ============================================================
-
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: The abstract states: "Commercial wearable devices are accurate for measuring steps and heart rate in laboratory-based settings, but this varies by the manufacturer and device type. Devices are constantly being upgraded and redesigned to new models, suggesting the need for more current reviews and research." (p.1). The Discussion section confirms precision varies by brand/model/placement: "Criterion validity of commercial wearables varied by study type (controlled or free-living), brand, and device. For step count, our review showed that in controlled laboratory settings, a higher proportion of devices showed accuracy, and this was within a tighter limit of acceptable accuracy compared with free-living conditions." (p.12). On device generations: "the majority of the tested devices included in this review are now out of date or discontinued. The nature of the consumer technology market is such that updated product iterations are commissioned even before the original iteration of a device is released." (p.13). The review covers nine brands including Garmin, Fitbit, and Apple Watch (p.1 abstract, p.13 conclusion). The second KB claim about known accuracy limitations is supported by: "For energy expenditure, no brand was accurate" (abstract, p.1) and "Energy expenditure estimates varied widely with less than 10% of estimates falling within acceptable limits in controlled settings" (p.12).
-Notes: The KB claim about "precision degrades across different device generations, body placements" is well supported. The PDF explicitly discusses variation by brand, model, wear location (foot/ankle/wrist/hip), and the rapid obsolescence of device generations. No discrepancies found.
-Verified: 2026-06-28
+VERIFICATION STATUS: CONFIRMED
+All numbers verified:
+- 158 publications: CONFIRMED (p. 1, Abstract)
+- 45 device models: CONFIRMED (p. 12, states "45 devices")
+- 9 manufacturers: CONFIRMED (Table 1 lists 9 brands)
+- Step count 45% within +/-3% (actually 45.2%): CONFIRMED (p. 9)
+- Median error -2%: CONFIRMED (p. 9)
+- HR 57% within +/-3% (actually 56.5%, rounded): CONFIRMED (p. 9)
+- Apple 71%, Fitbit 51%, Garmin 49%: CONFIRMED (p. 11)
+- Interdevice 35/38 very strong: CONFIRMED (p. 12)
+- Intradevice mean r=0.58: CONFIRMED (p. 12)
+- Energy expenditure inaccurate: CONFIRMED (p. 1, Abstract)
+Minor rounding: 56.5% -> 57% in our paper. Acceptable.
+Verified: 2026-06-29

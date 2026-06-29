@@ -1,0 +1,18 @@
+Citation: morton_modeling_1990
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Section: Training Load (line 54)
+Claim: Training Copilot's load specialist computes CTL, ATL, and TSB---derived from the fitness-fatigue impulse-response model originally proposed by [CITE]---from Strava data to operationalise these trends.
+Source quote: "This paper focuses on the characteristics of a model interpreting the effect of training on athletic performance. [...] a systematically quantified impulse of training produces dual responses: fitness and fatigue. In the absence of training, both decay exponentially with time." (p. 1171, Abstract)
+Source quote: "Because fitness has a positive influence and fatigue has a negative influence on performance, model performance at time t, p(t), is given by the simple linear difference p(t) = k₁g(t) - k₂h(t)" (p. 1173, Eq. 8, Modeling Performance section)
+Source quote: "g(t) = g(t - i)e^{-i/τ₁} + w(t)" and "h(t) = h(t - i)e^{-i/τ₂} + w(t)" (p. 1173, Eqs. 4-5)
+Source quote: "w(t) = D(ΔHR ratio) [...] defined in an arbitrary unit called the training impulse or trimp" (p. 1172, Eqs. 1-3)
+Source quote: "τ₁ and τ₂ are 45 and 15 days, respectively, k₁ = 1, and k₂ = 2" (p. 1173, illustrative parameters)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+NOTE: This is the canonical formalization of the Banister impulse-response model. The modern CTL (Chronic Training Load) corresponds to the fitness component g(t) with τ₁ ≈ 42 days; ATL (Acute Training Load) corresponds to the fatigue component h(t) with τ₂ ≈ 7 days; TSB (Training Stress Balance) = CTL - ATL = the predicted performance p(t). The paper validates the model on two subjects (r² = 0.71 and r² = 0.96, p < 0.001 and p < 0.0001 respectively; Table 2, p. 1176).
+NO PLAGIARISM RISK: Our paper cites the model attribution without reproducing any equations or specific text.
+PDF: aiss2026/sources/morton_modeling_1990.pdf (downloaded via KIT VPN from journals.physiology.org)
+Verified: 2026-06-29

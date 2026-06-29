@@ -4,11 +4,17 @@ Cited 1 time(s)
 
 Chapter: 3_state_of_the_art, Line: 30
 Claim: [CITE] further argued that truly personalised, evidence-informed training prescriptions require integrating multiple interacting variables (exercise selection, periodisation, nutritional recommendations) that change over time---a complexity that justifies agentic assistance over static dashboards.
+Source quote: "a training plan or exercise prescription is typically a mix of many interacting interventions (e.g. exercises and nutritional recommendations) that additionally change over time due to periodisation or tapering." (p. 1805, Abstract)
+Source quote: "A training plan is a complex mix of many interventions that often change over time due to periodization. In contrast to a 'drug or no drug' decision in medicine, it is virtually impossible to base all of the underlying decisions on scientific evidence." (p. 1806, Key Points box)
 
 ============================================================
+VERIFICATION STATUS: ISSUE
+SOURCE CONFIRMS: The core factual claim about multiple interacting variables (exercise selection, periodisation, nutritional recommendations) changing over time is CONFIRMED by verbatim quotes from the abstract (p. 1805) and Key Points (p. 1806). However, the conclusion that this complexity "justifies agentic assistance over static dashboards" is an editorial interpretation NOT found anywhere in the paper. Wackerhage & Schoenfeld discuss evidence-based practice and personalization in a clinical/coaching context; they never mention software agents, dashboards, agentic systems, or any digital tool. The phrase "agentic assistance over static dashboards" is our paper's own argument projected onto the source.
+
+PLAGIARISM CHECK: No plagiarism risk. The paper paraphrases correctly.
 
 --- VERIFICATION ---
-Status: ISSUE
-Evidence: Abstract (p.1805): "A key issue, however, is that a training plan or exercise prescription is typically a mix of many interacting interventions (e.g. exercises and nutritional recommendations) that additionally change over time due to periodisation or tapering." Key Points box (p.1806): "A training plan is a complex mix of many interventions that often change over time due to periodization. In contrast to a 'drug or no drug' decision in medicine, it is virtually impossible to base all of the underlying decisions on scientific evidence."
-Notes: The core factual claim about multiple interacting variables (exercise selection, periodisation, nutritional recommendations) changing over time is CONFIRMED by the source. However, the KB's conclusion that this "justifies agentic assistance over static dashboards" is an editorial interpretation not found anywhere in the paper. Wackerhage & Schoenfeld discuss evidence-based practice and personalization in a clinical/coaching context; they never mention software agents, dashboards, agentic systems, or any digital tool. The phrase "agentic assistance over static dashboards" is the citing paper's own argument, not something Wackerhage argued.
-Verified: 2026-06-28
+Status: ISSUE - The factual content about multiple interacting variables is confirmed verbatim. However, the claim that this "justifies agentic assistance over static dashboards" is our editorial interpretation, not something Wackerhage & Schoenfeld argued. Consider rephrasing to separate the verified factual claim from our inference, e.g., "[CITE] showed that training prescriptions involve multiple interacting variables that change over time---complexity that, in our view, benefits from agentic assistance rather than static dashboards."
+Evidence: Abstract p. 1805 and Key Points p. 1806 confirm the interacting-variables claim.
+Notes: The authors discuss evidence-based practice in sports science; they do not discuss software architecture or AI agents.
+Verified: 2026-06-29

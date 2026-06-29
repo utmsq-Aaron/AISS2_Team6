@@ -16,10 +16,10 @@
     \node[actor, draw=tccyan, fill=tccyan!8] (ctx) at (9.6, 0) {Context};
 
     % Lifelines
-    \draw[thick, tclightgrey] (user.south) -- ++(0, -8.5);
-    \draw[thick, tclightgrey] (orch.south) -- ++(0, -8.5);
-    \draw[thick, tclightgrey] (rec.south) -- ++(0, -8.5);
-    \draw[thick, tclightgrey] (ctx.south) -- ++(0, -8.5);
+    \draw[thick, tclightgrey] (user.south) -- ++(0, -9.0);
+    \draw[thick, tclightgrey] (orch.south) -- ++(0, -9.0);
+    \draw[thick, tclightgrey] (rec.south) -- ++(0, -9.0);
+    \draw[thick, tclightgrey] (ctx.south) -- ++(0, -9.0);
 
     % 1. User → Orchestrator
     \draw[msg, color=tcblue] (0, -1.0) -- node[above, font=\scriptsize] {``Should I train tomorrow?''} (3.2, -1.0);
@@ -44,11 +44,11 @@
     \node[timelabel] at (-1.3, -5.25) {t\textsubscript{2}};
 
     % 7. Orchestrator synthesises
-    \node[font=\scriptsize, text=tcgreen, align=center] at (3.2, -6.5) {Synthesise\\+ build trace};
+    \node[font=\scriptsize, text=tcgreen, align=center] at (3.2, -6.3) {Synthesise\\+ build trace};
 
     % 8. Orchestrator → User
-    \draw[rmsg, color=tcblue] (3.2, -7.5) -- node[above, font=\scriptsize, align=center] {``HRV 12\% below baseline\ldots\\14--17h rain-free. Light session.''} (0, -7.5);
-    \node[timelabel] at (-1.3, -7.5) {t\textsubscript{3}};
+    \draw[rmsg, color=tcblue] (3.2, -7.8) -- node[above, font=\scriptsize, align=center] {``HRV 12\% below baseline\ldots\\14--17h rain-free. Light session.''} (0, -7.8);
+    \node[timelabel] at (-1.3, -7.8) {t\textsubscript{3}};
 
 \end{tikzpicture}%
 }% end resizebox

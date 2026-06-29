@@ -2,12 +2,23 @@ Citation: anthropic_mcp_announcement_2024
 Cited 2 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 20
-Claim: The Model Context Protocol (MCP), released by Anthropic in November 2024 [CITE], addresses this by defining a universal client--server protocol based on JSON-RPC\,2.
+Chapter: 3_state_of_the_art, Line: 42
+Claim: The Model Context Protocol (MCP), released by Anthropic in November 2024 [CITE], addresses this by defining a universal client-server protocol based on JSON-RPC 2.0 for tool discovery and invocation.
+Source quote: "Today, we're open-sourcing the Model Context Protocol (MCP), a new standard for connecting AI assistants to the systems where data lives" (p. 1, opening paragraph)
+Source quote: Blog post dated "25. Nov. 2024" (p. 1, date header)
 
 Chapter: 9_conclusion, Line: 35
-Claim: MCP's growing industry adoption [CITE] is already materialising in the fitness domain: Strava announced its own official MCP server in June 2026 [CITE], offering AI-native access to subscriber data.
+Claim: MCP's growing industry adoption [CITE] is already materialising in the fitness domain.
+Source quote: "Early adopters like Block and Apollo have integrated MCP into their systems, while development tools companies including Zed, Replit, Codeium, and Sourcegraph are working with MCP to enhance their platforms" (p. 2, adoption section)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The Anthropic blog post "Introducing the Model Context Protocol" is dated 25 Nov 2024, confirming the November 2024 release date. It states: "Today, we're open-sourcing the Model Context Protocol (MCP), a new standard for connecting AI assistants to the systems where data lives." It confirms growing industry adoption: "Early adopters like Block and Apollo have integrated MCP into their systems, while development tools companies including Zed, Replit, Codeium, and Sourcegraph are working with MCP." Both claims are supported: (1) MCP released by Anthropic in November 2024, and (2) MCP's growing industry adoption.
+SOURCE CONFIRMS: The Anthropic blog post "Introducing the Model Context Protocol" is dated 25 Nov 2024, confirming the November 2024 release date. The opening paragraph confirms MCP as "a new standard for connecting AI assistants to the systems where data lives." Growing industry adoption is confirmed by the list of early adopters (Block, Apollo, Zed, Replit, Codeium, Sourcegraph). Both citation uses are fully supported.
+
+PLAGIARISM CHECK: No plagiarism risk.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: November 2024 date and industry adoption both confirmed with verbatim quotes.
+Notes: Source is the Anthropic blog post from November 25, 2024.
+Verified: 2026-06-29

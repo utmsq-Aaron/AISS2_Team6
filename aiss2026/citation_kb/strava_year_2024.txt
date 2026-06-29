@@ -1,10 +1,12 @@
 Citation: strava_year_2024
-Cited 1 time(s)
+Cited 0 time(s) -- NO LONGER CITED IN PAPER (bib entry exists but no \cite{} references remain)
 ============================================================
 
-Chapter: 1_introduction, Line: 4
-Claim: Wearable devices from manufacturers such as Garmin, Polar, and Apple now capture heart rate, GPS trajectories, sleep stages, heart-rate variability (HRV), and stress levels continuously [CITE], while platforms like Strava aggregate activity data from more than 135 million athletes worldwide [CITE].
+Chapter: (none -- citation removed from current paper; replaced by strava_trends_2025)
+Claim: Previously cited for "Strava aggregate activity data from more than 135 million athletes worldwide."
+Source quote: The source is the Strava Year in Sport 2024 webpage (strava.com/year-in-sport). The PDF is a web print showing the "Year In Sport 2024" branding and promotional content. The page does not contain a specific "135 million" user count -- it is a visual/promotional annual report. The 135M figure was likely drawn from Strava press materials circa 2024.
 
 ============================================================
-VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - Strava Year in Sport 2024 annual report. Referenced for platform usage and 135M+ athlete count. Standard annual report reference.
+VERIFICATION STATUS: ISSUE -- cannot verify the "135 million" figure from this source
+SOURCE CONFIRMS: The PDF is a web capture of Strava's Year in Sport 2024 page. It is primarily visual/promotional content (hero images, app download links). No specific user count (135 million) is visible in the captured pages. The paper has since replaced this citation with strava_trends_2025 (which references 180 million users). The bib entry should be removed since it is no longer cited.
+Verified: 2026-06-29

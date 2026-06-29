@@ -1,10 +1,16 @@
 Citation: jsonrpc_spec_2013
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 20
-Claim: 0 [CITE].
+Chapter: 3_state_of_the_art, Line: 42
+Claim: The Model Context Protocol (MCP) defines a universal client--server protocol based on JSON-RPC 2.0 [CITE] for tool discovery and invocation.
+Source quote: "JSON-RPC is a stateless, light-weight remote procedure call (RPC) protocol. Primarily this specification defines several data structures and the rules around their processing. It is transport agnostic in that the concepts can be used within the same process, over sockets, over http, or in many various message passing environments." (p. 1, Section 1 Overview)
+
+Chapter: 4_architecture, Line: 30
+Claim: The foundation is the Model Context Protocol, a JSON-RPC 2.0-based [CITE] client--server protocol where a host discovers tools from one or more servers and routes invocations transparently.
+Source quote: "JSON-RPC is a stateless, light-weight remote procedure call (RPC) protocol." (p. 1, Section 1 Overview)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The JSON-RPC 2.0 Specification (updated 2013-01-04, origin date 2010-03-26) is the official spec document. The title reads "JSON-RPC 2.0 Specification" and describes it as "a stateless, light-weight remote procedure call (RPC) protocol." The claim in the paper references JSON-RPC 2.0 in the context of MCP's transport layer, which is consistent -- MCP uses JSON-RPC 2.0 as its wire protocol. The citation is a standard reference to the specification itself.
+SOURCE CONFIRMS: The PDF is the official JSON-RPC 2.0 Specification (Origin Date: 2010-03-26, Updated: 2013-01-04), authored by the JSON-RPC Working Group. It defines JSON-RPC as "a stateless, light-weight remote procedure call (RPC) protocol" and specifies Request Objects (Section 4), Response Objects (Section 5), Error Objects (Section 5.1), Batch processing (Section 6), and examples (Section 7). Both citations correctly reference this as the underlying wire protocol for MCP.
+Verified: 2026-06-29

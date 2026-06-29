@@ -3,17 +3,45 @@ Cited 4 time(s)
 ============================================================
 
 Chapter: 1_introduction, Line: 8
-Claim: At the same time, large language models (LLMs) have demonstrated the ability to reason across heterogeneous information sources when equipped with tool-calling capabilities [CITE].
-
-Chapter: 3_state_of_the_art, Line: 18
-Claim: [CITE] provided a comprehensive survey identifying four key workflow stages---task planning, tool selection, tool calling, and response generation---that correspond directly to the stages of Training Copilot's agent execution loop.
-
-Chapter: 6_agent_interaction, Line: 22
-Claim: A recurring challenge in tool-augmented systems is that tool results can be large---GPS streams with thousands of points, full-day timelines---while the LLM's context window is finite and expensive [CITE].
-
-Chapter: 8_discussion, Line: 12
-Claim: Research on tool-augmented LLMs has shown that larger tool sets increase the rate of incorrect tool calls [CITE].
+Claim: Large language models have demonstrated the ability to reason across heterogeneous information sources when equipped with tool-calling capabilities [CITE].
+Source quote: "tool learning emerges as a promising solution to mitigate these limitations of LLMs by enabling dynamic interaction with external tools" (p. 2, Section 1)
+Note: General capability claim, confirmed by the survey's thesis.
 
 ============================================================
-VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Tool Learning with Large Language Models: A Survey" (Frontiers of Computer Science, 2024). Identifies four workflow stages: task planning, tool selection, tool calling, response generation. Also discusses context window limitations with large tool sets.
+
+Chapter: 3_state_of_the_art, Line: 36
+Claim: [CITE] synthesised findings into a four-stage workflow---task planning, tool selection, tool calling, and response generation---and surveyed benchmarks scaling up to 16,464 tools (ToolBench). Their central finding is that putting all tool descriptions into the LLM's context becomes impractical beyond a few hundred tools due to length and latency constraints, making a retrieval-based pre-filtering stage mandatory.
+Source quote (four-stage workflow): "the typical process of tool learning comprises four stages: task planning, tool selection, tool calling, and response generation, which is adopted in numerous works related to tools" (p. 9, Section 4.1)
+Source quote (16,464 tools): Table 1 (p. 18): "ToolBench2 [18]: # Tools 16,464, # Instances 126,486" (listed as "StableToolBench [152]" row also shows 16,464 tools). Note: our paper says "16,464 tools (ToolBench)" -- Table 1 lists "ToolBench2" not "ToolBench" as having 16,464 tools; "ToolBench1 [33]" has 232 tools. The figure 16,464 is correct but the benchmark name in our paper should be "ToolBench2" for precision.
+Source quote (context impractical): "Real-world systems often incorporate a wide array of tools, making it impractical to input descriptions of all tools into LLMs due to length limitations and latency constraints. Therefore, to fully exploit the potential of tool-augmented LLMs, it is crucial to develop an efficient tool retrieval system." (p. 12, Section 4.3.1, Retriever-based Tool Selection)
+Source quote (retrieval mandatory): "Recently, there has been an increasing focus on initially using a retriever to filter out the top-k suitable tools [18, 34, 122]. This necessity stems from the fact real-world systems usually have a vast number of tools, rendering it impractical to incorporate the descriptions of all tools as input for LLMs due to the constraints related to length and latency [124]." (p. 9, Section 4.1)
+
+============================================================
+
+Chapter: 6_agent_interaction, Line: 34
+Claim: Tool results can be large while the LLM's context window is finite and expensive [CITE].
+Source quote: "due to the limited context length of LLMs, some tool outputs cannot be directly fed into them. Consequently, various methods have emerged to address this issue." (p. 17, Section 4.5.2)
+Source quote: "ToolLLaMA [18] resorts to truncation, cutting the output to fit within the length constraints, which potentially loses the required information to solve the user query." (p. 17, Section 4.5.2)
+
+============================================================
+
+Chapter: 8_discussion, Line: 12
+Claim: Larger tool sets increase the rate of incorrect tool calls [CITE].
+Source quote: "In real-world applications, the sheer volume of available tools, coupled with constraints such as limited context length and high latency, makes it impractical to present all options to LLMs simultaneously." (p. 14, Section 4.3.2, Remark)
+Source quote: "In the reasoning process, LLMs often struggle with high latency and low throughput [197], challenges that become more pronounced when integrating tool learning." (p. 22, Section 6.1)
+Note: The survey does not provide a controlled experiment measuring accuracy degradation vs tool set size with a specific number. The claim is a reasonable interpretation of the survey's discussion of retrieval necessity and context limitations, but is framed qualitatively rather than with a specific accuracy-vs-scale graph. The survey's Table 1 shows benchmarks with up to 16,464 tools, and the repeated emphasis on retriever-based pre-filtering as "mandatory" implies that direct tool selection degrades at scale.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED (with notes)
+- Four-stage workflow (task planning, tool selection, tool calling, response generation): confirmed (p. 8-9, Section 4.1, Figure 3)
+- ToolBench2 16,464 tools, 126,486 instances: confirmed (p. 18, Table 1)
+- Context impractical for large tool sets due to length and latency: confirmed (p. 9, p. 12, p. 14)
+- Retrieval-based pre-filtering mandatory: confirmed (p. 9, p. 12)
+- 5 seconds latency for simple ChatGPT plugin queries: confirmed (p. 22, Section 6.1: "even simple queries using ChatGPT with plugins can take 5 seconds to resolve")
+- Ch6 claim about finite/expensive context window: confirmed (p. 17, Section 4.5.2)
+- Ch8 claim about larger tool sets increasing incorrect calls: supported qualitatively but not backed by a specific controlled experiment or accuracy-vs-scale graph. The survey argues this point through the need for retrieval (implying direct selection fails at scale) rather than measuring it directly.
+
+MINOR NOTE: Our paper writes "ToolBench" but the 16,464-tool benchmark in the survey is "ToolBench2" (ref [18], Qin et al. 2024). The original "ToolBench1" (ref [33], Xu et al. 2023) has only 232 tools. This is not materially misleading since both are from the ToolBench family, but "ToolBench2" would be more precise.
+
+No plagiarism risk -- our paper paraphrases with attribution.
+Verified: 2026-06-29

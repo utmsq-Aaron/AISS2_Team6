@@ -2,9 +2,13 @@ Citation: yang_survey_2025
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 22
-Claim: [CITE] surveyed the emerging landscape of AI agent protocols, providing a taxonomy that distinguishes context-oriented protocols (MCP) from inter-agent protocols (A2A) and evaluating them across efficiency, scalability, and security dimensions.
+Chapter: 3_state_of_the_art, Line: 44
+Claim: [CITE] surveyed the protocol landscape and drew a useful distinction: MCP is context-oriented (connecting agents to data), while A2A is coordination-oriented (connecting agents to each other).
+Source quote: "we propose a two-dimensional classification framework for agent protocols illustrated in Figure 3. On the first dimension---object orientation---protocols are divided into context-oriented and inter-agent types; on the second dimension---application scenario---they are further categorized as general-purpose or domain-specific." (p. 7, Section 3)
+Source quote: "We propose the first systematic, two-dimensional classification of agent protocols---distinguishing context-oriented vs. inter-agent protocols and general-purpose vs. domain-specific protocols---to provide a clear organizational framework." (p. 4, Contributions)
+Source quote: Figure 3 (p. 8) shows the taxonomy tree: Protocol splits into "Context-Oriented" (with MCP under General-Purpose) and "Inter-Agent" (with A2A under General-Purpose).
+Source quote: "We conduct a qualitative analysis of current agent protocols across key dimensions such as efficiency, scalability, security, and reliability, revealing their relative strengths and limitations in different application environments." (p. 4, Contributions)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "A Survey of AI Agent Protocols" (arXiv 2025). Provides taxonomy distinguishing context-oriented (MCP) from inter-agent (A2A) protocols across efficiency, scalability, security dimensions as claimed.
+NOTES: Our paper's term "coordination-oriented" is an interpretive gloss. The source uses "inter-agent" as the category name, not "coordination-oriented." The substance is accurate: MCP is classified as context-oriented (connecting agents to data/tools) and A2A as inter-agent (connecting agents to each other). The evaluation dimensions (efficiency, scalability, security) are confirmed in Section 4 of the source.

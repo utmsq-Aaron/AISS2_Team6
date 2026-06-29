@@ -2,9 +2,17 @@ Citation: gabarron_human_2024
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 50
+Chapter: 3_state_of_the_art, Line: 88 (Section: AI-Assisted Sports Coaching)
 Claim: [CITE] reviewed AI-driven solutions for increasing physical activity, finding recommender systems to be the most frequently studied approach, followed by conversational agents, but noting sparse long-term follow-up evidence across both categories.
+Source quote: "The most common AI technology type was recommender systems, described in 10 of the 15 included publications [25,26,29-31,33,35-37,39]. [...] Conversational agents were the second most used AI technology, as described in 4 publications [27,28,32,38]." (p. 5, Section: AI-Driven Technology and HFs)
+Source quote: "A total of 15 studies published between 2015 and 2023 involving 899 participants [...] Recommender systems were the most commonly used AI technology in digital solutions for PA (10/15 studies), followed by conversational agents (4/15 studies)." (p. 1, Abstract)
+Source quote: "However, these studies involve short interventions lasting from 6 to 12 weeks. Hence, the significant effect might be influenced by this brief follow-up period [...] longer intervention studies are needed to assess the potential long-term effectiveness of AI-driven technologies for increasing PA." (p. 8, Section: Do We Have Enough Evidence on AI's Effectiveness in Increasing PA?)
+Source quote: "the evidence is still very limited. [...] Longer-term studies are necessary to assess the sustained impact of AI-driven technologies on behavior change and habit formation." (p. 7, Discussion, Principal Results)
+Source quote: "There is very limited and low-quality evidence supporting the impact of AI-driven technologies on changing PA behavior" (p. 8, Discussion)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Human Factors in AI-Driven Digital Solutions for Increasing Physical Activity" (JMIR Human Factors, 2024). Abstract states recommender systems were most common (10/15 studies), followed by conversational agents (4/15). Our paper correctly states this ordering.
+NOTE on "recommender systems most studied": 10/15 studies. CONFIRMED.
+NOTE on "followed by conversational agents": 4/15 studies. CONFIRMED.
+NOTE on "sparse long-term follow-up evidence": The source explicitly states interventions lasted only 2-26 weeks, evidence is "still very limited," and "longer-term studies are necessary." CONFIRMED.
+Verified: 2026-06-29

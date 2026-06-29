@@ -2,14 +2,11 @@ Citation: shen_hugginggpt_2023
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 14
-Claim: [CITE] proposed a conceptually similar pattern with HuggingGPT, where a central controller LLM decomposes user requests, selects appropriate specialist models from a model hub, executes them, and summarises results---though applied to model selection rather than tool-based data retrieval.
+Chapter: 3_state_of_the_art, Line: 22
+Claim: [CITE] proposed HuggingGPT, where a central controller decomposes requests, selects specialist models from a hub, executes them, and summarises results---demonstrating the viability of orchestrator--specialist decomposition, though applied to model selection rather than tool-based data retrieval.
+Source quote: "we present HuggingGPT, an LLM-powered agent that leverages LLMs (e.g., ChatGPT) to connect various AI models in machine learning communities (e.g., Hugging Face) to solve AI tasks. Specifically, we use ChatGPT to conduct task planning when receiving a user request, select models according to their function descriptions available in Hugging Face, execute each subtask with the selected AI model, and summarize the response according to the execution results." (p. 1, Abstract)
+Source quote: "The whole process of HuggingGPT, illustrated in Figure 1, can be divided into four stages: Task Planning [...] Model Selection [...] Task Execution [...] Response Generation" (p. 2)
+Source quote: "the LLM acts as a brain: on one hand, it disassembles tasks based on user requests, and on the other hand, assigns suitable models to the tasks according to the model description." (p. 2)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The PDF confirms this is "HuggingGPT: Solving AI Tasks with ChatGPT and its Friends in Hugging Face" by Shen et al. (Zhejiang University / Microsoft Research Asia, NeurIPS 2023). The abstract states: "we use ChatGPT to conduct task planning when receiving a user request, select models according to their function descriptions available in Hugging Face, execute each subtask with the selected AI model, and summarize the response." The four-stage pipeline is: Task Planning, Model Selection, Task Execution, Response Generation -- exactly matching the KB claim.
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Abstract: "we propose HuggingGPT, an LLM-powered agent that leverages LLMs (e.g., ChatGPT) to connect various AI models in machine learning communities (e.g., Hugging Face) to solve AI tasks." Figure 1 and Figure 2 show the four stages: Task Planning, Model Selection, Task Execution, Response Generation. The LLM acts as a "controller" that "decomposes user requests, selects appropriate specialist models from a model hub, executes them, and summarises results."
-Notes: The KB claim accurately describes HuggingGPT's pattern and correctly notes it is "applied to model selection rather than tool-based data retrieval," distinguishing it from the paper's own system architecture.
-Verified: 2026-06-28

@@ -2,12 +2,17 @@ Citation: langchain_langgraph_2024
 Cited 2 time(s)
 ============================================================
 
-Chapter: 1_introduction, Line: 27
-Claim: Five specialist agents---recovery, training load, environmental context, route planning, and fitness knowledge---each operate as autonomous LangGraph [CITE] ReAct agents [CITE] scoped to their respective MCP servers.
+Chapter: 1_introduction, Line: 16
+Claim: five LangGraph [CITE] ReAct agents, each scoped to a specific domain (recovery, load, context, routes, fitness knowledge), coordinated by an orchestrator via the A2A protocol.
+Source quote: "LangGraph is a low-level orchestration framework and runtime for building, managing, and deploying long-running, stateful agents." (p. 1, overview page)
+Source quote: "LangGraph is very low-level, and focused entirely on agent orchestration." (p. 1)
 
-Chapter: 4_architecture, Line: 26
-Claim: The agent layer uses LangGraph [CITE] for agent execution and A2A [CITE] for inter-agent communication.
+Chapter: 4_architecture, Line: 18 and 42
+Claim: LangGraph [CITE] provides this through its graph-based execution model: each agent is a state machine where nodes represent reasoning or action steps and edges encode the control flow.
+Source quote: "LangGraph is focused on the underlying capabilities important for agent orchestration: durable execution, streaming, human-in-the-loop, and more." (p. 2)
+Source quote: "LangGraph provides low-level supporting infrastructure for any long-running, stateful workflow or agent." (p. 2, Core benefits)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - Standard framework reference. LangGraph is LangChain's framework for building stateful multi-actor LLM applications. The paper cites it for agent execution, which is its primary purpose.
+SOURCE CONFIRMS: The PDF is a web capture of the LangGraph documentation overview page (langchain-ai.github.io/langgraph/). It describes LangGraph as "a low-level orchestration framework and runtime for building, managing, and deploying long-running, stateful agents" with core benefits including Persistence, Human-in-the-loop, Comprehensive memory, Debugging with LangSmith, and Production-ready deployment. It states it is "built by LangChain Inc, the creators of LangChain, but can be used without LangChain" and is "inspired by Pregel and Apache Beam." Both citations correctly reference LangGraph as the agent execution framework.
+Verified: 2026-06-29

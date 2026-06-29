@@ -4,13 +4,29 @@ Cited 3 time(s)
 
 Chapter: 1_introduction, Line: 18
 Claim: This stands in contrast to microservice design principles [CITE], which advocate for independent, composable services that can be added or replaced without affecting the rest of the system.
+Source quote: "A microservice is a cohesive, independent process interacting via messages." (p. 196, Definition 2)
+Source quote: "Independency---Each service in microservice architecture is operationally independent from other services, and the only form of communication between services is through their published interfaces." (p. 202, characteristics list)
+Source quote: "S|3 As a consequence of the previous item, changing a module of a microservice architecture does not require a complete reboot of the whole system. The reboot regards only the microservices of that module." (p. 198, solution S|3)
 
 Chapter: 4_architecture, Line: 8
-Claim: The architecture adheres to six principles derived from the MCP specification and microservice design patterns [CITE]: (1) tool-agnostic---the model discovers tools via list\_tools() and decides autonomously which to call; (2) one call path--- ToolHost.
+Claim: The architecture adheres to six principles derived from the MCP specification and microservice design patterns [CITE]: (1) tool-agnostic [...]; (3) servers as independent services---each MCP server is a self-contained process with its own port, authentication, and lifecycle [...].
+Source quote: "A microservice architecture is a distributed application where all its modules are microservices." (p. 197, Definition 3)
+Source quote: "Microservices manage growing complexity by functionally decomposing large systems into a set of independent services. By making services completely independent in development and deployment, microservices emphasise loose coupling and high cohesion by taking modularity to the next level." (p. 201, Section 3)
 
 Chapter: 8_discussion, Line: 16
-Claim: However, the MCP abstraction provides three properties that justify the cost, consistent with established microservice principles [CITE]: independence (each server manages its own authentication, rate limiting, and retry logic---restarting one does not affect others), uniform discovery (adding the T
+Claim: However, the MCP abstraction provides three properties that justify the cost, consistent with established microservice principles [CITE]: independence (each server manages its own authentication, rate limiting, and retry logic---restarting one does not affect others), uniform discovery [...], and deployment flexibility (servers are independently containerisable).
+Source quote: "S|1 Microservices implement a limited amount of functionalities, which makes their code base small and inherently limits the scope of a bug. Moreover, since microservices are independent, a developer can directly test and investigate their functionalities in isolation with respect to the rest of the system." (p. 198, solution S|1)
+Source quote: "S|4 Microservices naturally lend themselves to containerisation" (p. 198, solution S|4)
+Source quote: "S|6 The only constraint imposed on a network of interoperating microservices is the technology used to make them communicate (media, protocols, data encodings). Apart from that, microservices impose no additional lock-in and developers can freely choose the optimal resources (languages, frameworks, etc.) for the implementation of each microservice." (p. 198, solution S|6)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Microservices: Yesterday, Today, and Tomorrow" (Springer, 2017). Standard reference for microservice design principles including independent, composable services.
+SOURCE CONFIRMS: Dragoni et al. (2017) "Microservices: Yesterday, Today, and Tomorrow" (in: Present and Ulterior Software Engineering, Springer, pp. 195-216) is a standard reference for microservice design principles. The paper defines microservices as "cohesive, independent process[es] interacting via messages" (Definition 2, p. 196), confirms independence as a key characteristic ("operationally independent from other services", p. 202), and documents solutions S|1 through S|6 (p. 198) covering independent testing, gradual transitions, no-reboot changes, containerization, independent scaling, and technology freedom. All three citation uses in our paper are well-supported: (1) independent, composable services, (2) design patterns for self-contained processes, and (3) independence, containerization, and deployment flexibility as microservice principles.
+
+PLAGIARISM CHECK: No plagiarism risk. Our paper uses the source as a design-pattern reference, not reproducing its text.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Definitions 1-3 (pp. 196-197), characteristics (p. 202), and solutions S|1-S|6 (p. 198) all support the cited claims about independent, composable services.
+Notes: The chapter is within the book "Present and Ulterior Software Engineering" (Mazzara & Meyer, eds., Springer 2017, ISBN 978-3-319-67425-4). Chapter pages are 195-216.
+Verified: 2026-06-29

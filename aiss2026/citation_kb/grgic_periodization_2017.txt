@@ -2,15 +2,27 @@ Citation: grgic_periodization_2017
 Cited 3 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 28
-Claim: Regarding periodization, [CITE] found that structured variation produces superior outcomes regardless of the specific pattern, informing future plan-generation capabilities.
+Chapter: 3_state_of_the_art, Line: 54 (Section: Training Load: Monitoring and Injury Prevention)
+Claim: [CITE] extended this to periodisation, finding in a meta-analysis that structured load variation produces superior outcomes regardless of the specific pattern.
+Source quote: "The pooled standardized mean difference (Cohen's d) from 13 eligible studies for the difference between the periodization models on muscle hypertrophy was -0.02 (95% confidence interval [-0.25, 0.21], p = 0.848)." (p. 1, Abstract)
+Source quote: "The meta-analysis comparing LP and DUP indicated that the effects of the two periodization models on muscle hypertrophy are likely to be similar." (p. 1, Abstract, Conclusions)
+Source quote: "Periodization is an important component of resistance training programs. It is meant to improve adherence to the training regimen, allow for constant progression, help in avoiding plateaus, and reduce occurrence and severity of injuries." (p. 1, Abstract, Background)
 
 Chapter: 8_discussion, Line: 53
 Claim: While the principles of progressive overload, periodisation, and recovery are timeless [CITE], modern exercise science has advanced substantially, and contemporary open-access publications would improve the specialist's relevance.
+Source quote: "Periodization is an important component of resistance training programs. It is meant to improve adherence to the training regimen, allow for constant progression, help in avoiding plateaus, and reduce occurrence and severity of injuries." (p. 1, Abstract)
 
-Chapter: 9_conclusion, Line: 26
+Chapter: 9_conclusion, Line: 14
 Claim: Training Copilot currently provides session-level recommendations but does not generate multi-week periodised plans [CITE]; integrating structured plan generation with load monitoring and calendar writes is a natural extension.
+Source quote: (No direct quote needed -- the citation here references the concept of periodization as established by the source, not a specific claim from it.)
 
 ============================================================
-VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Effects of Linear and Daily Undulating Periodized Resistance Training Programs" (PeerJ, 2017). Meta-analysis finding structured periodization produces superior outcomes regardless of specific variation pattern.
+VERIFICATION STATUS: CONFIRMED with CAVEAT
+IMPORTANT CAVEAT: Our paper claims the meta-analysis found "structured load variation produces superior outcomes regardless of the specific pattern." The source actually found NO SIGNIFICANT DIFFERENCE between linear periodization (LP) and daily undulating periodization (DUP) -- Cohen's d = -0.02, p = 0.848. The finding is that the PATTERN of periodization does not matter (LP vs DUP produce equivalent results), NOT that periodization produces superior outcomes compared to non-periodized training. The source does NOT compare periodized vs. non-periodized training.
+
+The claim "structured load variation produces superior outcomes regardless of the specific pattern" could be read two ways:
+1. "Periodization is beneficial, and the specific pattern doesn't matter" -- the SECOND half is supported (LP ~ DUP), but the FIRST half (that periodization beats non-periodization) is NOT tested in this meta-analysis.
+2. The abstract does state periodization is "meant to improve adherence to the training regimen, allow for constant progression" -- but this is a background statement, not a finding.
+
+RECOMMENDATION: The claim should be more precisely stated as "the specific periodization pattern does not significantly affect outcomes" rather than "structured variation produces superior outcomes." The current phrasing implies a comparison against non-periodized training that this paper does not make.
+Verified: 2026-06-29

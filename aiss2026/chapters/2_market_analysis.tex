@@ -5,9 +5,9 @@ This section examines the sports analytics and fitness technology market, identi
 
 \subsection{Market Size and Growth}\label{sec:market:size}
 
-The global sports analytics market has experienced substantial growth, driven by the convergence of wearable technology adoption, cloud computing, and the increasing availability of large language models for consumer applications. Grand View Research projects the sports analytics market to grow at a compound annual growth rate (CAGR) of approximately 27\,\% through 2030~\cite{grandview_sports_2024}. The adjacent wearable fitness technology market, encompassing devices from Garmin, Apple, Fitbit, and Polar, continues to expand rapidly~\cite{idc_wearables_2024}, indicating a massive and growing install base of data-generating devices.
+The global sports analytics market has experienced substantial growth, driven by the convergence of wearable technology adoption, cloud computing, and the increasing availability of large language models for consumer applications. Grand View Research estimates the global sports analytics market at USD\,5.7~billion in 2025, projecting it to reach USD\,23.1~billion by 2033 at a compound annual growth rate (CAGR) of 18.5\,\%~\citep{grandview_sports_2024}. The adjacent wearable fitness technology market continues to expand rapidly~\citep{idc_wearables_2024}, indicating a massive and growing install base of data-generating devices.
 
-The demand is particularly pronounced in the German market, where fitness app downloads have risen from 41.37~million in 2017 to a projected 135.22~million in 2025~\cite{statista_fitness_apps_2025}. Strava's 2025 trend report reveals that 30\,\% of Generation~Z plan to increase their fitness spending in 2026, and---critically for our work---46\,\% of surveyed athletes indicated they would use AI as a smart coach, with Generation~Z embracing the idea at an even higher rate~\cite{strava_trends_2025}. A parallel trend is the rapid expansion of the generative AI market. McKinsey estimates that generative AI could contribute between USD~2.6~trillion and USD~4.4~trillion annually across industries, with particular impact in knowledge-intensive domains where synthesis of heterogeneous information is the primary task~\cite{mckinsey_genai_2023}. Sports coaching and wellness---where the end user must integrate physiological data, environmental conditions, and scheduling constraints---is precisely such a domain.
+The demand is particularly pronounced in the German market, where fitness app downloads have risen from 41.37~million in 2017 to a projected 135.22~million in 2025~\citep{statista_fitness_apps_2025}. Strava's 2025 trend report, based on a survey of 30{,}494 respondents drawn from both its 180-million-user community and a random sample of non-users, reveals that 30\,\% of Generation~Z plan to increase their fitness spending in 2026 and that 46\,\% of all respondents would use AI as a smart coach for sports---with Generation~Z embracing AI-driven workout insights at a higher rate than older cohorts, though the report does not break out a separate Gen~Z percentage for this question~\citep{strava_trends_2025}. A parallel trend is the rapid expansion of the generative AI market. McKinsey estimates that generative AI could contribute between USD~2.6~trillion and USD~4.4~trillion annually across industries, with particular impact in knowledge-intensive domains where synthesis of heterogeneous information is the primary task~\citep{mckinsey_genai_2023}. Sports coaching and wellness---where the end user must integrate physiological data, environmental conditions, and scheduling constraints---is precisely such a domain.
 
 \subsection{Competitive Landscape}\label{sec:market:landscape}
 
@@ -17,7 +17,7 @@ Table~\ref{tab:competitors} summarises the major platforms that athletes current
 \begin{center}
 \begin{minipage}{\textwidth}
 \caption{Competitive landscape of consumer sports analytics platforms. No existing platform simultaneously provides multi-source integration, cross-domain reasoning, and conversational interaction.}\label{tab:competitors}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{2.2cm}p{2.6cm}p{2.4cm}p{4.6cm}@{\extracolsep{\fill}}}
+\begin{tabularx}{\textwidth}{p{2.0cm}p{2.4cm}p{2.2cm}X}
 \toprule
 \textbf{Platform} & \textbf{Core Capability} & \textbf{Data Sources} & \textbf{Key Limitation} \\
 \midrule
@@ -35,18 +35,18 @@ Athletica.ai & Adaptive training plans & Garmin, Strava & Plan-only; no recovery
 \addlinespace
 ChatGPT / Gemini & General-purpose LLM & None (no API) & No live fitness data; generic, ungrounded advice \\
 \botrule
-\end{tabular*}
+\end{tabularx}
 \end{minipage}
 \end{center}
 \end{table}
 
-A recent wave of AI-powered coaching features has emerged within existing wearable ecosystems. WHOOP launched WHOOP Coach~\cite{whoop_coach_2024}, an OpenAI-powered conversational assistant that answers natural-language questions about the user's biometric data---but only WHOOP data, with no access to training load from Strava, weather forecasts, or calendar context. Adaptive plan generators such as Athletica.ai~\cite{athletica_ai_2024} dynamically adjust endurance training plans based on Garmin and Strava data, but operate as plan-output systems without a conversational interface or cross-domain reasoning. These platforms represent meaningful progress, but each remains siloed within its own data ecosystem and offers either a conversational interface \textit{or} adaptive planning, never both grounded in multi-source data simultaneously.
+A recent wave of AI-powered coaching features has emerged within existing wearable ecosystems. WHOOP launched WHOOP Coach~\citep{whoop_coach_2024}, an OpenAI-powered conversational assistant that answers natural-language questions about the user's biometric data---but only WHOOP data, with no access to training load from Strava, weather forecasts, or calendar context. Adaptive plan generators such as Athletica.ai~\citep{athletica_ai_2024} dynamically adjust endurance training plans based on Garmin and Strava data, but operate as plan-output systems without a conversational interface or cross-domain reasoning. These platforms represent meaningful progress, but each remains siloed within its own data ecosystem and offers either a conversational interface \textit{or} adaptive planning, never both grounded in multi-source data simultaneously.
 
 The competitive landscape can also be understood along two axes: the breadth of data integration and the depth of AI-driven analysis (Figure~\ref{fig:solution_landscape}). Point solutions (Garmin, Strava, weather apps) each cover a single data domain. Aggregation dashboards (Intervals.icu, TrainingPeaks) combine data from multiple sources but provide no agentic reasoning. AI-based training apps (Freeletics, various start-ups) apply machine learning but typically lack access to the user's actual wearable data. Training Copilot targets the upper-right quadrant: broad data integration combined with deep, agentic AI reasoning.
 
 \input{1_Figures/fig_solution_landscape}
 
-Several observations emerge from this landscape. First, no platform integrates all five data dimensions that matter for training decisions: activity history, wellness metrics, weather, calendar availability, and route planning. Second, the platforms that do offer analytical depth (TrainingPeaks, Intervals.icu) operate purely as dashboards---they visualise data but do not reason across sources or offer natural-language interaction. Third, general-purpose LLMs such as ChatGPT can reason and converse, but they have no access to the athlete's actual data, producing generic advice that ignores individual context~\cite{puce_harnessing_2025}.
+Several observations emerge from this landscape. First, no platform integrates all five data dimensions that matter for training decisions: activity history, wellness metrics, weather, calendar availability, and route planning. Second, the platforms that do offer analytical depth (TrainingPeaks, Intervals.icu) operate purely as dashboards---they visualise data but do not reason across sources or offer natural-language interaction. Third, general-purpose LLMs such as ChatGPT can reason and converse, but they have no access to the athlete's actual data, producing generic advice that ignores individual context~\citep{puce_harnessing_2025}.
 
 \subsection{The Market Gap}\label{sec:market:gap}
 
@@ -54,7 +54,7 @@ We identify a clear gap at the intersection of three capabilities that no existi
 
 \begin{enumerate}
 \item \textbf{Multi-source data integration} --- the ability to unify data from wearables (Garmin), activity platforms (Strava), environmental services (weather), productivity tools (Google Calendar), and geographic services (OpenRouteService) through a single interface.
-\item \textbf{Contextual, cross-domain reasoning} --- the capability to synthesise signals from recovery status, training load trends, weather forecasts, and schedule availability into a single, coherent recommendation, rather than presenting isolated metrics~\cite{bourdon_monitoring_2017}.
+\item \textbf{Contextual, cross-domain reasoning} --- the capability to synthesise signals from recovery status, training load trends, weather forecasts, and schedule availability into a single, coherent recommendation, rather than presenting isolated metrics~\citep{bourdon_monitoring_2017}.
 \item \textbf{Conversational interaction} --- a natural-language interface that allows athletes to ask complex, multi-faceted questions and receive answers grounded in their own live data, without navigating multiple dashboards or interpreting raw numbers.
 \end{enumerate}
 
@@ -74,6 +74,4 @@ These archetypes represent opposite ends of the analytical-depth spectrum, ensur
 
 \textit{The following reflects the author's personal perspective rather than an objective market assessment.}
 
-The motivation for Training Copilot emerged from direct frustration as an endurance athlete. After years of using Garmin for recovery data, Strava for training load, a weather app for ride planning, and Google Calendar for scheduling, the daily pre-training routine had become an exercise in tab-switching rather than actual exercise. On a typical weekday morning, the question ``Should I do my long run today or push it to Thursday?'' required checking five separate applications, mentally synthesising conflicting signals (good HRV but poor sleep, favourable weather today but a packed calendar), and making a decision that felt more like guesswork than data-driven planning.
-
-What struck us most was the absurdity of the situation: all the data existed, all the reasoning was straightforward, yet no tool performed the integration. The platforms that had the data (Garmin, Strava) offered no reasoning; the tools that could reason (ChatGPT, Gemini) had no data access. We felt that the emergence of MCP and A2A---standardised protocols for tool integration and agent communication---finally made it feasible to build the system we wished existed: one that treats ``Should I train today?'' not as five separate lookups, but as a single question deserving a single, synthesised, data-grounded answer.
+The motivation for Training Copilot emerged from direct frustration as an endurance athlete. Answering ``Should I do my long run today or push it to Thursday?'' meant checking five applications---Garmin for HRV and sleep, Strava for load trends, a weather service, Google Calendar, and sometimes a route planner---and mentally synthesising conflicting signals. The platforms that had the data offered no reasoning; the tools that could reason (ChatGPT, Gemini) had no data access. The emergence of MCP and A2A made it feasible to build the system we wished existed: one that treats this as a single question rather than five separate lookups.

@@ -2,9 +2,11 @@ Citation: acharya_agentic_2025
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 14
-Claim: More broadly, [CITE] provided a survey distinguishing agentic AI from traditional automation by its ability to pursue complex goals autonomously through perception, reasoning, planning, and action, positioning systems like Training Copilot in the ``tool-augmented reasoning agent'' category.
+Chapter: 3_state_of_the_art, Line: 22
+Claim: More broadly, [CITE] distinguished agentic AI from traditional automation by its capacity for autonomous goal pursuit through perception, reasoning, and action.
+Source quote: "Agentic AI, an emerging paradigm in artificial intelligence, refers to autonomous systems designed to pursue complex goals with minimal human intervention. Unlike traditional AI, which depends on structured instructions and close oversight, Agentic AI demonstrates adaptability, advanced decision-making capabilities and self-sufficiency, enabling it to operate dynamically in evolving environments." (p. 1, Abstract)
+Source quote: "Agentic AI includes the class of autonomous AI systems [4] that undertake to finish a set of complex tasks that span over long periods of time without human supervision. It learns context and makes decisions." (p. 2, Section B)
+Source quote: Table 2 (p. 4) lists Agentic AI Learning Type as "Hybrid, including RAG and Memory" under the "tool-augmented reasoning agent" category.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The paper is titled "Agentic AI: Autonomous Intelligence for Complex Goals -- A Comprehensive Survey" (IEEE Access, 2025). The abstract states: "Agentic AI, an emerging paradigm in artificial intelligence, refers to autonomous systems designed to pursue complex goals with minimal human intervention. Unlike traditional AI, which depends on structured instructions and close oversight, Agentic AI demonstrates adaptability, advanced decision-making capabilities and self-sufficiency." Section II defines agentic AI as systems with "perception, reasoning, planning, and action" capabilities, distinguishing them from traditional automation. The paper explicitly covers tool-augmented agents (Table 2 lists "Hybrid, including RAG and Memory" as a learning type for Agentic AI). The paper's claim about distinguishing agentic AI from traditional automation through perception/reasoning/planning/action and positioning tool-augmented reasoning agents is fully supported.

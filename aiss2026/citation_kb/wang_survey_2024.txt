@@ -2,17 +2,14 @@ Citation: wang_survey_2024
 Cited 2 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 12
-Claim: [CITE] generalised these ideas in a comprehensive survey, proposing a unified framework for LLM-based autonomous agents comprising four modules: profiling, memory, planning, and action.
+Chapter: 3_state_of_the_art, Line: 18
+Claim: [CITE] generalised these ideas into a four-module taxonomy---profiling, memory, planning, and action---that subsumes prior architectures.
+Source quote: "the structure of our framework is illustrated in Figure 2, which is composed of a profiling module, a memory module, a planning module, and an action module." (p. 4, Section 2.1)
+Source quote: "The purpose of the profiling module is to identify the role of the agent. The memory and planning modules place the agent into a dynamic environment, enabling it to recall past behaviors and plan future actions. The action module is responsible for translating the agent's decisions into specific outputs." (p. 4, Section 2.1)
 
 Chapter: 8_discussion, Line: 12
 Claim: The modular prompt architecture [CITE] solved this by distributing instructions to the agents that need them.
+Source quote: Figure 2 (p. 4) presents the unified framework with four independent modules (Profile, Memory, Planning, Action), each with its own sub-components and generation strategies, demonstrating the modular architecture principle.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The PDF confirms this is "A Survey on Large Language Model based Autonomous Agents" by Lei Wang et al. (Front. Comput. Sci., 2025). Page 4, Figure 2 presents "A unified framework for the architecture design of LLM-based autonomous agent" with exactly four modules: Profile, Memory, Planning, and Action. The text states: "the structure of our framework is illustrated in Figure 2, which is composed of a profiling module, a memory module, a planning module, and an action module." This directly confirms the KB claim about four modules (profiling, memory, planning, action). The second KB claim about modular prompt architecture solving instruction distribution is a reasonable interpretation of the survey's framework.
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Page 4: "the structure of our framework is illustrated in Figure 2, which is composed of a profiling module, a memory module, a planning module, and an action module." Figure 2 shows the four modules: Profile (demographic, personality, social information), Memory (structure, formats, operations), Planning (w/o and w/ feedback), Action (target, production, space, impact). The survey is comprehensive, covering construction, application, and evaluation of LLM-based agents.
-Notes: No discrepancies. Both KB claims are well-supported by the source.
-Verified: 2026-06-28

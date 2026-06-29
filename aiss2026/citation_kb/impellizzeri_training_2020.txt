@@ -1,0 +1,21 @@
+Citation: impellizzeri_training_2020
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Section: Training Load (line 54)
+Claim: [CITE] identified mathematical coupling in the ACWR ratio (the acute load appears in both numerator and denominator) and showed that simulation studies can produce spurious ACWR-injury associations from data with no true relationship; our system therefore presents ACWR as one contextual signal among several rather than a standalone injury predictor.
+
+Source quote: "the physiological rationale for choosing this ratio is unknown, and it is not supported by the Banister model" (p. 894, Pitfalls of Using Ratios section)
+Source quote: "Lolli et al observed that the ACWR failed to normalize the numerator for the denominator even after controlling for the mathematical coupling." (p. 894, Pitfalls of Using Ratios section)
+Source quote: "Bornn et al created a 1000-season simulation of TL and injury using data from 2 elite sports (Serie A soccer and National Football League football). The simulation was constructed so that the ACWR was to have no relationship with injury [...] the ACWR outside of the proposed 'sweet spot' (0.8-1.3) had a significant relationship with injury (6.8% increase in injury in Serie A soccer and 10.5% increase in injury in National Football League football)—similar to what has been reported in previous literature." (p. 895)
+Source quote: "Once the training day was considered in the model, representing a function of the underlying training schedule, the relationship between the ACWR and injury no longer existed. Such results suggest that relationships with the ACWR in earlier studies might be nothing more than statistical artifacts." (p. 895)
+Source quote: "the absence of a strong etiologic rationale for selected TL metrics, such as the ACWR, may be a sign that the previously reported relationship between TL and injury is coincidental or due to statistical artifact" (p. 894)
+Source quote: "we recommend that practitioners still rely on their clinical experience and intuition, combined with logical training principles" (p. 898, Conclusions)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+NOTE on "acute load in both numerator and denominator": The ACWR = acute (1-week average) / chronic (4-week average). The 4-week chronic average includes the acute week, hence mathematical coupling. Figure 1 (p. 894) shows the Banister model equation and its oversimplification into the ACWR.
+NOTE on our framing: Our paper correctly presents ACWR as "one contextual signal among several rather than a standalone injury predictor," which aligns with the source's recommendation to rely on clinical experience and traditional training principles rather than ACWR alone.
+NO PLAGIARISM RISK: Our sentence is a concise summary, not a paraphrase of any specific source sentence.
+PDF: aiss2026/sources/impellizzeri_training_2020.pdf (freely available from PMC7534938)
+Verified: 2026-06-29

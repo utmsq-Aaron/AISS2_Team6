@@ -2,13 +2,25 @@ Citation: plews_training_2013
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 32
-Claim: [CITE] reviewed HRV monitoring for elite endurance athletes, revealing that both increases and decreases can indicate negative adaptation, and recommending interpretation relative to individual baselines---the approach taken by Training Copilot's recovery specialist.
+Chapter: 3_state_of_the_art, Section: Recovery (line 60)
+Claim: [CITE] showed, using data from Olympic and World Champion rowers, that in elite athletes both increases and decreases in HRV can indicate negative adaptation---because at very low resting heart rates, vagal HRV saturates (the relationship between HRV and R-R interval is quadratic, not linear). They recommend using weekly rolling averages of Ln rMSSD (not single-day values, which showed no meaningful correlation with performance: r = -0.17) and interpreting each athlete's values against their individual baseline rather than population norms. Among four gold-medal-winning rowers, the correlation between Ln rMSSD and R-R interval ranged from r = 0.91 to r = -0.03.
+Source quote [both increases and decreases]: "in elite athletes, studies have revealed both increases and decreases in HRV to be associated with negative adaptation." (p. 773, Abstract)
+Source quote [quadratic relationship/saturation]: "In reality, however, the relationship is quadratic [51, 52] (see example in Fig. 1). This means that at both low (high HR) and high (low HR) levels of vagal tone, vagal-related HRV indices are reduced." (p. 776, Section 4.1 HRV Profiles in Elite Athletes)
+Source quote [Olympic/World Champion rowers]: "Figure 3 reveals the unique morning resting Ln rMSSD to R-R interval ratio profile of four Olympic and World Champion rowers in the 62-day lead up to winning their 2011/2012 event." (p. 778, Section 4.1)
+Source quote [weekly r=-0.76 vs single-day r=-0.17]: "very large relationships were observed when HRV values were averaged over 1 week (r = -0.76; CI -0.92 to -0.36) but not when using single-day values (r = -0.17; CI -0.66 to 0.42)" (p. 775, Section 3, bottom of left column)
+Source quote [four rowers' correlations]: "Correlation coefficients were almost perfect (r = 0.91; CI 0.87; 0.94) and trivial (r = -0.03; CI -0.18; 0.24) for Olympic Champion rowers 1 and 2, respectively. Comparatively these values were large (r = 0.67; CI 0.53; 0.77) and small (r = 0.25; CI 0.04; 044) for World Champion rowers 3 and 4" (p. 778, Fig. 3 caption)
+Source quote [weekly rolling averages recommended]: "We suggest that the use of both the Ln rMSSD (weekly average) and Ln rMSSD to R-R interval ratio to correctly interpret fatigue, or a 'readiness to perform' in elite athletes" (p. 778, Section 4.1, paragraph after Fig. 3)
+Source quote [Ln rMSSD preferred]: "We prefer Ln rMSSD, as it is the most practically applicable HRV index for a number of reasons. First, Ln rMSSD is not significantly influenced by breathing frequency [...] Second, Ln rMSSD can capture levels of parasympathetic activity over a short time frame [...] Last, Ln rMSSD values can be easily calculated in MS Excel using R-R intervals" (p. 775, Section 3)
+Source quote [CV comparison]: "the natural logarithm of the square root of the mean sum of the squared differences between R-R intervals [Ln rMSSD], CV = 12.3 %; normalized high frequency power [HFnu], CV = 52.0 %" (p. 775, Section 3)
 
 ============================================================
-
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: The abstract explicitly states: "in elite athletes, studies have revealed both increases and decreases in HRV to be associated with negative adaptation." (p.773). Section 2.3 Literature Summary confirms: "It has been suggested that increases and decreases in HRV are associated with positive [4, 9-13] and negative [6, 7, 32] adaptation to endurance training regimens, respectively. However, the bell-shaped relationship typically apparent between both HRV and training load [15, 18, 21, 22], and HRV and fitness [14, 18, 40], in elites and athletes with extensive training histories, makes it difficult to practically use HRV to maximize training in these populations." (p.775). On individual baselines, the Conclusion states: "it is clear that HRV responses are individual and dependent on fitness level and training history... we suggest that longitudinal monitoring is required to understand each athlete's optimal HRV to R-R interval fingerprint" (p.779). The recommendation of "interpretation relative to individual baselines" in the KB claim is supported by Section 3: "both weekly [1, 42] and 7-day rolling [1] averages have been shown to provide better methodological validity compared with values taken on a single day" (p.775).
-Notes: No discrepancies. The KB claim accurately captures the paper's key finding that both HRV increases and decreases can signal negative adaptation in elite athletes, and that individual baseline interpretation is recommended.
-Verified: 2026-06-28
+VERIFICATION STATUS: CONFIRMED
+All claims verified with verbatim quotes:
+- Olympic and World Champion rowers: CONFIRMED (p. 778, Fig. 3 caption)
+- Both increases and decreases indicate negative adaptation: CONFIRMED (p. 773, Abstract)
+- Quadratic/saturation relationship: CONFIRMED (p. 776, Section 4.1)
+- Weekly r=-0.76 vs single-day r=-0.17: CONFIRMED (p. 775, Section 3)
+- Four rowers: r=0.91, r=-0.03, r=0.67, r=0.25: CONFIRMED (p. 778, Fig. 3 caption)
+- Weekly rolling averages of Ln rMSSD recommended: CONFIRMED (p. 778)
+- Individual baseline interpretation recommended: CONFIRMED (p. 778-779)
+Verified: 2026-06-29

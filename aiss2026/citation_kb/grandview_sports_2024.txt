@@ -3,8 +3,19 @@ Cited 1 time(s)
 ============================================================
 
 Chapter: 2_market_analysis, Line: 8
-Claim: Grand View Research projects the sports analytics market to grow at a compound annual growth rate (CAGR) of approximately 27\,\% through 2030 [CITE].
+Claim: Grand View Research estimates the global sports analytics market at USD 5.7 billion in 2025, projecting it to reach USD 23.1 billion by 2033 at a compound annual growth rate (CAGR) of 18.5% [CITE].
+Source quote: "Market Size, 2025: $5.7B", "Market Estimate, 2026: $7.0B", "Market Forecast, 2033: $23.1B", "CAGR, 2026-2033: 18.5%" (p. 1, summary table)
+Source quote: "Market size in 2025: USD 5.7 Billion", "CAGR (2026-2033): 18.5%" (p. 2)
+Source quote: "Growth rate: CAGR of 18.5% from 2026 to 2033" (p. 6)
 
 ============================================================
-VERIFICATION STATUS: PENDING
-SOURCE CONFIRMS: PENDING - Source is a paywall stub. Cannot verify the specific 27% CAGR claim. User is obtaining the PDF separately.
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: All three figures (USD 5.7B in 2025, USD 23.1B by 2033, 18.5% CAGR) are confirmed from the source. Published June 2026 (p. 9: "Last Updated: June 2026").
+
+NOTE: The source file at aiss2026/sources/grandview_sports_2024.txt is a text stub (website print), not a real PDF. The original website returned HTTP 403 when attempting to print as PDF. The text stub contains the data points but is not a proper PDF source. Consider re-printing the page if access becomes available.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: All numbers verified from the website text stub (printed June 29, 2026).
+Notes: Previous version of this report (likely 2024 edition) stated "USD 3.78B in 2023, CAGR 27.3% through 2030". The June 2026 edition has different base year (2025), forecast period (2026-2033), and CAGR (18.5%). Paper text updated accordingly.
+Verified: 2026-06-29

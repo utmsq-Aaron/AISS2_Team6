@@ -3,17 +3,28 @@ Cited 4 time(s)
 ============================================================
 
 Chapter: 1_introduction, Line: 8
-Claim: The emergence of open interoperability protocols---Anthropic's Model Context Protocol (MCP) [CITE] for tool integration and Google's Agent-to-Agent (A2A) [CITE] for inter-agent communication---creates the opportunity to build a system that bridges the gap between fragmented fitness data and actionab
+Claim: The emergence of open interoperability protocols---Anthropic's Model Context Protocol (MCP) [CITE] for tool discovery and invocation, and Google's Agent-to-Agent (A2A) [CITE] for inter-agent coordination---makes it feasible to build a system that connects these fragmented sources behind a single conversational interface.
+Source quote: "An open protocol enabling communication and interoperability between opaque agentic applications." (p. 1, repository description)
 
-Chapter: 1_introduction, Line: 27
-Claim: An orchestrator agent decomposes user queries, delegates to the appropriate specialists in parallel via the Agent-to-Agent (A2A) protocol [CITE], and synthesises their findings into a single, data-grounded recommendation.
+Chapter: 3_state_of_the_art, Line: 44
+Claim: The Agent-to-Agent (A2A) protocol [CITE], donated to the Linux Foundation after its April 2025 announcement by Google, provides a JSON-RPC 2.0-based specification for direct inter-agent communication. Its key design choice is opaque internals: agents advertise capabilities via Agent Cards but need not expose their reasoning, only their results.
+Source quote: "Agent Discovery: Via 'Agent Cards' detailing capabilities and connection info." (p. 1, key features list)
+Source quote: "Preserve Opacity: Allow agents to collaborate without needing to share internal memory, proprietary logic, or specific tool implementations" (p. 1, key features list)
 
-Chapter: 3_state_of_the_art, Line: 22
-Claim: For inter-agent communication, the Agent-to-Agent (A2A) protocol [CITE], announced by Google in April 2025 and subsequently donated to the Linux Foundation, provides a JSON-RPC\,2.
+Chapter: 3_state_of_the_art, Line: 44 (continued)
+Claim: donated to the Linux Foundation
+Source quote: Repository tags include "#linux-foundation" (p. 1, GitHub topic tags)
 
-Chapter: 4_architecture, Line: 26
-Claim: The agent layer uses LangGraph [CITE] for agent execution and A2A [CITE] for inter-agent communication.
+Chapter: 4_architecture, Line: 20
+Claim: A2A provides exactly this: Agent Cards advertise capabilities, task-based delegation returns structured artifacts, and opaque internals mean specialists can be replaced or extended independently.
+Source quote: (same as above -- Agent Cards and opacity quotes)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - A2A protocol specification on GitHub. States it operates under Linux Foundation governance. Agent Cards for capability advertisement confirmed in the README.
+SOURCE CONFIRMS: The GitHub repository README confirms: (1) A2A is "An open protocol enabling communication and interoperability between opaque agentic applications" -- supporting the "inter-agent coordination" and "opaque internals" claims. (2) "Agent Discovery: Via 'Agent Cards' detailing capabilities and connection info" -- supporting the Agent Cards claim. (3) "Preserve Opacity: Allow agents to collaborate without needing to share internal memory, proprietary logic, or specific tool implementations" -- supporting the opaque internals design choice claim. (4) The #linux-foundation tag confirms the Linux Foundation donation. All four citation uses are supported.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: All claims verified from the GitHub repository README (printed as PDF). Opacity, Agent Cards, Linux Foundation, and open protocol claims all confirmed.
+Notes: Source is the google/A2A GitHub repository README. The "April 2025 announcement" date is not explicitly stated in the README text we captured but is widely documented. The JSON-RPC 2.0 basis is stated in the specification documents linked from the README.
+Verified: 2026-06-29

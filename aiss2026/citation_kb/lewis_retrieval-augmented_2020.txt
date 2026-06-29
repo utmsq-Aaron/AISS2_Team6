@@ -2,20 +2,45 @@ Citation: lewis_retrieval-augmented_2020
 Cited 3 time(s)
 ============================================================
 
-Chapter: 1_introduction, Line: 27
-Claim: A sixth specialist employs Retrieval-Augmented Generation (RAG) [CITE] over exercise-science literature to ground training advice in published sources.
+Chapter: 1_introduction, Line: 25
+Claim: A RAG-based fitness knowledge agent grounds exercise-science advice in a local vector database of public-domain literature [CITE].
+Source quote: "We explore a general-purpose fine-tuning recipe for retrieval-augmented generation (RAG) -- models which combine pre-trained parametric and non-parametric memory for language generation." (p. 1, Abstract)
+Note: Citation references the RAG paradigm, not a specific empirical claim.
 
-Chapter: 3_state_of_the_art, Line: 42
-Claim: [CITE] introduced the foundational RAG architecture, in which a generative language model is augmented with a retrieval component that queries an external document index at inference time.
+============================================================
 
-Chapter: 5_data_sources, Line: 22
-Claim: org/ via RAG [CITE].
+Chapter: 3_state_of_the_art, Line: 74
+Claim: [CITE] introduced the foundational architecture: a BART-large generator (400M parameters) augmented with a Dense Passage Retriever (DPR) that queries a FAISS index of 21 million Wikipedia passages at inference time. They proposed two variants: RAG-Sequence [...] and RAG-Token [...]. RAG set new state-of-the-art on three open-domain QA benchmarks: 44.5 EM on Natural Questions (RAG-Sequence), 45.5 on WebQuestions (RAG-Token), and 52.2 on CuratedTrec (RAG-Sequence). In human evaluation on question generation, RAG was judged more factual than BART in 42.7% of comparisons versus 7.1% for BART, and produced more diverse outputs (distinct tri-gram ratio: 53.8% vs. 32.4%).
+Source quote (BART-large 400M): "We use BART-large [32], a pre-trained seq2seq transformer [58] with 400M parameters." (p. 3, Section 2.3)
+Source quote (DPR): "The retriever (Dense Passage Retriever [26], henceforth DPR) provides latent documents conditioned on the input" (p. 2, Section 1)
+Source quote (FAISS index, 21M passages): "Each Wikipedia article is split into disjoint 100-word chunks, to make a total of 21M documents. We use the document encoder to compute an embedding for each document, and build a single MIPS index using FAISS [23]" (p. 4, Section 3)
+Source quote (RAG-Sequence definition): "In one approach, RAG-Sequence, the model uses the same document to predict each target token" (p. 3, Section 2.1)
+Source quote (RAG-Token definition): "The second approach, RAG-Token, can predict each target token based on a different document." (p. 3, Section 2.1)
+Source quote (44.5 EM on NQ): Table 1 (p. 5): "RAG-Seq. NQ: 44.5"
+Source quote (45.5 on WebQuestions): Table 1 (p. 5): "RAG-Token WQ: 45.5"
+Source quote (52.2 on CuratedTrec): Table 1 (p. 5): "RAG-Seq. CT: 52.2"
+Source quote (42.7% more factual vs 7.1%): Table 4 (p. 7): "Factuality: BART better 7.1%, RAG better 42.7%"
+Source quote (distinct tri-gram ratio 53.8% vs 32.4%): Table 5 (p. 7): "Jeopardy QGen: BART 32.4%, RAG-Seq. 53.8%"
+Source quote (index hot-swap): "we demonstrate that the non-parametric memory can be replaced to update the models' knowledge as the world changes" (p. 2, Section 1). Also: "RAG answers 70% correctly using the 2016 index for 2016 world leaders and 68% using the 2018 index" (p. 7-8, Section 4.5, Index hot-swapping)
+
+============================================================
+
+Chapter: 5_data_sources, Line: 32
+Claim: Fitness specialist queries a local vector database via RAG [CITE].
+Source quote: Same as above -- citation references the RAG paradigm.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The PDF confirms this is "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks" by Lewis et al. (Facebook AI Research / UCL / NYU, 2020). The abstract states: "We explore a general-purpose fine-tuning recipe for retrieval-augmented generation (RAG) -- models which combine pre-trained parametric and non-parametric memory for language generation." The paper introduces the foundational RAG architecture with a retriever (DPR) querying a document index and a generator (BART) conditioned on retrieved passages, exactly as the KB claims.
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Abstract: "We introduce RAG models where the parametric memory is a pre-trained seq2seq model and the non-parametric memory is a dense vector index of Wikipedia, accessed with a pre-trained neural retriever." Page 2: "We build RAG models where the parametric memory is a pre-trained seq2seq transformer, and the non-parametric memory is a dense vector index of Wikipedia, accessed with a pre-trained neural retriever." Two model variants: RAG-Sequence and RAG-Token are described.
-Notes: All three KB claims are accurate: (1) RAG is correctly attributed as the foundational architecture, (2) the generative model is augmented with retrieval at inference time, (3) the paper is correctly used as the seminal RAG reference.
-Verified: 2026-06-28
+All numbers match the source exactly:
+- BART-large 400M parameters: confirmed (p. 3, Section 2.3)
+- DPR bi-encoder (BERT_BASE): confirmed (p. 3, Section 2.2)
+- FAISS index of 21M 100-word Wikipedia chunks (Dec 2018 dump): confirmed (p. 4, Section 3)
+- RAG-Sequence vs RAG-Token: confirmed (p. 3, Section 2.1)
+- NQ: 44.5 EM (RAG-Sequence): confirmed (p. 5, Table 1)
+- WQ: 45.5 EM (RAG-Token): confirmed (p. 5, Table 1)
+- CT: 52.2 EM (RAG-Sequence): confirmed (p. 5, Table 1)
+- Human eval factuality: RAG better 42.7% vs BART better 7.1%: confirmed (p. 7, Table 4)
+- Distinct tri-grams: RAG-Seq 53.8% vs BART 32.4%: confirmed (p. 7, Table 5)
+- Index hot-swap without retraining: confirmed (p. 7-8, Section 4.5)
+No plagiarism risk -- our paper paraphrases with attribution.
+Verified: 2026-06-29

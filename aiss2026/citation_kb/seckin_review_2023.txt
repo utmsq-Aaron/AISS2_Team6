@@ -3,11 +3,23 @@ Cited 2 time(s)
 ============================================================
 
 Chapter: 1_introduction, Line: 4
-Claim: Wearable devices from manufacturers such as Garmin, Polar, and Apple now capture heart rate, GPS trajectories, sleep stages, heart-rate variability (HRV), and stress levels continuously [CITE], while platforms like Strava aggregate activity data from more than 135 million athletes worldwide [CITE].
+Claim: Wearable devices from manufacturers such as Garmin, Polar, and Apple now capture heart rate, GPS trajectories, sleep stages, heart-rate variability (HRV), and stress levels continuously [CITE].
+Source quote: "Wearable technology is increasingly vital for improving sports performance through real-time data analysis and tracking. Both professional and amateur athletes rely on wearable sensors to enhance training efficiency and competition outcomes." (p. 1, Abstract)
+Source quote: "WT is revolutionizing sports by providing real-time data for athletes to improve training, enabling coaches to tailor strategies, and providing insights for the sports industry." (p. 2, Introduction)
 
 Chapter: 3_state_of_the_art, Line: 36
 Claim: [CITE] conducted a comprehensive review of wearable technology in sports, identifying actionable insight generation as the dominant gap between data collection capabilities and coaching utility---the gap Training Copilot addresses.
+Source quote: "However, further research is needed to fully understand and optimize their potential in sports." (p. 1, Abstract)
+Source quote: "Athletes, coaches, and sports scientists anticipate wearable technologies to not only enhance their utility but also provide more refined and concentrated information to facilitate performance optimization." (p. 31, Section 9 Conclusions)
 
 ============================================================
-VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - "Review on Wearable Technology in Sports" (Applied Sciences, 2023). Comprehensive review identifying actionable insight generation as a gap.
+VERIFICATION STATUS: ISSUE
+SOURCE CONFIRMS: The Seckin et al. (2023) review ("Review on Wearable Technology in Sports: Concepts, Challenges and Opportunities", Applied Sciences 13:10399) is confirmed as a comprehensive review of wearable technology in sports. The abstract confirms the review covers "the measurement and monitoring of athletic performance, injury prevention, rehabilitation, and overall performance optimization using body wearable sensors." However, the specific phrase "actionable insight generation as the dominant gap" does NOT appear anywhere in the paper. The paper discusses a gap between data collection and optimization ("further research is needed to fully understand and optimize their potential") and notes that athletes want "more refined and concentrated information to facilitate performance optimization," but the characterization of this as "actionable insight generation as the dominant gap between data collection capabilities and coaching utility" is an editorial interpretation by our paper, not a finding stated by Seckin et al. The paper's Section 9 (Conclusions) discusses challenges, privacy concerns, and future directions but never frames the issue in terms of "actionable insight generation."
+
+PLAGIARISM CHECK: No plagiarism risk. The paper paraphrases rather than copies.
+
+--- VERIFICATION ---
+Status: ISSUE - The phrase "actionable insight generation as the dominant gap" is our editorial characterization, not a direct finding from Seckin et al. The paper discusses the need for further research and better utilization of wearable data, but does not use this specific framing. Consider softening the claim to "identifying opportunities for better translating wearable data into coaching-relevant insights" or similar.
+Evidence: Abstract p.1, Introduction p.2, Conclusions pp.31-32 all reviewed. No instance of "actionable insight" or "dominant gap" found.
+Notes: The citation for ch1 line 4 (wearable devices capturing various data types) is well-supported by the review's scope. The ch3 line 36 claim overstates what Seckin et al. actually concluded.
+Verified: 2026-06-29

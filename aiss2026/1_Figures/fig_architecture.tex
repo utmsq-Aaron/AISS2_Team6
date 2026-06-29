@@ -1,5 +1,6 @@
 \begin{figure}[ht]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
     node distance=0.7cm and 0.8cm,
     every node/.style={font=\small},
@@ -64,6 +65,7 @@
     \draw[arr, color=tccyan] (route.south) -- (routes.north);
     \draw[arr, color=tccyan] (fitness.south) -- (vectordb.north);
 
-\end{tikzpicture}
+\end{tikzpicture}%
+}% end resizebox
 \caption[System architecture]{Training Copilot system architecture. Solid arrows indicate primary communication paths; dashed arrows indicate secondary/fallback paths. Agents communicate via A2A; specialists access data via scoped MCP connections.}\label{fig:architecture}
 \end{figure}

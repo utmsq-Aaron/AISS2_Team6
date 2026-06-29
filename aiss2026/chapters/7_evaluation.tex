@@ -5,7 +5,7 @@ Evaluating a multi-agent conversational system requires assessing multiple dimen
 
 \subsection{Evaluation Framework}\label{sec:evaluation:framework}
 
-We adopt MLflow's end-to-end conversation simulation framework~\cite{mlflow_multiturn_2025} for automated, reproducible evaluation of multi-turn agent systems. The scorer design draws on \cite{shankar_validates_2024}, who showed that LLM-based evaluators must be aligned with human preferences to produce reliable judgements. Our deterministic grounding scorer follows the $\tau$-bench approach by \cite{yao_taubench_2024}, which evaluates tool-agent-user interaction by comparing system state against annotated goals rather than relying on chat-text judgement alone. This motivates our combination of LLM judges with a trace-based grounding scorer. The framework consists of three components:
+We adopt MLflow's end-to-end conversation simulation framework~\citep{mlflow_multiturn_2025} for automated, reproducible evaluation of multi-turn agent systems. The scorer design draws on \cite{shankar_validates_2024}, who showed that LLM-based evaluators must be aligned with human preferences to produce reliable judgements. Our deterministic grounding scorer follows the $\tau$-bench approach by \cite{yao_taubench_2024}, which evaluates tool-agent-user interaction by comparing system state against annotated goals rather than relying on chat-text judgement alone. This motivates our combination of LLM judges with a trace-based grounding scorer. The framework consists of three components:
 
 \begin{enumerate}
 \item A \textbf{conversation simulator} that uses an LLM to role-play a user persona, maintaining a coherent multi-turn conversation with the system under test.
@@ -49,7 +49,7 @@ Each conversation is evaluated by five scorers, combining LLM-based judges with 
 \begin{center}
 \begin{minipage}{\textwidth}
 \caption{Evaluation scoring dimensions. Four LLM judges run on GPT-5.4-nano; one deterministic scorer inspects tool-call traces directly.}\label{tab:scorers}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{3.8cm}p{1.8cm}p{7cm}@{\extracolsep{\fill}}}
+\begin{tabularx}{\textwidth}{p{3.5cm}lX}
 \toprule
 \textbf{Scorer} & \textbf{Type} & \textbf{Assessment} \\
 \midrule
@@ -63,7 +63,7 @@ Supportive Coaching Tone & LLM judge & Does the assistant maintain a supportive,
 \addlinespace
 Grounded in Real Data & Deterministic & Did the Copilot actually use its MCP tools to fetch real data, or did it answer from parametric knowledge alone? \\
 \botrule
-\end{tabular*}
+\end{tabularx}
 \end{minipage}
 \end{center}
 \end{table}

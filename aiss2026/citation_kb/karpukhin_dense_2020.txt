@@ -2,13 +2,10 @@ Citation: karpukhin_dense_2020
 Cited 1 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 42
-Claim: The retrieval component builds on [CITE], who demonstrated that a dual-encoder framework for dense passage retrieval outperforms BM25 by 9--19\,\% in top-20 retrieval accuracy.
+Chapter: 3_state_of_the_art, Line: 76
+Claim: The retrieval component builds on [CITE], who demonstrated that a dual-encoder framework (DPR) outperforms BM25 by 9--19\,\% in top-20 retrieval accuracy on multiple benchmarks.
+Source quote: "In this work, we show that retrieval can be practically implemented using dense representations alone, where embeddings are learned from a small number of questions and passages by a simple dual-encoder framework. When evaluated on a wide range of open-domain QA datasets, our dense retriever outperforms a strong Lucene-BM25 system greatly by 9%-19% absolute in terms of top-20 passage retrieval accuracy" (p. 1, Abstract)
+Source quote: "Although more expressive model forms for measuring the similarity between a question and a passage do exist [...] in this work we use two independent BERT (Devlin et al., 2019) networks (base, uncased) and take the representation at the [CLS] token as the output, so d = 768." (p. 3, Section 3.1, Encoders)
 
 ============================================================
-
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: The abstract (p. 1) states: "our dense retriever outperforms a strong Lucene-BM25 system greatly by 9%-19% absolute in terms of top-20 passage retrieval accuracy." Table 2 (p. 6) confirms the specific numbers. BM25 top-20 accuracy: NQ=59.1, TriviaQA=66.9, WQ=55.0, TREC=70.9. Single-dataset DPR top-20 accuracy: NQ=78.4, TriviaQA=79.4, WQ=73.2, TREC=79.8. The absolute improvements are: NQ=+19.3%, TriviaQA=+12.5%, WQ=+18.2%, TREC=+8.9% -- spanning the stated 9-19% range. The paper also describes the dual-encoder framework (separate BERT-base encoders for questions and passages, p. 3) matching the KB's "dual-encoder framework" characterization. Note: on SQuAD, DPR (63.2) underperforms BM25 (68.8), which the authors attribute to high lexical overlap in that dataset; the 9-19% claim excludes SQuAD.
-Notes: The KB claim about "9-19% in top-20 retrieval accuracy" and "dual-encoder framework" are both precisely confirmed by the abstract and Table 2. The term "multiple benchmarks" in the KB is accurate (NQ, TriviaQA, WQ, TREC -- four of five datasets tested).
-Verified: 2026-06-28
+VERIFICATION STATUS: CONFIRMED

@@ -2,15 +2,20 @@ Citation: mlflow_multiturn_2025
 Cited 3 time(s)
 ============================================================
 
-Chapter: 1_introduction, Line: 40
-Claim: An end-to-end evaluation framework using MLflow's conversation simulation [CITE] with persona-driven test cases and five scoring dimensions, designed to assess multi-agent sports analytics systems in a reproducible manner.
+Chapter: 1_introduction, Line: 26
+Claim: An automated evaluation framework using MLflow conversation simulation [CITE] with ten persona-driven test cases and five scoring dimensions, including a deterministic trace-based grounding scorer.
+Source quote: "MLflow 3.10 introduces a new suite of research-backed tools for multi-turn evaluation and conversation simulation to catch what single-turn scores miss." (p. 1)
+Source quote: "MLflow 3.10 introduces the ConversationSimulator, which generates multi-turn conversations from scenarios you define. Test cases only require a goal, but they can be customized with a persona and guidelines for how the conversation should unfold" (p. 5, Simulating Persona-based Multi-turn Conversations)
 
-Chapter: 6_agent_interaction, Line: 30
+Chapter: 6_agent_interaction, Line: 44
 Claim: All agent runs are traced to an MLflow tracking server [CITE].
+Source quote: "Let's say you just deployed a support agent for a data platform. [...] Every turn is traced with @mlflow.trace, and each trace is tagged with a session ID so MLflow can group turns from the same conversation." (p. 2, The Setup)
 
 Chapter: 7_evaluation, Line: 8
 Claim: We adopt MLflow's end-to-end conversation simulation framework [CITE], which enables automated, reproducible evaluation of multi-turn agent systems.
+Source quote: "User simulation replaces manual testing with an LLM that plays the user role. You define scenarios with goals and personas, the simulator generates realistic multi-turn conversations with your agent, and session-level scorers evaluate the results. Instead of waiting for real users to hit problems in production, this gives you a tight loop: simulate, score, fix, and verify." (p. 1)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: CONFIRMED - MLflow blog post on multi-turn conversation evaluation. The paper cites it for the evaluation framework, which is exactly what the blog describes.
+SOURCE CONFIRMS: The PDF is a web capture of the MLflow blog post "Multi-turn Evaluation & Simulation: Enhancing AI Observability with MLflow for Chatbots" (February 24, 2026, by MLflow maintainers). It introduces ConversationSimulator for persona-based multi-turn testing, built-in scorers (ConversationCompleteness, UserFrustration, Safety), custom scorers via ConversationalGuidelines and make_judge, session-level evaluation grouping by mlflow.trace.session metadata, and side-by-side comparison of agent versions. All three citations correctly reference this as the evaluation framework foundation.
+Verified: 2026-06-29

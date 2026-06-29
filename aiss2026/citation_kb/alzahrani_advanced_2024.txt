@@ -1,10 +1,13 @@
 Citation: alzahrani_advanced_2024
-Cited 1 time(s)
+Cited 0 time(s) -- NO LONGER CITED IN PAPER (bib entry exists but no \cite{} references remain)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 36
-Claim: [CITE] and [CITE] examined wearable devices in sports medicine and advanced biomechanical analytics respectively.
+Chapter: (none -- citation removed from current paper)
+Claim: Previously cited alongside li_wearable_2016 for examining wearable devices and advanced biomechanical analytics.
+Source quote: "This study investigated the impact of wearable technologies, particularly advanced biomechanical analytics and machine learning, on sports performance monitoring and intervention strategies within the realm of physiotherapy." (p. 1, Abstract)
+Source quote: "Wearable technology and biomechanical analysis have become increasingly important in sports performance monitoring, providing valuable insights into an athlete's mechanics, allowing them to optimize their training and technique and reducing the risk of injury." (p. 2, Introduction)
 
 ============================================================
-VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The paper is titled "Advanced biomechanical analytics: Wearable technologies for precision health monitoring in sports performance" (Digital Health, 2024, Vol 10). The abstract confirms it "investigated the impact of wearable technologies, particularly advanced biomechanical analytics and machine learning, on sports performance monitoring and intervention strategies." It uses inertial sensors, EMG sensors, pressure sensors, and haptic feedback sensors to capture biomechanical parameters. The paper directly examines "advanced biomechanical analytics" as claimed in the citation.
+VERIFICATION STATUS: CONFIRMED (source supports the original claim, but citation has been removed from the paper)
+SOURCE CONFIRMS: The paper is titled "Advanced biomechanical analytics: Wearable technologies for precision health monitoring in sports performance" (Digital Health, 2024, Vol 10). It examines wearable technologies (inertial sensors, EMG, pressure sensors, haptic feedback) in sports physiotherapy. The bib entry should be removed since it is no longer cited.
+Verified: 2026-06-29

@@ -1,21 +1,16 @@
 Citation: shinn_reflexion_2023
-Cited 3 time(s)
+Cited 2 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Line: 10
-Claim: Building on ReAct, [CITE] introduced the Reflexion framework, where agents are reinforced not by updating weights but through linguistic feedback maintained in an episodic memory buffer.
+Chapter: 3_state_of_the_art, Line: 14
+Claim: [CITE] extended this loop across episodes with Reflexion, where agents store linguistic self-reflections after failed attempts in an episodic memory buffer, informing subsequent trials without weight updates.
+Source quote: "We propose Reflexion, a novel framework to reinforce language agents not by updating weights, but instead through linguistic feedback. Concretely, Reflexion agents verbally reflect on task feedback signals, then maintain their own reflective text in an episodic memory buffer to induce better decision-making in subsequent trials." (p. 1, Abstract)
+Source quote: "In this paper, we propose an alternative approach called Reflexion that uses verbal reinforcement to help agents learn from prior failings. Reflexion converts binary or scalar feedback from the environment into verbal feedback in the form of a textual summary, which is then added as additional context for the LLM agent in the next episode." (p. 2, Section 1)
 
-Chapter: 4_architecture, Line: 61
+Chapter: 4_architecture, Line: 81
 Claim: If execution fails, a single Reflexion-style retry [CITE] is attempted; still-failing charts are dropped.
-
-Chapter: 9_conclusion, Line: 37
-Claim: Incorporating episodic memory [CITE] or self-reflection [CITE] could enable specialists to learn from prior interactions, making recommendations more personalised over time.
+Source quote: "Reflexion agents verbally reflect on task feedback signals, then maintain their own reflective text in an episodic memory buffer to induce better decision-making in subsequent trials." (p. 1, Abstract -- the retry-with-feedback pattern)
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The PDF confirms this is "Reflexion: Language Agents with Verbal Reinforcement Learning" by Shinn et al. (Northeastern / MIT / Princeton, 2023). The abstract states: "We propose Reflexion, a novel framework to reinforce language agents not by updating weights, but instead through linguistic feedback. Concretely, Reflexion agents verbally reflect on task feedback signals, then maintain their own reflective text in an episodic memory buffer to induce better decision-making in subsequent trials." This directly supports all three KB claims.
---- VERIFICATION ---
-Status: CONFIRMED
-Evidence: Abstract: "Reflexion agents verbally reflect on task feedback signals, then maintain their own reflective text in an episodic memory buffer to induce better decision-making in subsequent trials." Section 3 describes the framework with three models: Actor, Evaluator, and Self-Reflection. The paper achieves 91% pass@1 on HumanEval (vs 80% for GPT-4), improves AlfWorld by 22%, HotPotQA by 20%. The episodic memory buffer stores linguistic feedback, not weight updates.
-Notes: All three KB claims verified: (1) Reflexion uses linguistic feedback in episodic memory rather than weight updates, (2) the retry pattern is accurately described as "Reflexion-style," (3) the reference to episodic memory and self-reflection for learning from prior interactions is accurate.
-Verified: 2026-06-28
+NOTES: The conclusion chapter (9_conclusion.tex) no longer contains \cite{shinn_reflexion_2023}. The KB originally listed 3 citations including chapter 9; only the two in chapters 3 and 4 remain active. Both are fully confirmed.
