@@ -1,5 +1,5 @@
 Citation: joerke_gptcoach_2024
-Cited 2 time(s)
+Cited 3 time(s)
 ============================================================
 
 Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 84)
@@ -16,6 +16,10 @@ Source quote: "only 6.7% of total codes corresponding to our chatbot's responses
 Chapter: 3_state_of_the_art, Section: Summary and Research Gap (line 102)
 Claim: LLM-based coaches can produce guidance perceived as personalised and actionable [CITE].
 Source quote: "The advice provided was rated as personalized (4.6/5), actionable (4.3/5)" (p. 12, Section 6.1.1)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row for GPTCoach [CITE]: Multi-Agent = no (single agent), Standardised Protocol = no, Multi-Source Live Data = no (HealthKit only), RAG-Grounded = no, Sports/Health Domain = yes.
+Source quote: same source as the line-84 block above -- "GPTCoach operates as a single agent with only two tools and accesses data from a single source (HealthKit)" (already-verified chapter claim); no mention of a standardised inter-agent protocol or a retrieval-augmented knowledge base anywhere in the source.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED

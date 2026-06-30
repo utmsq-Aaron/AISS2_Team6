@@ -1,10 +1,19 @@
 Citation: jayanti_enhancing_2026
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
 Chapter: 3_state_of_the_art, Line: 20
-Claim: [CITE] proposed Context-Aware MCP (CA-MCP), an extension that introduces a shared context store accessible by all MCP servers, reducing redundant data fetching in multi-agent workflows.
+Claim: [CITE] proposed Context-Aware MCP (CA-MCP), an extension that introduces a shared context store accessible by all MCP servers, reducing redundant data fetching in multi-agent workflows---reducing execution time by 67.8% and LLM orchestration calls by 60% on the TravelPlanner benchmark while improving task completeness.
+Source quote: "CA-MCP reduces average total execution time by 67.8%, improves completeness of results, and slightly boosts semantic similarity scores" (p. 5, Section 4.1, Results).
+Source quote: Table 2 (p. 5): "Execution Time (s): Traditional 41.99, CA-MCP 13.52, Improvement 67.8% faster" and "LLM Calls: Traditional 5, CA-MCP 2, Improvement 60% reduction" -- these are two distinct metrics. The original draft of this sentence had conflated them, attributing the 67.8% execution-time figure to "LLM orchestration calls"; corrected on 2026-06-30 to report each metric against its own figure.
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row for CA-MCP [CITE]: Multi-Agent = no (one central LLM plus reactive, non-LLM MCP servers), Standardised Protocol = yes (it is explicitly an MCP extension), Multi-Source Live Data = no (evaluated on the TravelPlanner and REALM-Bench benchmark sandboxes, not live external APIs), RAG-Grounded = no, Sports/Health Domain = no (travel-itinerary planning and wedding-logistics scheduling).
+Source quote: "we design and assess the performance of a Context-Aware MCP (CA-MCP) that offloads execution logic to specialized MCP servers that read from and write to a shared context memory" (p. 1, Abstract) -- the "Central LLM (Long-Term Planner)" performs only initial planning and final summarisation, while "MCP Servers (Short-Term Reactors)" are stateful but non-agentic executors reacting to the shared store (p. 2, Section 2.1) -- i.e., one LLM, not multiple LLM-driven agents.
+Source quote: "We evaluate its performance against the traditional MCP baseline on two benchmarks: (i) the TravelPlanner (Yang et al., 2024) benchmark for real-world itinerary planning, and (ii) the REALM-Bench (Geng & Chang, 2025) Wedding Logistics (P5) scenario for multi-agent scheduling." (p. 5, Section 4) -- confirms both evaluation domains are travel/logistics benchmarks, not sports/health, and not live APIs (TravelPlanner queries are synthetic, e.g. "Plan a three-day trip around Seattle...").
+Source quote: "CA-MCP reduces average total execution time by 67.8%" (p. 5, Section 4.1, Results) -- the 67.8% figure cited in Section~\ref{sec:sota:protocols} of this chapter is independently confirmed against Table 2 of the source (Execution Time: Traditional 41.99s vs. CA-MCP 13.52s = 67.8% faster).
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
 SOURCE CONFIRMS: Jayanti & Han (2026) "Enhancing Model Context Protocol (MCP) with Context-Aware Server Collaboration" (arXiv:2601.11595v2). The abstract states: "we design and assess the performance of a Context-Aware MCP (CA-MCP) that offloads execution logic to specialized MCP servers that read from and write to a shared context memory." Section 2.1 describes the "Shared Context Store (SCS)" as a centralized blackboard accessible by all MCP servers and the central LLM, reducing redundant data fetching. The paper confirms all elements of the claim: CA-MCP is proposed as an extension introducing a shared context store accessible by all MCP servers, reducing redundant data fetching in multi-agent workflows.
+Verified (table row, full source read): 2026-06-30

@@ -1,5 +1,5 @@
 Citation: shen_hugginggpt_2023
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
 Chapter: 3_state_of_the_art, Line: 22
@@ -7,6 +7,10 @@ Claim: [CITE] proposed HuggingGPT, where a central controller decomposes request
 Source quote: "we present HuggingGPT, an LLM-powered agent that leverages LLMs (e.g., ChatGPT) to connect various AI models in machine learning communities (e.g., Hugging Face) to solve AI tasks. Specifically, we use ChatGPT to conduct task planning when receiving a user request, select models according to their function descriptions available in Hugging Face, execute each subtask with the selected AI model, and summarize the response according to the execution results." (p. 1, Abstract)
 Source quote: "The whole process of HuggingGPT, illustrated in Figure 1, can be divided into four stages: Task Planning [...] Model Selection [...] Task Execution [...] Response Generation" (p. 2)
 Source quote: "the LLM acts as a brain: on one hand, it disassembles tasks based on user requests, and on the other hand, assigns suitable models to the tasks according to the model description." (p. 2)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row for HuggingGPT [CITE]: Multi-Agent = yes (controller + specialist models), Standardised Protocol = no (ad-hoc; no MCP/A2A-style protocol), Multi-Source Live Data = no (selects models from the Hugging Face hub, not live external data APIs), RAG-Grounded = no, Sports/Health Domain = no (generic AI-task solving).
+Source quote: same as above -- "select models according to their function descriptions available in Hugging Face" confirms model-hub selection rather than live data-source integration; the paper does not mention a standardised inter-agent protocol, retrieval-augmented generation, or any sports/health application.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED

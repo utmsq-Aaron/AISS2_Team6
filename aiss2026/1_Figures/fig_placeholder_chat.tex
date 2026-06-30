@@ -1,5 +1,15 @@
 \begin{figure}[ht]
 \centering
-\fbox{\parbox{0.85\textwidth}{\centering\vspace{3cm}\textcolor{tcgrey!40}{\Large\textit{Screenshot: Chat interface showing a multi-domain query (e.g., ``Should I train tomorrow?'') with the Training Copilot's synthesised response, inline route map, and collapsible agent trace panel.}}\vspace{3cm}}}
-\caption[Chat interface with multi-domain response]{The Training Copilot chat interface. The user's query triggers parallel specialist delegation; the response integrates recovery data, weather forecast, and calendar availability into a single recommendation, with an interactive route map rendered from the full trace.}\label{fig:screenshot_chat}
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\small Chat}\\[2pt]
+\fbox{\parbox{0.95\linewidth}{\centering\vspace{1.6cm}\textcolor{tcgrey!40}{\small\textit{Screenshot: Chat interface for a multi-domain query (``Should I train tomorrow?''), showing the synthesised response, inline route map, and collapsible agent trace panel.}}\vspace{1.6cm}}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\small Dashboard}\\[2pt]
+\fbox{\parbox{0.95\linewidth}{\centering\vspace{1.6cm}\textcolor{tcgrey!40}{\small\textit{Screenshot: Dashboard tabs---Health (sleep, HRV, Body Battery), Activity (load trends, recent activities), and Routes (interactive map with elevation profile).}}\vspace{1.6cm}}}
+\end{minipage}
+\caption[Chat and dashboard interfaces]{The Training Copilot UI. \textit{Left:} the chat interface, where a query triggers parallel specialist delegation and the response integrates recovery, weather, and calendar data with an interactive route map rendered from the full trace. \textit{Right:} the dashboard tabs, each rendering live data from its corresponding MCP server.}\label{fig:screenshot_ui_overview}
 \end{figure}

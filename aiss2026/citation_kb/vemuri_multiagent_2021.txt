@@ -1,5 +1,5 @@
 Citation: vemuri_multiagent_2021
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
 Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 86)
@@ -16,6 +16,10 @@ Source quote: "Coordination can be achieved through communicating commitments [1
 Source quote: "BeSmart architecture is written in python and flask [...] To test time delay, we scripted up to 250 dummy agents to send and receive messages, no significant delay was detected." (p. 5-6, Section 4.1)
 Source quote: "In Walking with JITAIs we built an innovative, remote-delivered and personally tailored JITAI system using Apple watches and IPhones" (p. 6, Section 4.2)
 Source quote: "Decision trees are updated with every new training data point, agent sends an updated model to the watch via phone every night." (p. 7, Section 4.2)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row for SMART-ALEC [CITE]: Multi-Agent = yes (per-user agents, ad-hoc GPGP-style coordination), Standardised Protocol = no, Multi-Source Live Data = no (SMS-based BeSmart / Apple Watch decision trees only, not multi-API live data), RAG-Grounded = no, Sports/Health Domain = yes.
+Source quote: same source as above -- the architecture is "a novel generic multi-agent architecture" where coordination is per-user-agent via GPGP-style commitment exchange (p. 4), predating MCP/A2A and LLM-based RAG; data sources are limited to SMS (BeSmart) or a single Apple Watch device (JITAI prototype), not multiple live external APIs.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED

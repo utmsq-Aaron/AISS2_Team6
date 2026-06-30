@@ -1,5 +1,5 @@
 Citation: puce_harnessing_2025
-Cited 3 time(s)
+Cited 4 time(s)
 ============================================================
 
 Chapter: 2_market_analysis, Line: 49
@@ -19,6 +19,10 @@ Chapter: 3_state_of_the_art, Section: Summary and Research Gap (line 104)
 Claim: RAG enables grounding in verifiable sources, addressing the reliability concerns raised by [CITE].
 Source quote: "its role remains complementary rather than substitutive to expert guidance." (p. 1, Abstract)
 Source quote: "limitations in individualization and contextual adaptation persisted." (p. 1, Abstract)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row "General-purpose LLM" [CITE]: Multi-Agent = no, Standardised Protocol = no, Multi-Source Live Data = no (no API access), RAG-Grounded = no, Sports/Health Domain = no (generic). Used as the citation grounding this row, since the systematic review's central finding is that general-purpose LLM-generated plans lack real-time data access and individual context.
+Source quote: "AI-generated plans adhere to foundational training principles but lack specificity, progression, and---most critically---the ability to incorporate real-time physiological feedback" (already verified above) -- this directly supports marking "Multi-Source Live Data" and "RAG-Grounded" as absent for the generic-LLM baseline, since the review found no live data integration or retrieval grounding in any of the 10 reviewed studies.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED

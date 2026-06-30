@@ -1,9 +1,13 @@
 Citation: wu_autogen_2023
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
 Chapter: 3_state_of_the_art, Line: 22
 Claim: [CITE] introduced AutoGen, showing through empirical benchmarks that role-specialised agents with tool access outperform monolithic single-agent designs on complex tasks, and that flexible conversation patterns (sequential, parallel, nested) enable different coordination strategies.
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row for AutoGen [CITE]: Multi-Agent = yes, Standardised Protocol = no (ad-hoc; "customizable, conversable" agents with no MCP/A2A-style protocol), Multi-Source Live Data = no (generic framework, not tied to any live external data source), RAG-Grounded = no, Sports/Health Domain = no (generic multi-agent framework, demonstrated on coding/safety benchmarks).
+Source quote: same as above -- "AutoGen is an open-source framework that allows developers to build LLM applications via multiple agents that can converse with each other" confirms multi-agent, but the paper describes no standardised discovery/coordination protocol, no retrieval-grounded knowledge base, and no domain-specific (sports/health) application.
 Source quote: "AutoGen is an open-source framework that allows developers to build LLM applications via multiple agents that can converse with each other to accomplish tasks. AutoGen agents are customizable, conversable, and can operate in various modes that employ combinations of LLMs, human inputs, and tools." (p. 1, Abstract)
 Source quote: "The results show that the built-in agents from AutoGen already yield better performance out of the box compared to the alternative approaches, even including the commercial ones." (p. 6, Section A1, Scenario 1)
 Source quote: "The results show that introducing a grounding agent could bring in a 15% performance gain on average." (p. 8, Section A3)

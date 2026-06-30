@@ -1,11 +1,15 @@
 Citation: athletica_ai_2024
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
 Chapter: 2_market_analysis, Line: 43
 Claim: Adaptive plan generators such as Athletica.ai [CITE] dynamically adjust endurance training plans based on Garmin and Strava data, but operate as plan-output systems without a conversational interface or cross-domain reasoning.
 Source quote: "Adaptive training plans that adjust to your fitness, fatigue, and schedule, so you improve with confidence." (p. 1, homepage hero text)
 Source quote: "Train Smarter. Finish Stronger. Live Healthier." (p. 1, homepage tagline)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row for Athletica.ai [CITE]: Multi-Agent = no, Standardised Protocol = no, Multi-Source Live Data = yes (Garmin + Strava), RAG-Grounded = no, Sports/Health Domain = yes.
+Source quote: same source as above -- the Athletica.ai homepage shows a single adaptive-planning product with Garmin/Strava data integration, no chat interface, no mention of an agent architecture, protocol standardisation, or retrieval-augmented generation. Table entry is a direct restatement of the existing market-analysis claim (Table~tab:competitors, "Data Sources: Garmin, Strava"; "Key Limitation: Plan-only; no recovery chat, no route planning") in the dimensions used by the Chapter 3 comparison table.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED

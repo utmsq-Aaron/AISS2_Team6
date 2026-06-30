@@ -1,9 +1,13 @@
 Citation: whoop_coach_2024
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
 Chapter: 2_market_analysis, Line: 43
 Claim: WHOOP launched WHOOP Coach [CITE], an OpenAI-powered conversational assistant that answers natural-language questions about the user's biometric data---but only WHOOP data, with no access to training load from Strava, weather forecasts, or calendar context.
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row for WHOOP Coach [CITE]: Multi-Agent = no, Standardised Protocol = no, Multi-Source Live Data = no (WHOOP only), RAG-Grounded = no, Sports/Health Domain = yes.
+Source quote: see quotes below -- WHOOP Coach is a single conversational assistant ("delivers personalized health and fitness coaching on demand") operating exclusively on the user's own WHOOP biometric and Journal data, with no mention of a multi-agent architecture, MCP/A2A-style standardised protocol, or a retrieval-augmented knowledge base. Table entry restates the existing market-analysis claim (Table~tab:competitors, "Data Sources: WHOOP device"; "Key Limitation: Walled garden; no Strava, routes, or calendar") in the dimensions used by the Chapter 3 comparison table.
 Source quote: "WHOOP Coach is a feature powered by generative AI that delivers personalized health and fitness coaching on demand by analyzing your unique biometric data, goals, and behaviors." (p. 2)
 Source quote: "It uses OpenAI's deep learning technology to identify patterns in your data and produce instant, conversational responses to your questions." (p. 2)
 Source quote: "It provides conversational, in-the-moment answers to your questions. Ask anything from 'How should I train for a 5k?' to 'Why am I so tired?' and receive specific, actionable guidance based on your body's data." (p. 2)
