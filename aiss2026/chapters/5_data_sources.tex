@@ -1,7 +1,7 @@
 \markboth{DATA SOURCES AND INTEGRATION}{DATA SOURCES AND INTEGRATION}
 \section{Data Sources and Integration}\label{sec:data}
 
-Training Copilot integrates seven data sources through the uniform MCP interface described in Section~\ref{sec:architecture:mcp}. Each is encapsulated in an independent server handling authentication, rate limiting, error recovery, and data normalisation internally; Table~\ref{tab:data_summary} summarises sources, tool counts, and metrics. This section describes the integration considerations for each.
+Training Copilot integrates seven data sources through the uniform MCP interface described in Section~\ref{sec:architecture:mcp}. Each is encapsulated in an independent server handling authentication, rate limiting, error recovery, and data normalisation internally; Table~\ref{tab:data_summary} summarises sources, tool counts, and metrics. This section describes the integration considerations for each; Table~\ref{tab:api_overview} in Appendix~\ref{sec:appendix:apis} complements it with a per-API reference of access requirements (API keys, OAuth, credentials), cost/rate limits, and native MCP availability for every external service used, including the LLM backend.
 
 \subsection{Strava --- Activity Tracking}\label{sec:data:strava}
 
