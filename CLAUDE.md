@@ -119,7 +119,9 @@ Mind these: the synchronous `orchestrator.run()` is offloaded to a thread (`run_
 
 ## Seminar Paper (`aiss2026/`)
 
-The seminar paper lives in `aiss2026/` and compiles with MiKTeX (`E:\Programme\MiKTeX\miktex\bin\x64\pdflatex.exe`). Build: `pdflatex → bibtex → pdflatex → pdflatex → pdflatex` (4 passes after bibtex for cross-refs). The product is called **Training Copilot** everywhere (never "FitDash" in the paper).
+The seminar paper lives in `aiss2026/` and compiles with MiKTeX. Build: `pdflatex → bibtex → pdflatex → pdflatex → pdflatex` (4 passes after bibtex for cross-refs), or just run `aiss2026/build.bat`. The product is called **Training Copilot** everywhere (never "FitDash" in the paper).
+
+**`build.bat` is shared/committed and machine-agnostic on purpose** — it resolves the MiKTeX `bin` directory itself (PATH → `MIKTEX_BIN` env var → a few common install locations), it does not hardcode any one contributor's install path. If it can't find `pdflatex`/`bibtex` on a given machine, the fix is to `set MIKTEX_BIN=...` in that shell (or add MiKTeX's `bin\x64` to PATH) — **never** hardcode that machine's path into `build.bat` itself, since that would break the build for every other contributor the next time they pull. If a contributor needs something genuinely machine-specific beyond what `MIKTEX_BIN` covers, add a new untracked script (e.g. `build.local.bat`) rather than editing the shared one.
 
 ### Citation Knowledge Base — MANDATORY
 
