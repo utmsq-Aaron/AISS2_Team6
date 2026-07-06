@@ -1,0 +1,30 @@
+\begin{landscape}
+\begin{table}[p]
+\centering
+\small
+\caption[Comparison of prior agentic and coaching systems]{Comparison of prior agentic and coaching systems against the research-gap dimensions identified in this section. \checkmark\ = demonstrated; $\times$ = not demonstrated or not present; parenthesised text qualifies a partial or negative result.}\label{tab:sota_comparison}
+\begin{tabular}{p{3.6cm}p{3.2cm}p{2.5cm}p{3.5cm}p{1.5cm}p{2.0cm}}
+\toprule
+\textbf{System} & \textbf{Multi-Agent} & \textbf{Protocol} & \textbf{Live Data} & \textbf{RAG-Grounded} & \textbf{Domain} \\
+\midrule
+HuggingGPT\newline\citep{shen_hugginggpt_2023} & \checkmark & $\times$\newline(ad-hoc) & $\times$\newline(model hub) & $\times$ & $\times$ \\
+\specialrule{0.3pt}{3pt}{3pt}
+AutoGen\newline\citep{wu_autogen_2023} & \checkmark & $\times$\newline(ad-hoc) & $\times$\newline(generic) & $\times$ & $\times$ \\
+\specialrule{0.3pt}{3pt}{3pt}
+CA-MCP\newline\citep{jayanti_enhancing_2026} & $\times$\newline(1 LLM, reactive) & \checkmark\newline(MCP extension) & $\times$\newline(benchmark sandbox) & $\times$ & $\times$\newline(travel/logistics) \\
+\specialrule{0.3pt}{3pt}{3pt}
+GPTCoach\newline\citep{joerke_gptcoach_2024} & $\times$\newline(single agent) & $\times$ & $\times$\newline(HealthKit only) & $\times$ & \checkmark \\
+\specialrule{0.3pt}{3pt}{3pt}
+SMART-ALEC\newline\citep{vemuri_multiagent_2021} & \checkmark\newline(ad-hoc, per-user) & $\times$ & $\times$\newline(SMS/watch only) & $\times$ & \checkmark \\
+\specialrule{0.3pt}{3pt}{3pt}
+WHOOP Coach\newline\citep{whoop_coach_2024} & $\times$ & $\times$ & $\times$\newline(WHOOP only) & $\times$ & \checkmark \\
+\specialrule{0.3pt}{3pt}{3pt}
+Athletica.ai\newline\citep{athletica_ai_2024} & $\times$ & $\times$ & \checkmark\newline(adaptive plans) & $\times$ & \checkmark \\
+\specialrule{0.3pt}{3pt}{3pt}
+General-purpose LLM\newline\citep{puce_harnessing_2025} & $\times$ & $\times$ & $\times$\newline(no API access) & $\times$ & $\times$\newline(generic) \\
+\specialrule{0.3pt}{3pt}{3pt}
+\textbf{Training Copilot}\newline\textbf{(this work)} & \checkmark & \checkmark\newline(MCP + A2A) & \checkmark\newline(5 live sources) & \checkmark & \checkmark \\
+\botrule
+\end{tabular}
+\end{table}
+\end{landscape}

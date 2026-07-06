@@ -39,7 +39,8 @@ Sentences are quoted; the citation key and the claim being made are noted.
 |---|---|
 | `vaswani_attention_2017` | "The Transformer architecture" — foundational architecture paper |
 | `wei_chain-of-thought_2022` | "chain-of-thought prompting" — reasoning via intermediate steps |
-| `openai_gpt4_2023` | "scaling of model capacity to hundreds of billions of parameters" |
+| `brown_gpt3_2020` | "scaling of model capacity to hundreds of billions of parameters" (GPT-3, 175B parameters) |
+| `openai_gpt4_2023` | "subsequent frontier models reaching human-level performance across professional and academic benchmarks" |
 | `yao_react_2023` | "ReAct framework...interleaves reasoning traces and task-specific actions" |
 | `shinn_reflexion_2023` | "Reflexion...agents improve through natural-language self-reflection stored in episodic memory" |
 | `park_generative_2023` | "LLM-powered agents can exhibit believable human-like behaviour...memory architecture that stores, retrieves, and reflects" |

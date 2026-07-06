@@ -1,5 +1,5 @@
 Citation: bourdon_monitoring_2017
-Cited 6 time(s)
+Cited 5 time(s)
 ============================================================
 
 Chapter: 1_introduction, Line: 4
@@ -28,9 +28,7 @@ Chapter: 3_state_of_the_art, Section: Wearable Reliability (line 68)
 Claim: Professional adoption of wearable monitoring is now standard in elite team sports [CITE].
 Source quote: "External training load in team sports is routinely measured using GPS." (p. S2-163, GPS Measures in Team Sports section)
 
-Chapter: 5_data_sources, Line: 10
-Claim: CTL/ATL/TSB derived from the fitness-fatigue impulse-response model widely used in endurance sports [CITE].
-Source quote: "The original fitness-fatigue model reported by Banister et al used a systems-theory approach to analyze the responses to physical training and is described as: Modeled performance = fitness from training model - K(fatigue from training model)" (p. S2-165, Fitness-Fatigue Model section)
+[Chapter 5, Line 10 entry REMOVED 2026-07-06: the CTL/ATL/TSB "fitness-fatigue impulse-response model" citation in Chapter 5 was reassigned from bourdon_monitoring_2017 to morton_modeling_1990 (the model's primary source), for consistency with Chapter 3. Bourdon does review the same Banister/Morton model (p. S2-165), so the prior citation was accurate; it was moved only to avoid attributing the same model to two different sources across chapters. Cited count reduced 6 -> 5.]
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED

@@ -17,29 +17,36 @@
     \node[uibox] (ui1) {Streamlit\\Chat Tab};
     \node[uibox, right=0.6cm of ui1] (ui2) {React\\Frontend};
     \node[uibox, right=0.6cm of ui2] (ui3) {Telegram\\Bridge};
-    \node[layerlabel, text=tcblue] at ([xshift=-1.2cm]ui1.west) {UI Layer};
 
     % Core layer (green)
     \node[corebox, below=1.0cm of ui2] (orch_adapter) {Orchestrator\\Adapter};
-    \node[layerlabel, text=tcgreen] at ([xshift=-1.2cm]orch_adapter.west |- orch_adapter) {Core};
 
-    % Agent layer (golden)
+    % Agent layer (golden) --- laid out as a single left-to-right chain so
+    % adjacent boxes are always separated by an explicit gap, regardless of
+    % how wide any individual label renders (avoids overlap bugs).
     \node[agentbox, below=1.0cm of orch_adapter] (orch_agent) {Orchestrator\\Agent :9000};
-    \node[agentbox, below left=0.8cm and 1.8cm of orch_agent] (recovery) {Recovery\\:9001};
-    \node[agentbox, below left=0.8cm and 0.2cm of orch_agent] (load) {Load\\:9002};
-    \node[agentbox, below right=0.8cm and -0.4cm of orch_agent] (context) {Context\\:9003};
-    \node[agentbox, below right=0.8cm and 1.2cm of orch_agent] (route) {Route\\:9004};
-    \node[agentbox, below right=0.8cm and 2.8cm of orch_agent] (fitness) {Fitness\\:9005};
-    \node[layerlabel, text=tcyellow!80!black] at ([xshift=-1.2cm]recovery.west |- orch_agent) {Agents (A2A)};
+    \node[agentbox, below=1.0cm of orch_agent, xshift=-3.4cm] (load) {Load\\:9002};
+    \node[agentbox, left=0.5cm of load] (recovery) {Recovery\\:9001};
+    \node[agentbox, right=0.9cm of load] (context) {Context\\:9003};
+    \node[agentbox, right=1.0cm of context] (route) {Route\\:9004};
+    \node[agentbox, right=0.5cm of route] (fitness) {Fitness\\:9005};
 
-    % MCP Server layer (cyan)
+    % MCP Server layer (cyan) --- same chain principle: fixed gaps between
+    % neighbours instead of independent offsets from a shared reference.
     \node[serverbox, below=1.5cm of recovery] (garmin) {Garmin\\:8104};
-    \node[serverbox, below=1.5cm of load] (strava) {Strava\\:8103};
-    \node[serverbox, below=1.5cm of context] (weather) {Weather\\:8101};
-    \node[serverbox, right=0.3cm of weather] (calendar) {Calendar\\:8105};
+    \node[serverbox, right=0.4cm of garmin] (strava) {Strava\\:8103};
+    \node[serverbox, below=1.5cm of context, xshift=-1.0cm] (weather) {Weather\\:8101};
+    \node[serverbox, right=0.4cm of weather] (calendar) {Calendar\\:8105};
     \node[serverbox, below=1.5cm of route] (routes) {Routes\\:8102};
     \node[serverbox, below=1.5cm of fitness] (vectordb) {Vector DB\\(RAG)};
-    \node[layerlabel, text=tccyan] at ([xshift=-1.2cm]garmin.west |- garmin) {MCP / Data};
+
+    % Layer labels --- all share one left edge (1.2cm left of the
+    % left-most box, Recovery/Garmin's column), rather than each being
+    % hung 1.2cm off its own nearest box, which misaligned them.
+    \node[layerlabel, text=tcblue] at ([xshift=-1.2cm]recovery.west |- ui1) {UI Layer};
+    \node[layerlabel, text=tcgreen] at ([xshift=-1.2cm]recovery.west |- orch_adapter) {Core};
+    \node[layerlabel, text=tcyellow!80!black] at ([xshift=-1.2cm]recovery.west |- orch_agent) {Agents (A2A)};
+    \node[layerlabel, text=tccyan] at ([xshift=-1.2cm]recovery.west |- garmin) {MCP / Data};
 
     % UI → Core
     \draw[arr, color=tcblue!60] (ui1.south) -- (orch_adapter.north west);
@@ -56,14 +63,22 @@
     \draw[arr, color=tcyellow!80!black] (orch_agent.south) -- (route.north);
     \draw[arr, color=tcyellow!80!black] (orch_agent.south) -- (fitness.north);
 
-    % Specialists → MCP Servers
-    \draw[arr, color=tccyan] (recovery.south) -- node[left, font=\scriptsize]{MCP} (garmin.north);
+    % Specialists → MCP Servers (primary paths, solid): each specialist's
+    % full MCP scope (core/config.py AGENT_MCP_SCOPE) gets a solid arrow,
+    % since Context genuinely needs both Weather and Calendar for every
+    % scheduling query, not one as a fallback of the other.
+    \draw[arr, color=tccyan] (recovery.south) -- (garmin.north);
     \draw[arr, color=tccyan] (load.south) -- (strava.north);
-    \draw[darr, color=tccyan!60] (load.south east) -- (garmin.north east);
     \draw[arr, color=tccyan] (context.south) -- (weather.north);
-    \draw[darr, color=tccyan!60] (context.south east) -- (calendar.north);
+    \draw[arr, color=tccyan] (context.south) -- (calendar.north);
     \draw[arr, color=tccyan] (route.south) -- (routes.north);
     \draw[arr, color=tccyan] (fitness.south) -- (vectordb.north);
+
+    % Load → Garmin (secondary/fallback path, dashed): Strava is the
+    % specialist's primary activity source, Garmin only a fallback
+    % (Section~4.5); edge points (not corners) keep the curve's landing
+    % angle clean on both boxes.
+    \draw[darr, color=tccyan!60] ($(load.south)+(-0.3,0)$) to[bend right=20] ($(garmin.north)+(0.35,0)$);
 
 \end{tikzpicture}%
 }% end resizebox

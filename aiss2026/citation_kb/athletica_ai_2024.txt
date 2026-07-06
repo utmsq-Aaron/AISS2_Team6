@@ -2,16 +2,17 @@ Citation: athletica_ai_2024
 Cited 2 time(s)
 ============================================================
 
-Chapter: 2_market_analysis, Line: 43
-Claim: Adaptive plan generators such as Athletica.ai [CITE] dynamically adjust endurance training plans based on Garmin and Strava data, but operate as plan-output systems without a conversational interface or cross-domain reasoning.
+Chapter: 2_market_analysis, Line: 16
+Claim: Athletica.ai [CITE] dynamically adjusts endurance training plans to an athlete's fitness, fatigue, and schedule but offers no conversational interface or cross-domain reasoning.
 Source quote: "Adaptive training plans that adjust to your fitness, fatigue, and schedule, so you improve with confidence." (p. 1, homepage hero text)
 Source quote: "Train Smarter. Finish Stronger. Live Healthier." (p. 1, homepage tagline)
 
 Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
-Claim: Table row for Athletica.ai [CITE]: Multi-Agent = no, Standardised Protocol = no, Multi-Source Live Data = yes (Garmin + Strava), RAG-Grounded = no, Sports/Health Domain = yes.
-Source quote: same source as above -- the Athletica.ai homepage shows a single adaptive-planning product with Garmin/Strava data integration, no chat interface, no mention of an agent architecture, protocol standardisation, or retrieval-augmented generation. Table entry is a direct restatement of the existing market-analysis claim (Table~tab:competitors, "Data Sources: Garmin, Strava"; "Key Limitation: Plan-only; no recovery chat, no route planning") in the dimensions used by the Chapter 3 comparison table.
+Claim: Table row for Athletica.ai [CITE]: Multi-Agent = no, Standardised Protocol = no, Live Data = yes (adaptive plans), RAG-Grounded = no, Sports/Health Domain = yes.
+Source quote: The homepage states plans "adjust to your fitness, fatigue, and schedule" -- i.e. the product ingests the athlete's live training/wellness state to adapt plans (Live Data = yes, qualified as "adaptive plans"), but shows plan-based output only, with no chat interface, no agent architecture, no protocol standardisation, and no retrieval-augmented generation.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED
-SOURCE CONFIRMS: The PDF is a web capture of the Athletica.ai homepage (athletica.ai). The page describes "Adaptive training plans that adjust to your fitness, fatigue, and schedule." The footer shows sections for Athletes, Coaches, Plans, and links to Free App (iOS/Android), Coach Connect, and Athletica API. The navigation mentions "Athletes" and "Coaches" pages. The site confirms adaptive endurance training plans as the core product. The claim about Garmin/Strava integration is supported by Table 1 in the paper (which lists "Garmin, Strava" under Athletica.ai's Data Sources) and is consistent with the platform's integration capabilities (visible in the site's API and partner integrations). The absence of a conversational interface is confirmed by the website -- it shows plan-based output only, not a chat interface.
-Verified: 2026-06-29
+SOURCE CONFIRMS: The PDF is a web capture of the Athletica.ai homepage (8 pages). It states "Adaptive training plans that adjust to your fitness, fatigue, and schedule." The absence of a conversational interface is evident (plan-based product, no chat).
+Note (fixed 2026-07-06): Both the Chapter-2 sentence and the Chapter-3 table cell previously claimed Athletica uses "Garmin and Strava" data. The saved homepage PDF does NOT mention Garmin, Strava, sync, or integrations anywhere (grep-verified across all 8 pages), so that specific data-source claim was not sourceable. Chapter 2 was reworded to "adjusts ... to fitness, fatigue, and schedule" (verbatim from the homepage) and the tab_sota_comparison Live-Data cell changed from "(Garmin + Strava)" to "(adaptive plans)." (Athletica does in fact sync Garmin/Strava, but that is not evidenced by the captured source, so the cited claims were softened to what the source supports. The uncited descriptive table tab_competitors still lists "Garmin, Strava" as background product info.)
+Fixed: 2026-07-06

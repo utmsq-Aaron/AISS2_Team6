@@ -5,40 +5,15 @@ This section examines the sports-analytics and fitness-technology market, identi
 
 \subsection{Market Size and Growth}\label{sec:market:size}
 
-The global sports-analytics market is driven by the convergence of wearable adoption, cloud computing, and consumer-facing large language models. Grand View Research estimates it at USD\,5.7~billion in 2025, projecting USD\,23.1~billion by 2033 at an 18.5\,\% CAGR~\citep{grandview_sports_2024}, alongside a rapidly expanding wearable fitness-technology market~\citep{idc_wearables_2024}. Demand is particularly pronounced in Germany, where fitness-app downloads rose from 41.37~million in 2017 to a projected 135.22~million in 2025~\citep{statista_fitness_apps_2025}. Strava's 2025 trend report---based on 30{,}494 respondents drawn from its 180-million-user community and a random non-user sample---finds that 30\,\% of Generation~Z plan to increase fitness spending in 2026 and that 46\,\% of all respondents would use AI as a smart coach for sports~\citep{strava_trends_2025}. This converges with the broader generative-AI boom: McKinsey estimates USD~2.6--4.4~trillion in annual cross-industry value, concentrated in knowledge-intensive domains where synthesising heterogeneous information is the core task~\citep{mckinsey_genai_2023}---a description that fits sports coaching and wellness precisely, where the athlete must integrate physiological data, environmental conditions, and scheduling constraints.
+The global sports-analytics market is driven by the convergence of wearable adoption, cloud computing, and consumer-facing large language models. Grand View Research estimates it at USD\,5.7~billion in 2025, projecting USD\,23.1~billion by 2033 at an 18.5\,\% CAGR~\citep{grandview_sports_2024}, alongside a large and steadily growing wearable-device market~\citep{idc_wearables_2024}. Demand is particularly pronounced in Germany, where fitness-app downloads rose from 41.37~million in 2017 to a projected 135.22~million in 2025~\citep{statista_fitness_apps_2025}. Strava's 2025 trend report---based on 30{,}494 respondents drawn from its 180-million-user community and a random non-user sample---finds that 30\,\% of Generation~Z plan to increase fitness spending in 2026 and that 46\,\% of all respondents would use AI as a smart coach for sports~\citep{strava_trends_2025}. This converges with the broader generative-AI boom: McKinsey estimates USD~2.6--4.4~trillion in annual cross-industry value, concentrated in knowledge-intensive domains where synthesising heterogeneous information is the core task~\citep{mckinsey_genai_2023}---a description that fits sports coaching and wellness precisely, where the athlete must integrate physiological data, environmental conditions, and scheduling constraints.
 
 \subsection{Competitive Landscape}\label{sec:market:landscape}
 
 Table~\ref{tab:competitors} summarises the platforms athletes currently use to manage training data and their key limitations.
 
-\begin{table}[ht]
-\begin{center}
-\begin{minipage}{\textwidth}
-\caption{Competitive landscape of consumer sports analytics platforms. No existing platform simultaneously provides multi-source integration, cross-domain reasoning, and conversational interaction.}\label{tab:competitors}
-\begin{tabularx}{\textwidth}{p{2.0cm}p{2.4cm}p{2.2cm}X}
-\toprule
-\textbf{Platform} & \textbf{Core Capability} & \textbf{Data Sources} & \textbf{Key Limitation} \\
-\midrule
-Strava & Activity tracking, social, routes & Strava uploads & No recovery data, no weather, no cross-source reasoning \\
-\addlinespace
-Garmin Connect & Wellness, sleep, HRV, Body Battery & Garmin only & Walled garden; no Strava load, no route planning \\
-\addlinespace
-TrainingPeaks & Training plans, TSS/CTL/ATL & File import & Paid, no chat interface, manual import \\
-\addlinespace
-Intervals.icu & Load analytics, free tier & Strava, Garmin & No weather, calendar, or routes; dashboard-only \\
-\addlinespace
-WHOOP Coach & AI chat on biometrics & WHOOP device & Walled garden; no Strava, routes, or calendar \\
-\addlinespace
-Athletica.ai & Adaptive training plans & Garmin, Strava & Plan-only; no recovery chat, no route planning \\
-\addlinespace
-ChatGPT / Gemini & General-purpose LLM & None (no API) & No live fitness data; generic, ungrounded advice \\
-\botrule
-\end{tabularx}
-\end{minipage}
-\end{center}
-\end{table}
+\input{2_Tables/tab_competitors}
 
-WHOOP launched WHOOP Coach~\citep{whoop_coach_2024}, an OpenAI-powered conversational assistant that answers questions about the user's biometrics but sees only WHOOP data, with no access to Strava load, weather, or calendar context; Athletica.ai~\citep{athletica_ai_2024} dynamically adjusts endurance plans from Garmin and Strava data but offers no conversational interface or cross-domain reasoning. Both represent meaningful progress, yet each remains siloed within its own ecosystem and offers either conversation \textit{or} adaptive planning, never both grounded in multi-source data simultaneously.
+WHOOP launched WHOOP Coach~\citep{whoop_coach_2024}, an OpenAI-powered conversational assistant that answers questions about the user's biometrics but sees only WHOOP data, with no access to Strava load, weather, or calendar context; Athletica.ai~\citep{athletica_ai_2024} dynamically adjusts endurance training plans to an athlete's fitness, fatigue, and schedule but offers no conversational interface or cross-domain reasoning. Both represent meaningful progress, yet each remains siloed within its own ecosystem and offers either conversation \textit{or} adaptive planning, never both grounded in multi-source data simultaneously.
 
 The landscape can also be read along two axes---breadth of data integration and depth of AI-driven analysis (Figure~\ref{fig:solution_landscape}).
 

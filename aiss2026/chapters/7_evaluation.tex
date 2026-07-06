@@ -9,7 +9,7 @@ We adopt MLflow's end-to-end conversation simulation framework~\citep{mlflow_mul
 
 \subsection{Persona Design}\label{sec:evaluation:personas}
 
-We define ten synthetic personas across two user archetypes, directly informed by the market analysis in Section~\ref{sec:market:users}, designed to exercise both user sophistication levels and all five specialist domains. \textbf{Type A: ambitious triathletes} (5 personas)---structured, metrics-driven endurance athletes who train by plan, wear Garmin watches, and expect precise, data-driven decisions---each pursue a different multi-turn goal: Julian (recovery readiness for a key brick session), Priya (training-load trend analysis and taper planning), Marco (post-workout execution review with HR zones and splits), Lena (calendar-and-weather scheduling, with calendar writes), and Tom (evidence-based exercise-science guidance with citations). \textbf{Type B: hobby cyclists} (5 personas)---recreational riders who train by feel and prefer plain-language guidance---comprise Sophie (scenic loop with a caf\'e stop), Ben (weather go/no-go for a casual ride), Mara (trail discovery with elevation context), Carlos (year-over-year progress in plain language), and Jana (group-ride loop planning).
+We define ten synthetic personas across two user archetypes, directly informed by the market analysis in Section~\ref{sec:market:users}, designed to exercise both user sophistication levels and all five specialist domains. \textbf{Type A: ambitious triathletes} (5 personas)---structured, metrics-driven endurance athletes who train by plan, wear Garmin watches, and expect precise, data-driven decisions---each pursue a different multi-turn goal: Julian (recovery readiness for a key brick session), Priya (training-load trend analysis and taper planning), Marco (post-workout execution review with HR zones and splits), Lena (calendar-and-weather scheduling, with calendar writes), and Tom (evidence-based exercise-science guidance with citations). \textbf{Type B: hobby cyclists} (5 personas)---recreational riders who train by feel and prefer plain-language guidance---comprise Sophie (scenic loop with a caf\'e stop), Ben (weather go/no-go for a casual ride), Mara (trail discovery with elevation context), Carlos (year-over-year progress in plain language), and Jana (group-ride loop planning). Table~\ref{tab:personas} in Appendix~\ref{sec:appendix:personas} lists all ten personas with their type, goal, and expected focus area.
 
 Each persona combines four elements consumed by the \texttt{ConversationSimulator}: a \textit{goal}, a \textit{persona identity} (background, fitness level, communication style), \textit{simulation guidelines} (e.g.\ ``push for concrete specifics'', ``stay in character''), and \textit{expectations} (the expected focus area, used for scorer calibration). Common guidelines instruct the simulator to have a natural multi-turn conversation, react to the assistant's actual answer before moving on, and end once the goal is genuinely met or clearly unreachable. The simulator LLM (GPT-5.4-mini) role-plays each persona for up to five turns.
 
@@ -17,28 +17,7 @@ Each persona combines four elements consumed by the \texttt{ConversationSimulato
 
 Each conversation is scored along five dimensions, combining LLM-based judges with a deterministic code scorer (Table~\ref{tab:scorers}).
 
-\begin{table}[ht]
-\begin{center}
-\begin{minipage}{\textwidth}
-\caption{Evaluation scoring dimensions. Four LLM judges run on GPT-5.4-nano; one deterministic scorer inspects tool-call traces directly.}\label{tab:scorers}
-\begin{tabularx}{\textwidth}{p{3.5cm}lX}
-\toprule
-\textbf{Scorer} & \textbf{Type} & \textbf{Assessment} \\
-\midrule
-Conversation Completeness & LLM judge & Were the user's questions fully and satisfactorily answered? \\
-\addlinespace
-User Frustration & LLM judge & Did the user become frustrated, and did the agent worsen or mitigate it? \\
-\addlinespace
-Safety & LLM judge & Is the content safe and free of harmful advice? \\
-\addlinespace
-Supportive Coaching Tone & LLM judge & Does the assistant maintain a supportive, encouraging tone throughout, even when the user pushes back? \\
-\addlinespace
-Grounded in Real Data & Deterministic & Did the Copilot actually use its MCP tools to fetch real data, or did it answer from parametric knowledge alone? \\
-\botrule
-\end{tabularx}
-\end{minipage}
-\end{center}
-\end{table}
+\input{2_Tables/tab_scorers}
 
 The fifth scorer, \texttt{grounded\_in\_real\_data}, inspects the tool-call \textit{spans} reconstructed in each turn's MLflow trace rather than asking an LLM to guess whether tools were used---it counts tool calls, identifies which were invoked and whether they succeeded, and produces a per-turn breakdown. The verdict is binary (``yes'' if at least one tool was called across the conversation), but the rationale gives granular visibility into grounding quality; a factual ``did it call tools or not?'' question is far more reliably answered from the trace than guessed from chat text. The \texttt{supportive\_coaching\_tone} scorer implements a \texttt{ConversationalGuidelines} assertion that the assistant remain supportive even when the user is impatient, sceptical, or pushing for specifics, never dismissive or robotic---testing resilience under adversarial behaviour that \cite{barger_artificial_2025} identified as critical for AI coaching acceptance.
 

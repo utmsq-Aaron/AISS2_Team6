@@ -1,6 +1,6 @@
 # Reference List for Zotero Import
 
-Total: 63 references
+Total: 64 references
 
 Click each DOI/URL link to open in browser, then import into Zotero.
 
@@ -17,62 +17,63 @@ Use these keys with `\cite{key}` in LaTeX:
 | 5 | `athletica_ai_2024` | Athletica.ai 2024 | Athletica.ai (2024) |
 | 6 | `barger_artificial_2025` | Amber S. Barger 2025 | Amber S. Barger (2025) |
 | 7 | `bourdon_monitoring_2017` | Pitre C. Bourdon 2017 | Pitre C. Bourdon and Marco Cardinale and Andrew Murray and P... (2017) |
-| 8 | `dragoni_microservices_2017` | Nicola Dragoni 2017 | Nicola Dragoni and Saverio Giallorenzo and Alberto Lluch Laf... (2017) |
-| 9 | `fuller_reliability_2020` | Daniel Fuller 2020 | Daniel Fuller and Emily Colwell and Jonathan Low and Kassia ... (2020) |
-| 10 | `gabarron_human_2024` | Elia Gabarron 2024 | Elia Gabarron and Dillys Larbi and Octavio Rivera-Romero and... (2024) |
-| 11 | `gabbett_training_2016` | Tim J. Gabbett 2016 | Tim J. Gabbett (2016) |
-| 12 | `gao_retrieval-augmented_2024` | Yunfan Gao 2024 | Yunfan Gao and Yun Xiong and Xinyu Gao and Kangxiang Jia and... (2024) |
-| 13 | `google_a2a_2025` | Google Cloud 2025 | Google Cloud (2025) |
-| 14 | `grandview_sports_2024` | Grand View Research 2026 | Grand View Research (2026) |
-| 15 | `grgic_periodization_2017` | Jozo Grgic 2017 | Jozo Grgic and Pavle Mikulic and Hrvoje Podnar and Zeljko Pe... (2017) |
-| 16 | `guo_large_2024` | Taicheng Guo 2024 | Taicheng Guo and Xiuying Chen and Yaqi Wang and Ruidi Chang ... (2024) |
-| 17 | `halson_monitoring_2014` | Shona L. Halson 2014 | Shona L. Halson (2014) |
-| 18 | `idc_wearables_2024` | IDC 2024 | IDC (2024) |
-| 19 | `jayanti_enhancing_2026` | Meenakshi Amulya Jayanti 2026 | Meenakshi Amulya Jayanti and X. Y. Han (2026) |
-| 20 | `joerke_gptcoach_2024` | Matthew J"o 2024 | Matthew J"o (2024) |
-| 21 | `jsonrpc_spec_2013` | JSON-RPC Working Group 2013 | JSON-RPC Working Group (2013) |
-| 22 | `karpukhin_dense_2020` | Vladimir Karpukhin 2020 | Vladimir Karpukhin and Barlas Oguz and Sewon Min and Patrick... (2020) |
-| 23 | `kellmann_recovery_2018` | Michael Kellmann 2018 | Michael Kellmann and Melanie Bertollo and Luana Bosquet and ... (2018) |
-| 24 | `langchain_langgraph_2024` | LangChain 2024 | LangChain (2024) |
-| 25 | `lewis_retrieval-augmented_2020` | Patrick Lewis 2020 | Patrick Lewis and Ethan Perez and Aleksandra Piktus and Fabi... (2020) |
-| 26 | `li_wearable_2016` | Robert T. Li 2016 | Robert T. Li and Sagar R. Kling and Michael J. Salata and Se... (2016) |
-| 27 | `lundstrom_hrv_2023` | Carl J. Lundstrom 2023 | Carl J. Lundstrom and Nicholas A. Foreman and George P. Bilt... (2023) |
-| 28 | `luo_promoting_2021` | Tiffany Christina Luo 2021 | Tiffany Christina Luo and Adrian Aguilera and Courtney Rees ... (2021) |
-| 29 | `mckinsey_genai_2023` | McKinsey & Company 2023 | McKinsey & Company (2023) |
-| 30 | `mlflow_multiturn_2025` | MLflow 2026 | MLflow (2026) |
-| 31 | `monteiro-guerra_personalization_2020` | Francisco Monteiro-Guerra 2020 | Francisco Monteiro-Guerra and Octavio Rivera-Romero and Luis... (2020) |
-| 32 | `openai_gpt4_2023` | OpenAI 2023 | OpenAI (2023) |
-| 33 | `park_generative_2023` | Joon Sung Park 2023 | Joon Sung Park and Joseph C. O'Brien and Carrie J. Cai and M... (2023) |
-| 34 | `patil_gorilla_2023` | Shishir G. Patil 2023 | Shishir G. Patil and Tianjun Zhang and Xin Wang and Joseph E... (2023) |
-| 35 | `plews_training_2013` | Daniel J. Plews 2013 | Daniel J. Plews and Paul B. Laursen and Andrew E. Stanley an... (2013) |
-| 36 | `puce_harnessing_2025` | Luca Puce 2025 | Luca Puce and Nicola Luigi Bragazzi and Antonio Curr`a (2025) |
-| 37 | `qu_tool_2024` | Changle Qu 2025 | Changle Qu and Sunhao Dai and Xiaochi Wei and Hengyi Cai and... (2025) |
-| 38 | `reimers_sentence-bert_2019` | Nils Reimers 2019 | Nils Reimers and Iryna Gurevych (2019) |
-| 39 | `rothschild_predicting_2024` | Jeffrey A. Rothschild 2024 | Jeffrey A. Rothschild and Tom Stewart and Andrew E. Kilding ... (2024) |
-| 40 | `schick_toolformer_2023` | Timo Schick 2023 | Timo Schick and Jane Dwivedi-Yu and Roberto Dess`i (2023) |
-| 41 | `seckin_review_2023` | Ahmet Cagdas Seckin 2023 | Ahmet Cagdas Seckin and Bahar Ates and Mine Seckin (2023) |
-| 42 | `shankar_validates_2024` | Shreya Shankar 2024 | Shreya Shankar and J. D. Zamfirescu-Pereira and Bj\"{o}rn Ha... (2024) |
-| 43 | `shen_hugginggpt_2023` | Yongliang Shen 2023 | Yongliang Shen and Kaitao Song and Xu Tan and Dongsheng Li a... (2023) |
-| 44 | `shinn_reflexion_2023` | Noah Shinn 2023 | Noah Shinn and Federico Cassano and Edward Berman and Ashwin... (2023) |
-| 45 | `statista_fitness_apps_2025` | Statista 2025 | Statista (2025) |
-| 46 | `strava_api_update_2026` | Strava 2026 | Strava (2026) |
-| 47 | `strava_trends_2025` | Strava 2025 | Strava (2025) |
-| 48 | `strava_year_2024` | Strava 2024 | Strava (2024) |
-| 49 | `vanhooren_wearables_2020` | Bas Van Hooren 2020 | Bas Van Hooren and Jos Goudsmit and Juan Restrepo and Steven... (2020) |
-| 50 | `vaswani_attention_2017` | Ashish Vaswani 2017 | Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Us... (2017) |
-| 51 | `vemuri_multiagent_2021` | Ajith Vemuri 2021 | Ajith Vemuri and Keith Decker and Mathew Saponaro and Gregor... (2021) |
-| 52 | `venter_bias_2023` | Zander Venter 2023 | Zander Venter and Vegard Gundersen and Daniel J. Scott and B... (2023) |
-| 53 | `wackerhage_personalized_2021` | Henning Wackerhage 2021 | Henning Wackerhage and Brad J. Schoenfeld (2021) |
-| 54 | `wang_survey_2024` | Lei Wang 2024 | Lei Wang and Chen Ma and Xueyang Feng and Zeyu Zhang and Hao... (2024) |
-| 55 | `wei_chain-of-thought_2022` | Jason Wei 2022 | Jason Wei and Xuezhi Wang and Dale Schuurmans and Maarten Bo... (2022) |
-| 56 | `whoop_coach_2024` | WHOOP 2024 | WHOOP (2024) |
-| 57 | `wu_autogen_2023` | Qingyun Wu 2024 | Qingyun Wu and Gagan Bansal and Jieyu Zhang and Yiran Wu and... (2024) |
-| 58 | `yang_survey_2025` | Yingxuan Yang 2025 | Yingxuan Yang and Wenjing Chai and Yuqi Song and Hanwen Qi a... (2025) |
-| 59 | `yao_react_2023` | Shunyu Yao 2023 | Shunyu Yao and Jeffrey Zhao and Dian Yu and Nan Du and Izhak... (2023) |
-| 60 | `yao_taubench_2024` | Shunyu Yao 2024 | Shunyu Yao and Noah Shinn and Pedram Razavi and Karthik Nara... (2024) |
-| 61 | `morton_modeling_1990` | R. Hugh Morton 1990 | R. Hugh Morton and John R. Fitz-Clarke and Eric W. Banister (1990) |
-| 62 | `impellizzeri_training_2020` | Franco M. Impellizzeri 2020 | Franco M. Impellizzeri and Simon Woodcock and Aaron J. Coutts and... (2020) |
-| 63 | `sahoo_prompt_2024` | Pranab Sahoo 2024 | Pranab Sahoo and Ayush Kumar Singh and Sriparna Saha and... (2024) |
+| 8 | `brown_gpt3_2020` | Tom B. Brown 2020 | Tom B. Brown and Benjamin Mann and Nick Ryder and Melanie Su... (2020) |
+| 9 | `dragoni_microservices_2017` | Nicola Dragoni 2017 | Nicola Dragoni and Saverio Giallorenzo and Alberto Lluch Laf... (2017) |
+| 10 | `fuller_reliability_2020` | Daniel Fuller 2020 | Daniel Fuller and Emily Colwell and Jonathan Low and Kassia ... (2020) |
+| 11 | `gabarron_human_2024` | Elia Gabarron 2024 | Elia Gabarron and Dillys Larbi and Octavio Rivera-Romero and... (2024) |
+| 12 | `gabbett_training_2016` | Tim J. Gabbett 2016 | Tim J. Gabbett (2016) |
+| 13 | `gao_retrieval-augmented_2024` | Yunfan Gao 2024 | Yunfan Gao and Yun Xiong and Xinyu Gao and Kangxiang Jia and... (2024) |
+| 14 | `google_a2a_2025` | Google Cloud 2025 | Google Cloud (2025) |
+| 15 | `grandview_sports_2024` | Grand View Research 2026 | Grand View Research (2026) |
+| 16 | `grgic_periodization_2017` | Jozo Grgic 2017 | Jozo Grgic and Pavle Mikulic and Hrvoje Podnar and Zeljko Pe... (2017) |
+| 17 | `guo_large_2024` | Taicheng Guo 2024 | Taicheng Guo and Xiuying Chen and Yaqi Wang and Ruidi Chang ... (2024) |
+| 18 | `halson_monitoring_2014` | Shona L. Halson 2014 | Shona L. Halson (2014) |
+| 19 | `idc_wearables_2024` | IDC 2024 | IDC (2024) |
+| 20 | `jayanti_enhancing_2026` | Meenakshi Amulya Jayanti 2026 | Meenakshi Amulya Jayanti and X. Y. Han (2026) |
+| 21 | `joerke_gptcoach_2024` | Matthew J"o 2024 | Matthew J"o (2024) |
+| 22 | `jsonrpc_spec_2013` | JSON-RPC Working Group 2013 | JSON-RPC Working Group (2013) |
+| 23 | `karpukhin_dense_2020` | Vladimir Karpukhin 2020 | Vladimir Karpukhin and Barlas Oguz and Sewon Min and Patrick... (2020) |
+| 24 | `kellmann_recovery_2018` | Michael Kellmann 2018 | Michael Kellmann and Melanie Bertollo and Luana Bosquet and ... (2018) |
+| 25 | `langchain_langgraph_2024` | LangChain 2024 | LangChain (2024) |
+| 26 | `lewis_retrieval-augmented_2020` | Patrick Lewis 2020 | Patrick Lewis and Ethan Perez and Aleksandra Piktus and Fabi... (2020) |
+| 27 | `li_wearable_2016` | Robert T. Li 2016 | Robert T. Li and Sagar R. Kling and Michael J. Salata and Se... (2016) |
+| 28 | `lundstrom_hrv_2023` | Carl J. Lundstrom 2023 | Carl J. Lundstrom and Nicholas A. Foreman and George P. Bilt... (2023) |
+| 29 | `luo_promoting_2021` | Tiffany Christina Luo 2021 | Tiffany Christina Luo and Adrian Aguilera and Courtney Rees ... (2021) |
+| 30 | `mckinsey_genai_2023` | McKinsey & Company 2023 | McKinsey & Company (2023) |
+| 31 | `mlflow_multiturn_2025` | MLflow 2026 | MLflow (2026) |
+| 32 | `monteiro-guerra_personalization_2020` | Francisco Monteiro-Guerra 2020 | Francisco Monteiro-Guerra and Octavio Rivera-Romero and Luis... (2020) |
+| 33 | `openai_gpt4_2023` | OpenAI 2023 | OpenAI (2023) |
+| 34 | `park_generative_2023` | Joon Sung Park 2023 | Joon Sung Park and Joseph C. O'Brien and Carrie J. Cai and M... (2023) |
+| 35 | `patil_gorilla_2023` | Shishir G. Patil 2023 | Shishir G. Patil and Tianjun Zhang and Xin Wang and Joseph E... (2023) |
+| 36 | `plews_training_2013` | Daniel J. Plews 2013 | Daniel J. Plews and Paul B. Laursen and Andrew E. Stanley an... (2013) |
+| 37 | `puce_harnessing_2025` | Luca Puce 2025 | Luca Puce and Nicola Luigi Bragazzi and Antonio Curr`a (2025) |
+| 38 | `qu_tool_2024` | Changle Qu 2025 | Changle Qu and Sunhao Dai and Xiaochi Wei and Hengyi Cai and... (2025) |
+| 39 | `reimers_sentence-bert_2019` | Nils Reimers 2019 | Nils Reimers and Iryna Gurevych (2019) |
+| 40 | `rothschild_predicting_2024` | Jeffrey A. Rothschild 2024 | Jeffrey A. Rothschild and Tom Stewart and Andrew E. Kilding ... (2024) |
+| 41 | `schick_toolformer_2023` | Timo Schick 2023 | Timo Schick and Jane Dwivedi-Yu and Roberto Dess`i (2023) |
+| 42 | `seckin_review_2023` | Ahmet Cagdas Seckin 2023 | Ahmet Cagdas Seckin and Bahar Ates and Mine Seckin (2023) |
+| 43 | `shankar_validates_2024` | Shreya Shankar 2024 | Shreya Shankar and J. D. Zamfirescu-Pereira and Bj\"{o}rn Ha... (2024) |
+| 44 | `shen_hugginggpt_2023` | Yongliang Shen 2023 | Yongliang Shen and Kaitao Song and Xu Tan and Dongsheng Li a... (2023) |
+| 45 | `shinn_reflexion_2023` | Noah Shinn 2023 | Noah Shinn and Federico Cassano and Edward Berman and Ashwin... (2023) |
+| 46 | `statista_fitness_apps_2025` | Statista 2025 | Statista (2025) |
+| 47 | `strava_api_update_2026` | Strava 2026 | Strava (2026) |
+| 48 | `strava_trends_2025` | Strava 2025 | Strava (2025) |
+| 49 | `strava_year_2024` | Strava 2024 | Strava (2024) |
+| 50 | `vanhooren_wearables_2020` | Bas Van Hooren 2020 | Bas Van Hooren and Jos Goudsmit and Juan Restrepo and Steven... (2020) |
+| 51 | `vaswani_attention_2017` | Ashish Vaswani 2017 | Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Us... (2017) |
+| 52 | `vemuri_multiagent_2021` | Ajith Vemuri 2021 | Ajith Vemuri and Keith Decker and Mathew Saponaro and Gregor... (2021) |
+| 53 | `venter_bias_2023` | Zander Venter 2023 | Zander Venter and Vegard Gundersen and Daniel J. Scott and B... (2023) |
+| 54 | `wackerhage_personalized_2021` | Henning Wackerhage 2021 | Henning Wackerhage and Brad J. Schoenfeld (2021) |
+| 55 | `wang_survey_2024` | Lei Wang 2024 | Lei Wang and Chen Ma and Xueyang Feng and Zeyu Zhang and Hao... (2024) |
+| 56 | `wei_chain-of-thought_2022` | Jason Wei 2022 | Jason Wei and Xuezhi Wang and Dale Schuurmans and Maarten Bo... (2022) |
+| 57 | `whoop_coach_2024` | WHOOP 2024 | WHOOP (2024) |
+| 58 | `wu_autogen_2023` | Qingyun Wu 2024 | Qingyun Wu and Gagan Bansal and Jieyu Zhang and Yiran Wu and... (2024) |
+| 59 | `yang_survey_2025` | Yingxuan Yang 2025 | Yingxuan Yang and Wenjing Chai and Yuqi Song and Hanwen Qi a... (2025) |
+| 60 | `yao_react_2023` | Shunyu Yao 2023 | Shunyu Yao and Jeffrey Zhao and Dian Yu and Nan Du and Izhak... (2023) |
+| 61 | `yao_taubench_2024` | Shunyu Yao 2024 | Shunyu Yao and Noah Shinn and Pedram Razavi and Karthik Nara... (2024) |
+| 62 | `morton_modeling_1990` | R. Hugh Morton 1990 | R. Hugh Morton and John R. Fitz-Clarke and Eric W. Banister (1990) |
+| 63 | `impellizzeri_training_2020` | Franco M. Impellizzeri 2020 | Franco M. Impellizzeri and Simon Woodcock and Aaron J. Coutts and... (2020) |
+| 64 | `sahoo_prompt_2024` | Pranab Sahoo 2024 | Pranab Sahoo and Ayush Kumar Singh and Sriparna Saha and... (2024) |
 
 
 ## Full References with Links
@@ -137,7 +138,16 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: International Journal of Sports Physiology and Performance
 - Link: [https://doi.org/10.1123/IJSPP.2017-0208](https://doi.org/10.1123/IJSPP.2017-0208)
 
-### 8. `dragoni_microservices_2017`
+### 8. `brown_gpt3_2020`
+
+**Language Models are Few-Shot Learners**
+
+- Authors: Tom B. Brown and Benjamin Mann and Nick Ryder and Melanie Subbiah and Jared Kaplan and (30 authors total) and Dario Amodei
+- Year: 2020
+- Venue: Advances in Neural Information Processing Systems (NeurIPS)
+- Link: [https://arxiv.org/abs/2005.14165](https://arxiv.org/abs/2005.14165)
+
+### 9. `dragoni_microservices_2017`
 
 **Microservices: Yesterday, Today, and Tomorrow**
 
@@ -146,7 +156,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Present and Ulterior Software Engineering
 - Link: [https://doi.org/10.1007/978-3-319-67425-4_12](https://doi.org/10.1007/978-3-319-67425-4_12)
 
-### 9. `fuller_reliability_2020`
+### 10. `fuller_reliability_2020`
 
 **Reliability and Validity of Commercially Available Wearable Devices for Measuring Steps, Energy Expenditure, and Heart Rate: Systematic Review**
 
@@ -155,7 +165,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: JMIR mHealth and uHealth
 - Link: [https://doi.org/10.2196/18694](https://doi.org/10.2196/18694)
 
-### 10. `gabarron_human_2024`
+### 11. `gabarron_human_2024`
 
 **Human Factors in AI**
 
@@ -164,7 +174,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: JMIR Human Factors
 - Link: [https://doi.org/10.2196/55964](https://doi.org/10.2196/55964)
 
-### 11. `gabbett_training_2016`
+### 12. `gabbett_training_2016`
 
 **The training--injury prevention paradox: should athletes be training smarter and harder?**
 
@@ -173,7 +183,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: British Journal of Sports Medicine
 - Link: [https://doi.org/10.1136/bjsports-2015-095788](https://doi.org/10.1136/bjsports-2015-095788)
 
-### 12. `gao_retrieval-augmented_2024`
+### 13. `gao_retrieval-augmented_2024`
 
 **Retrieval-Augmented Generation for Large Language Models: A Survey**
 
@@ -182,7 +192,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: arXiv preprint arXiv:2312.10997
 - Link: [https://arxiv.org/abs/2312.10997](https://arxiv.org/abs/2312.10997)
 
-### 13. `google_a2a_2025`
+### 14. `google_a2a_2025`
 
 **Agent2Agent (A2A**
 
@@ -190,7 +200,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2025
 - Link: [https://github.com/a2aproject/A2A](https://github.com/a2aproject/A2A)
 
-### 14. `grandview_sports_2024`
+### 15. `grandview_sports_2024`
 
 **Sports Analytics Market Size, Share & Trends Analysis Report**
 
@@ -198,7 +208,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2026
 - Link: [https://www.grandviewresearch.com/industry-analysis/sports-analytics-market](https://www.grandviewresearch.com/industry-analysis/sports-analytics-market)
 
-### 15. `grgic_periodization_2017`
+### 16. `grgic_periodization_2017`
 
 **Effects of Linear and Daily Undulating Periodized Resistance Training Programs on Measures of Muscle Hypertrophy: A Systematic Review and Meta-Analysis**
 
@@ -207,7 +217,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: PeerJ
 - Link: [https://doi.org/10.7717/peerj.3695](https://doi.org/10.7717/peerj.3695)
 
-### 16. `guo_large_2024`
+### 17. `guo_large_2024`
 
 **Large Language Model based Multi-Agents: A Survey of Progress and Challenges**
 
@@ -216,7 +226,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Proceedings of the Thirty-Third International Joint Conference on Artificial Intelligence (IJCAI)
 - Link: [https://arxiv.org/abs/2402.01680](https://arxiv.org/abs/2402.01680)
 
-### 17. `halson_monitoring_2014`
+### 18. `halson_monitoring_2014`
 
 **Monitoring Training Load to Understand Fatigue in Athletes**
 
@@ -225,7 +235,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Sports Medicine
 - Link: [https://doi.org/10.1007/s40279-014-0253-z](https://doi.org/10.1007/s40279-014-0253-z)
 
-### 18. `idc_wearables_2024`
+### 19. `idc_wearables_2024`
 
 **Worldwide Wearables Market Forecast, 2024--2028**
 
@@ -233,7 +243,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2024
 - Link: [https://www.idc.com/promo/wearablevendor](https://www.idc.com/promo/wearablevendor)
 
-### 19. `jayanti_enhancing_2026`
+### 20. `jayanti_enhancing_2026`
 
 **Enhancing Model Context Protocol (MCP**
 
@@ -242,7 +252,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: arXiv preprint arXiv:2601.11595
 - Link: [https://arxiv.org/abs/2601.11595](https://arxiv.org/abs/2601.11595)
 
-### 20. `joerke_gptcoach_2024`
+### 21. `joerke_gptcoach_2024`
 
 **GPTCoach**
 
@@ -251,7 +261,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Proceedings of the CHI Conference on Human Factors in Computing Systems (CHI)
 - Link: [https://doi.org/10.1145/3613904.3642805](https://doi.org/10.1145/3613904.3642805)
 
-### 21. `jsonrpc_spec_2013`
+### 22. `jsonrpc_spec_2013`
 
 **JSON-RPC**
 
@@ -259,7 +269,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2013
 - Link: [https://www.jsonrpc.org/specification](https://www.jsonrpc.org/specification)
 
-### 22. `karpukhin_dense_2020`
+### 23. `karpukhin_dense_2020`
 
 **Dense Passage Retrieval for Open-Domain Question Answering**
 
@@ -268,7 +278,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP)
 - Link: [https://arxiv.org/abs/2004.04906](https://arxiv.org/abs/2004.04906)
 
-### 23. `kellmann_recovery_2018`
+### 24. `kellmann_recovery_2018`
 
 **Recovery and Performance in Sport: Consensus Statement**
 
@@ -277,7 +287,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: International Journal of Sports Physiology and Performance
 - Link: [https://doi.org/10.1123/IJSPP.2017-0759](https://doi.org/10.1123/IJSPP.2017-0759)
 
-### 24. `langchain_langgraph_2024`
+### 25. `langchain_langgraph_2024`
 
 **LangGraph**
 
@@ -285,7 +295,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2024
 - Link: [https://docs.langchain.com/oss/python/langgraph/overview](https://docs.langchain.com/oss/python/langgraph/overview)
 
-### 25. `lewis_retrieval-augmented_2020`
+### 26. `lewis_retrieval-augmented_2020`
 
 **Retrieval-Augmented Generation for Knowledge-Intensive NLP**
 
@@ -294,7 +304,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Advances in Neural Information Processing Systems (NeurIPS)
 - Link: [https://arxiv.org/abs/2005.11401](https://arxiv.org/abs/2005.11401)
 
-### 26. `li_wearable_2016`
+### 27. `li_wearable_2016`
 
 **Wearable Performance Devices in Sports Medicine**
 
@@ -303,7 +313,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Sports Health
 - Link: [https://doi.org/10.1177/1941738115616917](https://doi.org/10.1177/1941738115616917)
 
-### 27. `lundstrom_hrv_2023`
+### 28. `lundstrom_hrv_2023`
 
 **Practices and Applications of Heart Rate Variability Monitoring in Endurance Athletes**
 
@@ -312,7 +322,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: International Journal of Sports Medicine
 - Link: [https://doi.org/10.1055/a-1864-9726](https://doi.org/10.1055/a-1864-9726)
 
-### 28. `luo_promoting_2021`
+### 29. `luo_promoting_2021`
 
 **Promoting Physical Activity Through Conversational Agents: Mixed Methods Systematic Review**
 
@@ -321,7 +331,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Journal of Medical Internet Research
 - Link: [https://doi.org/10.2196/25486](https://doi.org/10.2196/25486)
 
-### 29. `mckinsey_genai_2023`
+### 30. `mckinsey_genai_2023`
 
 **The Economic Potential of Generative AI**
 
@@ -329,7 +339,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2023
 - Link: [https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier](https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier)
 
-### 30. `mlflow_multiturn_2025`
+### 31. `mlflow_multiturn_2025`
 
 **Multi-Turn Conversation Evaluation with MLflow**
 
@@ -337,7 +347,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2026
 - Link: [https://mlflow.org/blog/multiturn-evaluation/](https://mlflow.org/blog/multiturn-evaluation/)
 
-### 31. `monteiro-guerra_personalization_2020`
+### 32. `monteiro-guerra_personalization_2020`
 
 **Personalization in Real-Time Physical Activity Coaching Using Mobile Applications: A Scoping Review**
 
@@ -346,7 +356,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: IEEE Journal of Biomedical and Health Informatics
 - Link: [https://doi.org/10.1109/JBHI.2019.2947243](https://doi.org/10.1109/JBHI.2019.2947243)
 
-### 32. `openai_gpt4_2023`
+### 33. `openai_gpt4_2023`
 
 **GPT-4**
 
@@ -355,7 +365,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: arXiv preprint arXiv:2303.08774
 - Link: [https://arxiv.org/abs/2303.08774](https://arxiv.org/abs/2303.08774)
 
-### 33. `park_generative_2023`
+### 34. `park_generative_2023`
 
 **Generative Agents: Interactive Simulacra of Human Behavior**
 
@@ -364,7 +374,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Proceedings of the 36th Annual ACM Symposium on User Interface Software and Technology (UIST)
 - Link: [https://doi.org/10.1145/3586183.3606763](https://doi.org/10.1145/3586183.3606763)
 
-### 34. `patil_gorilla_2023`
+### 35. `patil_gorilla_2023`
 
 **Gorilla: Large Language Model Connected with Massive APIs**
 
@@ -373,7 +383,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: arXiv preprint arXiv:2305.15334
 - Link: [https://arxiv.org/abs/2305.15334](https://arxiv.org/abs/2305.15334)
 
-### 35. `plews_training_2013`
+### 36. `plews_training_2013`
 
 **Training Adaptation and Heart Rate Variability in Elite Endurance Athletes: Opening the Door to Effective Monitoring**
 
@@ -382,7 +392,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Sports Medicine
 - Link: [https://doi.org/10.1007/s40279-013-0071-8](https://doi.org/10.1007/s40279-013-0071-8)
 
-### 36. `puce_harnessing_2025`
+### 37. `puce_harnessing_2025`
 
 **Harnessing Generative Artificial Intelligence for Exercise and Training Prescription: Applications and Implications in Sports and Physical Activity---A Systematic Literature Review**
 
@@ -391,7 +401,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Applied Sciences
 - Link: [https://doi.org/10.3390/app15073497](https://doi.org/10.3390/app15073497)
 
-### 37. `qu_tool_2024`
+### 38. `qu_tool_2024`
 
 **Tool Learning with Large Language Models: A Survey**
 
@@ -400,7 +410,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Frontiers of Computer Science
 - Link: [https://doi.org/10.1007/s11704-024-40678-2](https://doi.org/10.1007/s11704-024-40678-2)
 
-### 38. `reimers_sentence-bert_2019`
+### 39. `reimers_sentence-bert_2019`
 
 **Sentence-BERT**
 
@@ -409,7 +419,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP)
 - Link: [https://aclanthology.org/D19-1410/](https://aclanthology.org/D19-1410/)
 
-### 39. `rothschild_predicting_2024`
+### 40. `rothschild_predicting_2024`
 
 **Predicting Daily Recovery During Long-Term Endurance Training Using Machine Learning Analysis**
 
@@ -418,7 +428,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: European Journal of Applied Physiology
 - Link: [https://doi.org/10.1007/s00421-024-05530-2](https://doi.org/10.1007/s00421-024-05530-2)
 
-### 40. `schick_toolformer_2023`
+### 41. `schick_toolformer_2023`
 
 **Toolformer: Language Models Can Teach Themselves to Use Tools**
 
@@ -427,7 +437,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Advances in Neural Information Processing Systems (NeurIPS)
 - Link: [https://arxiv.org/abs/2302.04761](https://arxiv.org/abs/2302.04761)
 
-### 41. `seckin_review_2023`
+### 42. `seckin_review_2023`
 
 **Review on Wearable Technology in Sports: Concepts, Challenges and Opportunities**
 
@@ -436,7 +446,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Applied Sciences
 - Link: [https://doi.org/10.3390/app131810399](https://doi.org/10.3390/app131810399)
 
-### 42. `shankar_validates_2024`
+### 43. `shankar_validates_2024`
 
 **Who Validates the Validators? Aligning**
 
@@ -445,7 +455,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Proceedings of the 37th Annual ACM Symposium on User Interface Software and Technology (UIST)
 - Link: [https://doi.org/10.1145/3654777.3676450](https://doi.org/10.1145/3654777.3676450)
 
-### 43. `shen_hugginggpt_2023`
+### 44. `shen_hugginggpt_2023`
 
 **HuggingGPT**
 
@@ -454,7 +464,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Advances in Neural Information Processing Systems (NeurIPS)
 - Link: [https://arxiv.org/abs/2303.17580](https://arxiv.org/abs/2303.17580)
 
-### 44. `shinn_reflexion_2023`
+### 45. `shinn_reflexion_2023`
 
 **Reflexion: Language Agents with Verbal Reinforcement Learning**
 
@@ -463,7 +473,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Advances in Neural Information Processing Systems (NeurIPS)
 - Link: [https://arxiv.org/abs/2303.11366](https://arxiv.org/abs/2303.11366)
 
-### 45. `statista_fitness_apps_2025`
+### 46. `statista_fitness_apps_2025`
 
 **Fitness Apps: Number of Downloads in Germany**
 
@@ -471,7 +481,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2025
 - Link: [https://de.statista.com/prognosen/1424687/fitness-apps-anzahl-downloads/](https://de.statista.com/prognosen/1424687/fitness-apps-anzahl-downloads/)
 
-### 46. `strava_api_update_2026`
+### 47. `strava_api_update_2026`
 
 **An Update To Our Developer Program**
 
@@ -479,7 +489,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2026
 - Link: [https://communityhub.strava.com/insider-journal-9/an-update-to-our-developer-program-13428](https://communityhub.strava.com/insider-journal-9/an-update-to-our-developer-program-13428)
 
-### 47. `strava_trends_2025`
+### 48. `strava_trends_2025`
 
 **Year in Sport Trend Report 2025**
 
@@ -487,7 +497,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2025
 - Link: [https://contentful-assets.strava.com/Strava-Year-In-Sport-Trend-Report-2025-US.pdf](https://contentful-assets.strava.com/Strava-Year-In-Sport-Trend-Report-2025-US.pdf)
 
-### 48. `strava_year_2024`
+### 49. `strava_year_2024`
 
 **Strava Year in Sport 2024**
 
@@ -495,7 +505,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2024
 - Link: [https://press.strava.com/articles/strava-releases-year-in-sport-trend-report](https://press.strava.com/articles/strava-releases-year-in-sport-trend-report)
 
-### 49. `vanhooren_wearables_2020`
+### 50. `vanhooren_wearables_2020`
 
 **Real-Time Feedback by Wearables in Running: Current Approaches, Challenges and Suggestions for Improvements**
 
@@ -504,7 +514,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Journal of Sports Sciences
 - Link: [https://doi.org/10.1080/02640414.2019.1690960](https://doi.org/10.1080/02640414.2019.1690960)
 
-### 50. `vaswani_attention_2017`
+### 51. `vaswani_attention_2017`
 
 **Attention Is All You Need**
 
@@ -513,7 +523,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Advances in Neural Information Processing Systems (NeurIPS)
 - Link: [https://arxiv.org/abs/1706.03762](https://arxiv.org/abs/1706.03762)
 
-### 51. `vemuri_multiagent_2021`
+### 52. `vemuri_multiagent_2021`
 
 **Multi Agent Architecture for Automated Health Coaching**
 
@@ -522,7 +532,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Journal of Medical Systems
 - Link: [https://doi.org/10.1007/s10916-021-01771-2](https://doi.org/10.1007/s10916-021-01771-2)
 
-### 52. `venter_bias_2023`
+### 53. `venter_bias_2023`
 
 **Bias and Precision of Crowdsourced Recreational Activity Data from Strava**
 
@@ -531,7 +541,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Landscape and Urban Planning
 - Link: [https://doi.org/10.1016/j.landurbplan.2023.104686](https://doi.org/10.1016/j.landurbplan.2023.104686)
 
-### 53. `wackerhage_personalized_2021`
+### 54. `wackerhage_personalized_2021`
 
 **Personalized, Evidence-Informed Training Plans and Exercise Prescriptions for Performance, Fitness and Health**
 
@@ -540,7 +550,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Sports Medicine
 - Link: [https://doi.org/10.1007/s40279-021-01495-w](https://doi.org/10.1007/s40279-021-01495-w)
 
-### 54. `wang_survey_2024`
+### 55. `wang_survey_2024`
 
 **A Survey on Large Language Model based Autonomous Agents**
 
@@ -549,7 +559,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Frontiers of Computer Science
 - Link: [https://doi.org/10.1007/s11704-024-40231-1](https://doi.org/10.1007/s11704-024-40231-1)
 
-### 55. `wei_chain-of-thought_2022`
+### 56. `wei_chain-of-thought_2022`
 
 **Chain-of-Thought Prompting Elicits Reasoning in Large Language Models**
 
@@ -558,7 +568,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Advances in Neural Information Processing Systems (NeurIPS)
 - Link: [https://arxiv.org/abs/2201.11903](https://arxiv.org/abs/2201.11903)
 
-### 56. `whoop_coach_2024`
+### 57. `whoop_coach_2024`
 
 **WHOOP**
 
@@ -566,7 +576,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2024
 - Link: [https://openai.com/index/whoop/](https://openai.com/index/whoop/)
 
-### 57. `wu_autogen_2023`
+### 58. `wu_autogen_2023`
 
 **AutoGen**
 
@@ -575,7 +585,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Proceedings of the ICLR Workshop on LLM Agents
 - Link: [https://arxiv.org/abs/2308.08155](https://arxiv.org/abs/2308.08155)
 
-### 58. `yang_survey_2025`
+### 59. `yang_survey_2025`
 
 **A Survey of AI**
 
@@ -584,7 +594,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: arXiv preprint arXiv:2504.16736
 - Link: [https://arxiv.org/abs/2504.16736](https://arxiv.org/abs/2504.16736)
 
-### 59. `yao_react_2023`
+### 60. `yao_react_2023`
 
 **ReAct**
 
@@ -593,7 +603,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: Proceedings of the Eleventh International Conference on Learning Representations (ICLR)
 - Link: [https://arxiv.org/abs/2210.03629](https://arxiv.org/abs/2210.03629)
 
-### 60. `yao_taubench_2024`
+### 61. `yao_taubench_2024`
 
 **$tau$-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains**
 
@@ -602,7 +612,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: arXiv preprint arXiv:2406.12045
 - Link: [https://arxiv.org/abs/2406.12045](https://arxiv.org/abs/2406.12045)
 
-### 61. `morton_modeling_1990`
+### 62. `morton_modeling_1990`
 
 **Modeling Human Performance in Running**
 
@@ -612,7 +622,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - DOI: [https://doi.org/10.1152/jappl.1990.69.3.1171](https://doi.org/10.1152/jappl.1990.69.3.1171)
 - Note: Canonical reference for the fitness-fatigue impulse-response model (Banister model). Defines CTL/ATL/TSB origin.
 
-### 62. `impellizzeri_training_2020`
+### 63. `impellizzeri_training_2020`
 
 **Training Load and Its Role in Injury Prevention, Part 2: Conceptual and Methodologic Pitfalls**
 
@@ -623,7 +633,7 @@ Use these keys with `\cite{key}` in LaTeX:
 - Free: [https://pmc.ncbi.nlm.nih.gov/articles/PMC7534938/](https://pmc.ncbi.nlm.nih.gov/articles/PMC7534938/)
 - Note: ACWR mathematical coupling critique. Shows spurious ACWR-injury associations from simulation.
 
-### 63. `sahoo_prompt_2024`
+### 64. `sahoo_prompt_2024`
 
 **A Systematic Survey of Prompt Engineering in Large Language Models: Techniques and Applications**
 

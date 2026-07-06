@@ -1,0 +1,18 @@
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption[Agent--MCP scope mapping]{Agent-to-MCP-server scope mapping. Each specialist discovers tools only from its assigned servers.}\label{tab:agent_scope}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Agent} & \textbf{MCP Servers} & \textbf{Domain} \\
+\midrule
+Recovery (:9001) & Garmin & Sleep, HRV, Body Battery, stress, readiness \\
+Load (:9002) & Strava, Garmin & Training load (CTL/ATL/TSB), volume, splits, zones \\
+Context (:9003) & Weather, Calendar & Forecast, UV, pollen; calendar read/write \\
+Route (:9004) & Routes & Route planning, geocoding, trail search, isochrones \\
+Fitness (:9005) & \textit{(none---RAG)} & Exercise science from a vector DB of literature \\
+\botrule
+\end{tabularx}
+\end{minipage}
+\end{center}
+\end{table}

@@ -5,7 +5,7 @@ This section reviews the four research pillars Training Copilot builds upon: age
 
 \subsection{Agentic AI and Multi-Agent Systems}\label{sec:sota:agents}
 
-The rapid scaling of large language models has shifted the field from static text generation toward autonomous \textit{agentic} systems that plan, reason, and act in external environments. The Transformer architecture~\citep{vaswani_attention_2017}, chain-of-thought prompting~\citep{wei_chain-of-thought_2022}, and the scaling of model capacity to hundreds of billions of parameters~\citep{openai_gpt4_2023} laid the groundwork by showing that LLMs perform multi-step reasoning once prompted to generate intermediate steps. We organise the literature along three themes: reasoning architectures, agent-internal structure, and multi-agent coordination.
+The rapid scaling of large language models has shifted the field from static text generation toward autonomous \textit{agentic} systems that plan, reason, and act in external environments. The Transformer architecture~\citep{vaswani_attention_2017}, chain-of-thought prompting~\citep{wei_chain-of-thought_2022}, and the scaling of model capacity to hundreds of billions of parameters~\citep{brown_gpt3_2020} laid the groundwork by showing that LLMs perform multi-step reasoning once prompted to generate intermediate steps, with subsequent frontier models reaching human-level performance across professional and academic benchmarks~\citep{openai_gpt4_2023}. We organise the literature along three themes: reasoning architectures, agent-internal structure, and multi-agent coordination.
 
 \subsubsection{Reasoning Architectures}
 
@@ -17,7 +17,7 @@ Two complementary patterns ground LLM reasoning in external action. \cite{yao_re
 
 \subsubsection{Multi-Agent Coordination}
 
-Three works illustrate the multi-agent design space. \cite{shen_hugginggpt_2023} proposed HuggingGPT, where a central controller decomposes requests, selects specialist models from a hub, executes them, and summarises results---demonstrating orchestrator--specialist decomposition, though applied to model selection rather than tool-based data retrieval. \cite{wu_autogen_2023} introduced AutoGen, showing empirically that role-specialised agents with tool access outperform monolithic designs on complex tasks, and that flexible conversation patterns (sequential, parallel, nested) enable different coordination strategies. \cite{guo_large_2024} surveyed the field and identified two recurring open challenges---communication protocol design and task decomposition---while \cite{acharya_agentic_2025} distinguished agentic AI from traditional automation by its capacity for autonomous goal pursuit through perception, reasoning, and action. These works converge on a shared finding: multi-agent architectures with domain-scoped specialists outperform monolithic agents on heterogeneous tasks, yet none demonstrate \textit{standardised} tool-discovery or inter-agent protocols, relying instead on ad-hoc registries and custom communication layers.
+Three works illustrate the multi-agent design space. \cite{shen_hugginggpt_2023} proposed HuggingGPT, where a central controller decomposes requests, selects specialist models from a hub, executes them, and summarises results---demonstrating orchestrator--specialist decomposition, though applied to model selection rather than tool-based data retrieval. \cite{wu_autogen_2023} introduced AutoGen, showing empirically that role-specialised agents with tool access outperform monolithic designs on complex tasks, and that flexible conversation patterns (sequential, parallel, nested) enable different coordination strategies. \cite{guo_large_2024} surveyed the field and identified recurring open challenges in agent orchestration, inter-agent communication, and scalability---while \cite{acharya_agentic_2025} distinguished agentic AI from traditional automation by its capacity for autonomous, goal-directed decision-making and adaptation in dynamic environments. These works converge on a shared finding: multi-agent architectures with domain-scoped specialists outperform monolithic agents on heterogeneous tasks, yet none demonstrate \textit{standardised} tool-discovery or inter-agent protocols, relying instead on ad-hoc registries and custom communication layers.
 
 \subsection{Tool Integration Protocols}\label{sec:sota:protocols}
 
@@ -59,7 +59,7 @@ AI-assisted sports coaching is an emerging field where three limitations recur: 
 
 On the data-access and personalisation gap, \cite{monteiro-guerra_personalization_2020} reviewed 28 papers covering 17 real-time physical-activity coaching apps across seven personalisation dimensions: feedback was universal (17/17) and goal setting near-universal (15/17), but context-awareness appeared in only 3/17 and behavioural adaptation in only 2/17, with implementation details given for just one context-aware system. \cite{luo_promoting_2021} reach a similar conclusion for conversational agents specifically---chatbots sustain engagement, but most lack wearable-data access---and \cite{puce_harnessing_2025} confirm this in a systematic review of 10 studies on generative AI for exercise prescription: AI-generated plans adhere to foundational training principles but lack specificity, progression, and, most critically, real-time physiological feedback, with identical prompts sometimes yielding different outputs.
 
-On architecture, the most directly relevant prior system is GPTCoach~\citep{joerke_gptcoach_2024}, an LLM-based coaching chatbot evaluated at CHI~2025. It pairs GPT-4 with a prompt-chaining design (separate calls for dialogue-state classification, motivational-interviewing strategy, and tool-call decisions) and two tools querying three months of Apple HealthKit data via HL7 FHIR; in a 16-participant lab study it scored 4.8/5 on feeling supported and 4.5/5 on empathy, with 93\,\% MI-consistent behaviour by external coding. Yet GPTCoach is a single agent with two tools and one data source, integrates no weather, calendar, or route data, and was evaluated only on a single onboarding session. At the architectural level, \cite{vemuri_multiagent_2021} proposed SMART-ALEC, a multi-agent health-coaching system with six modules per user agent (planner, scheduler, learner, context analyser, executor, communicator), prototyped as BeSmart (SMS-based, beta-tested with 250 agents) and a JIT intervention system on Apple Watch with nightly-updated decision trees; predating MCP/A2A and coordinating via ad-hoc GPGP-style commitment exchange, it nonetheless validates the modular-specialist-with-central-coordinator philosophy that Training Copilot extends with standardised protocols and LLM-based reasoning in place of finite-state dialogues.
+On architecture, the most directly relevant prior system is GPTCoach~\citep{joerke_gptcoach_2024}, an LLM-based coaching chatbot evaluated at CHI~2025. It pairs GPT-4 with a prompt-chaining design (separate calls for dialogue-state classification, motivational-interviewing strategy, and tool-call decisions) and two tools querying three months of Apple HealthKit data via HL7 FHIR; in a 16-participant lab study it scored 4.8/5 on feeling supported and 4.5/5 on empathy, with 93\,\% MI-consistent behaviour by external coding. Yet GPTCoach is a single agent with two tools and one data source, integrates no weather, calendar, or route data, and was evaluated only on a single onboarding session. At the architectural level, \cite{vemuri_multiagent_2021} proposed SMART-ALEC, a multi-agent health-coaching system whose per-user agent runs two concurrent modules---an analyser (spanning planning, scheduling, learning, context analysis, and execution) and a communicator---prototyped as BeSmart (an SMS-based system) and load-tested with up to 250 simulated agents, plus a JIT intervention system on Apple Watch with customised decision trees; predating MCP/A2A and coordinating via ad-hoc GPGP-style commitment exchange, it nonetheless validates the modular-specialist-with-central-coordinator philosophy that Training Copilot extends with standardised protocols and LLM-based reasoning in place of finite-state dialogues.
 
 On the human--AI boundary, \cite{barger_artificial_2025} ran a mixed-methods RCT ($N=52$) comparing sessions where participants believed they were coached by AI (actually a human behind a live-motion avatar) versus openly by a human: working-alliance scores did not differ significantly ($M=72.73$ vs.\ $74.50$; $t(50)=-0.71$, $p=0.48$), and participants in the AI condition used fewer impression-management behaviours and disclosed more sensitive topics---supporting a synergy model of narrowly focused AI coaches working alongside humans. \cite{gabarron_human_2024} survey AI-driven solutions for physical activity more broadly, finding recommender systems most studied, followed by conversational agents, with sparse long-term evidence for either.
 
@@ -71,36 +71,6 @@ Each research stream reviewed above has matured individually, yet all share one 
 
 Table~\ref{tab:sota_comparison} makes this concrete, scoring the most directly comparable prior systems---academic multi-agent frameworks, the closest published MCP extension, and the leading commercial AI coaching products---against four capabilities (multi-agent coordination, standardised protocols, multi-source live data, retrieval-grounded knowledge) and the application domain each targets. No prior system combines all four, and none of the few sports/health systems combine more than one.
 
-\begin{table}[ht]
-\begin{center}
-\begin{minipage}{\textwidth}
-\caption[Comparison of prior agentic and coaching systems]{Comparison of prior agentic and coaching systems against the research-gap dimensions identified in this section. \checkmark\ = demonstrated; $\times$ = not demonstrated or not present.}\label{tab:sota_comparison}
-\small
-\begin{tabularx}{\textwidth}{p{2.5cm}*{5}{>{\centering\arraybackslash}X}}
-\toprule
-\textbf{System} & \textbf{Multi-Agent} & \textbf{Protocol} & \textbf{Live Data} & \textbf{RAG-Grounded} & \textbf{Domain} \\
-\midrule
-HuggingGPT~\citep{shen_hugginggpt_2023} & \checkmark & $\times$ (ad-hoc) & $\times$ (model hub) & $\times$ & $\times$ \\
-\addlinespace
-AutoGen~\citep{wu_autogen_2023} & \checkmark & $\times$ (ad-hoc) & $\times$ (generic) & $\times$ & $\times$ \\
-\addlinespace
-CA-MCP~\citep{jayanti_enhancing_2026} & $\times$ (1 LLM + reactive servers) & \checkmark (MCP extension) & $\times$ (benchmark sandbox) & $\times$ & $\times$ (travel/logistics) \\
-\addlinespace
-GPTCoach~\citep{joerke_gptcoach_2024} & $\times$ (single agent) & $\times$ & $\times$ (HealthKit only) & $\times$ & \checkmark \\
-\addlinespace
-SMART-ALEC~\citep{vemuri_multiagent_2021} & \checkmark (per-user, ad-hoc GPGP) & $\times$ & $\times$ (SMS/watch only) & $\times$ & \checkmark \\
-\addlinespace
-WHOOP Coach~\citep{whoop_coach_2024} & $\times$ & $\times$ & $\times$ (WHOOP only) & $\times$ & \checkmark \\
-\addlinespace
-Athletica.ai~\citep{athletica_ai_2024} & $\times$ & $\times$ & \checkmark (Garmin + Strava) & $\times$ & \checkmark \\
-\addlinespace
-General-purpose LLM~\citep{puce_harnessing_2025} & $\times$ & $\times$ & $\times$ (no API access) & $\times$ & $\times$ (generic) \\
-\addlinespace
-\textbf{Training Copilot (this work)} & \checkmark & \checkmark (MCP + A2A) & \checkmark (5 live sources) & \checkmark & \checkmark \\
-\botrule
-\end{tabularx}
-\end{minipage}
-\end{center}
-\end{table}
+\input{2_Tables/tab_sota_comparison}
 
 The research gap is therefore not in any individual capability but in their integration: no existing system combines standardised multi-source access (MCP), multi-agent coordination (A2A), domain-scoped specialist reasoning (LangGraph ReAct), and retrieval-grounded knowledge (RAG) for athlete-facing training support. Training Copilot's architecture maps each limitation to a specific design decision, detailed in Section~\ref{sec:architecture}.

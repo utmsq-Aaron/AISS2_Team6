@@ -1,14 +1,19 @@
 Citation: morton_modeling_1990
-Cited 1 time(s)
+Cited 2 time(s)
 ============================================================
 
-Chapter: 3_state_of_the_art, Section: Training Load (line 54)
+Chapter: 3_state_of_the_art, Section: Training Load (line 40)
 Claim: Training Copilot's load specialist computes CTL, ATL, and TSB---derived from the fitness-fatigue impulse-response model originally proposed by [CITE]---from Strava data to operationalise these trends.
 Source quote: "This paper focuses on the characteristics of a model interpreting the effect of training on athletic performance. [...] a systematically quantified impulse of training produces dual responses: fitness and fatigue. In the absence of training, both decay exponentially with time." (p. 1171, Abstract)
 Source quote: "Because fitness has a positive influence and fatigue has a negative influence on performance, model performance at time t, p(t), is given by the simple linear difference p(t) = k₁g(t) - k₂h(t)" (p. 1173, Eq. 8, Modeling Performance section)
 Source quote: "g(t) = g(t - i)e^{-i/τ₁} + w(t)" and "h(t) = h(t - i)e^{-i/τ₂} + w(t)" (p. 1173, Eqs. 4-5)
 Source quote: "w(t) = D(ΔHR ratio) [...] defined in an arbitrary unit called the training impulse or trimp" (p. 1172, Eqs. 1-3)
 Source quote: "τ₁ and τ₂ are 45 and 15 days, respectively, k₁ = 1, and k₂ = 2" (p. 1173, illustrative parameters)
+
+Chapter: 5_data_sources, Line: 10
+Claim: ...and the Training Stress Balance metrics (CTL, ATL, TSB) derived from the fitness--fatigue impulse-response model [CITE].
+Source quote: "a systematically quantified impulse of training produces dual responses: fitness and fatigue. In the absence of training, both decay exponentially with time." (p. 1171, Abstract)
+Note (added 2026-07-06): This Chapter-5 sentence previously cited bourdon_monitoring_2017 for the impulse-response model. Reassigned to morton_modeling_1990 (the model's primary source) for consistency with Chapter 3, which already attributes CTL/ATL/TSB to Morton. Bourdon does review the same Banister/Morton model, so the prior citation was defensible, but citing one primary source in both chapters is cleaner.
 
 ============================================================
 VERIFICATION STATUS: CONFIRMED

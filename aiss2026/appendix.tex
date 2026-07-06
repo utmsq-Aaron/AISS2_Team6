@@ -2,6 +2,7 @@
 \section{Appendix}
 \label{sec:appendix}
 
+\FloatBarrier
 \subsection{Code Listings}\label{sec:appendix:code}
 
 \begin{lstlisting}[caption={Server registry (simplified). Each URL is environment-overridable.}, label=lst:registry]
@@ -27,174 +28,35 @@ def get_weather_forecast(lat: float, lon: float,
     return _call_openmeteo(lat, lon, days)
 \end{lstlisting}
 
+\FloatBarrier
 \subsection{MCP Server Tool Inventory}\label{sec:appendix:tools}
 
 Table~\ref{tab:full_tools} provides the complete tool inventory across all MCP servers deployed in Training Copilot.
 
-\begin{table}[ht]
-\begin{center}
-\begin{minipage}{\textwidth}
-\caption{Complete MCP tool inventory.}\label{tab:full_tools}
-\begin{tabularx}{\textwidth}{lllX}
-\toprule
-\textbf{Server} & \textbf{Port} & \textbf{Tool Name} & \textbf{Description} \\
-\midrule
-\multirow{4}{*}{Weather} & \multirow{4}{*}{8101}
-  & \texttt{get\_current\_weather} & Current conditions \\
-  & & \texttt{get\_weather\_forecast} & Multi-day forecast \\
-  & & \texttt{get\_pollen\_levels} & Pollen concentrations \\
-  & & \texttt{get\_uv\_index} & UV index with category \\
-\addlinespace
-\multirow{7}{*}{Routes} & \multirow{7}{*}{8102}
-  & \texttt{geocode} & Place name to coordinates \\
-  & & \texttt{plan\_route} & A-to-B route \\
-  & & \texttt{plan\_circular\_route} & Loop from start point \\
-  & & \texttt{plan\_park\_loop} & Loop inside named area \\
-  & & \texttt{explore\_trails} & Trail search nearby \\
-  & & \texttt{get\_elevation\_profile} & Elevation analysis \\
-  & & \texttt{get\_isochrone} & Reachability polygon \\
-\addlinespace
-\multirow{13}{*}{Strava} & \multirow{13}{*}{8103}
-  & \texttt{get\_activities} & Recent activities \\
-  & & \texttt{get\_activity\_stats} & Aggregate totals \\
-  & & \texttt{get\_athlete\_profile} & Athlete profile + stats \\
-  & & \texttt{get\_training\_trends} & Weekly volume trends \\
-  & & \texttt{get\_personal\_bests} & Top performances \\
-  & & \texttt{get\_yearly\_breakdown} & Year-over-year totals \\
-  & & \texttt{get\_gear\_info} & Bike/shoe mileage \\
-  & & \texttt{get\_activity\_detail} & Lap splits, HR, power \\
-  & & \texttt{get\_activity\_streams} & Raw GPS streams \\
-  & & \texttt{get\_training\_load} & CTL/ATL/TSB \\
-  & & \texttt{delete\_activity} & Remove an activity \\
-  & & \texttt{analyze\_performance\_trends} & Multi-metric trend analysis \\
-  & & \texttt{compare\_activity\_to\_baseline} & Activity vs.\ personal baseline \\
-\addlinespace
-\multirow{13}{*}{Garmin} & \multirow{13}{*}{8104}
-  & \texttt{get\_garmin\_activities} & Activity list \\
-  & & \texttt{get\_garmin\_activity\_detail} & Per-lap splits \\
-  & & \texttt{get\_garmin\_daily\_health} & Daily wellness summary \\
-  & & \texttt{get\_garmin\_heart\_rate\_timeline} & Intraday HR timeline \\
-  & & \texttt{get\_garmin\_sleep} & Sleep stages + score \\
-  & & \texttt{get\_garmin\_body\_battery} & Energy metric timeline \\
-  & & \texttt{get\_garmin\_hrv\_status} & HRV + readiness \\
-  & & \texttt{get\_garmin\_training\_metrics} & VO\textsubscript{2}max, load, status \\
-  & & \texttt{get\_garmin\_wellness\_trends} & Multi-day wellness trends \\
-  & & \texttt{get\_garmin\_steps\_timeline} & Intraday step counts \\
-  & & \texttt{get\_garmin\_stress\_timeline} & Intraday stress levels \\
-  & & \texttt{get\_garmin\_body\_composition} & Weight, BMI, body fat \\
-  & & \texttt{get\_activity\_gps\_track} & GPS track from activity \\
-\addlinespace
-\multirow{6}{*}{Calendar} & \multirow{6}{*}{8105}
-  & \texttt{list\_calendars} & Available calendars \\
-  & & \texttt{list\_events} & Events in range \\
-  & & \texttt{get\_event} & Single event detail \\
-  & & \texttt{create\_event} & Create event \\
-  & & \texttt{update\_event} & Update event \\
-  & & \texttt{delete\_event} & Delete event \\
-\botrule
-\end{tabularx}
-\end{minipage}
-\end{center}
-\end{table}
+\input{2_Tables/tab_full_tools}
 
+\FloatBarrier
 \subsection{Evaluation Persona Details}\label{sec:appendix:personas}
 
 Table~\ref{tab:personas} lists all ten evaluation personas with their types, goals, and expected focus areas.
 
-\begin{table}[ht]
-\begin{center}
-\begin{minipage}{\textwidth}
-\caption{Evaluation persona details.}\label{tab:personas}
-\begin{tabularx}{\textwidth}{llXp{3.5cm}}
-\toprule
-\textbf{Name} & \textbf{Type} & \textbf{Goal} & \textbf{Expected Focus} \\
-\midrule
-Julian & Triathlete & Recovery readiness for brick session & Recovery go/no-go \\
-Priya & Triathlete & Training load trend + taper plan & CTL/ATL/TSB analysis \\
-Marco & Triathlete & Post-workout zone + split review & HR zones, lap splits \\
-Lena & Triathlete & Schedule training via weather + calendar & Time-window scheduling \\
-Tom & Triathlete & Evidence-based technique advice & Cited literature \\
-\addlinespace
-Sophie & Cyclist & Scenic loop with caf\'{e} stop & Planned scenic route \\
-Ben & Cyclist & Weather go/no-go for ride & Weather assessment \\
-Mara & Cyclist & Trail discovery + elevation & Trail options \\
-Carlos & Cyclist & Year-over-year progress & Plain-language trends \\
-Jana & Cyclist & Group loop for mixed abilities & Shareable route \\
-\botrule
-\end{tabularx}
-\end{minipage}
-\end{center}
-\end{table}
+\input{2_Tables/tab_personas}
 
+\FloatBarrier
 \subsection{Environment Configuration}\label{sec:appendix:env}
 
 Table~\ref{tab:env} lists the key environment variables used by Training Copilot.
 
-\begin{table}[ht]
-\begin{center}
-\begin{minipage}{\textwidth}
-\caption{Key environment variables.}\label{tab:env}
-\begin{tabularx}{\textwidth}{lp{2cm}X}
-\toprule
-\textbf{Variable} & \textbf{Default} & \textbf{Purpose} \\
-\midrule
-\texttt{LLM\_PROVIDER} & \texttt{openai} & LLM backend (\texttt{openai}, \texttt{openai\_official}, \texttt{gemini}) \\
-\texttt{AGENT\_MODEL} & --- & Model for agent layer \\
-\texttt{AGENT\_LLM\_MODEL} & --- & Override model for agents \\
-\texttt{OPENAI\_BASE\_URL} & --- & KIT gateway URL \\
-\texttt{ORS\_API\_KEY} & --- & OpenRouteService key \\
-\texttt{GARMIN\_EMAIL} & --- & Garmin Connect email \\
-\texttt{CLIENT\_ID} & --- & Strava OAuth client ID \\
-\texttt{MLFLOW\_TRACKING\_URI} & \texttt{:5001} & MLflow server URL \\
-\texttt{ORCHESTRATOR\_SPECIALISTS} & all & Enabled specialist agents \\
-\botrule
-\end{tabularx}
-\end{minipage}
-\end{center}
-\end{table}
+\input{2_Tables/tab_env}
 
+\FloatBarrier
 \subsection{External API Overview}\label{sec:appendix:apis}
 
-Table~\ref{tab:api_overview} summarises every external API Training Copilot integrates: what it provides, what access it requires, whether a vendor-native MCP server exists for it, and which of our own MCP servers (Section~\ref{sec:architecture:mcp}, Section~\ref{sec:data}) wraps it. Exact environment-variable names for each credential are listed in Table~\ref{tab:env}. The three map-tile rows are the one exception to the MCP-mediated pattern: they are fetched directly by the browser for the 3D flythrough (Section~\ref{sec:architecture:supporting}), not routed through \texttt{ToolHost} or any agent.
+Table~\ref{tab:api_overview} lists every external service Training Copilot talks to over the network---including one-time/offline scripts, not just runtime agent tools---sorted alphabetically by service: what it provides, what access it requires, whether a vendor-native MCP server exists for it, and how we integrate it. Exact environment-variable names for each credential are listed in Table~\ref{tab:env}. Purely local, keyless components---the fitness RAG's embedding model (Section~\ref{sec:data:rag}), local Whisper transcription (Section~\ref{sec:architecture:supporting}), and the self-hosted MLflow tracking server (Section~\ref{sec:agents:observability})---need no external account and are omitted here, as is a commented-out, unimplemented Wahoo integration stub in \texttt{ui/settings.py}. The map-tile rows are a deliberate exception to the MCP-mediated pattern: they are fetched directly by the browser (or, for the Telegram bridge's static image, directly by the server), never through \texttt{ToolHost} or an agent.
 
-\begin{table}[ht]
-\begin{center}
-\begin{minipage}{\textwidth}
-\small
-\caption[External API overview]{External APIs used by Training Copilot, their access requirements, and MCP support.}\label{tab:api_overview}
-\begin{tabularx}{\textwidth}{p{2.6cm}p{2.6cm}p{3.0cm}p{2.6cm}X}
-\toprule
-\textbf{Service} & \textbf{Provides} & \textbf{Access Required} & \textbf{Native MCP} & \textbf{Our Server} \\
-\midrule
-Strava & Activities, load metrics (CTL/ATL/TSB), splits, GPS & OAuth\,2.0 (developer app + user consent); Standard Tier now requires a paid subscription~\citep{strava_api_update_2026} & Announced for 2026~\citep{strava_api_update_2026}, not yet used here & Custom, port 8103 \\
-\addlinespace
-Garmin Connect & Sleep, HRV, Body Battery, stress, VO\textsubscript{2}max & Account credentials + MFA on first login (session cached); no key & None---no public API; reverse-engineered via an open-source client library & Custom, port 8104 \\
-\addlinespace
-Open-Meteo & Weather forecast, UV index, pollen & None & None & Custom, port 8101 \\
-\addlinespace
-OpenRoute\-Service & A--B/circular routing, isochrones, elevation profiles & API key; free tier, 2{,}000 requests/day & None & Custom, port 8102 (bundled) \\
-\addlinespace
-Google Geocoding & Place name $\to$ coordinates & API key (Google Cloud project) & None & Custom, port 8102 (bundled) \\
-\addlinespace
-OSM Overpass & Boundary polygons for named areas (park loops) & None (public instance) & None & Custom, port 8102 (bundled) \\
-\addlinespace
-ESRI World Imagery & Satellite basemap tiles for the 3D flythrough & None (public tile server) & None & None---browser-fetched, outside MCP \\
-\addlinespace
-AWS Terrain Tiles (Terrarium) & Elevation DEM tiles for 3D terrain in the flythrough & None (public S3 Open Data bucket) & None & None---browser-fetched, outside MCP \\
-\addlinespace
-CartoDB Dark Matter & Dark vector basemap style for the flythrough's non-satellite mode & None (public style endpoint) & None & None---browser-fetched, outside MCP \\
-\addlinespace
-Google Calendar & Event read/write, free-slot lookup & OAuth\,2.0, or a per-request bearer token in multi-tenant mode & Community servers exist; none used here & Custom, port 8105 \\
-\addlinespace
-Telegram (MTProto) & Messaging tool access (116 tools: messages, chats, contacts, media) & App API ID/hash plus a one-time session-string login & Yes, external project vendored unmodified (Section~\ref{sec:data:telegram}) & Bridged, port 8106 \\
-\addlinespace
-LLM backend (KIT gateway / OpenAI / Gemini) & Chat completion for every agent and specialist & One provider API key, selected via configuration & N/A---consumed directly, not wrapped as an MCP tool & --- \\
-\botrule
-\end{tabularx}
-\end{minipage}
-\end{center}
-\end{table}
+\input{2_Tables/tab_api_overview}
 
+\FloatBarrier
 \subsection{UI Screenshots}\label{sec:appendix:screenshots}
 
 Figure~\ref{fig:ui_grid} in Section~\ref{sec:architecture:llm} gives a thumbnail overview of all seven Training Copilot tabs. Figures~\ref{fig:screenshot_chat}--\ref{fig:screenshot_settings} below show the same views at full size, each with a detailed description of what it renders and which part of the architecture it draws on.
