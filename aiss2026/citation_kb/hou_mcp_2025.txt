@@ -1,0 +1,17 @@
+Citation: hou_mcp_2025
+Cited 2 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Section: Tool Integration Protocols (From Ad-hoc Integration to Standardised Protocols)
+Claim: Both protocols are new enough that their security surface is still being charted: [CITE] give the first systematic analysis of MCP's threat model across the full server lifecycle (creation, deployment, operation, and maintenance), identifying tool poisoning and injection risks that any multi-tenant deployment must address.
+
+Chapter: 8_discussion, Section: Limitations (Single-user focus)
+Claim: The MCP-specific threat surface that [CITE] catalogue (tool poisoning, prompt injection, and lifecycle attacks on third-party servers) applies directly once users can register their own servers, and addressing it is prerequisite to any public deployment.
+Source quote (title): "Model Context Protocol (MCP): Landscape, Security Threats, and Future Research Directions."
+Source quote (lifecycle, from PDF body): "We first define the full lifecycle of an MCP server, comprising four phases (creation, deployment, operation, and maintenance), further decomposed into 16 key activities that capture its functional evolution."
+Source quote (threats): "These risks, such as tool poisoning, installer spoofing, and unauthorized access, are empirically ..." and "... is necessary to prevent tampering or injection of malicious binaries."
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF is the arXiv version (2503.23278) of Hou, Zhao, Wang, and Wang, "Model Context Protocol (MCP): Landscape, Security Threats, and Future Research Directions" (37 pages; also published in ACM TOSEM, doi 10.1145/3796519). Page 1 confirms authors (Xinyi Hou, Yanjie Zhao, Shenao Wang, Haoyu Wang, Huazhong University of Science and Technology) and title. The PDF body defines the "full lifecycle of an MCP server, comprising four phases (creation, deployment, operation, and maintenance)" and empirically analyses threats including "tool poisoning" and binary "injection". NOTE (2026-07-07 correction): our downloaded PDF says FOUR phases "creation, deployment, operation, and maintenance" (not the "creation, operation, update" wording used by an earlier arXiv abstract); the paper text and this KB were corrected to match the PDF we actually hold. Supports both citation uses: (1) first systematic MCP threat analysis incl. tool poisoning/injection; (2) the multi-tenant threat surface for user-registered servers.
+Verified: 2026-07-07

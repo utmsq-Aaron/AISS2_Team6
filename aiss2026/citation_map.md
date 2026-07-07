@@ -8,7 +8,6 @@ Sentences are quoted; the citation key and the claim being made are noted.
 | Citation | Sentence / Claim |
 |---|---|
 | `seckin_review_2023`, `seshadri_wearable_2019` | "Wearable devices...capture heart rate, GPS trajectories, sleep stages, HRV, and stress levels continuously" |
-| `strava_year_2024` | "Strava aggregate activity data from more than 135 million athletes worldwide" |
 | `bourdon_monitoring_2017` | "data remains fragmented...making holistic analysis impractical" |
 | `schick_toolformer_2023`, `qu_tool_2024` | "LLMs have demonstrated the ability to reason across heterogeneous information sources when equipped with tool-calling capabilities" |
 | `anthropic_mcp_2024` | "Anthropic's Model Context Protocol (MCP)" — protocol specification |
@@ -32,6 +31,11 @@ Sentences are quoted; the citation key and the claim being made are noted.
 | `mckinsey_genai_2023` | "McKinsey estimates generative AI could contribute USD 2.6-4.4 trillion annually" |
 | `puce_harnessing_2025` | "general-purpose LLMs...producing generic advice that ignores individual context" |
 | `bourdon_monitoring_2017` | "synthesise signals from recovery status, training load trends, weather forecasts" — consensus on multi-dimensional monitoring |
+| `garmin_connectplus_2025` | "Garmin introduced Garmin Connect+...'Active Intelligence' surfaces AI-generated insights...reason only over their own device's data" |
+| `oura_advisor_2025` | "Oura released Oura Advisor, a conversational LLM health coach with per-user memory" (single-source) |
+| `runna_2025` | "Strava acquired the running-plan app Runna" (personalised plans, non-conversational) |
+| `tridot_2025` | "dedicated engines such as TriDot deliver AI-driven, data-optimised triathlon plans...through a fixed optimisation engine rather than a conversational interface" |
+| `strava_api_update_2026` | "Strava has announced an official MCP server, still rolling out rather than generally available...an MCP-native assistant such as Claude query a user's Strava data directly" |
 
 ## Chapter 3: State of the Art
 
@@ -56,6 +60,7 @@ Sentences are quoted; the citation key and the claim being made are noted.
 | `jayanti_enhancing_2026` | "Context-Aware MCP (CA-MCP)...shared context store accessible by all MCP servers" |
 | `google_a2a_2025` | "A2A protocol...JSON-RPC 2.0-based specification for direct communication between agents" |
 | `yang_survey_2025` | "taxonomy that distinguishes context-oriented protocols (MCP) from inter-agent protocols (A2A)" |
+| `hou_mcp_2025` | "first systematic analysis of MCP's threat model across the server lifecycle (creation, operation, update); tool poisoning and injection risks" |
 | `banister_systems_1975` | "fitness-fatigue impulse-response model...performance readiness equals accumulated fitness minus accumulated fatigue" |
 | `bourdon_monitoring_2017` | "international consensus statement...distinguishes external load from internal load" |
 | `impellizzeri_internal_2019` | "exercise acts as a stressor inducing individualised psychophysiological responses" |
@@ -63,8 +68,8 @@ Sentences are quoted; the citation key and the claim being made are noted.
 | `gabbett_training_2016` | "training-injury prevention paradox...rapid load increases >15% elevate injury risk...ACWR 0.8-1.3 recommended" |
 | `plews_training_2013` | "both increases and decreases in HRV can indicate negative adaptation" |
 | `fuller_reliability_2020` | "commercial wearable devices...accurate for measuring steps and heart rate in laboratory settings" |
-| `li_wearable_2016` | "reviewed wearable performance devices in sports medicine" |
-| `alzahrani_advanced_2024` | "wearable technologies and machine learning can optimise performance monitoring" |
+| `li_wearable_2016` | "Broader reviews of wearable performance devices in sports medicine...sensing has outpaced interpretation" (§3.3.3) |
+| `alzahrani_advanced_2024` | "machine-learning-driven biomechanical analytics...the real bottleneck is turning multi-stream data into decisions" (§3.3.3) |
 | `seshadri_wearable_2019` | "wearable sensors provide data on sport demands during training and competition" |
 | `seckin_review_2023` | "comprehensive review of wearable sensor technology across 287 publications" |
 | `sun_examining_2017` | "Strava Metro data to examine associations between environmental characteristics and cycling behaviour" |
@@ -102,7 +107,8 @@ Sentences are quoted; the citation key and the claim being made are noted.
 | Citation | Sentence / Claim |
 |---|---|
 | `mlflow_multiturn_2025` | "MLflow's end-to-end conversation simulation framework" |
-| `shankar_validates_2024` | "LLM-based evaluators must be aligned with human preferences" |
+| `zheng_judging_2023` | "a strong model grading open-ended dialogue agrees with human preferences about as often as humans agree with each other (~85% vs 81%); judge biases (position, verbosity, self-enhancement)" |
+| `shankar_validates_2024` | "LLM-based evaluators must be aligned with human preferences" (also §7 human-label loop) |
 | `barger_artificial_2025` | "empathetic tone critical for AI coaching acceptance" |
 
 ## Chapter 8: Discussion
@@ -113,6 +119,7 @@ Sentences are quoted; the citation key and the claim being made are noted.
 | `wang_survey_2024` | "modular prompt architecture" |
 | `dragoni_microservices_2017`, `newman_building_2021` | "established microservice design principles" |
 | `grgic_periodization_2017` | "principles of progressive overload, periodisation, and recovery are timeless" |
+| `hou_mcp_2025` | "the MCP-specific threat surface (tool poisoning, prompt injection, and lifecycle attacks on third-party servers) applies directly once users can register their own servers" |
 
 ## Chapter 9: Conclusion
 

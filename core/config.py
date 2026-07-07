@@ -57,7 +57,10 @@ A2A_AGENTS: dict[str, str] = {name: _a2a_url(name, port) for name, port in AGENT
 # just narrowed per agent. The orchestrator has no MCP scope; it talks to agents.
 AGENT_MCP_SCOPE: dict[str, list[str]] = {
     "recovery": ["garmin"],
-    "load":     ["strava", "garmin"],
+    # load also owns the flythrough server: prepare_flythrough needs a Strava
+    # activity_id (from strava tools), so the chat-triggered 3D flythrough lives
+    # with the specialist that can obtain that id in the same turn.
+    "load":     ["strava", "garmin", "flythrough"],
     "context":  ["weather", "calendar"],
     "route":    ["routes"],
     # fitness has NO MCP scope — it answers from a RAG vector DB of fitness

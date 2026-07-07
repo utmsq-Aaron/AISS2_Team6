@@ -1,5 +1,10 @@
 Citation: strava_api_update_2026
-Cited 3 time(s)
+Cited 4 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Section: Competitive Landscape
+Claim: Strava has announced an official MCP server [CITE], still rolling out rather than generally available, that would let an MCP-native assistant such as Claude query a user's Strava data directly.
+Source quote: "We're also excited to begin rolling out an official Strava MCP. Strava's MCP is a flexible, AI-native tool to slice your own Strava data any way you see fit, including subscriber data, with no developer skills required." (p. 2) -- "begin rolling out" confirms it is NOT yet generally available.
 ============================================================
 
 Chapter: 5_data_sources, Line: 8

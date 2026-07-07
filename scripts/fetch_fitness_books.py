@@ -2,9 +2,9 @@
 
 Source: **Project Gutenberg** (via the gutendex catalog API). Every title below is
 in the **public domain**, so the corpus is freely redistributable and can live in
-the repo — no scraping of copyrighted/pirated material. The curated list spans
-strength training, endurance/athletic conditioning, women's physical training,
-physical-culture/massage and general exercise & health.
+the repo — no scraping of copyrighted/pirated material. The curated list (~50 books)
+spans physical culture & strength training, athletics and specific sports, the
+physiology and anatomy of the human body, and personal/public hygiene & health.
 
     python -m scripts.fetch_fitness_books          # download missing books
     python -m scripts.fetch_fitness_books --force   # re-download all
@@ -30,8 +30,12 @@ SOURCES_JSON = ROOT / "data" / "fitness_library" / "sources.json"
 
 GUTENDEX = "https://gutendex.com/books/{id}"
 
-# Curated public-domain fitness / physical-culture books → (gutenberg_id, slug).
+# Curated public-domain corpus → (gutenberg_id, slug). ~50 titles spanning
+# physical culture & strength training, athletics & specific sports (swimming,
+# boxing, wrestling, fencing, football, golf, cycling, dancing), the physiology
+# and anatomy of the human body, and personal/public hygiene, longevity & health.
 BOOKS = [
+    # ── original eight ─────────────────────────────────────────────────────
     (65987, "sandow-strength-and-how-to-obtain-it"),
     (13574, "camp-keeping-fit-all-the-way"),
     (56398, "james-practical-training-running-walking-rowing-boxing"),
@@ -40,6 +44,53 @@ BOOKS = [
     (56134, "girls-and-athletics"),
     (49279, "woods-health-how-to-get-it-and-keep-it"),
     (65260, "the-physical-training-of-children"),
+    # ── physical culture, strength & general training ──────────────────────
+    (36557, "blaikie-how-to-get-strong-and-how-to-stay-so"),
+    (19208, "macfadden-vitality-supreme"),
+    (56584, "benson-miles-daily-training"),
+    (22005, "how-to-add-ten-years-to-your-life"),
+    (69080, "walkers-manly-exercises"),
+    (47254, "handbook-of-summer-athletic-sports"),
+    (12430, "a-lecture-on-physical-development"),
+    (78009, "a-guide-to-the-history-of-physical-education"),
+    (17727, "the-school-of-recreation"),
+    # ── athletics & ancient sport ──────────────────────────────────────────
+    (65554, "greek-athletics"),
+    (59952, "greek-athletic-sports-and-festivals"),
+    (64627, "athletics-and-games-of-the-ancient-greeks"),
+    # ── physiology, anatomy & the human body ───────────────────────────────
+    (53347, "foster-physiology"),
+    (34211, "a-treatise-on-physiology-and-hygiene"),
+    (30541, "a-treatise-on-anatomy-physiology-and-hygiene"),
+    (6986, "steele-hygienic-physiology"),
+    (15435, "object-lessons-on-the-human-body"),
+    (72451, "combe-physiology-of-digestion"),
+    (56427, "animal-locomotion-walking-swimming-flying"),
+    (63456, "andreas-vesalius-reformer-of-anatomy"),
+    # ── specific sports & activities ───────────────────────────────────────
+    (19065, "swimming-scientifically-taught"),
+    (12135, "the-art-of-fencing"),
+    (37562, "wrestling-and-wrestlers"),
+    (64111, "pugilistica-history-of-british-boxing"),
+    (39743, "camp-american-football"),
+    (35683, "association-football-and-how-to-play-it"),
+    (28107, "the-complete-golfer"),
+    (18048, "football-days"),
+    (13749, "around-the-world-on-a-bicycle-vol-2"),
+    (78268, "dancing-beauty-and-games"),
+    (66449, "modern-dancing-and-dancers"),
+    (12926, "the-morris-book-part-1"),
+    # ── hygiene, longevity & health ────────────────────────────────────────
+    (58591, "hygiene-personal-and-public-health"),
+    (19598, "fisher-how-to-live"),
+    (21353, "civics-and-health"),
+    (9173, "youth-education-regimen-and-hygiene"),
+    (51521, "metchnikoff-the-prolongation-of-life"),
+    (64237, "old-age-deferred"),
+    (32250, "red-cross-home-hygiene-and-care-of-the-sick"),
+    (17682, "the-healthy-life-magazine"),
+    (4339, "nerves-and-common-sense"),
+    (5694, "harvard-classics-v38-scientific-papers-physiology"),
 ]
 
 

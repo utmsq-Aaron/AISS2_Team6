@@ -1,6 +1,6 @@
 # Reference List for Zotero Import
 
-Total: 64 references
+Total: 69 references
 
 Click each DOI/URL link to open in browser, then import into Zotero.
 
@@ -58,7 +58,6 @@ Use these keys with `\cite{key}` in LaTeX:
 | 46 | `statista_fitness_apps_2025` | Statista 2025 | Statista (2025) |
 | 47 | `strava_api_update_2026` | Strava 2026 | Strava (2026) |
 | 48 | `strava_trends_2025` | Strava 2025 | Strava (2025) |
-| 49 | `strava_year_2024` | Strava 2024 | Strava (2024) |
 | 50 | `vanhooren_wearables_2020` | Bas Van Hooren 2020 | Bas Van Hooren and Jos Goudsmit and Juan Restrepo and Steven... (2020) |
 | 51 | `vaswani_attention_2017` | Ashish Vaswani 2017 | Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Us... (2017) |
 | 52 | `vemuri_multiagent_2021` | Ajith Vemuri 2021 | Ajith Vemuri and Keith Decker and Mathew Saponaro and Gregor... (2021) |
@@ -74,6 +73,14 @@ Use these keys with `\cite{key}` in LaTeX:
 | 62 | `morton_modeling_1990` | R. Hugh Morton 1990 | R. Hugh Morton and John R. Fitz-Clarke and Eric W. Banister (1990) |
 | 63 | `impellizzeri_training_2020` | Franco M. Impellizzeri 2020 | Franco M. Impellizzeri and Simon Woodcock and Aaron J. Coutts and... (2020) |
 | 64 | `sahoo_prompt_2024` | Pranab Sahoo 2024 | Pranab Sahoo and Ayush Kumar Singh and Sriparna Saha and... (2024) |
+| 65 | `garmin_connectplus_2025` | Garmin 2025 | Garmin (2025) |
+| 66 | `oura_advisor_2025` | Oura 2025 | Oura (2025) |
+| 67 | `runna_2025` | Strava 2025 | Strava (2025) |
+| 68 | `tridot_2025` | TriDot 2025 | TriDot (2025) |
+| 69 | `hou_mcp_2025` | Xinyi Hou 2025 | Xinyi Hou and Yanjie Zhao and Shenao Wang and Haoyu Wang (2025) |
+| 70 | `zheng_judging_2023` | Lianmin Zheng 2023 | Lianmin Zheng and Wei-Lin Chiang and Ying Sheng and ... (2023) |
+
+_(Note: entry 49 `strava_year_2024` was removed — the source did not support a specific claim and it was uncited.)_
 
 
 ## Full References with Links
@@ -497,14 +504,6 @@ Use these keys with `\cite{key}` in LaTeX:
 - Year: 2025
 - Link: [https://contentful-assets.strava.com/Strava-Year-In-Sport-Trend-Report-2025-US.pdf](https://contentful-assets.strava.com/Strava-Year-In-Sport-Trend-Report-2025-US.pdf)
 
-### 49. `strava_year_2024`
-
-**Strava Year in Sport 2024**
-
-- Authors: Strava
-- Year: 2024
-- Link: [https://press.strava.com/articles/strava-releases-year-in-sport-trend-report](https://press.strava.com/articles/strava-releases-year-in-sport-trend-report)
-
 ### 50. `vanhooren_wearables_2020`
 
 **Real-Time Feedback by Wearables in Running: Current Approaches, Challenges and Suggestions for Improvements**
@@ -642,4 +641,71 @@ Use these keys with `\cite{key}` in LaTeX:
 - Venue: arXiv preprint arXiv:2402.07927
 - Link: [https://arxiv.org/abs/2402.07927](https://arxiv.org/abs/2402.07927)
 - Note: Covers 29+ prompt engineering techniques. Used to ground our 3-layer prompt architecture.
+
+
+## New References (added 2026-07-07 — for Zotero import)
+
+These six were added during the SOTA/competitor completeness pass. Each has a verified source PDF in `sources/` and a knowledge-base file in `citation_kb/`. Click each link to open in browser, then import into Zotero.
+
+### 65. `garmin_connectplus_2025`
+
+**Elevate Your Health and Fitness Goals with Garmin Connect+**
+
+- Authors: Garmin
+- Year: 2025 (press release, 27 March 2025)
+- Type: Company newsroom / press release
+- Link: [https://www.garmin.com/en-US/newsroom/press-release/wearables-health/elevate-your-health-and-fitness-goals-with-garmin-connect/](https://www.garmin.com/en-US/newsroom/press-release/wearables-health/elevate-your-health-and-fitness-goals-with-garmin-connect/)
+- Note: Competitor. Premium tier with AI "Active Intelligence" insights over Garmin data only; single ecosystem, non-conversational.
+
+### 66. `oura_advisor_2025`
+
+**Introducing Oura Advisor: Your AI-Powered Personal Health Companion**
+
+- Authors: Oura
+- Year: 2025 (blog, 31 March 2025)
+- Type: Company blog post
+- Link: [https://ouraring.com/blog/oura-advisor/](https://ouraring.com/blog/oura-advisor/)
+- Note: Competitor. Conversational LLM health coach with per-user "Memories"; reasons only over Oura ring biometrics.
+
+### 67. `runna_2025`
+
+**Strava to Acquire Runna, A Leading Running Training App**
+
+- Authors: Strava
+- Year: 2025 (press release, 17 April 2025)
+- Type: Company press release
+- Link: [https://press.strava.com/articles/strava-to-acquire-runna-a-leading-running-training-app](https://press.strava.com/articles/strava-to-acquire-runna-a-leading-running-training-app)
+- Note: Competitor. AI-personalised running training plans (acquired by Strava); plan generation, non-conversational.
+
+### 68. `tridot_2025`
+
+**AI-Powered Triathlon Training: Less Training, Better Results**
+
+- Authors: TriDot
+- Year: 2025
+- Type: Company product page
+- Link: [https://www.tridot.com/what-tridot-delivers](https://www.tridot.com/what-tridot-delivers)
+- Note: Competitor. AI/FitLogic data-driven triathlon training-optimisation engine; adaptive plans, non-conversational.
+
+### 69. `hou_mcp_2025`
+
+**Model Context Protocol (MCP): Landscape, Security Threats, and Future Research Directions**
+
+- Authors: Xinyi Hou and Yanjie Zhao and Shenao Wang and Haoyu Wang
+- Year: 2025
+- Venue: arXiv preprint arXiv:2503.23278 (also ACM Transactions on Software Engineering and Methodology)
+- Link: [https://arxiv.org/abs/2503.23278](https://arxiv.org/abs/2503.23278)
+- DOI (TOSEM): [https://doi.org/10.1145/3796519](https://doi.org/10.1145/3796519)
+- Note: SOTA. First systematic analysis of the MCP threat model across the server lifecycle (creation, deployment, operation, maintenance); grounds the security limitations in §3.2 and §8.
+
+### 70. `zheng_judging_2023`
+
+**Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena**
+
+- Authors: Lianmin Zheng and Wei-Lin Chiang and Ying Sheng and Siyuan Zhuang and Zhanghao Wu and Yonghao Zhuang and Zi Lin and Zhuohan Li and Dacheng Li and Eric P. Xing and Hao Zhang and Joseph E. Gonzalez and Ion Stoica
+- Year: 2023
+- Venue: Advances in Neural Information Processing Systems (NeurIPS), Datasets and Benchmarks Track
+- Link: [https://arxiv.org/abs/2306.05685](https://arxiv.org/abs/2306.05685)
+- NeurIPS: [https://papers.nips.cc/paper_files/paper/2023/hash/91f18a1287b398d378ef22505bf41832-Abstract-Datasets_and_Benchmarks.html](https://papers.nips.cc/paper_files/paper/2023/hash/91f18a1287b398d378ef22505bf41832-Abstract-Datasets_and_Benchmarks.html)
+- Note: SOTA. Foundational LLM-as-a-judge result (GPT-4 ~85% agreement with humans vs 81% human-human); grounds the four LLM-judge scorers in §7.
 

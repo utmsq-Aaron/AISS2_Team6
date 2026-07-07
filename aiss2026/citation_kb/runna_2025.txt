@@ -1,0 +1,15 @@
+Citation: runna_2025
+Cited 2 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Section: Competitive Landscape (Table~tab:competitors + prose)
+Claim: On the planning side, Strava acquired the running-plan app Runna [CITE] ...; these adapt training effectively, but through a fixed optimisation engine rather than a conversational interface. (Competitor table: "Personalised running training plans"; "Plan generation only; no conversational, cross-domain reasoning".)
+Source quote: "Strava, the app for active people, today announced that it has entered into a definitive agreement to acquire Runna, a UK-headquartered tech company developing personalized running training plans and coaching." (p. 1)
+Source quote: "Runna's mission to give every runner a personalized plan to achieve their goal is a perfect fit." (p. 2)
+Source quote (date): "SAN FRANCISCO - April 17, 2025" (p. 1)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF is a Playwright web capture of the Strava press release "Strava to Acquire Runna, A Leading Running Training App" (April 17, 2025). It confirms (1) Strava's definitive agreement to acquire Runna; (2) Runna develops personalized running training plans and coaching. The source characterises Runna as a training-plan app; it makes no claim of a conversational natural-language interface or of weather/calendar integration, supporting our "plan generation only; no conversational, cross-domain reasoning" limitation.
+CORRECTION LOG (2026-07-07): the word "AI" was REMOVED from the paper's Runna description and competitor-table row, because this Strava press-release source does NOT use "AI"/"artificial intelligence" (it says "personalized running training plans and coaching"). Runna is widely marketed as AI-powered, but that is not stated in the cited source, so the claim was made source-faithful. To restore "AI", add Runna's own product page as a second source.
+Verified: 2026-07-07

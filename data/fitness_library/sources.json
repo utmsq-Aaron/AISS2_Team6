@@ -70,5 +70,383 @@
     "license": "Public domain (Project Gutenberg)",
     "source_url": "https://www.gutenberg.org/ebooks/65260",
     "file": "corpus/the-physical-training-of-children.txt"
+  },
+  {
+    "gutenberg_id": 36557,
+    "slug": "blaikie-how-to-get-strong-and-how-to-stay-so",
+    "title": "How to Get Strong and How to Stay So",
+    "author": "Blaikie, William",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/36557",
+    "file": "corpus/blaikie-how-to-get-strong-and-how-to-stay-so.txt"
+  },
+  {
+    "gutenberg_id": 19208,
+    "slug": "macfadden-vitality-supreme",
+    "title": "Vitality Supreme",
+    "author": "Macfadden, Bernarr",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/19208",
+    "file": "corpus/macfadden-vitality-supreme.txt"
+  },
+  {
+    "gutenberg_id": 56584,
+    "slug": "benson-miles-daily-training",
+    "title": "Daily Training",
+    "author": "Benson, E. F. (Edward Frederic), Miles, Eustace",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/56584",
+    "file": "corpus/benson-miles-daily-training.txt"
+  },
+  {
+    "gutenberg_id": 22005,
+    "slug": "how-to-add-ten-years-to-your-life",
+    "title": "How to Add Ten Years to your Life and to Double Its Satisfactions",
+    "author": "Curry, S. S. (Samuel Silas)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/22005",
+    "file": "corpus/how-to-add-ten-years-to-your-life.txt"
+  },
+  {
+    "gutenberg_id": 69080,
+    "slug": "walkers-manly-exercises",
+    "title": "Walker's manly exercises: Containing rowing, sailing, riding, driving, racing, hunting, shooting, and other manly sports",
+    "author": "Walker, Donald",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/69080",
+    "file": "corpus/walkers-manly-exercises.txt"
+  },
+  {
+    "gutenberg_id": 47254,
+    "slug": "handbook-of-summer-athletic-sports",
+    "title": "Handbook of Summer Athletic Sports: Comprising: Walking, Running, Jumping, Hare and Hounds, Bicycling, Archery, Etc.",
+    "author": "Unknown",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/47254",
+    "file": "corpus/handbook-of-summer-athletic-sports.txt"
+  },
+  {
+    "gutenberg_id": 12430,
+    "slug": "a-lecture-on-physical-development",
+    "title": "A Lecture on Physical Development, and its Relations to Mental and Spiritual Development, delivered before the American Institute of Instruction, at their Twenty-Ninth Annual Meeting, in Norwich, Conn., August 20, 1858",
+    "author": "Calthrop, S. R. (Samuel Robert)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/12430",
+    "file": "corpus/a-lecture-on-physical-development.txt"
+  },
+  {
+    "gutenberg_id": 78009,
+    "slug": "a-guide-to-the-history-of-physical-education",
+    "title": "A guide to the history of physical education",
+    "author": "Leonard, Fred Eugene",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/78009",
+    "file": "corpus/a-guide-to-the-history-of-physical-education.txt"
+  },
+  {
+    "gutenberg_id": 17727,
+    "slug": "the-school-of-recreation",
+    "title": "The School of Recreation (1696 edition): Or a Guide to the Most Ingenious Exercises of Hunting, Riding, Racing, Fireworks, Military Discipline, the Science of Defence",
+    "author": "R. H. (Robert Howlett)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/17727",
+    "file": "corpus/the-school-of-recreation.txt"
+  },
+  {
+    "gutenberg_id": 65554,
+    "slug": "greek-athletics",
+    "title": "Greek Athletics",
+    "author": "Wright, F. A. (Frederick Adam)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/65554",
+    "file": "corpus/greek-athletics.txt"
+  },
+  {
+    "gutenberg_id": 59952,
+    "slug": "greek-athletic-sports-and-festivals",
+    "title": "Greek Athletic Sports and Festivals",
+    "author": "Gardiner, E. Norman (Edward Norman)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/59952",
+    "file": "corpus/greek-athletic-sports-and-festivals.txt"
+  },
+  {
+    "gutenberg_id": 64627,
+    "slug": "athletics-and-games-of-the-ancient-greeks",
+    "title": "Athletics and Games of the Ancient Greeks",
+    "author": "Plummer, Edward M. (Edward Marwick)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/64627",
+    "file": "corpus/athletics-and-games-of-the-ancient-greeks.txt"
+  },
+  {
+    "gutenberg_id": 53347,
+    "slug": "foster-physiology",
+    "title": "Physiology",
+    "author": "Foster, M. (Michael), Sir",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/53347",
+    "file": "corpus/foster-physiology.txt"
+  },
+  {
+    "gutenberg_id": 34211,
+    "slug": "a-treatise-on-physiology-and-hygiene",
+    "title": "A Treatise on Physiology and Hygiene: For Educational Institutions and General Readers",
+    "author": "Hutchison, Joseph C. (Joseph Chrisman)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/34211",
+    "file": "corpus/a-treatise-on-physiology-and-hygiene.txt"
+  },
+  {
+    "gutenberg_id": 30541,
+    "slug": "a-treatise-on-anatomy-physiology-and-hygiene",
+    "title": "A Treatise on Anatomy, Physiology, and Hygiene (Revised Edition)",
+    "author": "Cutter, Calvin",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/30541",
+    "file": "corpus/a-treatise-on-anatomy-physiology-and-hygiene.txt"
+  },
+  {
+    "gutenberg_id": 6986,
+    "slug": "steele-hygienic-physiology",
+    "title": "Hygienic Physiology : with Special Reference to the Use of Alcoholic Drinks and Narcotics",
+    "author": "Steele, Joel Dorman",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/6986",
+    "file": "corpus/steele-hygienic-physiology.txt"
+  },
+  {
+    "gutenberg_id": 15435,
+    "slug": "object-lessons-on-the-human-body",
+    "title": "Object Lessons on the Human Body: A Transcript of Lessons Given in the Primary Department of School No. 49, New York City",
+    "author": "Buckelew, Sarah F. (Sarah Frances), Lewis, Margaret W. (Margaret Wiseham)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/15435",
+    "file": "corpus/object-lessons-on-the-human-body.txt"
+  },
+  {
+    "gutenberg_id": 72451,
+    "slug": "combe-physiology-of-digestion",
+    "title": "The physiology of digestion considered with relation to the principles of dietetics",
+    "author": "Combe, Andrew",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/72451",
+    "file": "corpus/combe-physiology-of-digestion.txt"
+  },
+  {
+    "gutenberg_id": 56427,
+    "slug": "animal-locomotion-walking-swimming-flying",
+    "title": "Animal Locomotion; or, walking, swimming, and flying: With a dissertation on aëronautics",
+    "author": "Pettigrew, James Bell",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/56427",
+    "file": "corpus/animal-locomotion-walking-swimming-flying.txt"
+  },
+  {
+    "gutenberg_id": 63456,
+    "slug": "andreas-vesalius-reformer-of-anatomy",
+    "title": "Andreas Vesalius, the Reformer of Anatomy",
+    "author": "Ball, James Moores",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/63456",
+    "file": "corpus/andreas-vesalius-reformer-of-anatomy.txt"
+  },
+  {
+    "gutenberg_id": 19065,
+    "slug": "swimming-scientifically-taught",
+    "title": "Swimming scientifically taught: A practical manual for young and old",
+    "author": "Dalton, Frank Eugen, Dalton, Louis C. (Louis Cecil)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/19065",
+    "file": "corpus/swimming-scientifically-taught.txt"
+  },
+  {
+    "gutenberg_id": 12135,
+    "slug": "the-art-of-fencing",
+    "title": "The Art of Fencing; Or, The Use of the Small Sword",
+    "author": "Labat, maître d'armes",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/12135",
+    "file": "corpus/the-art-of-fencing.txt"
+  },
+  {
+    "gutenberg_id": 37562,
+    "slug": "wrestling-and-wrestlers",
+    "title": "Wrestling and Wrestlers: Biographical Sketches of Celebrated Athletes of the Northern Ring; to Which is Added Notes on Bull and Badger Baiting",
+    "author": "Robinson, Jacob, Gilpin, Sidney",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/37562",
+    "file": "corpus/wrestling-and-wrestlers.txt"
+  },
+  {
+    "gutenberg_id": 64111,
+    "slug": "pugilistica-history-of-british-boxing",
+    "title": "Pugilistica: The History of British Boxing, Volume 3 (of 3): Containing Lives of the Most Celebrated Pugilists; Full Reports of Their Battles from Contemporary Newspapers, With Authentic Portraits, Personal Anecdotes, and Sketches of the Principal Patrons of the Prize Ring, Forming a Complete History of the Ring from Fig and Broughton, 1719-40, to the Last Championship Battle Between King and Heenan, in December 1863",
+    "author": "Miles, Henry Downes",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/64111",
+    "file": "corpus/pugilistica-history-of-british-boxing.txt"
+  },
+  {
+    "gutenberg_id": 39743,
+    "slug": "camp-american-football",
+    "title": "American football",
+    "author": "Camp, Walter",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/39743",
+    "file": "corpus/camp-american-football.txt"
+  },
+  {
+    "gutenberg_id": 35683,
+    "slug": "association-football-and-how-to-play-it",
+    "title": "Association Football, and How To Play It",
+    "author": "Cameron, John",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/35683",
+    "file": "corpus/association-football-and-how-to-play-it.txt"
+  },
+  {
+    "gutenberg_id": 28107,
+    "slug": "the-complete-golfer",
+    "title": "The Complete Golfer",
+    "author": "Vardon, Harry",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/28107",
+    "file": "corpus/the-complete-golfer.txt"
+  },
+  {
+    "gutenberg_id": 18048,
+    "slug": "football-days",
+    "title": "Football days: memories of the game and of the men behind the ball",
+    "author": "Edwards, William H. (William Hanford)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/18048",
+    "file": "corpus/football-days.txt"
+  },
+  {
+    "gutenberg_id": 13749,
+    "slug": "around-the-world-on-a-bicycle-vol-2",
+    "title": "Around the World on a Bicycle - Volume II: From Teheran To Yokohama",
+    "author": "Stevens, Thomas",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/13749",
+    "file": "corpus/around-the-world-on-a-bicycle-vol-2.txt"
+  },
+  {
+    "gutenberg_id": 78268,
+    "slug": "dancing-beauty-and-games",
+    "title": "Dancing, beauty and games",
+    "author": "Stewart-Richardson, Constance, Lady",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/78268",
+    "file": "corpus/dancing-beauty-and-games.txt"
+  },
+  {
+    "gutenberg_id": 66449,
+    "slug": "modern-dancing-and-dancers",
+    "title": "Modern dancing and dancers",
+    "author": "Flitch, J. E. Crawford (John Ernest Crawford)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/66449",
+    "file": "corpus/modern-dancing-and-dancers.txt"
+  },
+  {
+    "gutenberg_id": 12926,
+    "slug": "the-morris-book-part-1",
+    "title": "The Morris Book, Part 1: A History of Morris Dancing, With a Description of Eleven Dances as Performed by the Morris-Men of England",
+    "author": "Sharp, Cecil J. (Cecil James), MacIlwaine, Herbert C.",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/12926",
+    "file": "corpus/the-morris-book-part-1.txt"
+  },
+  {
+    "gutenberg_id": 58591,
+    "slug": "hygiene-personal-and-public-health",
+    "title": "Hygiene: a manual of personal and public health (New Edition)",
+    "author": "Newsholme, Arthur, Sir",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/58591",
+    "file": "corpus/hygiene-personal-and-public-health.txt"
+  },
+  {
+    "gutenberg_id": 19598,
+    "slug": "fisher-how-to-live",
+    "title": "How to Live: Rules for Healthful Living Based on Modern Science",
+    "author": "Fisher, Irving, Fisk, Eugene Lyman",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/19598",
+    "file": "corpus/fisher-how-to-live.txt"
+  },
+  {
+    "gutenberg_id": 21353,
+    "slug": "civics-and-health",
+    "title": "Civics and Health",
+    "author": "Allen, William H. (WIlliam Harvey)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/21353",
+    "file": "corpus/civics-and-health.txt"
+  },
+  {
+    "gutenberg_id": 9173,
+    "slug": "youth-education-regimen-and-hygiene",
+    "title": "Youth: Its Education, Regimen, and Hygiene",
+    "author": "Hall, G. Stanley (Granville Stanley)",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/9173",
+    "file": "corpus/youth-education-regimen-and-hygiene.txt"
+  },
+  {
+    "gutenberg_id": 51521,
+    "slug": "metchnikoff-the-prolongation-of-life",
+    "title": "The Prolongation of Life: Optimistic Studies",
+    "author": "Metchnikoff, Elie",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/51521",
+    "file": "corpus/metchnikoff-the-prolongation-of-life.txt"
+  },
+  {
+    "gutenberg_id": 64237,
+    "slug": "old-age-deferred",
+    "title": "Old Age Deferred: The causes of old age and its postponement by hygienic and therapeutic measures",
+    "author": "Lorand, Arnold",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/64237",
+    "file": "corpus/old-age-deferred.txt"
+  },
+  {
+    "gutenberg_id": 32250,
+    "slug": "red-cross-home-hygiene-and-care-of-the-sick",
+    "title": "American Red Cross Text-Book on Home Hygiene and Care of the Sick",
+    "author": "American National Red Cross, Delano, Jane A., McIsaac, Isabel, Strong, Anne Hervey",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/32250",
+    "file": "corpus/red-cross-home-hygiene-and-care-of-the-sick.txt"
+  },
+  {
+    "gutenberg_id": 17682,
+    "slug": "the-healthy-life-magazine",
+    "title": "The Healthy Life, Vol. V, Nos. 24-28: The Independent Health Magazine",
+    "author": "Various",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/17682",
+    "file": "corpus/the-healthy-life-magazine.txt"
+  },
+  {
+    "gutenberg_id": 4339,
+    "slug": "nerves-and-common-sense",
+    "title": "Nerves and Common Sense",
+    "author": "Call, Annie Payson",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/4339",
+    "file": "corpus/nerves-and-common-sense.txt"
+  },
+  {
+    "gutenberg_id": 5694,
+    "slug": "harvard-classics-v38-scientific-papers-physiology",
+    "title": "The Harvard Classics Volume 38: Scientific Papers (Physiology, Medicine, Surgery, Geology)",
+    "author": "Various",
+    "license": "Public domain (Project Gutenberg)",
+    "source_url": "https://www.gutenberg.org/ebooks/5694",
+    "file": "corpus/harvard-classics-v38-scientific-papers-physiology.txt"
   }
 ]

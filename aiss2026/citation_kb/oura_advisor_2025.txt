@@ -1,0 +1,17 @@
+Citation: oura_advisor_2025
+Cited 2 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Section: Competitive Landscape (Table~tab:competitors + prose)
+Claim: Oura released Oura Advisor [CITE], a conversational LLM health coach with per-user memory, but it reasons only over its own device's data (wellness only; no training load, weather, or routes).
+Source quote: "Powered by cutting-edge artificial intelligence (AI), Oura Advisor transforms your Oura insights into actionable, personalized guidance." (p. 1)
+Source quote: "With Advisor, you can dive deep into your long-term health trends, visualize your Sleep, Activity, Readiness and Resilience data with graphs and charts, and create plans to reach your unique health goals." (p. 1)
+Source quote: "Advisor provides personalized responses about your specific Oura data related to Sleep, Activity, Readiness, and Resilience." (p. 1)
+Source quote (memory): "Visit Settings within the Oura App menu to review all of the Memories your Advisor has stored based on your Oura data and what you've shared in conversation." (p. 3)
+Source quote (memory): "information that will be stored as a 'Memory.' For instance, if you tell Advisor you're recovering from knee surgery, it will keep this in mind when delivering insights and guidance." (p. 3)
+Source quote (date): "Author: Oura Team | March 31, 2025" (p. 1)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF is a Playwright web capture of the Oura blog post "Introducing Oura Advisor: Your AI-Powered Personal Health Companion" (Oura Team, March 31, 2025). It confirms (1) Oura Advisor is AI/LLM-powered and conversational ("personalized responses"); (2) it has an explicit per-user memory feature ("Memories" stored from data and conversation); (3) it operates exclusively over Oura ring biometrics (Sleep, Activity, Readiness, Resilience), with no mention of Strava training load, weather, or route/calendar data -- supporting our "wellness only; no training load, weather, or routes" competitor limitation. The conversational + single-source characterisation matches the paper's argument that 2025 conversational coaches remain single-source.
+Verified: 2026-07-07

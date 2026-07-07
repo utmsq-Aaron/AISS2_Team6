@@ -31,14 +31,19 @@
     \node[agentbox, right=1.0cm of context] (route) {Route\\:9004};
     \node[agentbox, right=0.5cm of route] (fitness) {Fitness\\:9005};
 
-    % MCP Server layer (cyan) --- same chain principle: fixed gaps between
-    % neighbours instead of independent offsets from a shared reference.
+    % MCP Server layer (cyan) --- one left-to-right chain with fixed gaps, so
+    % adding a server never causes overlap (the enclosing resizebox scales the
+    % whole row to \textwidth). Larger gaps separate the per-agent clusters.
+    % Garmin+Strava+Flythrough are the Load cluster (Flythrough :8107 is scoped
+    % to the Load specialist, see AGENT_MCP_SCOPE); Weather+Calendar to Context;
+    % Routes to Route; Vector DB to Fitness.
     \node[serverbox, below=1.5cm of recovery] (garmin) {Garmin\\:8104};
-    \node[serverbox, right=0.4cm of garmin] (strava) {Strava\\:8103};
-    \node[serverbox, below=1.5cm of context, xshift=-1.0cm] (weather) {Weather\\:8101};
-    \node[serverbox, right=0.4cm of weather] (calendar) {Calendar\\:8105};
-    \node[serverbox, below=1.5cm of route] (routes) {Routes\\:8102};
-    \node[serverbox, below=1.5cm of fitness] (vectordb) {Vector DB\\(RAG)};
+    \node[serverbox, right=0.35cm of garmin] (strava) {Strava\\:8103};
+    \node[serverbox, right=0.35cm of strava] (flythrough) {Flythrough\\:8107};
+    \node[serverbox, right=0.7cm of flythrough] (weather) {Weather\\:8101};
+    \node[serverbox, right=0.35cm of weather] (calendar) {Calendar\\:8105};
+    \node[serverbox, right=0.7cm of calendar] (routes) {Routes\\:8102};
+    \node[serverbox, right=0.7cm of routes] (vectordb) {Vector DB\\(RAG)};
 
     % Layer labels --- all share one left edge (1.2cm left of the
     % left-most box, Recovery/Garmin's column), rather than each being
@@ -69,6 +74,7 @@
     % scheduling query, not one as a fallback of the other.
     \draw[arr, color=tccyan] (recovery.south) -- (garmin.north);
     \draw[arr, color=tccyan] (load.south) -- (strava.north);
+    \draw[arr, color=tccyan] (load.south) -- (flythrough.north);
     \draw[arr, color=tccyan] (context.south) -- (weather.north);
     \draw[arr, color=tccyan] (context.south) -- (calendar.north);
     \draw[arr, color=tccyan] (route.south) -- (routes.north);

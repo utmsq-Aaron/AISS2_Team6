@@ -101,7 +101,7 @@ Then add `"example": _url("example", 8106),` to `MCP_SERVERS` in `core/config.py
 
 `app.py` is the entry point: PIN gate → sidebar (live connection dots from `MCP_SERVERS`, sport filter, cache-clear refresh) → tabs (Dashboard, Health, Routes, Chat, Sync, Settings), each delegating to its `ui/<tab>.py` `render_*` function. `ui/shared.py` holds the cached `ToolHost` singleton (`get_host`), the `call_tool` wrapper, connection checks, and config validation. UI is bilingual: tab labels and user-facing strings are often German — match the surrounding language of the file you edit.
 
-**3D flythrough subsystem** (`ui/flythrough_3d.py` + `ui/video_renderer.py`): a MapLibre GL cinematic camera animation over an activity's GPS track, with an in-browser WebCodecs MP4 export and a server-side render path (headless Chromium via Playwright). `ui/chat.py` renders flythroughs and inline charts (`ui/viz.py`) from a `trace["actions"]` list (action types `viz` and `flythrough`), in addition to the route map from `trace["route_data"]`. Caveat: the current `FitDashOrchestrator` initializes `trace["actions"]` to `[]` and never populates it, so those inline chat actions are **dormant** — `strava__launch_flythrough` returns an `{"action": "show_flythrough", …}` payload that nothing currently lifts into a trace action. Route maps are fully wired; flythrough today is invoked directly from the Dashboard tab (`ui/dashboard.py` → `show_flythrough`), not via the Chat agent.
+**3D flythrough subsystem** (`ui/flythrough_3d.py` + `ui/video_renderer.py`): a MapLibre GL cinematic camera animation over an activity's GPS track, with an in-browser WebCodecs MP4 export and a server-side render path (headless Chromium via Playwright). `ui/chat.py` renders flythroughs and inline charts (`ui/viz.py`) from a `trace["actions"]` list (action types `viz` and `flythrough`), in addition to the route map from `trace["route_data"]`. It is triggerable **two ways**: directly from the Dashboard tab (`ui/dashboard.py` → `show_flythrough`), and from the **Chat agent** — the flythrough is its own single-tool MCP server (`servers/flythrough_mcp.py`, port 8107, `prepare_flythrough`) scoped to the **load** specialist (`AGENT_MCP_SCOPE["load"]` in `core/config.py`); its `{"action": "show_flythrough", …}` payload is lifted into a `trace["actions"]` entry by `core/agent_trace.flythrough_from_results` (called inside `build_trace`), which `ui/chat.py` then renders inline. (Historically this was dormant under the old in-process `FitDashOrchestrator`; the A2A orchestrator's `build_trace` populates it.)
 
 `requirements.txt` lists `fastapi`/`uvicorn` and the `core/` docstrings reference a "FastAPI layer", but no API module exists in the tree yet — it's the intended multi-tenant seam, not present code. Don't go looking for it.
 
@@ -125,13 +125,24 @@ The seminar paper lives in `aiss2026/` and compiles with MiKTeX. Build: `pdflate
 
 ### Citation Knowledge Base — MANDATORY
 
-A citation knowledge base exists at `aiss2026/citation_kb/`, one `.txt` file per bib entry. **Every time you touch a citation in the paper you MUST update the KB:**
+**The four-artifact invariant.** Every cite key used in the paper (`\cite{key}`) MUST have, all sharing the identical basename `{key}`:
 
-1. **Adding a new citation**: Create `aiss2026/citation_kb/{bib_key}.txt` with the claim(s) made, the chapter/line, and verification status. Read the source PDF and confirm the claim is supported. Save a PDF of the source in `aiss2026/sources/{bib_key}.pdf`.
-2. **Changing an existing citation's claim**: Update the corresponding KB file with the new claim text and re-verify against the source.
-3. **Removing a citation**: Delete the KB file and the bib entry. Ensure no `\cite{key}` references remain.
+1. a **bib entry** `@type{key, …}` in `aiss2026/references.bib`;
+2. a **KB file** `aiss2026/citation_kb/{key}.txt` (claim + source-verified);
+3. a **real source PDF** `aiss2026/sources/{key}.pdf` — of the actual paper or the actual website. **Not a text stub, not a screenshot, not a link-only placeholder.** This is non-negotiable: a citation with no PDF is not allowed to exist. Papers → download the PDF (e.g. arXiv `https://arxiv.org/pdf/<id>`). Websites/press releases/product pages → print to PDF with Playwright headless Chromium (see the capture script pattern used for the competitor sources: `goto` → scroll to load lazy content → `page.pdf(...)`). Paywalled papers we cannot access → find an open-access alternative that supports the same claim; **never cite what we have not read.**
+4. an **entry in `aiss2026/REFERENCES.md`** (the Zotero import list) — add it to both the cite-key mapping table and the full-reference list, bump the `Total: N references` header, and append it to the "New References" section at the bottom with a DOI/URL link. Also add a row to `aiss2026/citation_map.md` mapping the key → the exact sentence/claim.
 
-Every source **must** have a real PDF in `aiss2026/sources/` (not a text stub). For websites, print as PDF via Playwright. For paywalled papers we cannot access, find an open-access alternative that supports the same claim — never cite what we haven't read.
+Do these BEFORE (or in the same change as) adding the `\cite{}`. After adding, **verify the PDF actually supports the claim** by extracting its text (PyMuPDF `fitz` is available in the `aiss2026` conda env, or `pypdf`) and quoting the supporting passage into the KB file's `SOURCE CONFIRMS` block. If the source does not support a specific claim, do not force-cite it — drop the citation instead (a real example: `strava_year_2024` was removed because its promotional page supported no specific number).
+
+**When you touch a citation:**
+- **Add**: create all four artifacts above; verify against the PDF.
+- **Change a claim**: update the KB file's claim text and re-verify against the source; update `citation_map.md`.
+- **Rename a key** (e.g. you corrected the year): rename all four in lockstep — the bib key, `citation_kb/{key}.txt`, `sources/{key}.pdf`, and every `\cite{key}` — plus the `REFERENCES.md`/`citation_map.md` rows. A key mismatch across these is a bug.
+- **Remove**: delete the bib entry, the KB file, **and the source PDF**; drop the `REFERENCES.md`/`citation_map.md` rows and decrement the count; ensure no `\cite{key}` remains.
+
+**Always verify the build after citation changes.** Run `aiss2026/build.bat`, then check the log for `undefined` (`grep -i "undefined" aiss2026/build/thesis.log`) and the PDF for the literal `??` marker (an unresolved `\ref`/`\cite`). Both must be zero. Gotcha that will waste your time: `*.aux`/`*.bbl`/chapter `*.aux` are **gitignored build artifacts**, but stray *committed* copies in the source root (`aiss2026/*.aux`, `aiss2026/thesis.bbl`, `aiss2026/chapters/*.aux`) will **shadow** the fresh ones `build.bat` writes under `aiss2026/build/`, producing phantom "undefined citation/reference" warnings and `??` in the PDF even though the bbl is correct. If you see that, delete the stray root-level `*.aux`/`*.bbl` and rebuild — never commit them. New `\label`s (e.g. a new table) also need a warm rebuild: the label lands in the aux one pass late, so run `build.bat` a second time, and add `\FloatBarrier` after a new float if it refuses to settle.
+
+**Pending/unbuilt content.** Describe only what the code actually does — verify features against the source before writing them in present tense (grep the repo; a feature with no code is *planned*, not shipped, and must be framed that way). For results that are genuinely outstanding (e.g. the evaluation run), ship explicit `TBD` placeholder tables and describe the methodology fully, rather than inventing numbers.
 
 KB file format:
 ```
@@ -143,4 +154,5 @@ Claim: {the sentence from our paper, with [CITE] replacing \cite{}}
 ============================================================
 VERIFICATION STATUS: CONFIRMED | ISSUE: {description}
 SOURCE CONFIRMS: {actual text from the source supporting the claim}
+Verified: {YYYY-MM-DD}
 ```

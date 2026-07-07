@@ -1,0 +1,16 @@
+Citation: tridot_2025
+Cited 2 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Section: Competitive Landscape (Table~tab:competitors + prose)
+Claim: Dedicated engines such as TriDot [CITE] deliver AI-driven, data-optimised triathlon plans; these adapt training effectively, but through a fixed optimisation engine rather than a conversational interface that lets an athlete interrogate their live weather, calendar, and recovery on demand (optimisation engine, not a conversational cross-domain assistant).
+Source quote: "TRAIN SMARTER WITH AI-POWERED TRIATHLON TRAINING. LESS TRAINING. BETTER RESULTS. FEWER INJURIES." (hero)
+Source quote: "GET DATA-DRIVEN TRAINING. TRIDOT'S AI HAS PRESCRIBED 110M+ TRAINING SESSIONS."
+Source quote: "TriDot's FitLogic(TM) intelligence engine prescribes the 'Right Training' ..."
+Source quote (label): "ELEMENTS OF AI-POWERED TRAINING ... OPTIMIZED TRAINING"
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF is a Playwright web capture of the TriDot product page "AI-Powered Triathlon Training: Less Training, Better Results" (tridot.com/what-tridot-delivers, 16 pages). It confirms TriDot is an AI/data-driven triathlon training-optimisation engine ("AI-POWERED TRIATHLON TRAINING", "DATA-DRIVEN TRAINING", "FitLogic intelligence engine", "OPTIMIZED TRAINING", "FEWER INJURIES"). The page describes an optimisation/prescription product; it contains no "chat"/"conversational" interface language, supporting our "optimisation engine, not a conversational cross-domain assistant" limitation.
+CORRECTION LOG (2026-07-07): the original source for this key was a thin testimonial page ("What Is TriDot?") that did NOT support "connected-device data" and actually mentioned a race calendar + environment adjustment, contradicting an earlier claim that TriDot "integrates neither weather nor calendar". The source PDF was replaced with the substantive product page above, and the paper claim was rewritten to the accurate "AI-driven, data-optimised ... not a conversational interface" framing (no false weather/calendar negative; device-sync wording dropped as unverified on the page). The competitor-table data-source cell was changed to "Athlete training data".
+Verified: 2026-07-07
