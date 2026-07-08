@@ -62,5 +62,10 @@ def telegram_connected() -> bool:
                ("TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_SESSION_STRING"))
 
 
+def google_maps_connected() -> bool:
+    v = os.getenv("GOOGLE_MAPS_API_KEY") or dotenv_values(".env").get("GOOGLE_MAPS_API_KEY") or ""
+    return bool(v) and not v.startswith("your_")
+
+
 def openai_configured() -> bool:
     return bool(os.getenv("OPENAI_API_KEY") or dotenv_values(".env").get("OPENAI_API_KEY", ""))

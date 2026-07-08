@@ -41,6 +41,7 @@ export interface EnvVar {
 
 export interface SettingsResponse {
   integrations: Integrations;
+  is_admin: boolean;
   env: Record<string, EnvVar>;
   models: string[];
   gemini_models: string[];

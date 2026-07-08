@@ -1,43 +1,84 @@
-"""Auth endpoints — name-based login that returns a Bearer token (see api/auth.py).
+"""Auth endpoints — email + OTP login/registration.
 
-These routes are mounted WITHOUT the `current_user` dependency (you can't be
-logged in yet when you log in). Every other /api router is gated on the token.
+Mounted WITHOUT the Bearer guard (you can't be logged in yet when you log in).
+Flow: POST /auth/request-otp {email} → a code is emailed; POST /auth/verify-otp
+{email, code} → on success you're registered (if new) and get a Bearer token.
+
+Set OTP_DEV_ECHO=1 to also log the code to the server console (local testing
+without a working Gmail connection). Never enable that on a public deployment.
 """
+
+import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from api.auth import USERS, canonical_user, current_user, issue_token
+from api import auth as A
+from api import email_service as mail
+from api.auth import current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-class LoginRequest(BaseModel):
-    name: str
+class EmailRequest(BaseModel):
+    email: str
 
 
-class LoginResponse(BaseModel):
+class VerifyRequest(BaseModel):
+    email: str
+    code: str
+
+
+class TokenResponse(BaseModel):
     token: str
     user: str
+    is_admin: bool
+    new_account: bool
 
 
-@router.get("/users")
-def list_users() -> dict[str, list[str]]:
-    """The known account names — used by the login screen to offer quick picks."""
-    return {"users": USERS}
+def _dev_echo() -> bool:
+    return os.getenv("OTP_DEV_ECHO", "0").strip().lower() in ("1", "true", "yes")
 
 
-@router.post("/login", response_model=LoginResponse)
-def login(req: LoginRequest) -> LoginResponse:
-    user = canonical_user(req.name)
-    if user is None:
-        raise HTTPException(status_code=401, detail=f"Unknown user '{req.name.strip()}'.")
-    token = issue_token(user)
-    assert token is not None  # canonical_user already validated membership
-    return LoginResponse(token=token, user=user)
+@router.post("/request-otp")
+def request_otp(req: EmailRequest) -> dict:
+    email = A.normalize_email(req.email)
+    if email is None:
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+
+    code, new_account = A.request_otp(email)  # raises 429 on rate limit
+
+    try:
+        mail.send_otp_email(email, code)
+    except mail.EmailError as exc:
+        if _dev_echo():
+            print(f"[auth] OTP for {email}: {code}  (email send failed: {exc})", flush=True)
+            return {"ok": True, "new_account": new_account, "dev_echo": True}
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    if _dev_echo():
+        print(f"[auth] OTP for {email}: {code}", flush=True)
+    return {"ok": True, "new_account": new_account}
+
+
+@router.post("/verify-otp", response_model=TokenResponse)
+def verify_otp(req: VerifyRequest) -> TokenResponse:
+    email = A.normalize_email(req.email)
+    if email is None:
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+    if not A.verify_otp(email, req.code):
+        raise HTTPException(status_code=400, detail="Invalid or expired code.")
+
+    new_account = A.register_or_touch(email)
+    return TokenResponse(
+        token=A.issue_token(email),
+        user=email,
+        is_admin=A.is_admin(email),
+        new_account=new_account,
+    )
 
 
 @router.get("/me")
-def me(user: str = Depends(current_user)) -> dict[str, str]:
+def me(user: str = Depends(current_user)) -> dict:
     """Echo the authenticated user — the frontend uses this to validate a stored token."""
-    return {"user": user}
+    return {"user": user, "is_admin": A.is_admin(user)}

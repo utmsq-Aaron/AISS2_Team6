@@ -190,8 +190,11 @@ def strava_save_token(token: dict) -> dict:
 
 _GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-# Read + write: calendar.readonly powers list/get; calendar.events lets the
-# create_event tool add events. (calendar.events alone does not grant reads.)
+# User-facing Google connect = CALENDAR ONLY (read + write events). This is the
+# integration any logged-in user may (re)connect, so it must NOT request gmail.send
+# — the OTP-email credential lives separately in google_mail.json (api/email_service)
+# and the admin connects it via auth/google_oauth.py. calendar.events alone grants
+# no reads, hence both calendar scopes.
 _GOOGLE_SCOPE = ("https://www.googleapis.com/auth/calendar.readonly "
                  "https://www.googleapis.com/auth/calendar.events")
 

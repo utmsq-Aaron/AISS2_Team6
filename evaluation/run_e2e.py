@@ -137,7 +137,8 @@ def main(argv: list[str] | None = None) -> int:
                 "timestamp": ts,
                 "max_turns": args.max_turns,
             }
-            print("\n✍  Writing HTML report with", config.REPORT_MODEL_RAW, "…")
+            print("\n✍  Rendering HTML report (template + prose by",
+                  config.PERSONA_REPORT_MODEL_RAW, ")…")
             facts = report_mod.collect_facts(experiment, results, persona_records, run_meta)
             config.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
             facts_path = config.REPORTS_DIR / f"{exp_name}.facts.json"

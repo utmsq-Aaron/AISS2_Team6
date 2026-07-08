@@ -13,6 +13,7 @@ polyline>=2.0.0
 staticmap>=0.5.7           # static route-map PNGs for the Telegram bridge (no browser)
 garminconnect>=0.3.0
 telethon>=1.42.0          # Settings-tab Telegram session-string generation
+qrcode>=7,<9              # optional: in-terminal QR for `telegram_bridge.py --login-qr`
 playwright>=1.44.0
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0

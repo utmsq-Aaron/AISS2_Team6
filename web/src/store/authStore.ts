@@ -1,31 +1,37 @@
 import { create } from "zustand";
 
-// Quasi-login state for the prototype. The Bearer token (and the display name) are
-// persisted to localStorage so a refresh keeps you signed in. Identity only — the
-// token just tells the API who is asking; everyone sees the same shared data.
+// Auth state for the email + OTP login. The Bearer token, the user's email, and
+// whether they're the admin are persisted to localStorage so a refresh keeps you
+// signed in. Identity only — the token tells the API who is asking; only the admin
+// may open Settings.
 
 const TOKEN_KEY = "fitdash.token";
 const USER_KEY = "fitdash.user";
+const ADMIN_KEY = "fitdash.admin";
 
 interface AuthState {
   token: string | null;
   user: string | null;
-  login: (token: string, user: string) => void;
+  isAdmin: boolean;
+  login: (token: string, user: string, isAdmin: boolean) => void;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: localStorage.getItem(TOKEN_KEY),
   user: localStorage.getItem(USER_KEY),
-  login: (token, user) => {
+  isAdmin: localStorage.getItem(ADMIN_KEY) === "1",
+  login: (token, user, isAdmin) => {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, user);
-    set({ token, user });
+    localStorage.setItem(ADMIN_KEY, isAdmin ? "1" : "0");
+    set({ token, user, isAdmin });
   },
   logout: () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    set({ token: null, user: null });
+    localStorage.removeItem(ADMIN_KEY);
+    set({ token: null, user: null, isAdmin: false });
   },
 }));
 

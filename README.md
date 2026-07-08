@@ -9,7 +9,7 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
 - **Dashboard** — activity map, summary metrics, training charts, live weather widget (temperature, wind, UV, pollen).
 - **Activity Analysis** — stream-based charts (HR, pace, elevation, cadence, power) with colourised route overlays selectable by metric.
 - **Health** — Garmin wellness trends: Body Battery, sleep stages, stress, HR, steps, training metrics, HRV.
-- **Chat** — AI sports analyst backed by a LangGraph + A2A multi-agent system: an orchestrator delegates to recovery / training-load / context / route specialists (each scoped to its own MCP tools) and synthesises a data-driven answer from live data only.
+- **Chat** — AI sports analyst backed by a LangGraph + A2A multi-agent system: an orchestrator delegates to recovery / training-load / context / route specialists (each scoped to its own MCP tools) and synthesises a data-driven answer from live data only. **Persistent per-user chat sessions** — a chat list on the left, "New chat", and history that survives server restarts; answers keep streaming even when you switch chats or panels.
 - **Routes** — route planning powered by OpenRouteService: circular routes, A→B routes, trail search, isochrone maps.
 - **Sync** — export Garmin activities to Strava as FIT files with preview and selection controls.
 - **Settings** — configure all API connections (LLM key, Strava OAuth, Garmin, ORS) directly in the app.
@@ -30,15 +30,15 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
                      │  Streamable HTTP
      ┌───────────────┼───────────────┐
      ▼               ▼               ▼
- :8101 weather   :8103 strava    :8104 garmin
- :8102 routes    :8105 calendar  :8106 telegram*
+ :8101 weather   :8103 strava    :8104 garmin     :8107 flythrough
+ :8102 routes    :8105 calendar  :8106 telegram*  :8108 google_maps*
  (native FastMCP servers — each an independent process)
- (* telegram = Streamable-HTTP proxy to the external stdio telegram-mcp, optional)
+ (* telegram & google_maps = Streamable-HTTP proxies to external stdio MCP servers; need extra setup)
 ```
 
 All data flows through the MCP servers — the UI never calls Strava or Garmin APIs directly. Each server handles auth, retries, and data formatting; the UI receives clean, ready-to-display JSON.
 
-The **Chat** tab is powered by a **LangGraph + A2A multi-agent** system. An **Orchestrator Agent** (`core/orchestrator_agent.py`, A2A server :9000) decomposes each request and delegates over the **Agent-to-Agent (A2A) protocol** to four specialist agents — **Recovery** :9001, **Training-Load** :9002, **Context** :9003, **Route** :9004 — each a LangGraph ReAct agent scoped to just its MCP servers (recovery→Garmin, load→Strava+Garmin, context→Weather+Calendar, route→Routes). Tools are still discovered via `ToolHost`, never hardcoded — only narrowed per agent. `core/orchestrator.py` is now a thin A2A client adapter, so the Chat tab, the FastAPI layer and the Telegram bridge keep the same interface.
+The **Chat** tab is powered by a **LangGraph + A2A multi-agent** system. An **Orchestrator Agent** (`core/orchestrator_agent.py`, A2A server :9000) decomposes each request and delegates over the **Agent-to-Agent (A2A) protocol** to four specialist agents — **Recovery** :9001, **Training-Load** :9002, **Context** :9003, **Route** :9004 — each a LangGraph ReAct agent scoped to just its MCP servers (recovery→Garmin, load→Strava+Garmin, context→Weather+Calendar, route→Routes+Google Maps). Tools are still discovered via `ToolHost`, never hardcoded — only narrowed per agent. `core/orchestrator.py` is now a thin A2A client adapter, so the Chat tab, the FastAPI layer and the Telegram bridge keep the same interface.
 
 ## Project Layout
 
@@ -73,7 +73,8 @@ fitdash/
 │   ├── strava_mcp.py            # FastMCP server — Strava v3 API, OAuth2 (port 8103)
 │   ├── garmin_mcp.py            # FastMCP server — Garmin Connect (port 8104)
 │   ├── calendar_mcp.py          # FastMCP server — Google Calendar, read-only (port 8105)
-│   └── telegram_mcp.py          # Proxy → external stdio telegram-mcp (port 8106, optional)
+│   ├── telegram_mcp.py          # Proxy → external stdio telegram-mcp (port 8106, optional)
+│   └── google_maps_mcp.py       # Proxy → @modelcontextprotocol/server-google-maps via npx (port 8108)
 │
 └── ui/
     ├── shared.py                # ToolHost singleton, call_tool(), connection checks
@@ -152,6 +153,10 @@ Each server is a self-contained FastMCP service. The UI calls every tool via `ca
 
 Unlike the others, this is **not** a native FastMCP server. [`servers/telegram_mcp.py`](servers/telegram_mcp.py) is a thin proxy that runs the external [chigwell/telegram-mcp](https://github.com/chigwell/telegram-mcp) (stdio-only) unmodified in its own `uv` environment and re-exposes its tools over Streamable HTTP, so `ToolHost` reaches them like any other server. Tools are discovered live (`telegram__send_message`, `telegram__list_chats`, `telegram__search_messages`, …) — send/edit/delete/forward/pin messages, manage chats, contacts, media and drafts. Set `TELEGRAM_EXPOSED_TOOLS=read-only` to expose only read tools. See [Telegram Setup](#telegram-setup).
 
+### Google Maps (port 8108) — optional, 7 tools
+
+Also a proxy, not a native server. [`servers/google_maps_mcp.py`](servers/google_maps_mcp.py) bridges the upstream [`@modelcontextprotocol/server-google-maps`](https://www.npmjs.com/package/@modelcontextprotocol/server-google-maps) (stdio, launched with `npx`) onto the Streamable-HTTP bus, so `ToolHost` reaches it like any other server. Tools are discovered live: `google_maps__maps_geocode`, `maps_reverse_geocode`, `maps_search_places`, `maps_place_details`, `maps_directions`, `maps_distance_matrix`, `maps_elevation` — geocoding, place/POI search, place details, directions, travel-time matrices and elevation. Scoped to the **Route** agent. Needs **Node.js/`npx`** on PATH and **`GOOGLE_MAPS_API_KEY`** (enable the Places API + Geocoding/Directions). Note: the upstream package is the deprecated reference server and calls Google's legacy Places API.
+
 ## Adding a New Server
 
 One file + one line — see [`docs/mcp-architecture.md`](docs/mcp-architecture.md) §3 for the full walkthrough.
@@ -162,7 +167,7 @@ import os
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("example", host="127.0.0.1",
-              port=int(os.getenv("EXAMPLE_MCP_PORT", "8108")), stateless_http=True)
+              port=int(os.getenv("EXAMPLE_MCP_PORT", "8109")), stateless_http=True)
 
 @mcp.tool()
 def my_tool(param: str) -> dict:
@@ -175,7 +180,7 @@ if __name__ == "__main__":
 
 Then one line in `core/config.py`:
 ```python
-"example": _url("example", 8108),
+"example": _url("example", 8109),
 ```
 
 Start with `python -m servers.example_mcp`. `ToolHost` discovers the new tools automatically; the Chat agent can call them immediately — no other file needs to change.
@@ -282,7 +287,9 @@ It runs as a **userbot** (it replies *as you*) in its own long-running process:
 python telegram_bridge.py
 ```
 
-By default it answers **DMs only** and is open to **anyone** who messages you; restrict with `TELEGRAM_ALLOWED_USERS`, allow groups with `TELEGRAM_BRIDGE_ALLOW_GROUPS=true` (see `.env.example`). ⚠️ Over Telegram the agent keeps **all** its tools — including the ones that read/send messages on your own account — so anyone you allow effectively controls them.
+**Login (email + OTP).** A Telegram user must sign in with the **same email account as the web app** before the agent responds: send **`/login`** → reply with your email → reply with the emailed code. The Telegram id is then **permanently linked** to that account (`core/telegram_link.py`, persisted in `data/telegram_links.json`), so the agent runs **as that email** — same Strava/Garmin connections and the **same per-user memory** as on the web — and you never log in again until you send **`/logout`**. Until logged in, any message gets an automated "please /login" reply. (The OTP email is sent by the admin Gmail, same as the web login.)
+
+By default it answers **DMs only**; restrict who can even reach the login with `TELEGRAM_ALLOWED_USERS`, allow groups with `TELEGRAM_BRIDGE_ALLOW_GROUPS=true` (see `.env.example`). ⚠️ Once logged in, the agent keeps **all** its tools — including the ones that read/send messages on the linked Telegram account.
 
 Reusing your existing session string is fine. Only if you run the bridge **and** the `telegram_mcp` proxy at the same time, give the bridge its own login so Telegram doesn't revoke the shared key:
 
@@ -331,6 +338,69 @@ streamlit run app.py
 
 Open [http://localhost:8501](http://localhost:8501).
 
+## Serving it publicly (single host, e.g. a Mac mini)
+
+To host the **React app** for others over the internet there's a one-command launcher:
+
+```bash
+./server-start.sh             # everything in one terminal (logs to /tmp) — headless/launchd-safe
+./server-start.sh --windows   # open separate macOS Terminal windows: App + Telegram bridge
+```
+
+It builds the SPA and starts everything (MLflow + MCP servers + agents + FastAPI + the
+Node BFF + the **Telegram bridge** if configured), puts the app behind a shared **PIN
+gate** (PIN **`230626`**), and publishes it over HTTPS via **Tailscale Funnel** — using a
+stable signing key persisted in `.secrets/auth_secret` so logins survive restarts. Only
+the BFF (`127.0.0.1:3000`) is fronted; FastAPI, the agents and the MCP servers stay on
+localhost. (`./serve.sh` is the underlying launcher if you want to pass your own
+`APP_PIN` / `AUTH_SECRET` / `FUNNEL` / `TELEGRAM_BRIDGE` / `TELEGRAM_MCP`.)
+
+> The Telegram bridge starts when `.env` has the `TELEGRAM_*` config. If both the bridge
+> and the `telegram_mcp` proxy are requested but share one session string, the launcher
+> starts only the bridge (running both on one login risks Telegram revoking it) — set a
+> dedicated `TELEGRAM_BRIDGE_SESSION_STRING` (`python telegram_bridge.py --login`) to run both.
+
+**Auth model:** login is **email + OTP** — a visitor enters their email, gets a 6-digit
+code (emailed *from* the admin Gmail), and enters it; the first time registers the account
+(`data/accounts.json`). The shared PIN gates *reaching* the login screen. **Settings** is open
+to every logged-in user, but only for connecting their own data sources — **Strava, Garmin,
+Google Calendar**. The privileged cards (LLM keys, Telegram, server restart, env editing) and
+the email Google connection are **admin-only** (`kit.aiss2026@gmail.com`).
+
+> **Two separate Google tokens, on purpose.** The user-connectable **calendar** token
+> (`.tokens/google.json`, calendar scopes only) is kept apart from the admin's **email
+> sender** token (`.tokens/google_mail.json`, `gmail.send`). So a user (re)connecting Google
+> Calendar in Settings can never clobber or downgrade the credential that sends login emails.
+
+**Two one-time setup steps** the launcher can't do for you (it preflight-warns if they're
+missing):
+
+1. **Connect the admin email sender** (powers OTP login emails). On the host, sign in as
+   `kit.aiss2026@gmail.com`:
+   ```bash
+   python auth/google_oauth.py     # writes .tokens/google_mail.json (gmail.send)
+   ```
+   …and enable the **Gmail API** (and **Calendar API**) for the project in the
+   [Google Cloud console](https://console.cloud.google.com/apis/library). Register the
+   redirect URI `http://localhost:8000/api/settings/google/callback`.
+   *(Calendar itself is connected in-app from Settings — by the admin or any user. The OTP
+   sender stays in its own token so that can't break it.)*
+   *(Chicken-and-egg note: OTP email needs this connected before the first login — do the CLI
+   step above, or start once with `OTP_DEV_ECHO=1` to read codes from `/tmp/fitdash_api.log`.)*
+2. **Install Tailscale** for the public URL:
+   ```bash
+   brew install tailscale && sudo tailscale up   # then enable Funnel + HTTPS in the admin console
+   ```
+   Without it, the app still runs but **local-only** (no public URL).
+
+Then: open the public `https://<host>.<tailnet>.ts.net` URL → enter PIN **230626** → log in
+by email. Full detail (autostart on boot via `launchd`, custom domains, security notes) is in
+[`docs/deploy-macmini.md`](docs/deploy-macmini.md).
+
+**Required env for a public deploy** (in `.env`): the usual `OPENAI_*` / `AGENT_MODEL`, the
+`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, and optionally `ADMIN_EMAIL` (defaults to
+`kit.aiss2026@gmail.com`). `AUTH_SECRET` is generated for you on first run.
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -349,3 +419,9 @@ Open [http://localhost:8501](http://localhost:8501).
 | Telegram bridge silent / no reply | Confirm the MCP servers are up (it logs `Agent ready — N tools`), the message is a **DM** (groups are off unless `TELEGRAM_BRIDGE_ALLOW_GROUPS=true`), and the sender is allowed (`TELEGRAM_ALLOWED_USERS`). |
 | Voice memo not transcribed | First memo downloads the Whisper model (wait a bit); the bridge logs `🎤 transcribed via … (lang=…)`. Ensure `faster-whisper` is installed. The mlx engine additionally needs `brew install ffmpeg`. |
 | New activities not visible | Use **🔄 Refresh data** in the sidebar to clear the cache. |
+| Login OTP request stuck on "Sending…" / `(pending)` | The PIN gate must scope `express.json()` to `/bff/login` only (global parsing hangs proxied POSTs). Restart the BFF (`server-start.sh`) so it picks up `server/index.js`. |
+| OTP email never arrives / `502` on request-otp | Google/Gmail not connected or missing the `gmail.send` scope. Run `python auth/google_oauth.py` (as `kit.aiss2026@gmail.com`) and enable the **Gmail API** in the Cloud console. Check Spam. For local testing without email, start with `OTP_DEV_ECHO=1` and read the code from `/tmp/fitdash_api.log`. |
+| "Invalid or expired code" | Codes expire in 10 min and burn after 5 wrong tries — request a fresh one. |
+| Settings only shows Strava/Garmin/Calendar | Expected for non-admins — LLM/Telegram/restart cards are admin-only. Log in as `kit.aiss2026@gmail.com` (the `ADMIN_EMAIL`) for the full Settings. |
+| User's Google Calendar connect broke OTP email | Shouldn't happen — email uses a separate `.tokens/google_mail.json`. If it does, re-run `python auth/google_oauth.py` (as the admin) to refresh that token; calendar connects only touch `.tokens/google.json`. |
+| Everyone logged out after a restart | `AUTH_SECRET` changed. `server-start.sh` persists a stable one in `.secrets/auth_secret`; don't pass a different `AUTH_SECRET` over it. |

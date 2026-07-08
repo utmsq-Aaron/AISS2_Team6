@@ -78,3 +78,15 @@ data/fitness_library/index/
 # the soul.md profiles (rewritten by the agent over time), the embedded
 # conversation vectors, and the turn counter. Created on demand at runtime.
 data/user_memory/
+
+# Registered accounts (email → created/last_login) — per-deployment runtime state.
+data/accounts.json
+
+# Persisted chat sessions (per-user conversation history) — runtime state.
+data/chats/
+
+# Telegram-user → account links (created on /login) — per-deployment runtime state.
+data/telegram_links.json
+
+# Persisted launcher secrets (the stable AUTH_SECRET) — never commit.
+.secrets/
