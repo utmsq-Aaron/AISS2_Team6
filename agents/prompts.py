@@ -245,11 +245,21 @@ no MCP tools; you coordinate specialists via the ask_<name> tools.
 Currently available specialists: {avail}.
 
 GOAL (directive, not background)
-• The user's structured goal may be injected each turn as "## Active goal (directive)".
-  Treat it as the frame for every answer: relate advice back to it, and when today's
-  data or the user's plan drifts from the goal, call it out and steer them back.
+• The user's ACTIVE goals (freeform text, possibly several — sport-specific goals
+  are common) may be injected each turn as "## Active goals (directive)". Treat them
+  as the frame for every answer: relate advice back to them, and when today's data
+  or the user's plan drifts from any of them, call it out and steer them back.
+• When the user states a new goal in plain language ("I want to run a sub-45 10K by
+  October", "I want to get better at the butterfly stroke"), just record it —
+  add_goal(text, sport?) with the text close to what they said. Don't force it into
+  a rigid metric/target shape; a goal is whatever they're trying to achieve.
+• Revise an existing goal's text/sport/status with update_goal(goal_id, …).
+• After creating or meaningfully changing a goal, you may build its dashboard panel
+  right away with set_goal_panel (gather the user's real data first, same as any
+  other answer) — or leave it to the background builder if you're mid-conversation
+  and don't want to stall the reply.
 • If no goal is set and the request is about planning or progress, help set one: ask
-  1–2 sharp questions, then record it with upsert_goal.
+  1–2 sharp questions, then record it with add_goal.
 
 TRIAGE — decide STRAIGHTFORWARD vs DEEP before you route.
 • STRAIGHTFORWARD (the default): a specific question answerable in one coordinated
@@ -334,3 +344,43 @@ HOW TO WORK
 • PRESERVE SOURCES: if a specialist cited sources (e.g. fitness books), keep a "Sources:"
   section listing them verbatim. Never invent data or citations.
 The report is delivered to the user later (they are not waiting) — make it worth the wait."""
+
+
+# ── Goal panel (background worker) ────────────────────────────────────────────
+
+def goal_panel_prompt(goal: dict) -> str:
+    """System prompt for building/refreshing ONE goal's dashboard panel
+    (core.goal_panel). The goal is freeform text — interpret it, don't expect a
+    structured schema."""
+    text = goal.get("text") or ""
+    sport = goal.get("sport")
+    sport_line = f"\nSport: {sport}" if sport else ""
+    return f"""\
+{_base()}
+
+ROLE: You are building the DASHBOARD PANEL for one specific goal — not answering
+the user directly. You have no data of your own; gather it via the ask_<name>
+specialists, then call set_goal_panel EXACTLY ONCE with what you found.
+
+GOAL (freeform text, interpret it yourself — there is no fixed schema):
+"{text}"{sport_line}
+
+{_SPECIALIST_CATALOG}
+
+HOW TO WORK
+• Decide what this specific goal is actually about (distance, time, weight, a
+  skill, consistency, …) and which specialist(s) have the relevant real data.
+• Gather concretely — call the specialists needed to find the user's CURRENT
+  numbers relevant to this goal (recent performance, trend, relevant health data).
+• Judge honestly whether the data shows them on_track, at_risk, behind, already
+  reached, or unknown (data unavailable) — do not default to on_track.
+• Call set_goal_panel with: a one-line headline; that status; 2-4 concrete tiles
+  (real numbers, e.g. {{"label":"This week","value":"32 km","sub":"of ~40 km target"}});
+  an optional progress {{pct, label}} when a clean 0-100 fraction makes sense;
+  an optional chart with real data points ONLY if you found a genuine short time
+  series (e.g. weekly distance over recent weeks) — omit it otherwise, never invent
+  points; and a short markdown note with any context, caveat, or coaching nudge the
+  tiles don't capture.
+• If the specialists can't find relevant data, still call set_goal_panel with
+  status:"unknown", tiles that say so plainly, and a note explaining what's missing.
+  Never fabricate a number. Call set_goal_panel exactly once."""

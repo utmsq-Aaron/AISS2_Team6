@@ -88,5 +88,13 @@ data/chats/
 # Telegram-user → account links (created on /login) — per-deployment runtime state.
 data/telegram_links.json
 
+# Proactive scheduler + deep-analysis + goal-panel runtime state (schedule_store,
+# proactive_outbox, deep_jobs, goal_build_queue) — all per-deployment, never commit.
+data/schedules.json
+data/schedule_fired.json
+data/proactive/
+data/deep_jobs/
+data/goal_build/
+
 # Persisted launcher secrets (the stable AUTH_SECRET) — never commit.
 .secrets/

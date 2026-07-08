@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { CoachPoll } from "./components/CoachPoll";
+import { GoalPoll } from "./components/GoalPoll";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { Analysis } from "./pages/Analysis";
@@ -20,6 +21,7 @@ export default function App() {
   return (
     <div className="flex h-screen overflow-hidden bg-bg-app text-text-primary">
       <CoachPoll />
+      <GoalPoll />
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />

@@ -14,8 +14,6 @@ can reload the full history after a restart.
 
 from __future__ import annotations
 
-import contextlib
-import json
 import re
 import threading
 import uuid
@@ -23,12 +21,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-try:
-    import fcntl  # Unix (macOS/Linux) — cross-process advisory file lock
-except ImportError:  # pragma: no cover — non-Unix falls back to threading only
-    fcntl = None  # type: ignore
-
+from core import jsonstore
 from core.llm import _env
+
+# Cross-process JSON safety (lock + atomic write + slug) lives in core.jsonstore —
+# shared with core.goal_store, since coach.json / goals.json are written by both
+# FastAPI and the Telegram bridge. These aliases keep the rest of this module intact.
+_slug = jsonstore.slugify
+_flock = jsonstore.flock
+_read = jsonstore.read_json
+_write = jsonstore.atomic_write
 
 _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_DIR = _ROOT / "data" / "chats"
@@ -46,11 +48,6 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _slug(user: str) -> str:
-    """Filesystem-safe per-user dir (also guards against path traversal)."""
-    return re.sub(r"[^a-z0-9_-]+", "-", (user or "").strip().lower()).strip("-") or "anon"
-
-
 def _root() -> Path:
     raw = _env("CHATS_DIR", "")
     return Path(raw) if raw else _DEFAULT_DIR
@@ -66,62 +63,6 @@ def _chat_path(user: str, chat_id: str) -> Optional[Path]:
     if chat_id != COACH_CHAT_ID and not re.fullmatch(r"[a-f0-9]{6,40}", chat_id or ""):
         return None
     return _user_dir(user) / f"{chat_id}.json"
-
-
-@contextlib.contextmanager
-def _flock(path: Path):
-    """Best-effort cross-process exclusive lock on one chat file.
-
-    The Coach chat (``coach.json``) is written by TWO processes — FastAPI and the
-    Telegram bridge — so the module ``threading.Lock`` (per-process) isn't enough;
-    without this a concurrent append + mark_read would clobber each other
-    (last-writer-wins). On non-Unix (no ``fcntl``) this is a no-op.
-    """
-    if fcntl is None:
-        yield
-        return
-    lock_path = path.with_suffix(path.suffix + ".lock")
-    fh = None
-    try:  # acquire — any failure degrades to the threading lock alone
-        lock_path.parent.mkdir(parents=True, exist_ok=True)
-        fh = open(lock_path, "w")
-        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-    except OSError:
-        if fh is not None:
-            fh.close()
-            fh = None
-    try:  # run the guarded body exactly once; release in finally
-        yield
-    finally:
-        if fh is not None:
-            try:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
-            finally:
-                fh.close()
-
-
-def _read(path: Path) -> Optional[dict]:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-
-
-def _write(path: Path, chat: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    # Atomic write so a concurrent reader (list_chats/get_chat don't take the lock)
-    # never sees a half-written file — a torn read would parse as None and trigger
-    # the append_message recreate branch, silently dropping the chat's history.
-    tmp = path.with_suffix(path.suffix + f".tmp-{uuid.uuid4().hex[:8]}")
-    try:
-        tmp.write_text(json.dumps(chat, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(path)  # os.replace — atomic on POSIX
-    except OSError:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
-        raise
 
 
 def _summary(chat: dict) -> dict:

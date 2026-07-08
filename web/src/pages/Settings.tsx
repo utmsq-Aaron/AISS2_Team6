@@ -12,9 +12,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { PageHeader } from "../components/PageHeader";
 import { Spinner, ErrorBox } from "../components/Spinner";
-import { GoalForm } from "../components/goal/GoalForm";
-import { GoalCard } from "../components/goal/GoalCard";
-import { useDeleteGoal, useGoal, useGoalProgress, usePutGoal } from "../lib/goalQueries";
+import { AddGoalInput } from "../components/goal/AddGoalInput";
+import { GoalPanel } from "../components/goal/GoalPanel";
+import type { Goal } from "../lib/api";
+import {
+  useAddGoal,
+  useDeleteGoal,
+  useGoals,
+  useRefreshGoalPanel,
+  useUpdateGoal,
+} from "../lib/goalQueries";
 import {
   getSettings,
   getModels,
@@ -842,83 +849,201 @@ function DeveloperSection() {
   );
 }
 
-// ── Training goal (shares hooks with the Dashboard) ─────────────────────────────
-function TrainingGoalCard() {
-  const goalQ = useGoal();
-  const progressQ = useGoalProgress();
-  const putGoal = usePutGoal();
+// ── Training goals manager (shares hooks with the Dashboard) ─────────────────────
+// The only place a user can permanently delete a goal or see archived/achieved
+// ones. Active goals render full GoalPanels (same component as the Dashboard);
+// archived + achieved collapse into a compact secondary section with Restore /
+// delete actions.
+function GoalRow({
+  goal,
+  onEdit,
+  onArchive,
+  onRestore,
+  onDelete,
+  onRefresh,
+  refreshing,
+  deleting,
+}: {
+  goal: Goal;
+  onEdit: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
+  onDelete: () => void;
+  onRefresh: () => void;
+  refreshing?: boolean;
+  deleting?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-b border-border py-3 last:border-b-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-text-primary" title={goal.text}>
+            {goal.text}
+          </p>
+          <p className="text-xs text-text-muted">
+            {goal.status === "achieved" ? "Achieved" : "Archived"}
+            {goal.sport ? ` · ${goal.sport}` : ""}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <button className="fd-btn-secondary text-xs" onClick={onRestore}>
+            ↩️ Restore
+          </button>
+          <button
+            className="fd-btn-secondary text-xs"
+            onClick={onDelete}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting…" : "🗑️ Delete"}
+          </button>
+        </div>
+      </div>
+      {goal.status === "achieved" && (
+        <GoalPanel
+          goal={goal}
+          onRefresh={onRefresh}
+          onEdit={onEdit}
+          onArchive={onArchive}
+          onRestore={onRestore}
+          refreshing={refreshing}
+        />
+      )}
+    </div>
+  );
+}
+
+function TrainingGoalsManager() {
+  const goalsQ = useGoals();
+  const addGoal = useAddGoal();
+  const updateGoal = useUpdateGoal();
   const deleteGoal = useDeleteGoal();
-  const [editing, setEditing] = useState(false);
+  const refreshPanel = useRefreshGoalPanel();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
-  const goal = goalQ.data ?? null;
-  const saveError = putGoal.isError
-    ? putGoal.error instanceof Error
-      ? putGoal.error.message
-      : "Failed to save goal."
-    : undefined;
+  const goals = goalsQ.data ?? [];
+  const active = goals.filter((g) => g.status === "active");
+  const inactive = goals.filter((g) => g.status !== "active");
 
-  function submit(v: Parameters<typeof putGoal.mutate>[0]) {
-    putGoal.mutate(v, { onSuccess: () => setEditing(false) });
+  function startEdit(goal: Goal) {
+    setEditingId(goal.id);
+    setEditText(goal.text);
+  }
+
+  function commitEdit(goal: Goal) {
+    const text = editText.trim();
+    setEditingId(null);
+    if (text && text !== goal.text) {
+      updateGoal.mutate({ id: goal.id, patch: { text } });
+    }
   }
 
   return (
     <div>
-      <h3 className="mb-2 text-lg font-semibold text-text-primary">🎯 Training Goal</h3>
+      <h3 className="mb-2 text-lg font-semibold text-text-primary">🎯 Training Goals</h3>
       <p className="mb-3 text-sm text-text-muted">
-        Set the goal that drives your Dashboard. Your coach can also set or adjust it
-        from Chat — changes stay in sync everywhere.
+        Freeform goals — sport-specific ones are welcome. Your coach can also add or
+        adjust goals from Chat; changes stay in sync everywhere. This is also where you
+        can permanently delete a goal or view archived/achieved ones.
       </p>
 
-      {goalQ.isLoading ? (
-        <Spinner label="Loading goal…" />
-      ) : goalQ.isError ? (
-        <ErrorBox
-          message={`Couldn't load your goal: ${
-            goalQ.error instanceof Error ? goalQ.error.message : "unknown error"
-          }`}
-        />
-      ) : editing || !goal ? (
-        <div className="fd-card p-5">
-          <GoalForm
-            initial={goal}
-            onSubmit={submit}
-            onCancel={() => setEditing(false)}
-            saving={putGoal.isPending}
-            error={saveError}
+      <AddGoalInput
+        onAdd={(text, sport) => addGoal.mutate({ text, sport })}
+        adding={addGoal.isPending}
+      />
+      {addGoal.isError && (
+        <div className="mt-2">
+          <ErrorBox
+            message={addGoal.error instanceof Error ? addGoal.error.message : "Failed to add goal."}
           />
         </div>
-      ) : (
-        <>
-          <GoalCard
-            goal={goal}
-            progress={progressQ.data}
-            loading={progressQ.isFetching}
-            onEdit={() => setEditing(true)}
+      )}
+
+      <div className="mt-4">
+        {goalsQ.isLoading ? (
+          <Spinner label="Loading goals…" />
+        ) : goalsQ.isError ? (
+          <ErrorBox
+            message={`Couldn't load your goals: ${
+              goalsQ.error instanceof Error ? goalsQ.error.message : "unknown error"
+            }`}
           />
-          <div className="mt-3 flex gap-2">
-            <button className="fd-btn-secondary" onClick={() => setEditing(true)}>
-              ✏️ Edit goal
-            </button>
-            <button
-              className="fd-btn-secondary"
-              onClick={() => deleteGoal.mutate()}
-              disabled={deleteGoal.isPending}
-            >
-              {deleteGoal.isPending ? "Clearing…" : "🗑️ Clear goal"}
-            </button>
+        ) : active.length === 0 ? (
+          <p className="py-4 text-sm text-text-muted">No active goals yet — add one above.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {active.map((goal) =>
+              editingId === goal.id ? (
+                <div key={goal.id} className="fd-card p-5">
+                  <label className="fd-label mb-1 block">Edit goal</label>
+                  <input
+                    autoFocus
+                    className="fd-input w-full"
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitEdit(goal);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    onBlur={() => commitEdit(goal)}
+                  />
+                  <p className="mt-1.5 text-xs text-text-muted">
+                    Enter to save, Esc to cancel. Changing the text rebuilds the panel.
+                  </p>
+                </div>
+              ) : (
+                <GoalPanel
+                  key={goal.id}
+                  goal={goal}
+                  onRefresh={() => refreshPanel.mutate(goal.id)}
+                  onEdit={() => startEdit(goal)}
+                  onArchive={() => updateGoal.mutate({ id: goal.id, patch: { status: "archived" } })}
+                  refreshing={refreshPanel.isPending && refreshPanel.variables === goal.id}
+                />
+              ),
+            )}
           </div>
-          {deleteGoal.isError && (
-            <div className="mt-2">
-              <ErrorBox
-                message={
-                  deleteGoal.error instanceof Error
-                    ? deleteGoal.error.message
-                    : "Failed to clear goal."
-                }
-              />
+        )}
+      </div>
+
+      {inactive.length > 0 && (
+        <div className="mt-4">
+          <button
+            type="button"
+            className="fd-btn-ghost text-sm"
+            onClick={() => setShowArchived((s) => !s)}
+          >
+            {showArchived ? "▾" : "▸"} Archived & achieved goals ({inactive.length})
+          </button>
+          {showArchived && (
+            <div className="fd-card mt-2 px-4">
+              {inactive.map((goal) => (
+                <GoalRow
+                  key={goal.id}
+                  goal={goal}
+                  onEdit={() => startEdit(goal)}
+                  onArchive={() => updateGoal.mutate({ id: goal.id, patch: { status: "archived" } })}
+                  onRestore={() => updateGoal.mutate({ id: goal.id, patch: { status: "active" } })}
+                  onDelete={() => deleteGoal.mutate(goal.id)}
+                  onRefresh={() => refreshPanel.mutate(goal.id)}
+                  refreshing={refreshPanel.isPending && refreshPanel.variables === goal.id}
+                  deleting={deleteGoal.isPending && deleteGoal.variables === goal.id}
+                />
+              ))}
             </div>
           )}
-        </>
+        </div>
+      )}
+
+      {deleteGoal.isError && (
+        <div className="mt-2">
+          <ErrorBox
+            message={
+              deleteGoal.error instanceof Error ? deleteGoal.error.message : "Failed to delete goal."
+            }
+          />
+        </div>
       )}
     </div>
   );
@@ -999,7 +1124,7 @@ export function Settings() {
       ))}
 
       <div className="my-5 h-px bg-border" />
-      <TrainingGoalCard />
+      <TrainingGoalsManager />
 
       {isAdmin && (
         <>

@@ -100,80 +100,78 @@ export interface StoredChat {
   messages: StoredMessage[];
 }
 
-// ── Training goal (persistent, per-user) ─────────────────────────────────────
+// ── Training goals (multiple, freeform, per-user) ────────────────────────────
+// Each goal is just text (sport-specific goals are common); its dashboard PANEL
+// is authored by the agent — a structured spec + a free markdown note — and
+// builds in the background after creation/refresh/edit. Poll GET /goals and
+// watch panel_status: "empty" → "building" → "ready" | "error".
 
-/** A metric the user can set a goal against. */
-export type GoalMetric =
-  | "weekly_distance_km"
-  | "total_distance_km"
-  | "5k_time"
-  | "bodyweight_kg";
-export type GoalUnit = "km" | "mm:ss" | "kg";
-export type GoalDirection = "increase" | "decrease" | "maintain";
-export type GoalSource = "form" | "coach";
+export type GoalLifecycleStatus = "active" | "achieved" | "archived";
+export type GoalSource = "user" | "coach";
+export type PanelStatus = "empty" | "building" | "ready" | "error";
+/** The panel's HEALTH axis — distinct from Goal.status (the LIFECYCLE axis). */
+export type PanelHealthStatus = "on_track" | "at_risk" | "behind" | "reached" | "unknown";
 
-/** The saved goal object. `target` is seconds for the `5k_time` metric. */
+export interface PanelTile {
+  label: string;
+  value: string;
+  sub?: string;
+}
+
+export interface PanelProgress {
+  pct: number; // 0-100
+  label: string;
+}
+
+export interface PanelChart {
+  kind: "line" | "bar";
+  points: { x: string | number; y: number }[];
+  y_label?: string;
+}
+
+export interface Panel {
+  headline: string;
+  status: PanelHealthStatus;
+  tiles: PanelTile[]; // 2-4 entries
+  progress: PanelProgress | null;
+  note: string; // markdown
+  chart: PanelChart | null;
+  generated_at: string; // ISO
+}
+
 export interface Goal {
   id: string;
-  title: string;
-  why?: string;
-  metric: GoalMetric;
-  target: number;
-  unit: GoalUnit;
-  direction: GoalDirection;
-  deadline: string | null; // ISO date
-  baseline?: number;
-  status: string;
+  text: string; // freeform — the goal, in the user's/coach's words
+  sport?: string | null;
   source: GoalSource;
-  created_at: string;
-  updated_at: string;
+  status: GoalLifecycleStatus;
+  created_at: string; // ISO
+  updated_at: string; // ISO
+  panel: Panel | null;
+  panel_status: PanelStatus;
+  panel_updated_at: string | null;
 }
 
-/** The editable subset of a goal (what PUT /goals accepts). */
-export type GoalInput = Omit<Goal, "id" | "source" | "created_at" | "updated_at">;
+/** GET /goals — never 404s; `{goals: []}` for a new user. */
+export const listGoals = () => http<{ goals: Goal[] }>("/goals").then((r) => r.goals);
 
-export type GoalProgressStatus =
-  | "on_track"
-  | "at_risk"
-  | "behind"
-  | "reached"
-  | "unknown"
-  | "no_goal";
+/** POST /goals — create a goal from freeform text; its panel builds in the background. */
+export const addGoal = (text: string, sport?: string) =>
+  http<Goal>("/goals", { method: "POST", body: JSON.stringify({ text, sport }) });
 
-export interface GoalProgress {
-  status: GoalProgressStatus;
-  current?: number;
-  target?: number;
-  unit?: GoalUnit;
-  pct?: number;
-  on_track?: boolean;
-  delta_needed?: number;
-  direction?: GoalDirection;
-}
+/** PATCH /goals/{id} — update text/sport/status (send only what changed). */
+export const updateGoal = (
+  id: string,
+  patch: Partial<Pick<Goal, "text" | "sport" | "status">>,
+) => http<Goal>(`/goals/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
 
-/** GET /goals — an empty `{}` (no `id`) or a 404 both mean "no goal set" → null. */
-export async function getGoal(): Promise<Goal | null> {
-  try {
-    const g = await http<Goal | Record<string, never>>("/goals");
-    return g && "id" in g && g.id ? (g as Goal) : null;
-  } catch (e) {
-    if (e instanceof Error && /API 404/.test(e.message)) return null;
-    throw e;
-  }
-}
+/** DELETE /goals/{id} — permanently remove a goal. */
+export const deleteGoal = (id: string) =>
+  http<{ ok: boolean }>(`/goals/${id}`, { method: "DELETE" });
 
-/** PUT /goals — save (create or update) the goal; returns the saved object. */
-export const putGoal = (input: Partial<GoalInput>) =>
-  http<Goal>("/goals", { method: "PUT", body: JSON.stringify(input) });
-
-/** DELETE /goals — clear the goal. */
-export const deleteGoal = () => http<{ ok: boolean }>("/goals", { method: "DELETE" });
-
-/** GET /goals/progress — `status:"no_goal"` → null. */
-export async function getGoalProgress(): Promise<GoalProgress | null> {
-  const p = await http<GoalProgress>("/goals/progress");
-  return p.status === "no_goal" ? null : p;
-}
+/** POST /goals/{id}/refresh — kick a background panel rebuild from fresh data. */
+export const refreshGoalPanel = (id: string) =>
+  http<{ ok: boolean }>(`/goals/${id}/refresh`, { method: "POST", body: "{}" });
 
 export const listChats = () => http<{ chats: ChatSummary[] }>("/chats").then((r) => r.chats);
 export const createChat = () => http<StoredChat>("/chats", { method: "POST", body: "{}" });

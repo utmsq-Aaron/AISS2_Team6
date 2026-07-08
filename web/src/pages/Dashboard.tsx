@@ -1,23 +1,29 @@
-// Dashboard — a minimal, goal-centric home. The dense analytics that used to live
+// Dashboard — a minimal, multi-goal home. The dense analytics that used to live
 // here (period selector, activity search, 5-col metric grid, activity map + delete
 // + flythrough, recent activities, training charts, official Strava stats) now
-// live on the Analysis page. This page is: a slim athlete greeting, the goal
-// centrepiece, an "are you on track" signals row, and a coach placeholder.
+// live on the Analysis page. This page is: a slim athlete greeting, a responsive
+// grid of agent-authored goal panels, a quick weather glance, and a coach
+// placeholder.
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { ArrowRight, MessageSquare } from "lucide-react";
+import { ArrowRight, MessageSquare, Target } from "lucide-react";
 
-import { GoalCard } from "../components/goal/GoalCard";
-import { GoalEmptyState } from "../components/goal/GoalEmptyState";
-import { GoalFormModal } from "../components/goal/GoalFormModal";
+import { AddGoalInput } from "../components/goal/AddGoalInput";
+import { GoalPanel } from "../components/goal/GoalPanel";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner, ErrorBox } from "../components/Spinner";
 import { callTool } from "../lib/api";
-import { useGoal, useGoalProgress, usePutGoal } from "../lib/goalQueries";
-import { formatMetricValue } from "../lib/goalFormat";
+import type { Goal } from "../lib/api";
+import {
+  useAddGoal,
+  useDeleteGoal,
+  useGoals,
+  useRefreshGoalPanel,
+  useUpdateGoal,
+} from "../lib/goalQueries";
 import { useUiStore } from "../store/uiStore";
 import type { AthleteResult, AthleteProfile } from "../lib/stravaTypes";
 
@@ -43,14 +49,29 @@ const WMO: Record<number, string> = {
   95: "⛈️ Thunderstorm", 96: "⛈️ Thunderstorm", 99: "⛈️ Thunderstorm",
 };
 
+// Sort: building goals first (freshly added, visible at a glance), then newest.
+function sortGoals(goals: Goal[]): Goal[] {
+  return [...goals].sort((a, b) => {
+    const aBuilding = a.panel_status === "building" ? 0 : 1;
+    const bBuilding = b.panel_status === "building" ? 0 : 1;
+    if (aBuilding !== bBuilding) return aBuilding - bBuilding;
+    return (b.created_at || "").localeCompare(a.created_at || "");
+  });
+}
+
 export function Dashboard() {
   const refreshVersion = useUiStore((s) => s.refreshVersion);
-  const [modalOpen, setModalOpen] = useState(false);
 
-  // ── Goal ──
-  const goalQ = useGoal();
-  const progressQ = useGoalProgress();
-  const putGoal = usePutGoal();
+  // ── Goals ──
+  const goalsQ = useGoals();
+  const addGoal = useAddGoal();
+  const updateGoal = useUpdateGoal();
+  const deleteGoal = useDeleteGoal();
+  const refreshPanel = useRefreshGoalPanel();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  const activeGoals = sortGoals((goalsQ.data ?? []).filter((g) => g.status === "active"));
 
   // ── Athlete (name + avatar only) ──
   const athleteQ = useQuery({
@@ -69,63 +90,26 @@ export function Dashboard() {
     queryFn: () => callTool<CurrentWeather>("weather__get_current_weather", coords),
   });
 
-  const goal = goalQ.data ?? null;
-  const progress = progressQ.data ?? null;
+  function startEdit(goal: Goal) {
+    setEditingId(goal.id);
+    setEditText(goal.text);
+  }
 
-  function handleSubmit(v: Parameters<typeof putGoal.mutate>[0]) {
-    putGoal.mutate(v, { onSuccess: () => setModalOpen(false) });
+  function commitEdit(goal: Goal) {
+    const text = editText.trim();
+    setEditingId(null);
+    if (text && text !== goal.text) {
+      updateGoal.mutate({ id: goal.id, patch: { text } });
+    }
   }
 
   return (
     <div>
-      {modalOpen && (
-        <GoalFormModal
-          initial={goal}
-          onSubmit={handleSubmit}
-          onClose={() => setModalOpen(false)}
-          saving={putGoal.isPending}
-          error={
-            putGoal.isError
-              ? putGoal.error instanceof Error
-                ? putGoal.error.message
-                : "Failed to save goal."
-              : undefined
-          }
-        />
-      )}
-
       <AthleteGreeting profile={profile} loading={athleteQ.isLoading} />
 
-      {/* ── Goal centrepiece ── */}
+      {/* ── Quick glance ── */}
       <section className="mt-4">
-        {goalQ.isLoading ? (
-          <div className="fd-card p-6">
-            <Spinner label="Loading your goal…" />
-          </div>
-        ) : goalQ.isError ? (
-          <ErrorBox
-            message={`Couldn't load your goal: ${
-              goalQ.error instanceof Error ? goalQ.error.message : "unknown error"
-            }`}
-          />
-        ) : goal ? (
-          <GoalCard
-            goal={goal}
-            progress={progress}
-            loading={progressQ.isFetching}
-            onEdit={() => setModalOpen(true)}
-          />
-        ) : (
-          <GoalEmptyState onCreate={() => setModalOpen(true)} />
-        )}
-      </section>
-
-      {/* ── "Are you on track" signals ── */}
-      <section className="mt-5">
-        <h3 className="fd-label mb-2">This week at a glance</h3>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <GoalSignal goal={goal} progress={progress} />
-          <PaceSignal progress={progress} />
           <MetricCard
             label={`Weather ${weatherQ.data?.location ?? ""}`.trim()}
             value={
@@ -138,24 +122,99 @@ export function Dashboard() {
             sub={weatherQ.data ? `${weatherQ.data.temperature_c} °C` : "unavailable"}
           />
           <MetricCard
-            label="Deadline"
-            value={
-              goal?.deadline
-                ? new Date(goal.deadline).toLocaleDateString(undefined, {
-                    day: "numeric",
-                    month: "short",
-                  })
-                : "—"
-            }
-            sub={
-              progress?.status === "reached"
-                ? "goal reached 🎉"
-                : goal?.deadline
-                  ? "target date"
-                  : "no goal set"
-            }
+            label="Active goals"
+            value={goalsQ.isLoading ? "…" : String(activeGoals.length)}
+            sub={activeGoals.some((g) => g.panel_status === "building") ? "building…" : "up to date"}
           />
         </div>
+      </section>
+
+      {/* ── Goal panels ── */}
+      <section className="mt-5">
+        <h3 className="fd-label mb-2">Your goals</h3>
+
+        <AddGoalInput
+          onAdd={(text, sport) => addGoal.mutate({ text, sport })}
+          adding={addGoal.isPending}
+        />
+        {addGoal.isError && (
+          <div className="mt-2">
+            <ErrorBox
+              message={addGoal.error instanceof Error ? addGoal.error.message : "Failed to add goal."}
+            />
+          </div>
+        )}
+
+        <div className="mt-3">
+          {goalsQ.isLoading ? (
+            <div className="fd-card p-6">
+              <Spinner label="Loading your goals…" />
+            </div>
+          ) : goalsQ.isError ? (
+            <ErrorBox
+              message={`Couldn't load your goals: ${
+                goalsQ.error instanceof Error ? goalsQ.error.message : "unknown error"
+              }`}
+            />
+          ) : activeGoals.length === 0 ? (
+            <div className="rounded-card border border-dashed border-border bg-bg-surface/40 px-6 py-10 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+                <Target size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-text-primary">
+                Add a goal to see your progress.
+              </h3>
+              <p className="mt-1 text-sm text-text-muted">
+                Freeform is fine — "sub-40 10K by December", "swim 3x/week". Your coach
+                builds a dashboard panel for it automatically.
+              </p>
+              <p className="mt-3 text-xs text-text-muted">
+                …or ask your coach to set one in{" "}
+                <span className="font-medium text-text-primary">Chat</span>.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {activeGoals.map((goal) =>
+                editingId === goal.id ? (
+                  <div key={goal.id} className="fd-card p-5 sm:p-6">
+                    <label className="fd-label mb-1 block">Edit goal</label>
+                    <input
+                      autoFocus
+                      className="fd-input w-full"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit(goal);
+                        if (e.key === "Escape") setEditingId(null);
+                      }}
+                      onBlur={() => commitEdit(goal)}
+                    />
+                    <p className="mt-1.5 text-xs text-text-muted">
+                      Enter to save, Esc to cancel. Changing the text rebuilds the panel.
+                    </p>
+                  </div>
+                ) : (
+                  <GoalPanel
+                    key={goal.id}
+                    goal={goal}
+                    onRefresh={() => refreshPanel.mutate(goal.id)}
+                    onEdit={() => startEdit(goal)}
+                    onArchive={() => updateGoal.mutate({ id: goal.id, patch: { status: "archived" } })}
+                    refreshing={refreshPanel.isPending && refreshPanel.variables === goal.id}
+                  />
+                ),
+              )}
+            </div>
+          )}
+        </div>
+        {deleteGoal.isError && (
+          <div className="mt-2">
+            <ErrorBox
+              message={deleteGoal.error instanceof Error ? deleteGoal.error.message : "Failed to delete goal."}
+            />
+          </div>
+        )}
       </section>
 
       {/* ── Coach placeholder ── */}
@@ -167,7 +226,7 @@ export function Dashboard() {
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-text-primary">Your coach</h3>
             <p className="mt-0.5 text-sm text-text-muted">
-              Ask about your training, plan the week ahead, or adjust your goal — your
+              Ask about your training, plan the week ahead, or adjust your goals — your
               coach reads your data and answers in Chat.
             </p>
           </div>
@@ -210,61 +269,8 @@ function AthleteGreeting({
         </div>
       )}
       <div>
-        <PageHeader title={`Hi, ${first}`} subtitle="Here's how your goal is tracking." />
+        <PageHeader title={`Hi, ${first}`} subtitle="Here's how your goals are tracking." />
       </div>
     </div>
-  );
-}
-
-// ── Signal cards derived from goal progress ───────────────────────────────────
-function GoalSignal({
-  goal,
-  progress,
-}: {
-  goal: ReturnType<typeof useGoal>["data"];
-  progress: ReturnType<typeof useGoalProgress>["data"];
-}) {
-  if (!goal) {
-    return <MetricCard label="Goal progress" value="—" sub="no goal set" />;
-  }
-  const pct = progress?.pct;
-  const current = progress?.current;
-  return (
-    <MetricCard
-      label="Goal progress"
-      value={pct != null ? `${Math.round(pct)}%` : "—"}
-      sub={
-        current != null
-          ? `now ${formatMetricValue(goal.metric, current)}`
-          : "no data yet"
-      }
-    />
-  );
-}
-
-function PaceSignal({
-  progress,
-}: {
-  progress: ReturnType<typeof useGoalProgress>["data"];
-}) {
-  const onTrack = progress?.on_track;
-  const status = progress?.status;
-  const value =
-    status === "reached"
-      ? "Reached 🎉"
-      : onTrack == null
-        ? "—"
-        : onTrack
-          ? "On pace"
-          : "Behind pace";
-  return (
-    <MetricCard
-      label="On track?"
-      value={value}
-      deltaColor={
-        status === "reached" || onTrack ? "green" : onTrack === false ? "red" : "muted"
-      }
-      sub={progress ? "vs. what's needed" : "set a goal to see"}
-    />
   );
 }

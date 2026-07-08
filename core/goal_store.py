@@ -1,41 +1,62 @@
-"""Per-user structured training goal — the thing the coach steers toward.
+"""Per-user MULTIPLE, freeform training goals — the things the coach steers toward.
 
-One active goal per user at ``data/user_memory/<slug>/goal.json`` (beside the
-soul), authored by BOTH the Settings form (source="form") and the coach in chat
-(source="coach"; ``upsert_goal`` tool). It is:
+A goal is now just TEXT (sport-specific goals are common — "sub-40 10K by December",
+"improve my open-water swim pace"), authored by BOTH the user (a single text box,
+``source="user"``) and the coach in chat (``add_goal`` tool, ``source="coach"``).
+Multiple goals per user are stored at ``data/user_memory/<slug>/goals.json``:
 
-  * injected into every turn as a directive (``core.user_memory.goal_block``), and
-  * the anchor of the goal-oriented dashboard, which shows measurable progress
-    toward it (``goal_progress`` derives the current value from live Strava/Garmin
-    data via the shared ToolHost).
+    { "goals": [
+        { id, text, sport?, source, status ("active"|"achieved"|"archived"),
+          created_at, updated_at,
+          panel: Panel | null,               # agent-authored dashboard content
+          panel_status ("empty"|"building"|"ready"|"error"),
+          panel_updated_at },
+        …
+    ] }
 
-Everything is best-effort JSON with a per-user lock, mirroring ``core.user_memory``.
+Each goal's dashboard PANEL is authored by the agent, not hardcoded — a bounded
+background job (``core.goal_panel``) gathers the user's real data and calls the
+``set_goal_panel`` tool, which lands here via :func:`set_panel` after passing
+through :func:`normalize_panel` (so the coach's inline authoring and the background
+builder can never diverge in shape). A Panel is:
 
-Goal schema (single object; only ``title`` is required to create one):
-    { id, title, why?, metric, target, unit, direction,
-      deadline (ISO date | null), baseline?, status, source,
-      created_at, updated_at }
-where ``metric`` ∈ {weekly_distance_km, total_distance_km, 5k_time, bodyweight_kg}
-drives progress computation (5k_time stored as seconds; displayed mm:ss by the UI).
+    { headline, status ("on_track"|"at_risk"|"behind"|"reached"|"unknown"),
+      tiles: [{label, value, sub?}] (2-4), progress: {pct, label} | null,
+      note (markdown, free-form), chart: {kind, points:[{x,y}], y_label?} | null,
+      generated_at }
+
+``goals.json`` is written by THREE processes (FastAPI, the panel-build worker, the
+Telegram bridge's drain/staleness loop), so every mutator goes through
+``core.jsonstore`` (cross-process flock + atomic write) — the same discipline
+``core.chat_store`` uses for the shared Coach chat.
+
+A legacy single ``goal.json`` (the old structured-metric goal) is migrated in place,
+once, the first time this user's goals are read: folded into one text goal and
+renamed to ``goal.json.migrated``.
 """
 
 from __future__ import annotations
 
-import json
-import re
 import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
+from core import jsonstore
 from core.llm import _env
 
 _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_DIR = _ROOT / "data" / "user_memory"
 
-METRICS = ("weekly_distance_km", "total_distance_km", "5k_time", "bodyweight_kg")
+_VALID_GOAL_STATUS = {"active", "achieved", "archived"}
+_VALID_PANEL_STATUS = {"empty", "building", "ready", "error"}
+_VALID_PANEL_HEALTH = {"on_track", "at_risk", "behind", "reached", "unknown"}
+_MAX_TILES = 4
+_MAX_CHART_POINTS = 60
 
+# Per-user threading lock (defense-in-depth alongside jsonstore.flock — matters on
+# non-Unix where flock is a no-op; mirrors core.chat_store's `with _lock, _flock():`).
 _locks: Dict[str, threading.Lock] = {}
 _locks_guard = threading.Lock()
 
@@ -44,21 +65,21 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _slug(user: str) -> str:
-    return re.sub(r"[^a-z0-9_-]+", "-", (user or "").strip().lower()).strip("-") or "anon"
-
-
 def _root() -> Path:
     raw = _env("USER_MEMORY_DIR", "")
     return Path(raw) if raw else _DEFAULT_DIR
 
 
-def _goal_path(user: str) -> Path:
-    return _root() / _slug(user) / "goal.json"
+def _goals_path(user: str) -> Path:
+    return _root() / jsonstore.slugify(user) / "goals.json"
+
+
+def _legacy_goal_path(user: str) -> Path:
+    return _root() / jsonstore.slugify(user) / "goal.json"
 
 
 def _lock_for(user: str) -> threading.Lock:
-    slug = _slug(user)
+    slug = jsonstore.slugify(user)
     with _locks_guard:
         lock = _locks.get(slug)
         if lock is None:
@@ -66,209 +87,274 @@ def _lock_for(user: str) -> threading.Lock:
         return lock
 
 
-def read(user: str) -> Optional[Dict[str, Any]]:
-    """The user's active goal, or None. Best-effort (never raises)."""
-    try:
-        p = _goal_path(user)
-        if not p.exists():
-            return None
-        goal = json.loads(p.read_text(encoding="utf-8"))
-        return goal if isinstance(goal, dict) and goal.get("status", "active") != "deleted" else None
-    except (OSError, ValueError):
-        return None
+def _find(doc: dict, goal_id: str) -> Optional[Dict[str, Any]]:
+    for g in doc.get("goals") or []:
+        if g.get("id") == goal_id:
+            return g
+    return None
 
 
-_ALLOWED = {"title", "why", "metric", "target", "unit", "direction",
-            "deadline", "baseline", "status"}
+def _new_goal(text: str, sport: Optional[str], source: str) -> Dict[str, Any]:
+    now = _now()
+    return {
+        "id": uuid.uuid4().hex[:12],
+        "text": text,
+        "sport": sport or None,
+        "source": source if source in ("user", "coach") else "user",
+        "status": "active",
+        "created_at": now,
+        "updated_at": now,
+        "panel": None,
+        "panel_status": "empty",
+        "panel_updated_at": None,
+    }
 
 
-def upsert(user: str, source: str = "form", **fields: Any) -> Optional[Dict[str, Any]]:
-    """Create or update the goal, merging only non-None allowed fields. Returns it."""
-    if not user:
-        return None
-    lock = _lock_for(user)
-    with lock:
-        goal = read(user) or {
-            "id": uuid.uuid4().hex[:12],
-            "status": "active",
-            "created_at": _now(),
-        }
-        for k, v in fields.items():
-            if k in _ALLOWED and v is not None:
-                goal[k] = v
-        goal.setdefault("status", "active")
-        goal["source"] = source
-        goal["updated_at"] = _now()
+def _legacy_to_text(g: dict) -> str:
+    """Fold the old structured goal (title/metric/target/unit/deadline/why) into text."""
+    parts = [g.get("title") or "Training goal"]
+    if g.get("metric") and g.get("target") is not None:
+        unit = (g.get("unit") or "").strip()
+        parts.append(f"target: {g['target']} {unit} ({g['metric']}, "
+                     f"{g.get('direction', 'toward')})".replace("  ", " ").strip())
+    if g.get("deadline"):
+        parts.append(f"by {g['deadline']}")
+    if g.get("why"):
+        parts.append(f"— {g['why']}")
+    return " ".join(p for p in parts if p).strip()
+
+
+def _load_doc(user: str) -> Dict[str, Any]:
+    """Read goals.json, migrating a legacy single goal.json in place on first read.
+
+    Always returns ``{"goals": [...]}``. Best-effort: a failed migration write still
+    returns the in-memory synthesized doc so reads work. Caller should hold the lock
+    if about to mutate (this function itself may write once, for migration).
+    """
+    path = _goals_path(user)
+    doc = jsonstore.read_json(path)
+    if isinstance(doc, dict) and isinstance(doc.get("goals"), list):
+        return doc
+
+    doc = {"goals": []}
+    legacy_path = _legacy_goal_path(user)
+    legacy = jsonstore.read_json(legacy_path)
+    if isinstance(legacy, dict) and (legacy.get("title") or legacy.get("why")):
+        goal = _new_goal(_legacy_to_text(legacy), sport=None,
+                         source="coach" if legacy.get("source") == "coach" else "user")
+        goal["created_at"] = legacy.get("created_at") or goal["created_at"]
+        goal["updated_at"] = legacy.get("updated_at") or goal["updated_at"]
+        if legacy.get("status") in _VALID_GOAL_STATUS:
+            goal["status"] = legacy["status"]
+        doc["goals"].append(goal)
         try:
-            p = _goal_path(user)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(json.dumps(goal, ensure_ascii=False, indent=2), encoding="utf-8")
+            jsonstore.atomic_write(path, doc)
+            legacy_path.rename(legacy_path.with_suffix(legacy_path.suffix + ".migrated"))
         except OSError as exc:
-            print(f"[goal_store] write skipped for {_slug(user)}: {exc}", flush=True)
+            print(f"[goal_store] legacy migration skipped for "
+                  f"{jsonstore.slugify(user)}: {exc}", flush=True)
+    return doc
+
+
+# ── Reads ──────────────────────────────────────────────────────────────────────
+
+def list_goals(user: str) -> List[Dict[str, Any]]:
+    """All goals (any status), active-first then newest-created-first."""
+    if not user:
+        return []
+    with _lock_for(user), jsonstore.flock(_goals_path(user)):
+        doc = _load_doc(user)
+    goals = list(doc.get("goals") or [])
+    goals.sort(key=lambda g: g.get("created_at") or "", reverse=True)
+    goals.sort(key=lambda g: 0 if g.get("status") == "active" else 1)
+    return goals
+
+
+def has_active_goal(user: str) -> bool:
+    return any(g.get("status") == "active" for g in list_goals(user))
+
+
+def get_goal(user: str, goal_id: str) -> Optional[Dict[str, Any]]:
+    if not user or not goal_id:
+        return None
+    with _lock_for(user), jsonstore.flock(_goals_path(user)):
+        doc = _load_doc(user)
+        return _find(doc, goal_id)
+
+
+# ── Writes (each: lock → re-read the whole doc → mutate → atomic write) ────────
+
+def add_goal(user: str, text: str, sport: Optional[str] = None,
+             source: str = "user") -> Optional[Dict[str, Any]]:
+    text = (text or "").strip()
+    if not user or not text:
+        return None
+    path = _goals_path(user)
+    with _lock_for(user), jsonstore.flock(path):
+        doc = _load_doc(user)
+        goal = _new_goal(text, sport, source)
+        doc.setdefault("goals", []).append(goal)
+        try:
+            jsonstore.atomic_write(path, doc)
+        except OSError as exc:
+            print(f"[goal_store] add_goal write skipped for "
+                  f"{jsonstore.slugify(user)}: {exc}", flush=True)
             return None
         return goal
 
 
-def delete(user: str) -> bool:
-    try:
-        p = _goal_path(user)
-        if p.exists():
-            p.unlink()
+_UPDATE_ALLOWED = {"text", "sport", "status"}
+
+
+def update_goal(user: str, goal_id: str, **fields: Any) -> Optional[Dict[str, Any]]:
+    """Update text/sport/status. No-ops (returns None) if the goal doesn't exist —
+    e.g. it was deleted while a background panel build was in flight."""
+    if not user or not goal_id:
+        return None
+    path = _goals_path(user)
+    with _lock_for(user), jsonstore.flock(path):
+        doc = _load_doc(user)
+        goal = _find(doc, goal_id)
+        if goal is None:
+            return None
+        for k, v in fields.items():
+            if k not in _UPDATE_ALLOWED or v is None:
+                continue
+            if k == "status" and v not in _VALID_GOAL_STATUS:
+                continue
+            if k == "text":
+                v = (v or "").strip()
+                if not v:
+                    continue
+            goal[k] = v
+        goal["updated_at"] = _now()
+        try:
+            jsonstore.atomic_write(path, doc)
+        except OSError as exc:
+            print(f"[goal_store] update_goal write skipped: {exc}", flush=True)
+            return None
+        return goal
+
+
+def delete_goal(user: str, goal_id: str) -> bool:
+    if not user or not goal_id:
+        return False
+    path = _goals_path(user)
+    with _lock_for(user), jsonstore.flock(path):
+        doc = _load_doc(user)
+        before = len(doc.get("goals") or [])
+        doc["goals"] = [g for g in (doc.get("goals") or []) if g.get("id") != goal_id]
+        if len(doc["goals"]) == before:
+            return False
+        try:
+            jsonstore.atomic_write(path, doc)
             return True
-    except OSError:
-        pass
-    return False
+        except OSError:
+            return False
 
 
-# ── Progress computation ──────────────────────────────────────────────────────
-
-def _call_json(host, tool: str, args: Optional[dict] = None) -> Optional[dict]:
-    """Call an MCP tool via the ToolHost, return the parsed dict or None on error."""
-    try:
-        raw = host.call_tool(tool, args or {})
-        data = json.loads(raw)
-        if isinstance(data, dict) and "error" in data:
+def set_panel_status(user: str, goal_id: str, status: str) -> Optional[Dict[str, Any]]:
+    """No-ops on a missing goal (deleted mid-build) or an invalid status."""
+    if status not in _VALID_PANEL_STATUS or not user or not goal_id:
+        return None
+    path = _goals_path(user)
+    with _lock_for(user), jsonstore.flock(path):
+        doc = _load_doc(user)
+        goal = _find(doc, goal_id)
+        if goal is None:
             return None
-        return data if isinstance(data, dict) else None
-    except Exception:  # noqa: BLE001 — progress is best-effort
-        return None
-
-
-def _current_value(user: str, metric: str, host) -> Optional[float]:
-    if metric == "weekly_distance_km":
-        d = _call_json(host, "strava__get_training_trends", {"weeks": 4})
-        v = (d or {}).get("summary", {}).get("avg_distance_per_active_week_km")
-        return float(v) if v is not None else None
-    if metric == "total_distance_km":
-        d = _call_json(host, "strava__get_activity_stats")
-        v = (d or {}).get("total_distance_km")
-        return float(v) if v is not None else None
-    if metric == "bodyweight_kg":
-        d = _call_json(host, "garmin__get_garmin_body_composition")
-        latest = (d or {}).get("latest") or {}
-        v = latest.get("weight_kg")
-        return float(v) if v is not None else None
-    if metric == "5k_time":
-        # Garmin's race predictor gives a current 5k estimate ("mm:ss"/"h:mm:ss");
-        # a genuine current-fitness signal (strava PBs aren't per-distance/time-sorted).
-        d = _call_json(host, "garmin__get_garmin_training_metrics")
-        pred = ((d or {}).get("race_predictions") or {}).get("5k")
-        return _hms_to_seconds(pred)
-    return None
-
-
-def _hms_to_seconds(s: Any) -> Optional[float]:
-    """Parse 'mm:ss' or 'h:mm:ss' → seconds; None on anything else."""
-    if not isinstance(s, str) or ":" not in s:
-        return None
-    try:
-        parts = [int(p) for p in s.strip().split(":")]
-    except ValueError:
-        return None
-    if len(parts) == 2:
-        return float(parts[0] * 60 + parts[1])
-    if len(parts) == 3:
-        return float(parts[0] * 3600 + parts[1] * 60 + parts[2])
-    return None
-
-
-def _pct(current: float, target: float, baseline: Optional[float], direction: str) -> Optional[float]:
-    try:
-        if baseline is not None and target != baseline:
-            p = (current - baseline) / (target - baseline) * 100
-        elif direction == "decrease":
-            p = (target / current) * 100 if current else None
-        else:  # increase / maintain
-            p = (current / target) * 100 if target else None
-        return None if p is None else max(0.0, round(p, 1))
-    except (TypeError, ZeroDivisionError):
-        return None
-
-
-def _as_utc(dt: Optional[datetime]) -> Optional[datetime]:
-    """Coerce a datetime to aware UTC (a naive value is assumed UTC)."""
-    if dt is None:
-        return None
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
-
-
-def _time_pct(created_at: Optional[str], deadline: Optional[str]) -> Optional[float]:
-    """Fraction of the goal window elapsed (0..100), or None if undatable.
-
-    All three instants are coerced to aware UTC first: created_at is stored tz-aware
-    but a date-only deadline parses naive, and mixing the two raised a swallowed
-    TypeError that silently killed deadline-aware pacing.
-    """
-    if not deadline:
-        return None
-    try:
-        start = _as_utc(datetime.fromisoformat(created_at)) if created_at else None
-        raw_end = datetime.fromisoformat(deadline) if len(deadline) > 10 else \
-            datetime.fromisoformat(deadline + "T23:59:59")
-        end = _as_utc(raw_end)
-        now = datetime.now(timezone.utc)
-        if start is None or end <= start:
+        goal["panel_status"] = status
+        goal["updated_at"] = _now()
+        try:
+            jsonstore.atomic_write(path, doc)
+        except OSError as exc:
+            print(f"[goal_store] set_panel_status write skipped: {exc}", flush=True)
             return None
-        return max(0.0, min(100.0, (now - start).total_seconds()
-                            / (end - start).total_seconds() * 100))
-    except (ValueError, TypeError):
+        return goal
+
+
+def set_panel(user: str, goal_id: str, panel: Any) -> Optional[Dict[str, Any]]:
+    """Normalize + store an agent-authored panel. No-ops on a missing goal (deleted
+    mid-build) — never resurrects a deleted goal."""
+    if not user or not goal_id:
         return None
+    path = _goals_path(user)
+    with _lock_for(user), jsonstore.flock(path):
+        doc = _load_doc(user)
+        goal = _find(doc, goal_id)
+        if goal is None:
+            return None
+        normalized = normalize_panel(panel)
+        goal["panel"] = normalized
+        goal["panel_status"] = "ready"
+        goal["panel_updated_at"] = normalized["generated_at"]
+        goal["updated_at"] = _now()
+        try:
+            jsonstore.atomic_write(path, doc)
+        except OSError as exc:
+            print(f"[goal_store] set_panel write skipped: {exc}", flush=True)
+            return None
+        return goal
 
 
-def goal_progress(user: str, goal: Optional[dict] = None, host=None) -> Dict[str, Any]:
-    """Progress toward the goal from live data. Degrades to status='unknown'."""
-    goal = goal or read(user)
-    if not goal:
-        return {"status": "no_goal"}
-    if host is None:
-        from core.host import default_host
-        host = default_host
+# ── Panel normalization (the shared shape contract) ────────────────────────────
 
-    metric = goal.get("metric")
-    target = goal.get("target")
-    unit = goal.get("unit")
-    direction = goal.get("direction") or ("decrease" if metric in ("5k_time", "bodyweight_kg") else "increase")
-    baseline = goal.get("baseline")
+def normalize_panel(raw: Any) -> Dict[str, Any]:
+    """Coerce arbitrary agent output into a well-formed Panel. Never raises — this
+    is what keeps the coach's inline authoring and the background builder from
+    diverging in shape, and what protects the frontend from malformed content."""
+    raw = raw if isinstance(raw, dict) else {}
 
-    if metric not in METRICS or target is None:
-        return {"status": "unknown", "target": target, "unit": unit}
+    headline = str(raw.get("headline") or "").strip()[:200] or "Goal update"
+    status = raw.get("status")
+    status = status if status in _VALID_PANEL_HEALTH else "unknown"
 
-    current = _current_value(user, metric, host)
-    if current is None:
-        return {"status": "unknown", "target": target, "unit": unit}
+    tiles: List[Dict[str, str]] = []
+    for t in (raw.get("tiles") or [])[:_MAX_TILES]:
+        if not isinstance(t, dict):
+            continue
+        label = str(t.get("label") or "").strip()[:40]
+        value = str(t.get("value") or "").strip()[:40]
+        if not label or not value:
+            continue
+        tile = {"label": label, "value": value}
+        if t.get("sub"):
+            tile["sub"] = str(t["sub"]).strip()[:60]
+        tiles.append(tile)
 
-    try:
-        target = float(target)
-    except (TypeError, ValueError):
-        return {"status": "unknown", "target": goal.get("target"), "unit": unit}
+    progress = None
+    p = raw.get("progress")
+    if isinstance(p, dict) and p.get("pct") is not None:
+        try:
+            pct = max(0.0, min(100.0, float(p["pct"])))
+            progress = {"pct": round(pct, 1), "label": str(p.get("label") or "").strip()[:60]}
+        except (TypeError, ValueError):
+            progress = None
 
-    pct = _pct(current, target, baseline, direction)
-    delta_needed = round(target - current, 2)
-    reached = (current >= target) if direction != "decrease" else (current <= target)
+    chart = None
+    c = raw.get("chart")
+    if isinstance(c, dict):
+        kind = c.get("kind") if c.get("kind") in ("line", "bar") else "line"
+        points: List[Dict[str, Any]] = []
+        for pt in (c.get("points") or [])[:_MAX_CHART_POINTS]:
+            if isinstance(pt, dict) and "x" in pt and "y" in pt:
+                try:
+                    points.append({"x": pt["x"], "y": float(pt["y"])})
+                except (TypeError, ValueError):
+                    continue
+        if points:
+            chart = {"kind": kind, "points": points}
+            if c.get("y_label"):
+                chart["y_label"] = str(c["y_label"]).strip()[:40]
 
-    # Classify against elapsed time when we can; otherwise a coarse pct threshold.
-    tpct = _time_pct(goal.get("created_at"), goal.get("deadline"))
-    if reached:
-        status = "reached"
-        on_track = True
-    elif pct is None:
-        status = "unknown"
-        on_track = False
-    elif tpct is not None:
-        on_track = pct >= tpct - 10
-        status = "on_track" if on_track else ("at_risk" if pct >= tpct - 25 else "behind")
-    else:
-        on_track = pct >= 50
-        status = "on_track" if on_track else "behind"
+    note = str(raw.get("note") or "").strip()[:4000]
 
     return {
+        "headline": headline,
         "status": status,
-        "current": round(current, 2),
-        "target": round(target, 2),
-        "unit": unit,
-        "pct": pct,
-        "on_track": on_track,
-        "delta_needed": delta_needed,
-        "direction": direction,
-        "computed_at": _now(),
+        "tiles": tiles,
+        "progress": progress,
+        "note": note,
+        "chart": chart,
+        "generated_at": _now(),
     }

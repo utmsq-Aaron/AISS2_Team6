@@ -300,32 +300,30 @@ class UserMemory:
     # ── context assembly (injected into the agent prompt) ─────────────────────
 
     def goal_block(self) -> str:
-        """Render the user's structured goal (goal.json) as a coaching DIRECTIVE.
+        """Render the user's ACTIVE goals (goals.json — freeform text, possibly
+        several, sport-specific) as a coaching DIRECTIVE.
 
-        Returns "" when no active goal is set. Injected ahead of the soul so the
-        coach frames every answer around the goal and notices drift from it.
+        Returns "" when there are no active goals. Injected ahead of the soul so
+        the coach frames every answer around them and notices drift. Each goal's
+        dashboard panel is NOT injected here — it's derived UI, built separately
+        by core.goal_panel; only the goal text (what to steer toward) belongs in
+        every turn's context.
         """
         try:
-            from core.goal_store import read as _read_goal
-            g = _read_goal(self.user)
-        except Exception:  # noqa: BLE001 — goal is best-effort
-            g = None
-        if not g or g.get("status", "active") not in ("active", None):
+            from core.goal_store import list_goals as _list_goals
+            goals = [g for g in (_list_goals(self.user) or []) if g.get("status") == "active"]
+        except Exception:  # noqa: BLE001 — goals are best-effort
+            goals = []
+        if not goals:
             return ""
-        lines = ["## Active goal (directive)"]
-        if g.get("title"):
-            lines.append(f"- Goal: {g['title']}")
-        if g.get("metric") and g.get("target") is not None:
-            unit = g.get("unit") or ""
-            lines.append(
-                f"- Target: {g['target']} {unit} "
-                f"({g['metric']}, {g.get('direction', 'toward')})".replace("  ", " ").strip())
-        if g.get("deadline"):
-            lines.append(f"- Deadline: {g['deadline']}")
-        if g.get("why"):
-            lines.append(f"- Why it matters: {g['why']}")
-        lines.append("Frame your answer around this goal; when the data or the user's "
-                     "plan drifts from it, say so and steer them back.")
+        lines = ["## Active goals (directive)"]
+        for g in goals:
+            sport = f" [{g['sport']}]" if g.get("sport") else ""
+            lines.append(f"- ({g.get('id', '?')}){sport} {g.get('text', '')}")
+        lines.append("Balance these goals in your answers; when the data or the user's plan "
+                     "drifts from any of them, say so and steer them back. Create a new goal "
+                     "with add_goal, revise one with update_goal, and (re)build a goal's "
+                     "dashboard panel with set_goal_panel.")
         return "\n".join(lines)
 
     def context_block(self, query: str) -> str:
