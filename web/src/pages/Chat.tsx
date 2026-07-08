@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AgentTrace } from "../components/chat/AgentTrace";
 import { ChatSidebar } from "../components/chat/ChatSidebar";
+import { COACH, CoachAvatar } from "../components/chat/CoachAvatar";
 import { Markdown } from "../components/chat/Markdown";
 import { RouteResult } from "../components/chat/RouteResult";
 import type { RouteData } from "../components/chat/RouteResult";
@@ -29,9 +30,12 @@ export function Chat() {
   const live = useChatStore((s) => (s.activeId ? s.live[s.activeId] : undefined));
   const init = useChatStore((s) => s.init);
   const send = useChatStore((s) => s.send);
+  const select = useChatStore((s) => s.select);
+  const coachChatId = useChatStore((s) => s.coachChatId);
   const beginCharts = useChatStore((s) => s.beginCharts);
   const setCharts = useChatStore((s) => s.setCharts);
 
+  const isCoachActive = !!coachChatId && activeId === coachChatId;
   const streaming = !!live?.streaming;
   const [input, setInput] = useState("");
   const [chatListOpen, setChatListOpen] = useState(false);
@@ -47,6 +51,19 @@ export function Chat() {
     queryKey: ["health-servers"],
     queryFn: getServerHealth,
     staleTime: 30_000,
+  });
+
+  // Faster coach poll while the Chat page is mounted — new coach messages (and
+  // finished deep-work reports) show up live in the active coach chat.
+  useQuery({
+    queryKey: ["coach-poll-chat"],
+    queryFn: async () => {
+      await useChatStore.getState().pollCoach();
+      return Date.now();
+    },
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
   const [refreshing, setRefreshing] = useState(false);
   const reachable = (health?.servers ?? []).filter((s) => s.server_up);
@@ -145,14 +162,19 @@ export function Chat() {
             t.role === "user" ? (
               <UserBubble key={i} content={t.content} />
             ) : (
-              <AssistantBubble key={i} turn={t.turn} />
+              <AssistantBubble
+                key={i}
+                turn={t.turn}
+                coach={isCoachActive}
+                onViewCoach={coachChatId ? () => void select(coachChatId) : undefined}
+              />
             ),
           )}
 
           {/* In-flight assistant turn */}
           {streaming && (
             <div className="flex gap-3">
-              <div className="text-xl leading-none">🏃</div>
+              {isCoachActive ? <CoachAvatar /> : <div className="text-xl leading-none">🏃</div>}
               <div className="min-w-0 flex-1">
                 <StatusAccordion steps={live?.status ?? []} done={false} />
                 {live?.answer ? (
@@ -213,12 +235,20 @@ function UserBubble({ content }: { content: string }) {
   );
 }
 
-function AssistantBubble({ turn }: { turn: AssistantTurn }) {
+function AssistantBubble({
+  turn,
+  coach = false,
+  onViewCoach,
+}: {
+  turn: AssistantTurn;
+  coach?: boolean;
+  onViewCoach?: () => void;
+}) {
   const routeData = turn.trace.route_data as RouteData | null | undefined;
   const charts = turn.charts ?? [];
   return (
     <div className="flex gap-3">
-      <div className="text-xl leading-none">🏃</div>
+      {coach ? <CoachAvatar /> : <div className="text-xl leading-none">🏃</div>}
       <div className="min-w-0 flex-1 space-y-2">
         <StatusAccordion
           steps={turn.statusSteps}
@@ -227,12 +257,41 @@ function AssistantBubble({ turn }: { turn: AssistantTurn }) {
           error={!!turn.trace.error}
         />
         <Markdown>{turn.content}</Markdown>
+        {turn.backgroundJob && <DeepWorkCard job={turn.backgroundJob} onViewCoach={onViewCoach} />}
         <AgentTrace trace={turn.trace} />
         {routeData?.tool && <RouteResult routeData={routeData} />}
         {charts.map((fig, i) => (
           <PlotlyFigure key={i} figure={fig} />
         ))}
       </div>
+    </div>
+  );
+}
+
+// Deep-work "accepted" card — the turn kicked off a long background analysis; the
+// full report lands later in the pinned Coach chat.
+function DeepWorkCard({
+  job,
+  onViewCoach,
+}: {
+  job: NonNullable<AssistantTurn["backgroundJob"]>;
+  onViewCoach?: () => void;
+}) {
+  return (
+    <div className="fd-card space-y-2 border-accent/40 bg-accent/5 px-4 py-3 text-sm">
+      <p className="text-text-primary">
+        {COACH.emoji} On it — I'll dig into
+        {job.topic ? ` "${job.topic}"` : " this"} and post the full report in your Coach chat.
+      </p>
+      {onViewCoach && (
+        <button
+          type="button"
+          onClick={onViewCoach}
+          className="rounded-md border border-accent/50 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20"
+        >
+          View in Coach chat
+        </button>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from api.auth import current_user
 from core import chat_store as store
+from core import telegram_link
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
@@ -22,14 +23,30 @@ class RenameChat(BaseModel):
     title: str
 
 
+def _augment_coach(summary: dict, user: str) -> dict:
+    """Tag the Coach chat's summary with the channel it mirrors (telegram vs web)."""
+    if summary.get("special") == "coach":
+        summary = {**summary,
+                   "source": "telegram" if telegram_link.is_email_linked(user) else "coach"}
+    return summary
+
+
 @router.get("")
 def list_chats(user: str = Depends(current_user)) -> dict:
-    return {"chats": store.list_chats(user)}
+    return {"chats": [_augment_coach(c, user) for c in store.list_chats(user)]}
 
 
 @router.post("")
 def create_chat(body: CreateChat | None = None, user: str = Depends(current_user)) -> dict:
     return store.create_chat(user, (body.title if body else "") or "")
+
+
+# Clearing the Coach chat's unread badge. (The Coach chat itself is fetched via the
+# normal GET /chats/{chat_id} with id "coach" — the id gate allows that literal — and
+# it appears, pinned + tagged with `source`, in the GET /chats list above.)
+@router.post("/coach/read")
+def mark_coach_read(user: str = Depends(current_user)) -> dict:
+    return {"ok": store.mark_read(user, store.COACH_CHAT_ID)}
 
 
 @router.get("/{chat_id}")

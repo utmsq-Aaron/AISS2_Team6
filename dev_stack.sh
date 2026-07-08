@@ -76,6 +76,18 @@ if port_busy 8000; then echo "✓ FastAPI already on :8000"; else
   pids+=($!)
 fi
 
+# 2b. Telegram bridge — hosts the durable, cross-chat PROACTIVE SCHEDULER (self-
+#     scheduled wake-ups, calendar auto-schedule, deep-report delivery). It also
+#     mirrors the Telegram DM into the web "Coach" chat. Proactivity is paused when
+#     this is down. Exits fast (harmless) if no Telegram session is configured.
+if pgrep -f "telegram_bridge.py" >/dev/null 2>&1; then
+  echo "✓ telegram bridge already running (proactive scheduler)"
+else
+  echo "→ starting telegram bridge + proactive scheduler"
+  "$PY" telegram_bridge.py >/tmp/telegram_bridge.log 2>&1 &
+  pids+=($!)
+fi
+
 # 3. Vite dev server
 echo "→ starting Vite on :5173  (open http://localhost:5173)"
 ( cd web && npm run dev )

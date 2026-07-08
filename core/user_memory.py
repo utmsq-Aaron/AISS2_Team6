@@ -299,8 +299,38 @@ class UserMemory:
 
     # ── context assembly (injected into the agent prompt) ─────────────────────
 
+    def goal_block(self) -> str:
+        """Render the user's structured goal (goal.json) as a coaching DIRECTIVE.
+
+        Returns "" when no active goal is set. Injected ahead of the soul so the
+        coach frames every answer around the goal and notices drift from it.
+        """
+        try:
+            from core.goal_store import read as _read_goal
+            g = _read_goal(self.user)
+        except Exception:  # noqa: BLE001 — goal is best-effort
+            g = None
+        if not g or g.get("status", "active") not in ("active", None):
+            return ""
+        lines = ["## Active goal (directive)"]
+        if g.get("title"):
+            lines.append(f"- Goal: {g['title']}")
+        if g.get("metric") and g.get("target") is not None:
+            unit = g.get("unit") or ""
+            lines.append(
+                f"- Target: {g['target']} {unit} "
+                f"({g['metric']}, {g.get('direction', 'toward')})".replace("  ", " ").strip())
+        if g.get("deadline"):
+            lines.append(f"- Deadline: {g['deadline']}")
+        if g.get("why"):
+            lines.append(f"- Why it matters: {g['why']}")
+        lines.append("Frame your answer around this goal; when the data or the user's "
+                     "plan drifts from it, say so and steer them back.")
+        return "\n".join(lines)
+
     def context_block(self, query: str) -> str:
-        """A prompt preamble blending the soul + the turns most relevant to ``query``.
+        """A prompt preamble blending the goal + soul + the turns most relevant to
+        ``query``.
 
         Returns "" when there's nothing useful to add, so callers can prepend
         unconditionally.
@@ -308,6 +338,10 @@ class UserMemory:
         if not memory_enabled():
             return ""
         sections: List[str] = []
+
+        goal = self.goal_block()
+        if goal:
+            sections.append(goal)
 
         soul = self.read_soul().strip()
         if soul:

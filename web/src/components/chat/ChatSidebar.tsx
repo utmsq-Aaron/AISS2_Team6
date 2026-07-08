@@ -1,6 +1,7 @@
 import { Plus, Trash2, X } from "lucide-react";
 
 import { useChatStore } from "../../store/chatStore";
+import { CoachChatBadge } from "./CoachChatBadge";
 
 // Left rail of the Chat panel: a "New chat" button + the user's persistent chats,
 // newest first. A small pulse marks a chat whose answer is still streaming (which
@@ -58,38 +59,56 @@ export function ChatSidebar({ open = false, onClose }: { open?: boolean; onClose
           {chats.length === 0 && (
             <p className="px-2 py-4 text-center text-xs text-text-muted">No chats yet.</p>
           )}
-          {chats.map((c) => {
+          {chats.map((c, i) => {
             const isActive = c.id === activeId;
             const streaming = live[c.id]?.streaming;
+            const isCoach = c.special === "coach" || c.pinned === true;
+            // Subtle "Coach" divider above the first non-coach chat (i.e. once
+            // the pinned coach row has been rendered).
+            const firstNormal = !isCoach && i > 0 && (chats[i - 1].special === "coach" || chats[i - 1].pinned === true);
             return (
-              <div
-                key={c.id}
-                className={`group flex items-center gap-1.5 rounded-md px-2.5 py-2 text-sm ${
-                  isActive ? "bg-bg-surface text-text-primary" : "text-text-muted hover:bg-bg-surface/60"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    void select(c.id);
-                    onClose?.();
-                  }}
-                  className="min-w-0 flex-1 truncate text-left"
-                  title={c.title}
+              <div key={c.id}>
+                {firstNormal && (
+                  <p className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+                    Chats
+                  </p>
+                )}
+                <div
+                  className={`group flex items-center gap-1.5 rounded-md px-2.5 py-2 text-sm ${
+                    isCoach ? "border border-accent/40 bg-accent/5 " : ""
+                  }${
+                    isActive
+                      ? "bg-bg-surface text-text-primary"
+                      : "text-text-muted hover:bg-bg-surface/60"
+                  }`}
                 >
-                  {streaming && (
-                    <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent align-middle" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void select(c.id);
+                      onClose?.();
+                    }}
+                    className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-left"
+                    title={c.title}
+                  >
+                    {streaming && (
+                      <span className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent align-middle" />
+                    )}
+                    {isCoach && <CoachChatBadge source={c.source} unread={c.unread} />}
+                    <span className="min-w-0 truncate">{c.title || "New chat"}</span>
+                  </button>
+                  {/* The coach chat is system-managed — no delete button. */}
+                  {!isCoach && (
+                    <button
+                      type="button"
+                      onClick={() => void remove(c.id)}
+                      title="Delete chat"
+                      className="shrink-0 text-text-muted opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+                    >
+                      <Trash2 size={14} strokeWidth={2} />
+                    </button>
                   )}
-                  {c.title || "New chat"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void remove(c.id)}
-                  title="Delete chat"
-                  className="shrink-0 text-text-muted opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
-                >
-                  <Trash2 size={14} strokeWidth={2} />
-                </button>
+                </div>
               </div>
             );
           })}

@@ -74,7 +74,8 @@ class FitDashOrchestrator:
 
         try:
             answer, artifacts = _run(
-                call_agent(self._url, prompt, on_status=progress_cb, on_token=text_cb)
+                call_agent(self._url, prompt, on_status=progress_cb, on_token=text_cb,
+                           metadata={"user": user} if user else None)
             )
         except Exception as exc:  # orchestrator unreachable / transport error
             trace = build_trace(

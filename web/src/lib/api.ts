@@ -71,7 +71,21 @@ export interface ChatSummary {
   created_at?: string;
   updated_at?: string;
   message_count: number;
+  // Coach-chat extras — present only on the pinned system "Coach" entry; absent
+  // on normal chats.
+  kind?: "coach" | "telegram" | "normal";
+  special?: string;
+  source?: "telegram" | "coach";
+  pinned?: boolean;
+  unread?: number;
 }
+
+/** Id of the pinned system Coach chat (mirrors the server's fixed id). */
+export const COACH_CHAT_ID = "coach";
+
+/** Clear the coach chat's unread counter. Best-effort. */
+export const markCoachRead = () =>
+  http<{ ok: boolean }>(`/chats/${COACH_CHAT_ID}/read`, { method: "POST", body: "{}" });
 export interface StoredMessage {
   role: "user" | "assistant";
   content: string;
@@ -84,6 +98,81 @@ export interface StoredChat {
   created_at?: string;
   updated_at?: string;
   messages: StoredMessage[];
+}
+
+// ── Training goal (persistent, per-user) ─────────────────────────────────────
+
+/** A metric the user can set a goal against. */
+export type GoalMetric =
+  | "weekly_distance_km"
+  | "total_distance_km"
+  | "5k_time"
+  | "bodyweight_kg";
+export type GoalUnit = "km" | "mm:ss" | "kg";
+export type GoalDirection = "increase" | "decrease" | "maintain";
+export type GoalSource = "form" | "coach";
+
+/** The saved goal object. `target` is seconds for the `5k_time` metric. */
+export interface Goal {
+  id: string;
+  title: string;
+  why?: string;
+  metric: GoalMetric;
+  target: number;
+  unit: GoalUnit;
+  direction: GoalDirection;
+  deadline: string | null; // ISO date
+  baseline?: number;
+  status: string;
+  source: GoalSource;
+  created_at: string;
+  updated_at: string;
+}
+
+/** The editable subset of a goal (what PUT /goals accepts). */
+export type GoalInput = Omit<Goal, "id" | "source" | "created_at" | "updated_at">;
+
+export type GoalProgressStatus =
+  | "on_track"
+  | "at_risk"
+  | "behind"
+  | "reached"
+  | "unknown"
+  | "no_goal";
+
+export interface GoalProgress {
+  status: GoalProgressStatus;
+  current?: number;
+  target?: number;
+  unit?: GoalUnit;
+  pct?: number;
+  on_track?: boolean;
+  delta_needed?: number;
+  direction?: GoalDirection;
+}
+
+/** GET /goals — an empty `{}` (no `id`) or a 404 both mean "no goal set" → null. */
+export async function getGoal(): Promise<Goal | null> {
+  try {
+    const g = await http<Goal | Record<string, never>>("/goals");
+    return g && "id" in g && g.id ? (g as Goal) : null;
+  } catch (e) {
+    if (e instanceof Error && /API 404/.test(e.message)) return null;
+    throw e;
+  }
+}
+
+/** PUT /goals — save (create or update) the goal; returns the saved object. */
+export const putGoal = (input: Partial<GoalInput>) =>
+  http<Goal>("/goals", { method: "PUT", body: JSON.stringify(input) });
+
+/** DELETE /goals — clear the goal. */
+export const deleteGoal = () => http<{ ok: boolean }>("/goals", { method: "DELETE" });
+
+/** GET /goals/progress — `status:"no_goal"` → null. */
+export async function getGoalProgress(): Promise<GoalProgress | null> {
+  const p = await http<GoalProgress>("/goals/progress");
+  return p.status === "no_goal" ? null : p;
 }
 
 export const listChats = () => http<{ chats: ChatSummary[] }>("/chats").then((r) => r.chats);
@@ -158,6 +247,17 @@ export interface SettingsResponse {
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
+/** A long-running background analysis kicked off by a turn. Its finished report
+ *  arrives LATER as new assistant message(s) in the Coach chat. */
+export interface BackgroundJobAction {
+  type: "background_job";
+  job_id: string;
+  topic: string;
+}
+/** A trace action — `background_job` (deep-work signal) or any other action the
+ *  server emits. Kept loose so we can read `.type` without an exhaustive union. */
+export type TraceAction = (BackgroundJobAction | { type?: string }) & Record<string, unknown>;
+
 export interface ChatTrace {
   run_id?: string;
   question?: string;
@@ -168,7 +268,7 @@ export interface ChatTrace {
   agents?: Array<{ agent: string; phase: number; duration_ms: number; data_summary?: string }>;
   route_data?: { tool: string; data: Record<string, unknown> } | null;
   chart_hints?: string[];
-  actions?: Array<Record<string, unknown>>;
+  actions?: TraceAction[];
   error?: string | null;
 }
 

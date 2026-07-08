@@ -45,6 +45,29 @@ def is_linked(telegram_id: int) -> bool:
     return get_email(telegram_id) is not None
 
 
+def get_telegram_id(email: str) -> Optional[int]:
+    """Reverse lookup: the Telegram user id linked to this account, or None.
+
+    Used by the proactive delivery path (``core.delivery``) to push a message to
+    the user unprompted — the forward map above is keyed by telegram_id, so this
+    scans it (the file is tiny; a personal deployment has a handful of links).
+    """
+    want = (email or "").strip().lower()
+    if not want:
+        return None
+    for tid, rec in _load().items():
+        if isinstance(rec, dict) and (rec.get("email") or "").strip().lower() == want:
+            try:
+                return int(tid)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def is_email_linked(email: str) -> bool:
+    return get_telegram_id(email) is not None
+
+
 def link(telegram_id: int, email: str) -> None:
     with _lock:
         d = _load()
