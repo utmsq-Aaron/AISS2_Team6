@@ -329,9 +329,9 @@ python telegram_bridge.py
 
 > The agent layer needs `OPENAI_*` / `AGENT_MODEL` set; for the multi-call agent loops a stable model is recommended — set `AGENT_LLM_MODEL=kit.gpt-4.1` (the agent layer uses it in preference to `AGENT_MODEL`).
 
-Or with Docker Compose:
+Or with Docker Compose (via the wrapper, which feeds the current ports from `core/config.py` into the compose file — see `docker-up.sh`):
 ```bash
-docker compose up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
+./docker-up.sh up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
 streamlit run app.py
 ```
 (The Telegram proxy shells out to `uv` and isn't part of the shared image — run it on the host as above.)

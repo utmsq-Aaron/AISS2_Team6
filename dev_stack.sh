@@ -10,6 +10,7 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 PY="${PY:-/opt/miniconda3/envs/aiss/bin/python3}"
+source ./ports.sh || exit 1
 
 pids=()
 cleanup() { echo; echo "stopping…"; for p in "${pids[@]}"; do kill "$p" 2>/dev/null; done; }
@@ -20,21 +21,21 @@ port_busy() { lsof -ti "tcp:$1" -sTCP:LISTEN >/dev/null 2>&1; }
 # 0. MLflow tracking server — agent + LLM tracing UI at http://localhost:5001.
 #    Started before the agents so they can register the experiment on boot.
 #    Port 5001, not 5000 — macOS Control Center/AirPlay Receiver squats on :5000.
-if port_busy 5001; then
-  echo "✓ MLflow already on :5001"
+if port_busy "$MLFLOW_PORT"; then
+  echo "✓ MLflow already on :$MLFLOW_PORT"
 else
-  echo "→ starting MLflow on :5001"
-  "$PY" -m mlflow server --host 127.0.0.1 --port 5001 \
+  echo "→ starting MLflow on :$MLFLOW_PORT"
+  "$PY" -m mlflow server --host 127.0.0.1 --port "$MLFLOW_PORT" \
     --backend-store-uri "sqlite:///mlflow.db" >/tmp/mlflow.log 2>&1 &
   pids+=($!)
   for _ in $(seq 1 40); do
-    curl -sf http://127.0.0.1:5001/health >/dev/null 2>&1 && { echo "  MLflow ready"; break; }
+    curl -sf "http://127.0.0.1:${MLFLOW_PORT}/health" >/dev/null 2>&1 && { echo "  MLflow ready"; break; }
     sleep 0.5
   done
 fi
 
 # 1. MCP servers (telegram is optional / manual)
-for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrough:8107 google_maps:8108; do
+for s in "${MCP_SERVERS[@]}"; do
   name="${s%%:*}"; port="${s##*:}"
   if port_busy "$port"; then
     echo "✓ $name already on :$port"
@@ -56,7 +57,7 @@ echo "→ ensuring fitness RAG index"
 # 1b. A2A agent layer — LangGraph specialists + orchestrator (each its own server).
 #     Specialists first, orchestrator (:9000) last. The orchestrator resolves the
 #     specialists lazily per request, so startup order isn't load-bearing.
-for a in recovery:9001 load:9002 context:9003 route:9004 fitness:9005 orchestrator:9000; do
+for a in "${AGENT_PORTS[@]}"; do
   name="${a%%:*}"; port="${a##*:}"
   if [ "$name" = "orchestrator" ]; then mod="core.orchestrator_agent"; else mod="agents.${name}_agent"; fi
   if port_busy "$port"; then
@@ -70,9 +71,9 @@ done
 sleep 2
 
 # 2. FastAPI seam
-if port_busy 8000; then echo "✓ FastAPI already on :8000"; else
-  echo "→ starting FastAPI on :8000"
-  "$PY" -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload >/tmp/fitdash_api.log 2>&1 &
+if port_busy "$FASTAPI_PORT"; then echo "✓ FastAPI already on :$FASTAPI_PORT"; else
+  echo "→ starting FastAPI on :$FASTAPI_PORT"
+  "$PY" -m uvicorn api.main:app --host 127.0.0.1 --port "$FASTAPI_PORT" --reload >/tmp/fitdash_api.log 2>&1 &
   pids+=($!)
 fi
 

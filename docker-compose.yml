@@ -10,7 +10,14 @@
 # protection without any server-side change). To run the app *inside* compose too,
 # point *_MCP_URL at the service names and widen each server's allowed_hosts.
 #
-#   docker compose up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
+# Ports below are ${VAR:-default} — the defaults match core/config.py (the single
+# source of truth for every port), and the ${VAR} lets docker-up.sh (which
+# regenerates them from core/config.py via scripts/export_ports.py on every run)
+# override them without editing this file. Always launch via ./docker-up.sh, not
+# `docker compose` directly, so those variables are actually populated — see that
+# script's header for why (Compose can't run Python at parse time).
+#
+#   ./docker-up.sh up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
 
 services:
   weather-mcp:
@@ -18,8 +25,8 @@ services:
     environment:
       SERVER: servers.weather_mcp
       WEATHER_MCP_HOST: 0.0.0.0
-      WEATHER_MCP_PORT: "8101"
-    ports: ["8101:8101"]
+      WEATHER_MCP_PORT: "${WEATHER_MCP_PORT:-8101}"
+    ports: ["${WEATHER_MCP_PORT:-8101}:${WEATHER_MCP_PORT:-8101}"]
     restart: unless-stopped
 
   routes-mcp:
@@ -28,8 +35,8 @@ services:
     environment:
       SERVER: servers.routes_mcp
       ROUTES_MCP_HOST: 0.0.0.0
-      ROUTES_MCP_PORT: "8102"
-    ports: ["8102:8102"]
+      ROUTES_MCP_PORT: "${ROUTES_MCP_PORT:-8102}"
+    ports: ["${ROUTES_MCP_PORT:-8102}:${ROUTES_MCP_PORT:-8102}"]
     restart: unless-stopped
 
   calendar-mcp:
@@ -38,8 +45,8 @@ services:
     environment:
       SERVER: servers.calendar_mcp
       CALENDAR_MCP_HOST: 0.0.0.0
-      CALENDAR_MCP_PORT: "8105"
-    ports: ["8105:8105"]
+      CALENDAR_MCP_PORT: "${CALENDAR_MCP_PORT:-8105}"
+    ports: ["${CALENDAR_MCP_PORT:-8105}:${CALENDAR_MCP_PORT:-8105}"]
     restart: unless-stopped
 
   strava-mcp:
@@ -48,8 +55,8 @@ services:
     environment:
       SERVER: servers.strava_mcp
       STRAVA_MCP_HOST: 0.0.0.0
-      STRAVA_MCP_PORT: "8103"
-    ports: ["8103:8103"]
+      STRAVA_MCP_PORT: "${STRAVA_MCP_PORT:-8103}"
+    ports: ["${STRAVA_MCP_PORT:-8103}:${STRAVA_MCP_PORT:-8103}"]
     restart: unless-stopped
 
   garmin-mcp:
@@ -58,8 +65,8 @@ services:
     environment:
       SERVER: servers.garmin_mcp
       GARMIN_MCP_HOST: 0.0.0.0
-      GARMIN_MCP_PORT: "8104"
-    ports: ["8104:8104"]
+      GARMIN_MCP_PORT: "${GARMIN_MCP_PORT:-8104}"
+    ports: ["${GARMIN_MCP_PORT:-8104}:${GARMIN_MCP_PORT:-8104}"]
     restart: unless-stopped
 
   # ── A2A agent layer (LangGraph specialists + orchestrator) ──────────────────
@@ -74,9 +81,9 @@ services:
     command: ["python", "-m", "agents.recovery_agent"]
     environment:
       A2A_BIND_HOST: 0.0.0.0
-      RECOVERY_A2A_URL: http://recovery-agent:9001/
-      GARMIN_MCP_URL: http://garmin-mcp:8104/mcp
-    ports: ["9001:9001"]
+      RECOVERY_A2A_URL: "http://recovery-agent:${RECOVERY_A2A_PORT:-9001}/"
+      GARMIN_MCP_URL: "http://garmin-mcp:${GARMIN_MCP_PORT:-8104}/mcp"
+    ports: ["${RECOVERY_A2A_PORT:-9001}:${RECOVERY_A2A_PORT:-9001}"]
     depends_on: [garmin-mcp]
     restart: unless-stopped
 
@@ -86,10 +93,10 @@ services:
     command: ["python", "-m", "agents.load_agent"]
     environment:
       A2A_BIND_HOST: 0.0.0.0
-      LOAD_A2A_URL: http://load-agent:9002/
-      STRAVA_MCP_URL: http://strava-mcp:8103/mcp
-      GARMIN_MCP_URL: http://garmin-mcp:8104/mcp
-    ports: ["9002:9002"]
+      LOAD_A2A_URL: "http://load-agent:${LOAD_A2A_PORT:-9002}/"
+      STRAVA_MCP_URL: "http://strava-mcp:${STRAVA_MCP_PORT:-8103}/mcp"
+      GARMIN_MCP_URL: "http://garmin-mcp:${GARMIN_MCP_PORT:-8104}/mcp"
+    ports: ["${LOAD_A2A_PORT:-9002}:${LOAD_A2A_PORT:-9002}"]
     depends_on: [strava-mcp, garmin-mcp]
     restart: unless-stopped
 
@@ -99,10 +106,10 @@ services:
     command: ["python", "-m", "agents.context_agent"]
     environment:
       A2A_BIND_HOST: 0.0.0.0
-      CONTEXT_A2A_URL: http://context-agent:9003/
-      WEATHER_MCP_URL: http://weather-mcp:8101/mcp
-      CALENDAR_MCP_URL: http://calendar-mcp:8105/mcp
-    ports: ["9003:9003"]
+      CONTEXT_A2A_URL: "http://context-agent:${CONTEXT_A2A_PORT:-9003}/"
+      WEATHER_MCP_URL: "http://weather-mcp:${WEATHER_MCP_PORT:-8101}/mcp"
+      CALENDAR_MCP_URL: "http://calendar-mcp:${CALENDAR_MCP_PORT:-8105}/mcp"
+    ports: ["${CONTEXT_A2A_PORT:-9003}:${CONTEXT_A2A_PORT:-9003}"]
     depends_on: [weather-mcp, calendar-mcp]
     restart: unless-stopped
 
@@ -112,9 +119,9 @@ services:
     command: ["python", "-m", "agents.route_agent"]
     environment:
       A2A_BIND_HOST: 0.0.0.0
-      ROUTE_A2A_URL: http://route-agent:9004/
-      ROUTES_MCP_URL: http://routes-mcp:8102/mcp
-    ports: ["9004:9004"]
+      ROUTE_A2A_URL: "http://route-agent:${ROUTE_A2A_PORT:-9004}/"
+      ROUTES_MCP_URL: "http://routes-mcp:${ROUTES_MCP_PORT:-8102}/mcp"
+    ports: ["${ROUTE_A2A_PORT:-9004}:${ROUTE_A2A_PORT:-9004}"]
     depends_on: [routes-mcp]
     restart: unless-stopped
 
@@ -124,12 +131,12 @@ services:
     command: ["python", "-m", "core.orchestrator_agent"]
     environment:
       A2A_BIND_HOST: 0.0.0.0
-      ORCHESTRATOR_A2A_URL: http://orchestrator-agent:9000/
-      RECOVERY_A2A_URL: http://recovery-agent:9001/
-      LOAD_A2A_URL: http://load-agent:9002/
-      CONTEXT_A2A_URL: http://context-agent:9003/
-      ROUTE_A2A_URL: http://route-agent:9004/
-    ports: ["9000:9000"]
+      ORCHESTRATOR_A2A_URL: "http://orchestrator-agent:${ORCHESTRATOR_A2A_PORT:-9000}/"
+      RECOVERY_A2A_URL: "http://recovery-agent:${RECOVERY_A2A_PORT:-9001}/"
+      LOAD_A2A_URL: "http://load-agent:${LOAD_A2A_PORT:-9002}/"
+      CONTEXT_A2A_URL: "http://context-agent:${CONTEXT_A2A_PORT:-9003}/"
+      ROUTE_A2A_URL: "http://route-agent:${ROUTE_A2A_PORT:-9004}/"
+    ports: ["${ORCHESTRATOR_A2A_PORT:-9000}:${ORCHESTRATOR_A2A_PORT:-9000}"]
     depends_on: [recovery-agent, load-agent, context-agent, route-agent]
     restart: unless-stopped
 

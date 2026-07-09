@@ -22,6 +22,7 @@
 #   TELEGRAM_MCP     "1" to also start the telegram MCP proxy on :8106 (needs `uv`)
 set -uo pipefail
 cd "$(dirname "$0")"
+source ./ports.sh || exit 1
 
 PY="${PY:-/opt/miniconda3/envs/aiss/bin/python3}"
 BFF_HOST="${HOST:-127.0.0.1}"
@@ -82,16 +83,16 @@ fi
 
 # 1. MLflow tracking (best-effort; agents degrade gracefully if it's down)
 if [ "${MLFLOW:-1}" = "1" ]; then
-  if port_busy 5001; then echo "✓ MLflow already on :5001"; else
-    echo "→ MLflow on :5001"
-    "$PY" -m mlflow server --host 127.0.0.1 --port 5001 \
+  if port_busy "$MLFLOW_PORT"; then echo "✓ MLflow already on :$MLFLOW_PORT"; else
+    echo "→ MLflow on :$MLFLOW_PORT"
+    "$PY" -m mlflow server --host 127.0.0.1 --port "$MLFLOW_PORT" \
       --backend-store-uri "sqlite:///mlflow.db" >/tmp/mlflow.log 2>&1 &
     pids+=($!)
   fi
 fi
 
 # 2. MCP servers
-for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrough:8107 google_maps:8108; do
+for s in "${MCP_SERVERS[@]}"; do
   name="${s%%:*}"; port="${s##*:}"
   if port_busy "$port"; then echo "✓ $name already on :$port"; else
     echo "→ $name on :$port"
@@ -101,8 +102,8 @@ for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrou
 done
 # Telegram MCP proxy (:8106) — opt-in; gives the agent Telegram tools.
 if $TG_MCP_ON; then
-  if port_busy 8106; then echo "✓ telegram already on :8106"; else
-    echo "→ telegram MCP on :8106"
+  if port_busy "$TELEGRAM_MCP_PORT"; then echo "✓ telegram already on :$TELEGRAM_MCP_PORT"; else
+    echo "→ telegram MCP on :$TELEGRAM_MCP_PORT"
     "$PY" -m servers.telegram_mcp >/tmp/mcp_telegram.log 2>&1 &
     pids+=($!)
   fi
@@ -114,7 +115,7 @@ sleep 2
   || echo "⚠ fitness index unavailable — the fitness agent will degrade gracefully"
 
 # 3. A2A agents (specialists first, orchestrator last)
-for a in recovery:9001 load:9002 context:9003 route:9004 fitness:9005 orchestrator:9000; do
+for a in "${AGENT_PORTS[@]}"; do
   name="${a%%:*}"; port="${a##*:}"
   [ "$name" = "orchestrator" ] && mod="core.orchestrator_agent" || mod="agents.${name}_agent"
   if port_busy "$port"; then echo "✓ agent $name already on :$port"; else
@@ -126,9 +127,9 @@ done
 sleep 2
 
 # 4. FastAPI (internal only — the BFF proxies to it; no --reload in production)
-if port_busy 8000; then echo "✓ FastAPI already on :8000"; else
-  echo "→ FastAPI on 127.0.0.1:8000"
-  "$PY" -m uvicorn api.main:app --host 127.0.0.1 --port 8000 >/tmp/fitdash_api.log 2>&1 &
+if port_busy "$FASTAPI_PORT"; then echo "✓ FastAPI already on :$FASTAPI_PORT"; else
+  echo "→ FastAPI on 127.0.0.1:$FASTAPI_PORT"
+  "$PY" -m uvicorn api.main:app --host 127.0.0.1 --port "$FASTAPI_PORT" >/tmp/fitdash_api.log 2>&1 &
   pids+=($!)
 fi
 sleep 2
@@ -136,7 +137,7 @@ sleep 2
 # 5. BFF — serves the SPA + proxies /api. This is the only externally-fronted port.
 ( cd server && [ -d node_modules ] || npm ci ) || { echo "✗ BFF deps failed"; exit 1; }
 echo "→ BFF on ${BFF_HOST}:${BFF_PORT}  (open http://localhost:${BFF_PORT} on this machine)"
-( cd server && HOST="$BFF_HOST" PORT="$BFF_PORT" API_TARGET="http://127.0.0.1:8000" \
+( cd server && HOST="$BFF_HOST" PORT="$BFF_PORT" API_TARGET="http://127.0.0.1:${FASTAPI_PORT}" \
     DO_LOCK="${DO_LOCK:-false}" APP_PIN="${APP_PIN:-}" node index.js ) &
 bff=$!; pids+=($bff)
 sleep 2

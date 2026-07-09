@@ -13,6 +13,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
+source ./ports.sh || exit 1
 
 # Pick a python: explicit $PY wins; else the currently-activated conda env; else the
 # deploy-server path; else whatever python3 is on PATH.
@@ -25,7 +26,8 @@ if [ -z "${PY:-}" ]; then
     PY="$(command -v python3 || true)"
   fi
 fi
-APP_PORTS=(5001 8101 8102 8103 8104 8105 8107 8108 9000 9001 9002 9003 9004 9005 8000 3000)
+# ALL_PORTS (from ports.sh) plus the BFF port (default 3000, see serve.sh PORT=).
+APP_PORTS=("${ALL_PORTS[@]}" "${PORT:-3000}")
 
 # Stable signing secret — generated once, reused forever (so sessions persist across
 # restarts instead of logging everyone out). Needed by the `app` role too.
@@ -61,8 +63,8 @@ case "${1:-}" in
       echo "ℹ Telegram not configured in .env — nothing to run in this window."
       exec "${SHELL:-/bin/zsh}"
     fi
-    echo "→ waiting for the orchestrator (:9000) to come up…"
-    for _ in $(seq 1 40); do lsof -ti tcp:9000 -sTCP:LISTEN >/dev/null 2>&1 && break; sleep 1; done
+    echo "→ waiting for the orchestrator (:$ORCHESTRATOR_PORT) to come up…"
+    for _ in $(seq 1 40); do lsof -ti "tcp:$ORCHESTRATOR_PORT" -sTCP:LISTEN >/dev/null 2>&1 && break; sleep 1; done
     echo "→ Telegram bridge (userbot · users sign in with /login)"
     "$PY" telegram_bridge.py
     echo; echo "(bridge exited — window kept open; press Ctrl-C / close it)"; exec "${SHELL:-/bin/zsh}"

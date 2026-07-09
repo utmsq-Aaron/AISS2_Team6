@@ -14,23 +14,36 @@ import os
 # name (dots are NOT allowed in OpenAI function names, so we use a double underscore).
 SEP = "__"
 
+# name → default port. THE single numeric source for every MCP server's port —
+# scripts/export_ports.py projects this (plus AGENT_PORTS / FASTAPI_PORT below)
+# into whatever ports.sh, docker-compose.yml and web/vite.config.ts need, so none
+# of them carry a second, independently-typo-able copy of these numbers. A given
+# server's own `os.getenv("<NAME>_MCP_PORT", …)` default (in servers/*.py) is a
+# deliberate exception — those files are intentionally standalone/no core import.
+MCP_PORTS: dict[str, int] = {
+    "weather":     8101,
+    "routes":      8102,
+    "strava":      8103,
+    "garmin":      8104,
+    "calendar":    8105,
+    "telegram":    8106,
+    "flythrough":  8107,
+    "google_maps": 8108,
+}
 
-def _url(name: str, default_port: int) -> str:
-    return os.getenv(f"{name.upper()}_MCP_URL", f"http://127.0.0.1:{default_port}/mcp")
+
+def _url(name: str) -> str:
+    return os.getenv(f"{name.upper()}_MCP_URL", f"http://127.0.0.1:{MCP_PORTS[name]}/mcp")
 
 
 # name → Streamable-HTTP MCP endpoint. Own servers today; external/user servers
 # get appended here (per-user, at runtime) in the multi-tenant build.
-MCP_SERVERS: dict[str, str] = {
-    "weather":    _url("weather",    8101),
-    "routes":     _url("routes",     8102),
-    "strava":     _url("strava",     8103),
-    "garmin":     _url("garmin",     8104),
-    "calendar":   _url("calendar",   8105),
-    "telegram":   _url("telegram",   8106),
-    "flythrough": _url("flythrough", 8107),
-    "google_maps": _url("google_maps", 8108),
-}
+MCP_SERVERS: dict[str, str] = {name: _url(name) for name in MCP_PORTS}
+
+# The FastAPI seam's port (api/main.py). Read live by web/vite.config.ts (via
+# scripts/export_ports.py) so its dev-server proxy target can never drift from
+# what the launcher scripts actually start FastAPI on.
+FASTAPI_PORT: int = int(os.getenv("FASTAPI_PORT", "8000"))
 
 
 # ── A2A agent layer ───────────────────────────────────────────────────────────

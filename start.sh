@@ -14,6 +14,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
+source ./ports.sh || exit 1
 
 CONDA_SH="${CONDA_SH:-/opt/miniconda3/etc/profile.d/conda.sh}"
 CONDA_ENV="${CONDA_ENV:-aiss}"
@@ -43,21 +44,21 @@ run_mcps() {
 
   echo "=== MLflow tracking server ==="
   # Port 5001, not 5000 — macOS Control Center/AirPlay Receiver squats on :5000.
-  if port_busy 5001; then
-    echo "✓ MLflow already on :5001 (reusing)"
+  if port_busy "$MLFLOW_PORT"; then
+    echo "✓ MLflow already on :$MLFLOW_PORT (reusing)"
   else
-    echo "→ starting MLflow on :5001  (UI at http://localhost:5001)"
-    python -m mlflow server --host 127.0.0.1 --port 5001 \
+    echo "→ starting MLflow on :$MLFLOW_PORT  (UI at http://localhost:$MLFLOW_PORT)"
+    python -m mlflow server --host 127.0.0.1 --port "$MLFLOW_PORT" \
       --backend-store-uri "sqlite:///mlflow.db" >/tmp/mlflow.log 2>&1 &
     pids+=($!)
     for _ in $(seq 1 40); do
-      curl -sf http://127.0.0.1:5001/health >/dev/null 2>&1 && { echo "  MLflow ready"; break; }
+      curl -sf "http://127.0.0.1:${MLFLOW_PORT}/health" >/dev/null 2>&1 && { echo "  MLflow ready"; break; }
       sleep 0.5
     done
   fi
 
   echo "=== MCP servers ==="
-  for s in weather:8101 routes:8102 strava:8103 garmin:8104 calendar:8105 flythrough:8107 google_maps:8108; do
+  for s in "${MCP_SERVERS[@]}"; do
     name="${s%%:*}"; port="${s##*:}"
     if port_busy "$port"; then
       echo "✓ $name already on :$port (reusing)"
@@ -74,7 +75,7 @@ run_mcps() {
     || echo "⚠ fitness index unavailable — the fitness agent will degrade gracefully"
 
   echo "=== A2A agents (LangGraph specialists + orchestrator) ==="
-  for a in recovery:9001 load:9002 context:9003 route:9004 fitness:9005 orchestrator:9000; do
+  for a in "${AGENT_PORTS[@]}"; do
     name="${a%%:*}"; port="${a##*:}"
     if [ "$name" = "orchestrator" ]; then mod="core.orchestrator_agent"; else mod="agents.${name}_agent"; fi
     if port_busy "$port"; then
@@ -88,11 +89,11 @@ run_mcps() {
   sleep 2
 
   echo "=== FastAPI seam ==="
-  if port_busy 8000; then
-    echo "✓ FastAPI already on :8000 (reusing)"
+  if port_busy "$FASTAPI_PORT"; then
+    echo "✓ FastAPI already on :$FASTAPI_PORT (reusing)"
   else
-    echo "→ starting FastAPI on :8000"
-    python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload &
+    echo "→ starting FastAPI on :$FASTAPI_PORT"
+    python -m uvicorn api.main:app --host 127.0.0.1 --port "$FASTAPI_PORT" --reload &
     pids+=($!)
   fi
 
