@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -99,6 +99,47 @@ def list_chats(user: str) -> List[dict]:
     chats.sort(key=lambda c: c.get("updated_at") or "", reverse=True)
     chats.sort(key=lambda c: 0 if c.get("pinned") else 1)
     return [_summary(c) for c in chats]
+
+
+def last_user_message_ts(user: str, within_hours: int = 48) -> Optional[datetime]:
+    """The newest ``role=="user"`` message timestamp across this user's chats (aware
+    UTC), or None if there isn't one within ``within_hours``. Covers Telegram too —
+    the bridge mirrors every inbound DM into the Coach chat as ``role="user"``.
+
+    Prefilters chat files by their ``updated_at`` summary field (cheap) before
+    reading + reverse-scanning ``messages`` (the actual signal — a chat's
+    ``updated_at`` also advances on assistant/proactive writes, so only the
+    per-message role scan is authoritative)."""
+    d = _user_dir(user)
+    if not d.exists():
+        return None
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
+    newest: Optional[datetime] = None
+    for p in d.glob("*.json"):
+        chat = _read(p)
+        if not chat:
+            continue
+        updated = _parse_ts(chat.get("updated_at"))
+        if updated is not None and updated < cutoff:
+            continue  # this chat hasn't changed at all within the window
+        for msg in reversed(chat.get("messages") or []):
+            if msg.get("role") != "user":
+                continue
+            ts = _parse_ts(msg.get("ts"))
+            if ts is not None and ts >= cutoff and (newest is None or ts > newest):
+                newest = ts
+            break  # messages are append-only; the last "user" one is the newest in this chat
+    return newest
+
+
+def _parse_ts(raw: Optional[str]) -> Optional[datetime]:
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 
 def create_chat(user: str, title: str = "") -> dict:

@@ -45,6 +45,34 @@ def enabled() -> bool:
     return _env("MLFLOW_TRACING", "1").strip().lower() not in ("0", "false", "no", "off")
 
 
+def _set_experiment_bounded(name: str, timeout: float = 5.0) -> bool:
+    """``mlflow.set_experiment()`` makes a network call to get-or-create the
+    experiment; if the tracking server is unreachable, mlflow's REST client retries
+    with backoff for a long time (observed: minutes) instead of failing fast. That
+    would silently break this function's own documented contract ("an unreachable
+    tracking server ... degrades to a no-op") by hanging the WHOLE process's
+    startup instead. Bound it with a daemon thread (not ThreadPoolExecutor — its
+    workers are non-daemon and get joined at interpreter/process shutdown even
+    after a timeout) so an MLflow outage can never delay this process."""
+    import threading
+
+    done = threading.Event()
+    box: dict = {}
+
+    def _worker() -> None:
+        try:
+            import mlflow
+            mlflow.set_experiment(name)
+            box["ok"] = True
+        except Exception:  # noqa: BLE001
+            box["ok"] = False
+        finally:
+            done.set()
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return done.wait(timeout=timeout) and box.get("ok", False)
+
+
 def setup_tracing(service: str) -> bool:
     """Point this process at the MLflow server and enable autologging (idempotent).
 
@@ -62,7 +90,10 @@ def setup_tracing(service: str) -> bool:
         import mlflow.langchain
 
         mlflow.set_tracking_uri(tracking_uri())
-        mlflow.set_experiment(experiment())
+        if not _set_experiment_bounded(experiment()):
+            print(f"[{service}] MLflow tracking server unreachable at {tracking_uri()} "
+                  f"— tracing disabled for this process.", flush=True)
+            return False
         # LangGraph / LangChain agents: one trace per ainvoke, with the LLM call and
         # every tool (specialist ask_* / MCP) call nested as child spans.
         mlflow.langchain.autolog()

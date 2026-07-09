@@ -219,6 +219,56 @@ export async function fetchFlythroughHtml(
   return res.text();
 }
 
+// ── Profile (name, avatar, first-login onboarding) ───────────────────────────
+
+export interface Profile {
+  name: string;
+  onboarding_complete: boolean;
+  has_avatar: boolean;
+}
+
+/** GET /profile — never 404s; defaults for a brand-new user. */
+export const getProfile = () => http<Profile>("/profile");
+
+/** PUT /profile — send only what changed. */
+export const putProfile = (patch: Partial<Pick<Profile, "name" | "onboarding_complete">>) =>
+  http<Profile>("/profile", { method: "PUT", body: JSON.stringify(patch) });
+
+/** POST /profile/avatar — multipart upload. Does NOT go through http() (that
+ *  forces Content-Type: application/json) and does NOT set Content-Type manually
+ *  either — the browser must generate its own multipart boundary. */
+export async function uploadAvatar(file: File): Promise<Profile> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/profile/avatar", {
+    method: "POST",
+    headers: { ...authHeaders() },
+    body: form,
+  });
+  if (res.status === 401) {
+    forceLogout();
+    throw new Error("Session expired — please log in again.");
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new Error(`Avatar upload ${res.status}: ${detail}`);
+  }
+  return res.json();
+}
+
+/** GET /profile/avatar — raw authed fetch (mirrors fetchFlythroughHtml's auth
+ *  pattern). 404 (no avatar set) → null instead of throwing. */
+export async function fetchAvatarBlob(): Promise<Blob | null> {
+  const res = await fetch("/api/profile/avatar", { headers: { ...authHeaders() } });
+  if (res.status === 404) return null;
+  if (res.status === 401) {
+    forceLogout();
+    throw new Error("Session expired — please log in again.");
+  }
+  if (!res.ok) return null;
+  return res.blob();
+}
+
 export interface ServerStatus {
   key: string;
   label: string;
@@ -360,3 +410,14 @@ export async function generateCharts(trace: ChatTrace): Promise<any[]> {
   });
   return r.figures || [];
 }
+
+// ── Feedback (tester bug-report button) ──────────────────────────────────────
+// The server captures the full diagnostic bundle (logs, chats, etc.) itself;
+// the frontend only sends the report text plus cheap client-side context.
+
+/** POST /feedback — submit a tester bug report. Empty/whitespace `text` → 422. */
+export const submitFeedback = (text: string, context?: Record<string, unknown>) =>
+  http<{ ok: boolean; bundle_id: string }>("/feedback", {
+    method: "POST",
+    body: JSON.stringify({ text, context }),
+  });

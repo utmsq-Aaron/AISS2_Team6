@@ -12,8 +12,8 @@ load_dotenv()
 
 from api.auth import current_user  # noqa: E402
 from api.routers import (  # noqa: E402
-    auth, chat, chats, charts, flythrough, goals, health, memory, schedules,
-    settings, sync, tools,
+    auth, chat, chats, charts, feedback, flythrough, goals, health, memory, profile,
+    schedules, settings, sync, tools,
 )
 from core.tracing import setup_tracing  # noqa: E402
 
@@ -42,7 +42,7 @@ app.include_router(settings.public_router, prefix="/api")
 _PROTECTED = [Depends(current_user)]
 for r in (health.router, tools.router, chat.router, chats.router, charts.router,
           sync.router, memory.router, settings.router, flythrough.router, goals.router,
-          schedules.router):
+          schedules.router, profile.router, feedback.router):
     app.include_router(r, prefix="/api", dependencies=_PROTECTED)
 
 # Settings is reachable by any logged-in user, but the privileged actions inside it

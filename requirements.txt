@@ -17,6 +17,7 @@ qrcode>=7,<9              # optional: in-terminal QR for `telegram_bridge.py --l
 playwright>=1.44.0
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9  # required by FastAPI's UploadFile (avatar upload, api/routers/profile.py)
 starlette                 # telegram_mcp proxy ASGI app (also a transitive mcp dep)
 faster-whisper>=1.0.0     # local voice-memo transcription (portable CPU engine, no ffmpeg needed)
 # Apple Silicon GPU speedup (optional, Mac-only — also needs `brew install ffmpeg`):

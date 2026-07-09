@@ -96,5 +96,9 @@ data/proactive/
 data/deep_jobs/
 data/goal_build/
 
+# Feedback bundles (log tails + per-user state, captured by the red feedback
+# button) — contain chat history and diagnostics; never commit.
+data/feedback/
+
 # Persisted launcher secrets (the stable AUTH_SECRET) — never commit.
 .secrets/

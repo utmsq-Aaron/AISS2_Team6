@@ -820,8 +820,20 @@ async def _compose_wakeup(email: str, entry: dict) -> Optional[str]:
     return answer or note
 
 
+def _recently_active(email: str) -> bool:
+    """True if the user already exchanged a message (web or Telegram) recently — the
+    adaptive-skip signal for the daily check-in."""
+    from core import chat_store
+    skip_hours = int(os.getenv("DAILY_CHECKIN_SKIP_HOURS", "8") or "8")
+    try:
+        return chat_store.last_user_message_ts(email, within_hours=skip_hours) is not None
+    except Exception:  # noqa: BLE001 — never let this block a check-in
+        return False
+
+
 async def _fire_due(client, now: datetime) -> None:
-    from core import delivery, schedule_store
+    from core import delivery, goal_store, schedule_store
+    from core.schedule_store import _BERLIN
     # Group all due entries per user so we can coalesce into ONE delivery.
     by_email: Dict[str, List[dict]] = defaultdict(list)
     for email, entry in schedule_store.due(now):
@@ -837,6 +849,23 @@ async def _fire_due(client, now: datetime) -> None:
             if stale and e.get("kind") == "calendar_pre":
                 schedule_store.mark_fired(email, e, now)
                 continue
+            # Adaptive skip: the user already chatted recently — skip this daily
+            # check-in silently (mark_fired re-arms it for tomorrow; no delivery).
+            if e.get("kind") == "daily_checkin" and _recently_active(email):
+                schedule_store.mark_fired(email, e, now)
+                continue
+            # Monday: weave in a quick goal-progress review, but only in the composed
+            # message for THIS fire — mark_fired never persists "note" back to disk,
+            # so the stored daily_checkin note stays generic for every other day.
+            # Derived from the tick's own `now` (not a fresh datetime.now() call) so
+            # this is deterministic given the tick, not a wall-clock race.
+            if e.get("kind") == "daily_checkin" and now.astimezone(_BERLIN).weekday() == 0:
+                try:
+                    has_goal = goal_store.has_active_goal(email)
+                except Exception:  # noqa: BLE001
+                    has_goal = False
+                if has_goal:
+                    e = {**e, "note": (e.get("note") or "") + "\n\n" + MONDAY_GOAL_REVIEW_NOTE}
             try:
                 msg = await _compose_wakeup(email, e)
             except Exception:  # noqa: BLE001 — leave un-fired → retry next tick
@@ -906,20 +935,37 @@ def _proactive_emails() -> set:
     return emails
 
 
-def _next_9am_berlin() -> str:
+def _next_morning_berlin(hour: Optional[int] = None) -> str:
     from core.schedule_store import _BERLIN
+    if hour is None:
+        hour = int(os.getenv("DAILY_CHECKIN_HOUR", "9") or "9")
     now_local = datetime.now(_BERLIN)
-    target = now_local.replace(hour=9, minute=0, second=0, microsecond=0)
+    target = now_local.replace(hour=hour, minute=0, second=0, microsecond=0)
     if target <= now_local:
         target = target + timedelta(days=1)
     return target.isoformat()
 
 
+DAILY_CHECKIN_NOTE = (
+    "Morning check-in — text the user like a friend, NOT a report: 1–3 sentences max, "
+    "their first name if you have it, no headers or bullet lists. Glance at today's "
+    "weather and mention it only if it actually affects training (rain, heat, etc — "
+    "skip it if it's unremarkable). Ask how they're feeling and whether today's session "
+    "is on. Keep it light and genuine, like you're checking in on a friend."
+)
+
+MONDAY_GOAL_REVIEW_NOTE = (
+    "It's Monday — also weave in a brief, casual look at how the week's shaping up "
+    "against their active goal(s): on track, slipping, or crushing it. Still 1–3 "
+    "sentences total, still a text from a friend, not a status report."
+)
+
+
 def _run_calendar_autoschedule() -> None:
-    """Hourly: pre/post-event nudges from the calendar + a weekly goal check-in.
+    """Hourly: pre/post-event nudges from the calendar + a daily check-in.
     Sync (runs in an executor). Best-effort per user; a calendar error skips it."""
     import json
-    from core import goal_store, schedule_store
+    from core import schedule_store
     from core.host import default_host
 
     now = datetime.now(timezone.utc)
@@ -948,8 +994,9 @@ def _run_calendar_autoschedule() -> None:
                 if pre > now:
                     schedule_store.upsert(
                         email, f"cal:pre:{eid}", pre.isoformat(),
-                        f"Prep nudge for '{summary}' ({sdt}): remind me what to bring and "
-                        f"suggest a warm-up / fueling.",
+                        f"Text the user like a friend before '{summary}' ({sdt}): 1–3 "
+                        f"sentences — hype them up a little, remind them what to bring, "
+                        f"maybe a quick fueling/warm-up tip. No report formatting.",
                         kind="calendar_pre", source="calendar_auto")
             end = schedule_store.to_utc(edt)
             if end:
@@ -957,22 +1004,23 @@ def _run_calendar_autoschedule() -> None:
                 if post > now:
                     schedule_store.upsert(
                         email, f"cal:post:{eid}", post.isoformat(),
-                        f"Follow up on '{summary}': how did it go? Log it and do a quick "
-                        f"recovery check.",
+                        f"Text the user like a friend after '{summary}': how did it go? "
+                        f"1–3 sentences, casual — ask, don't report. Nudge them to log it "
+                        f"if they haven't.",
                         kind="calendar_post", source="calendar_auto")
 
-        # Weekly goal check-in (not only calendar events) for users with an active goal.
+        # Daily buddy check-in (replaces the old weekly goal_checkin — a buddy checks
+        # in every day, not once a week; the Monday fire adds a goal review, see
+        # _fire_due). Migration: cancel any leftover weekly entry once, idempotently.
         try:
-            if goal_store.has_active_goal(email):
-                existing = {e.get("reason_key") for e in schedule_store.list_for(email)}
-                if "goal_checkin" not in existing:
-                    schedule_store.upsert(
-                        email, "goal_checkin", _next_9am_berlin(),
-                        "Weekly goal check-in: compute my progress toward my active goals and "
-                        "tell me directly whether I'm on track or slipping on any of them — and "
-                        "what to do about it.",
-                        kind="goal_checkin", source="calendar_auto",
-                        recurrence={"every_days": 7})
+            existing = {e.get("reason_key") for e in schedule_store.list_for(email)}
+            if "goal_checkin" in existing:
+                schedule_store.cancel(email, "goal_checkin")
+            if "daily_checkin" not in existing:
+                schedule_store.upsert(
+                    email, "daily_checkin", _next_morning_berlin(), DAILY_CHECKIN_NOTE,
+                    kind="daily_checkin", source="calendar_auto",
+                    recurrence={"every_days": 1})
         except Exception:  # noqa: BLE001
             pass
 

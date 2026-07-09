@@ -1,10 +1,45 @@
 import { ChevronRight, LogOut, Menu, Search, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
+import { fetchAvatarBlob, getProfile } from "../lib/api";
 import { NAV, navLabel } from "../nav";
 import { useAuthStore } from "../store/authStore";
 import { useUiStore } from "../store/uiStore";
+import { FeedbackButton } from "./FeedbackButton";
+
+/** Profile (name + has_avatar) shared with the onboarding gate/wizard via the
+ *  same `["profile"]` query key — one source of truth that invalidates together. */
+function useProfile() {
+  return useQuery({ queryKey: ["profile"], queryFn: getProfile });
+}
+
+/** Object URL for the user's avatar image, fetched only when `has_avatar` is
+ *  true. Revokes the previous URL on cleanup/unmount or when `has_avatar` flips. */
+function useAvatarUrl(hasAvatar: boolean): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasAvatar) {
+      setUrl(null);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    fetchAvatarBlob().then((blob) => {
+      if (cancelled || !blob) return;
+      objectUrl = URL.createObjectURL(blob);
+      setUrl(objectUrl);
+    });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [hasAvatar]);
+
+  return url;
+}
 
 // Minimalist header — breadcrumb, quick search (page jump), and user profile.
 export function Header() {
@@ -15,6 +50,9 @@ export function Header() {
 
   const { user, logout } = useAuthStore();
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const profileQuery = useProfile();
+  const avatarUrl = useAvatarUrl(Boolean(profileQuery.data?.has_avatar));
+  const displayName = profileQuery.data?.name || user || "Athlete";
   const current = navLabel(location.pathname);
   const matches = query
     ? NAV.filter((n) => n.label.toLowerCase().includes(query.toLowerCase()))
@@ -88,12 +126,18 @@ export function Header() {
         )}
       </div>
 
+      <FeedbackButton />
+
       {/* User profile + logout */}
       <div className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-surface px-2.5 py-1.5">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-accent">
-          <User size={14} strokeWidth={2} />
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-accent">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <User size={14} strokeWidth={2} />
+          )}
         </span>
-        <span className="hidden text-sm text-text-primary sm:inline">{user ?? "Athlete"}</span>
+        <span className="hidden text-sm text-text-primary sm:inline">{displayName}</span>
         <button
           onClick={logout}
           title="Sign out"

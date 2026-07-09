@@ -337,6 +337,14 @@ class UserMemory:
             return ""
         sections: List[str] = []
 
+        try:
+            from core.user_profile import display_name
+            name = display_name(self.user)
+        except Exception:  # noqa: BLE001 — profile is best-effort
+            name = ""
+        if name:
+            sections.append(f"## User's name\nThe user's name is {name} — address them by it.")
+
         goal = self.goal_block()
         if goal:
             sections.append(goal)
