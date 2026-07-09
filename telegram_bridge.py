@@ -55,7 +55,9 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 from collections import defaultdict, deque
+from datetime import datetime, timedelta, timezone
 from typing import Deque, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -85,6 +87,23 @@ HISTORY_TURNS = max(1, int(os.getenv("TELEGRAM_BRIDGE_HISTORY", "10") or "10"))
 INTERNAL_ONLY = os.getenv("TELEGRAM_BRIDGE_INTERNAL_ONLY", "false").strip().lower() in ("1", "true", "yes")
 
 TG_LIMIT = 4096  # Telegram per-message character cap
+
+# ── Proactive scheduler (this process hosts the durable cross-chat scheduler) ──
+SCHEDULE_POLL_SECONDS = max(15, int(os.getenv("SCHEDULE_POLL_SECONDS", "60") or "60"))
+CAL_PRE_OFFSET_MIN = int(os.getenv("CAL_PRE_OFFSET_MIN", "60") or "60")
+CAL_POST_OFFSET_MIN = int(os.getenv("CAL_POST_OFFSET_MIN", "30") or "30")
+CAL_SCAN_SECONDS = max(300, int(os.getenv("CAL_SCAN_SECONDS", "3600") or "3600"))
+
+# ── Goal-panel builds — a SEPARATE, faster loop from the scheduler above ────────
+# A form-created/refreshed goal is ENQUEUED (never spawned in FastAPI, which runs
+# under --reload and would kill an in-process daemon thread on the next code edit).
+# This drains that queue on its own short cadence so "building…" actually resolves
+# in seconds, without changing the 60s cadence the wake-up scheduler relies on.
+GOAL_BUILD_POLL_SECONDS = max(2, int(os.getenv("GOAL_BUILD_POLL_SECONDS", "5") or "5"))
+# Panels older than this are considered stale and re-enqueued by the hourly scan —
+# the "daily-ish" auto-refresh (there is no literal daily tick; it rides the hourly
+# calendar scan already in place).
+GOAL_PANEL_STALE_HOURS = float(os.getenv("GOAL_PANEL_STALE_HOURS", "20") or "20")
 
 # ── Per-process state ────────────────────────────────────────────────────────────
 # History per chat: a flat deque of {"role", "content"} dicts (2 entries / turn).
@@ -733,6 +752,16 @@ async def _handle_message(event) -> None:
     _histories[chat_id].append({"role": "user", "content": text})
     _histories[chat_id].append({"role": "assistant", "content": answer or ""})
 
+    # Mirror the turn into the web-visible, pinned "Coach" chat so the Telegram
+    # conversation shows up in the React chat list. No unread bump — the user is
+    # actively chatting here on Telegram (proactive deliveries do bump unread).
+    try:
+        from core import coach_mirror
+        coach_mirror.append(email, "user", text, bump_unread=False)
+        coach_mirror.append(email, "assistant", answer or "", trace=trace, bump_unread=False)
+    except Exception:  # noqa: BLE001 — mirroring must never break a reply
+        pass
+
     # Track this turn in the user's own MLflow experiment (best-effort).
     try:
         from core import user_tracking
@@ -767,6 +796,299 @@ async def _handle_message(event) -> None:
              f" +{n_charts}charts"   if n_charts else "",
              f" +{n_plotly}plotly"   if n_plotly else "",
              " +flythrough"          if ft_action else "")
+
+
+# ── Proactive scheduler ────────────────────────────────────────────────────────
+# The bridge is the only always-on process, so it owns the durable, cross-chat
+# scheduler: it polls core.schedule_store for due wake-ups, composes each by running
+# the note back through the orchestrator (fresh data), coalesces a user's due
+# wake-ups into ONE message, and delivers via core.delivery (Telegram push + the
+# web Coach-chat mirror). It also drains the pre-composed outbox (deep reports) and,
+# hourly, auto-schedules pre/post-event nudges from the calendar + a weekly goal
+# check-in. Every step is wrapped so a scheduler error never disturbs inbound chat.
+
+async def _compose_wakeup(email: str, entry: dict) -> Optional[str]:
+    """Run the entry's note back through the engine (fresh data). Holds _RUN_LOCK
+    around the agent run only (ToolHost isn't thread-safe); returns the answer."""
+    note = (entry.get("note") or "").strip()
+    if not note:
+        return None
+    async with _RUN_LOCK:
+        loop = asyncio.get_running_loop()
+        answer, _ = await loop.run_in_executor(
+            None, lambda: _get_orchestrator().run(note, [], user=email))
+    return answer or note
+
+
+def _recently_active(email: str) -> bool:
+    """True if the user already exchanged a message (web or Telegram) recently — the
+    adaptive-skip signal for the daily check-in."""
+    from core import chat_store
+    skip_hours = int(os.getenv("DAILY_CHECKIN_SKIP_HOURS", "8") or "8")
+    try:
+        return chat_store.last_user_message_ts(email, within_hours=skip_hours) is not None
+    except Exception:  # noqa: BLE001 — never let this block a check-in
+        return False
+
+
+async def _fire_due(client, now: datetime) -> None:
+    from core import delivery, goal_store, schedule_store
+    from core.schedule_store import _BERLIN
+    # Group all due entries per user so we can coalesce into ONE delivery.
+    by_email: Dict[str, List[dict]] = defaultdict(list)
+    for email, entry in schedule_store.due(now):
+        by_email[email].append(entry)
+
+    for email, entries in by_email.items():
+        parts: List[str] = []
+        fired: List[dict] = []
+        for e in entries:
+            stale = schedule_store.is_stale(e, now)
+            # A pre-event nudge for an event that's already started is noise — drop it
+            # (still record it fired so it never re-fires), but keep late goal check-ins.
+            if stale and e.get("kind") == "calendar_pre":
+                schedule_store.mark_fired(email, e, now)
+                continue
+            # Adaptive skip: the user already chatted recently — skip this daily
+            # check-in silently (mark_fired re-arms it for tomorrow; no delivery).
+            if e.get("kind") == "daily_checkin" and _recently_active(email):
+                schedule_store.mark_fired(email, e, now)
+                continue
+            # Monday: weave in a quick goal-progress review, but only in the composed
+            # message for THIS fire — mark_fired never persists "note" back to disk,
+            # so the stored daily_checkin note stays generic for every other day.
+            # Derived from the tick's own `now` (not a fresh datetime.now() call) so
+            # this is deterministic given the tick, not a wall-clock race.
+            if e.get("kind") == "daily_checkin" and now.astimezone(_BERLIN).weekday() == 0:
+                try:
+                    has_goal = goal_store.has_active_goal(email)
+                except Exception:  # noqa: BLE001
+                    has_goal = False
+                if has_goal:
+                    e = {**e, "note": (e.get("note") or "") + "\n\n" + MONDAY_GOAL_REVIEW_NOTE}
+            try:
+                msg = await _compose_wakeup(email, e)
+            except Exception:  # noqa: BLE001 — leave un-fired → retry next tick
+                log.exception("compose wakeup failed (%s / %s)", email, e.get("reason_key"))
+                continue
+            if msg:
+                parts.append(("(delayed) " if stale else "") + msg)
+                fired.append(e)
+        if parts:
+            try:
+                await delivery.deliver_async(email, "\n\n".join(parts),
+                                             kind="proactive", tg_client=client,
+                                             on_sent=_track)
+            except Exception:  # noqa: BLE001
+                log.exception("delivery failed for %s", email)
+                continue
+            for e in fired:
+                schedule_store.mark_fired(email, e, now)
+
+
+async def _drain_outbox(client) -> None:
+    """Deliver pre-composed messages (deep-analysis reports) and remove them."""
+    from core import delivery, proactive_outbox
+    for path, rec in proactive_outbox.pending():
+        email, body = rec.get("user"), (rec.get("body") or "")
+        if not email or not body.strip():
+            proactive_outbox.remove(path)
+            continue
+        title = rec.get("title")
+        text = f"**{title}**\n\n{body}" if title else body
+        try:
+            await delivery.deliver_async(email, text, trace=rec.get("trace"),
+                                         kind=rec.get("kind") or "deep_report", tg_client=client,
+                                         on_sent=_track)
+        except Exception:  # noqa: BLE001
+            log.exception("outbox delivery failed for %s", email)
+            continue
+        proactive_outbox.remove(path)
+
+
+def _all_account_emails() -> List[str]:
+    import json
+    from pathlib import Path
+    p = Path(__file__).resolve().parent / "data" / "accounts.json"
+    try:
+        return list(json.loads(p.read_text(encoding="utf-8")).keys())
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _proactive_emails() -> set:
+    """Users eligible for proactive scheduling: Telegram-linked ∪ has-an-active-goal."""
+    from core import goal_store, telegram_link
+    emails = set()
+    try:
+        for rec in (telegram_link._load() or {}).values():
+            if isinstance(rec, dict) and rec.get("email"):
+                emails.add(rec["email"])
+    except Exception:  # noqa: BLE001
+        pass
+    for email in _all_account_emails():
+        try:
+            if goal_store.has_active_goal(email):
+                emails.add(email)
+        except Exception:  # noqa: BLE001
+            pass
+    return emails
+
+
+def _next_morning_berlin(hour: Optional[int] = None) -> str:
+    from core.schedule_store import _BERLIN
+    if hour is None:
+        hour = int(os.getenv("DAILY_CHECKIN_HOUR", "9") or "9")
+    now_local = datetime.now(_BERLIN)
+    target = now_local.replace(hour=hour, minute=0, second=0, microsecond=0)
+    if target <= now_local:
+        target = target + timedelta(days=1)
+    return target.isoformat()
+
+
+DAILY_CHECKIN_NOTE = (
+    "Morning check-in — text the user like a friend, NOT a report: 1–3 sentences max, "
+    "their first name if you have it, no headers or bullet lists. Glance at today's "
+    "weather and mention it only if it actually affects training (rain, heat, etc — "
+    "skip it if it's unremarkable). Ask how they're feeling and whether today's session "
+    "is on. Keep it light and genuine, like you're checking in on a friend."
+)
+
+MONDAY_GOAL_REVIEW_NOTE = (
+    "It's Monday — also weave in a brief, casual look at how the week's shaping up "
+    "against their active goal(s): on track, slipping, or crushing it. Still 1–3 "
+    "sentences total, still a text from a friend, not a status report."
+)
+
+
+def _run_calendar_autoschedule() -> None:
+    """Hourly: pre/post-event nudges from the calendar + a daily check-in.
+    Sync (runs in an executor). Best-effort per user; a calendar error skips it."""
+    import json
+    from core import schedule_store
+    from core.host import default_host
+
+    now = datetime.now(timezone.utc)
+    tmin = now.isoformat()
+    tmax = (now + timedelta(days=2)).isoformat()
+
+    for email in _proactive_emails():
+        # Calendar-driven pre/post nudges (calendar tokens are single-user today).
+        try:
+            raw = default_host.call_tool("calendar__list_events",
+                                         {"time_min": tmin, "time_max": tmax})
+            data = json.loads(raw)
+            events = data.get("events") if isinstance(data, dict) and "error" not in data else None
+        except Exception:  # noqa: BLE001 — calendar unreachable → skip this user
+            events = None
+        for ev in (events or []):
+            eid = ev.get("id") or ""
+            summary = ev.get("summary") or "your event"
+            sdt = (ev.get("start") or {}).get("dateTime")
+            edt = (ev.get("end") or {}).get("dateTime") or sdt
+            if not sdt:  # all-day event → no meaningful pre/post minute offset
+                continue
+            start = schedule_store.to_utc(sdt)
+            if start:
+                pre = start - timedelta(minutes=CAL_PRE_OFFSET_MIN)
+                if pre > now:
+                    schedule_store.upsert(
+                        email, f"cal:pre:{eid}", pre.isoformat(),
+                        f"Text the user like a friend before '{summary}' ({sdt}): 1–3 "
+                        f"sentences — hype them up a little, remind them what to bring, "
+                        f"maybe a quick fueling/warm-up tip. No report formatting.",
+                        kind="calendar_pre", source="calendar_auto")
+            end = schedule_store.to_utc(edt)
+            if end:
+                post = end + timedelta(minutes=CAL_POST_OFFSET_MIN)
+                if post > now:
+                    schedule_store.upsert(
+                        email, f"cal:post:{eid}", post.isoformat(),
+                        f"Text the user like a friend after '{summary}': how did it go? "
+                        f"1–3 sentences, casual — ask, don't report. Nudge them to log it "
+                        f"if they haven't.",
+                        kind="calendar_post", source="calendar_auto")
+
+        # Daily buddy check-in (replaces the old weekly goal_checkin — a buddy checks
+        # in every day, not once a week; the Monday fire adds a goal review, see
+        # _fire_due). Migration: cancel any leftover weekly entry once, idempotently.
+        try:
+            existing = {e.get("reason_key") for e in schedule_store.list_for(email)}
+            if "goal_checkin" in existing:
+                schedule_store.cancel(email, "goal_checkin")
+            if "daily_checkin" not in existing:
+                schedule_store.upsert(
+                    email, "daily_checkin", _next_morning_berlin(), DAILY_CHECKIN_NOTE,
+                    kind="daily_checkin", source="calendar_auto",
+                    recurrence={"every_days": 1})
+        except Exception:  # noqa: BLE001
+            pass
+
+        # "Daily-ish" panel refresh: re-enqueue any active goal whose panel is stale
+        # (there's no literal daily tick — this rides the existing hourly scan).
+        try:
+            _enqueue_stale_goal_panels(email, now)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _enqueue_stale_goal_panels(email: str, now: datetime) -> None:
+    from core import goal_build_queue, goal_store
+    stale_after = timedelta(hours=GOAL_PANEL_STALE_HOURS)
+    for g in goal_store.list_goals(email):
+        if g.get("status") != "active" or g.get("panel_status") == "building":
+            continue
+        stamp = g.get("panel_updated_at")
+        is_stale = True
+        if stamp:
+            try:
+                age = now - datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                is_stale = age > stale_after
+            except ValueError:
+                is_stale = True
+        if is_stale:
+            goal_build_queue.enqueue(email, g["id"])
+
+
+async def _scheduler_loop(client) -> None:
+    """The durable poll loop (an asyncio task on the Telethon event loop)."""
+    import time as _time
+    log.info("Proactive scheduler started (poll=%ss, calendar scan=%ss).",
+             SCHEDULE_POLL_SECONDS, CAL_SCAN_SECONDS)
+    last_cal = 0.0
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            await _fire_due(client, now)
+            await _drain_outbox(client)
+            if _time.monotonic() - last_cal > CAL_SCAN_SECONDS:
+                last_cal = _time.monotonic()
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, _run_calendar_autoschedule)
+        except Exception:  # noqa: BLE001 — a scheduler error must never kill the bridge
+            log.exception("scheduler tick failed")
+        await asyncio.sleep(SCHEDULE_POLL_SECONDS)
+
+
+async def _goal_build_loop() -> None:
+    """Drains core.goal_build_queue on its OWN short cadence — independent of
+    _scheduler_loop's 60s cadence — so a form-created/refreshed goal's "building…"
+    state actually resolves in seconds rather than up to a minute. Spawns
+    core.goal_panel.build_panel per queued item on a daemon thread (build_panel
+    itself is bounded: recursion_limit + wall-clock timeout + a concurrency
+    semaphore), then removes the queue entry immediately — a build that crashes
+    mid-way is caught by the hourly staleness sweep, never silently lost."""
+    from core import goal_build_queue, goal_panel
+    log.info("Goal-panel build loop started (poll=%ss).", GOAL_BUILD_POLL_SECONDS)
+    while True:
+        try:
+            for path, rec in goal_build_queue.pending():
+                goal_build_queue.remove(path)
+                threading.Thread(target=goal_panel.build_panel,
+                                 args=(rec["user"], rec["goal_id"]), daemon=True).start()
+        except Exception:  # noqa: BLE001 — must never kill the bridge
+            log.exception("goal build drain failed")
+        await asyncio.sleep(GOAL_BUILD_POLL_SECONDS)
 
 
 # ── Startup ──────────────────────────────────────────────────────────────────────
@@ -841,7 +1163,18 @@ async def _run_bridge() -> None:
             "Write your Telegram account a message to talk to the agent. Ctrl-C to stop.",
             ("allowlist: " + ", ".join(sorted(ALLOWLIST))) if ALLOWLIST else "anyone",
         )
-    await client.run_until_disconnected()
+    # Start the durable proactive scheduler on this event loop (cross-chat wake-ups,
+    # outbox delivery, calendar auto-schedule). It shares _RUN_LOCK with inbound chat.
+    scheduler_task = asyncio.create_task(_scheduler_loop(client))
+    # A separate, faster loop just for goal-panel builds (form-created/refreshed
+    # goals) — independent cadence so "building…" resolves in seconds, not up to a
+    # minute. Needs no Telethon client (panel builds never send Telegram messages).
+    goal_build_task = asyncio.create_task(_goal_build_loop())
+    try:
+        await client.run_until_disconnected()
+    finally:
+        scheduler_task.cancel()
+        goal_build_task.cancel()
 
 
 async def _login() -> None:

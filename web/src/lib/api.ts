@@ -71,7 +71,21 @@ export interface ChatSummary {
   created_at?: string;
   updated_at?: string;
   message_count: number;
+  // Coach-chat extras — present only on the pinned system "Coach" entry; absent
+  // on normal chats.
+  kind?: "coach" | "telegram" | "normal";
+  special?: string;
+  source?: "telegram" | "coach";
+  pinned?: boolean;
+  unread?: number;
 }
+
+/** Id of the pinned system Coach chat (mirrors the server's fixed id). */
+export const COACH_CHAT_ID = "coach";
+
+/** Clear the coach chat's unread counter. Best-effort. */
+export const markCoachRead = () =>
+  http<{ ok: boolean }>(`/chats/${COACH_CHAT_ID}/read`, { method: "POST", body: "{}" });
 export interface StoredMessage {
   role: "user" | "assistant";
   content: string;
@@ -85,6 +99,79 @@ export interface StoredChat {
   updated_at?: string;
   messages: StoredMessage[];
 }
+
+// ── Training goals (multiple, freeform, per-user) ────────────────────────────
+// Each goal is just text (sport-specific goals are common); its dashboard PANEL
+// is authored by the agent — a structured spec + a free markdown note — and
+// builds in the background after creation/refresh/edit. Poll GET /goals and
+// watch panel_status: "empty" → "building" → "ready" | "error".
+
+export type GoalLifecycleStatus = "active" | "achieved" | "archived";
+export type GoalSource = "user" | "coach";
+export type PanelStatus = "empty" | "building" | "ready" | "error";
+/** The panel's HEALTH axis — distinct from Goal.status (the LIFECYCLE axis). */
+export type PanelHealthStatus = "on_track" | "at_risk" | "behind" | "reached" | "unknown";
+
+export interface PanelTile {
+  label: string;
+  value: string;
+  sub?: string;
+}
+
+export interface PanelProgress {
+  pct: number; // 0-100
+  label: string;
+}
+
+export interface PanelChart {
+  kind: "line" | "bar";
+  points: { x: string | number; y: number }[];
+  y_label?: string;
+}
+
+export interface Panel {
+  headline: string;
+  status: PanelHealthStatus;
+  tiles: PanelTile[]; // 2-4 entries
+  progress: PanelProgress | null;
+  note: string; // markdown
+  chart: PanelChart | null;
+  generated_at: string; // ISO
+}
+
+export interface Goal {
+  id: string;
+  text: string; // freeform — the goal, in the user's/coach's words
+  sport?: string | null;
+  source: GoalSource;
+  status: GoalLifecycleStatus;
+  created_at: string; // ISO
+  updated_at: string; // ISO
+  panel: Panel | null;
+  panel_status: PanelStatus;
+  panel_updated_at: string | null;
+}
+
+/** GET /goals — never 404s; `{goals: []}` for a new user. */
+export const listGoals = () => http<{ goals: Goal[] }>("/goals").then((r) => r.goals);
+
+/** POST /goals — create a goal from freeform text; its panel builds in the background. */
+export const addGoal = (text: string, sport?: string) =>
+  http<Goal>("/goals", { method: "POST", body: JSON.stringify({ text, sport }) });
+
+/** PATCH /goals/{id} — update text/sport/status (send only what changed). */
+export const updateGoal = (
+  id: string,
+  patch: Partial<Pick<Goal, "text" | "sport" | "status">>,
+) => http<Goal>(`/goals/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+
+/** DELETE /goals/{id} — permanently remove a goal. */
+export const deleteGoal = (id: string) =>
+  http<{ ok: boolean }>(`/goals/${id}`, { method: "DELETE" });
+
+/** POST /goals/{id}/refresh — kick a background panel rebuild from fresh data. */
+export const refreshGoalPanel = (id: string) =>
+  http<{ ok: boolean }>(`/goals/${id}/refresh`, { method: "POST", body: "{}" });
 
 export const listChats = () => http<{ chats: ChatSummary[] }>("/chats").then((r) => r.chats);
 export const createChat = () => http<StoredChat>("/chats", { method: "POST", body: "{}" });
@@ -132,6 +219,56 @@ export async function fetchFlythroughHtml(
   return res.text();
 }
 
+// ── Profile (name, avatar, first-login onboarding) ───────────────────────────
+
+export interface Profile {
+  name: string;
+  onboarding_complete: boolean;
+  has_avatar: boolean;
+}
+
+/** GET /profile — never 404s; defaults for a brand-new user. */
+export const getProfile = () => http<Profile>("/profile");
+
+/** PUT /profile — send only what changed. */
+export const putProfile = (patch: Partial<Pick<Profile, "name" | "onboarding_complete">>) =>
+  http<Profile>("/profile", { method: "PUT", body: JSON.stringify(patch) });
+
+/** POST /profile/avatar — multipart upload. Does NOT go through http() (that
+ *  forces Content-Type: application/json) and does NOT set Content-Type manually
+ *  either — the browser must generate its own multipart boundary. */
+export async function uploadAvatar(file: File): Promise<Profile> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/profile/avatar", {
+    method: "POST",
+    headers: { ...authHeaders() },
+    body: form,
+  });
+  if (res.status === 401) {
+    forceLogout();
+    throw new Error("Session expired — please log in again.");
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => res.statusText);
+    throw new Error(`Avatar upload ${res.status}: ${detail}`);
+  }
+  return res.json();
+}
+
+/** GET /profile/avatar — raw authed fetch (mirrors fetchFlythroughHtml's auth
+ *  pattern). 404 (no avatar set) → null instead of throwing. */
+export async function fetchAvatarBlob(): Promise<Blob | null> {
+  const res = await fetch("/api/profile/avatar", { headers: { ...authHeaders() } });
+  if (res.status === 404) return null;
+  if (res.status === 401) {
+    forceLogout();
+    throw new Error("Session expired — please log in again.");
+  }
+  if (!res.ok) return null;
+  return res.blob();
+}
+
 export interface ServerStatus {
   key: string;
   label: string;
@@ -158,6 +295,17 @@ export interface SettingsResponse {
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
+/** A long-running background analysis kicked off by a turn. Its finished report
+ *  arrives LATER as new assistant message(s) in the Coach chat. */
+export interface BackgroundJobAction {
+  type: "background_job";
+  job_id: string;
+  topic: string;
+}
+/** A trace action — `background_job` (deep-work signal) or any other action the
+ *  server emits. Kept loose so we can read `.type` without an exhaustive union. */
+export type TraceAction = (BackgroundJobAction | { type?: string }) & Record<string, unknown>;
+
 export interface ChatTrace {
   run_id?: string;
   question?: string;
@@ -168,7 +316,7 @@ export interface ChatTrace {
   agents?: Array<{ agent: string; phase: number; duration_ms: number; data_summary?: string }>;
   route_data?: { tool: string; data: Record<string, unknown> } | null;
   chart_hints?: string[];
-  actions?: Array<Record<string, unknown>>;
+  actions?: TraceAction[];
   error?: string | null;
 }
 
@@ -262,3 +410,14 @@ export async function generateCharts(trace: ChatTrace): Promise<any[]> {
   });
   return r.figures || [];
 }
+
+// ── Feedback (tester bug-report button) ──────────────────────────────────────
+// The server captures the full diagnostic bundle (logs, chats, etc.) itself;
+// the frontend only sends the report text plus cheap client-side context.
+
+/** POST /feedback — submit a tester bug report. Empty/whitespace `text` → 422. */
+export const submitFeedback = (text: string, context?: Record<string, unknown>) =>
+  http<{ ok: boolean; bundle_id: string }>("/feedback", {
+    method: "POST",
+    body: JSON.stringify({ text, context }),
+  });

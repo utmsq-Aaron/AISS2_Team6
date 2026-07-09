@@ -1,7 +1,14 @@
+import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes } from "react-router-dom";
 
+import { CoachPoll } from "./components/CoachPoll";
+import { FeedbackButton } from "./components/FeedbackButton";
+import { GoalPoll } from "./components/GoalPoll";
 import { Header } from "./components/Header";
+import { OnboardingWizard } from "./components/onboarding/OnboardingWizard";
 import { Sidebar } from "./components/Sidebar";
+import { Spinner } from "./components/Spinner";
+import { getProfile } from "./lib/api";
 import { Analysis } from "./pages/Analysis";
 import { Chat } from "./pages/Chat";
 import { Dashboard } from "./pages/Dashboard";
@@ -16,8 +23,36 @@ export default function App() {
   const token = useAuthStore((s) => s.token);
   if (!token) return <Login />;
 
+  return <Authenticated />;
+}
+
+// Split out so the profile query (which requires a token) only mounts once
+// logged in — hooks can't be called conditionally in the same component.
+function Authenticated() {
+  const profileQuery = useQuery({ queryKey: ["profile"], queryFn: getProfile });
+
+  if (profileQuery.isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-bg-app">
+        <Spinner label="Loading your profile…" />
+      </div>
+    );
+  }
+
+  // Only gate on an explicit `false` from a successfully-loaded profile — never
+  // lock a user out of the app because the profile endpoint hiccuped once.
+  if (profileQuery.data && !profileQuery.data.onboarding_complete) {
+    return <OnboardingWizard onDone={() => profileQuery.refetch()} />;
+  }
+
+  return <MainShell />;
+}
+
+function MainShell() {
   return (
     <div className="flex h-screen overflow-hidden bg-bg-app text-text-primary">
+      <CoachPoll />
+      <GoalPoll />
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -34,6 +69,7 @@ export default function App() {
           </Routes>
         </main>
       </div>
+      <FeedbackButton />
     </div>
   );
 }

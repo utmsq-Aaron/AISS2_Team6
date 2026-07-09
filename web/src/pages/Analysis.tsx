@@ -8,12 +8,24 @@ import {
   PctBar,
   TrendPill,
 } from "../components/analysis/AnalysisBits";
+import { ActivityMapSection } from "../components/analysis/ActivityMapSection";
+import { AnalysisOverview } from "../components/analysis/AnalysisOverview";
+import { OfficialStatsSection } from "../components/analysis/OfficialStatsSection";
+import { TrainingVolumeSection } from "../components/analysis/TrainingVolumeSection";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { PeriodSelector } from "../components/PeriodSelector";
 import { PlotlyChart } from "../components/PlotlyChart";
 import { Spinner, ErrorBox, EmptyState } from "../components/Spinner";
 import { callTool } from "../lib/api";
+import {
+  PERIOD_DAYS,
+  dayStr,
+  sportOf,
+  type AthleteResult,
+  type ActivitiesResult as StravaActivitiesResult,
+  type Period,
+} from "../lib/stravaTypes";
 import { useUiStore } from "../store/uiStore";
 
 // ── tool result shapes (confirmed via live curl against :8000) ──────────────────
@@ -869,19 +881,125 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
 // ════════════════════════════════════════════════════════════════════════════════
 
 export function Analysis() {
+  const sportFilter = useUiStore((s) => s.sportFilter);
   const refreshVersion = useUiStore((s) => s.refreshVersion);
-  const [open, setOpen] = useState<{ load: boolean; trend: boolean; cmp: boolean }>({
-    load: true,
+
+  // Shared period + activities/athlete queries feed overview, volume, map & stats.
+  const [period, setPeriod] = useState<Period>("30 days");
+  const loadDays = PERIOD_DAYS[period];
+
+  const [open, setOpen] = useState({
+    overview: true,
+    map: false,
+    volume: false,
+    stats: false,
+    load: false,
     trend: false,
     cmp: false,
   });
+
+  // Same query key as the Dashboard signals row → no duplicate fetch.
+  const activitiesQ = useQuery({
+    queryKey: ["activities", loadDays, refreshVersion],
+    queryFn: () => {
+      const args: Record<string, unknown> =
+        loadDays > 0
+          ? {
+              limit: Math.min(loadDays * 3, 400),
+              start_date: new Date(Date.now() - loadDays * 86400000)
+                .toISOString()
+                .slice(0, 10),
+            }
+          : { limit: 500 };
+      return callTool<StravaActivitiesResult>("strava__get_activities", args);
+    },
+  });
+
+  const athleteQ = useQuery({
+    queryKey: ["athlete", refreshVersion],
+    queryFn: () => callTool<AthleteResult>("strava__get_athlete_profile", {}),
+  });
+
+  const allActivities = activitiesQ.data?.activities ?? [];
+  const actError = activitiesQ.data?.error;
+
+  // Sport filter → period cutoff (search lived on Dashboard; not relocated).
+  const activities = useMemo(() => {
+    let list = allActivities;
+    if (sportFilter && sportFilter !== "All") {
+      list = list.filter((a) => sportOf(a) === sportFilter);
+    }
+    if (loadDays > 0) {
+      const cutoff = new Date(Date.now() - loadDays * 86400000).toISOString().slice(0, 10);
+      list = list.filter((a) => dayStr(a) >= cutoff);
+    }
+    return list;
+  }, [allActivities, sportFilter, loadDays]);
+
+  const stats = athleteQ.data?.official_stats ?? {};
 
   return (
     <div>
       <PageHeader
         title="Analysis"
-        subtitle="Dig deeper into your training data — training load, performance trends, and how any single workout stacks up against your personal history."
+        subtitle="Dig deeper into your training data — activity map, training volume, load, trends, and how any single workout stacks up against your personal history."
       />
+
+      {actError && (
+        <div className="mb-4">
+          <ErrorBox message={`Strava activities error: ${actError}`} />
+        </div>
+      )}
+
+      <CollapsibleSection
+        title="📊 Overview"
+        open={open.overview}
+        onToggle={() => setOpen((o) => ({ ...o, overview: !o.overview }))}
+      >
+        {activitiesQ.isLoading ? (
+          <Spinner label="Loading Strava data…" />
+        ) : (
+          <AnalysisOverview activities={activities} period={period} onPeriodChange={setPeriod} />
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="🗺️ Activity Map & Recent"
+        open={open.map}
+        onToggle={() => setOpen((o) => ({ ...o, map: !o.map }))}
+      >
+        {activitiesQ.isLoading ? (
+          <Spinner label="Loading activities…" />
+        ) : (
+          <ActivityMapSection activities={activities} />
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="📉 Training Volume"
+        open={open.volume}
+        onToggle={() => setOpen((o) => ({ ...o, volume: !o.volume }))}
+      >
+        {activitiesQ.isLoading ? (
+          <Spinner label="Loading activities…" />
+        ) : activities.length === 0 ? (
+          <EmptyState message="No activities in this period." />
+        ) : (
+          <TrainingVolumeSection activities={activities} periodDays={loadDays} />
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="🏅 Official Strava Stats"
+        open={open.stats}
+        onToggle={() => setOpen((o) => ({ ...o, stats: !o.stats }))}
+      >
+        {athleteQ.isLoading ? (
+          <Spinner label="Loading stats…" />
+        ) : (
+          <OfficialStatsSection stats={stats} />
+        )}
+      </CollapsibleSection>
 
       <CollapsibleSection
         title="🏋️ Training Load"

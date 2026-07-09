@@ -14,15 +14,23 @@ can reload the full history after a restart.
 
 from __future__ import annotations
 
-import json
 import re
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core import jsonstore
 from core.llm import _env
+
+# Cross-process JSON safety (lock + atomic write + slug) lives in core.jsonstore —
+# shared with core.goal_store, since coach.json / goals.json are written by both
+# FastAPI and the Telegram bridge. These aliases keep the rest of this module intact.
+_slug = jsonstore.slugify
+_flock = jsonstore.flock
+_read = jsonstore.read_json
+_write = jsonstore.atomic_write
 
 _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_DIR = _ROOT / "data" / "chats"
@@ -30,14 +38,14 @@ _DEFAULT_DIR = _ROOT / "data" / "chats"
 _TITLE_MAX = 60
 _lock = threading.Lock()
 
+# A single reserved, non-hex chat id per user: the pinned "Coach" chat that mirrors
+# the Telegram DM and receives proactive/deep-analysis deliveries. Exempt from the
+# hex-only id gate below (it's a fixed literal, so still traversal-safe).
+COACH_CHAT_ID = "coach"
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
-
-
-def _slug(user: str) -> str:
-    """Filesystem-safe per-user dir (also guards against path traversal)."""
-    return re.sub(r"[^a-z0-9_-]+", "-", (user or "").strip().lower()).strip("-") or "anon"
 
 
 def _root() -> Path:
@@ -50,42 +58,88 @@ def _user_dir(user: str) -> Path:
 
 
 def _chat_path(user: str, chat_id: str) -> Optional[Path]:
-    # chat_id must be a bare hex token — reject anything that could escape the dir.
-    if not re.fullmatch(r"[a-f0-9]{6,40}", chat_id or ""):
+    # chat_id must be a bare hex token (or the reserved COACH_CHAT_ID literal) —
+    # reject anything else that could escape the dir.
+    if chat_id != COACH_CHAT_ID and not re.fullmatch(r"[a-f0-9]{6,40}", chat_id or ""):
         return None
     return _user_dir(user) / f"{chat_id}.json"
 
 
-def _read(path: Path) -> Optional[dict]:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-
-
-def _write(path: Path, chat: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(chat, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
 def _summary(chat: dict) -> dict:
-    return {
+    s = {
         "id": chat.get("id"),
         "title": chat.get("title") or "New chat",
         "created_at": chat.get("created_at"),
         "updated_at": chat.get("updated_at"),
         "message_count": len(chat.get("messages") or []),
     }
+    # Optional metadata for special chats (the pinned Coach chat). Absent on
+    # normal chats so the payload stays unchanged for them.
+    if chat.get("pinned"):
+        s["pinned"] = True
+    if chat.get("special"):
+        s["special"] = chat["special"]
+    if chat.get("unread"):
+        s["unread"] = int(chat["unread"])
+    return s
+
+
+def summarize(chat: dict) -> dict:
+    """Public summary of a chat record (id/title/counts + special-chat flags)."""
+    return _summary(chat)
 
 
 def list_chats(user: str) -> List[dict]:
-    """Chat summaries for a user, newest-updated first."""
+    """Chat summaries for a user: pinned chats first, then newest-updated first."""
     d = _user_dir(user)
     if not d.exists():
         return []
     chats = [c for c in (_read(p) for p in d.glob("*.json")) if c]
+    # Stable sort applied twice: newest-updated first, then pinned floats to top.
     chats.sort(key=lambda c: c.get("updated_at") or "", reverse=True)
+    chats.sort(key=lambda c: 0 if c.get("pinned") else 1)
     return [_summary(c) for c in chats]
+
+
+def last_user_message_ts(user: str, within_hours: int = 48) -> Optional[datetime]:
+    """The newest ``role=="user"`` message timestamp across this user's chats (aware
+    UTC), or None if there isn't one within ``within_hours``. Covers Telegram too —
+    the bridge mirrors every inbound DM into the Coach chat as ``role="user"``.
+
+    Prefilters chat files by their ``updated_at`` summary field (cheap) before
+    reading + reverse-scanning ``messages`` (the actual signal — a chat's
+    ``updated_at`` also advances on assistant/proactive writes, so only the
+    per-message role scan is authoritative)."""
+    d = _user_dir(user)
+    if not d.exists():
+        return None
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
+    newest: Optional[datetime] = None
+    for p in d.glob("*.json"):
+        chat = _read(p)
+        if not chat:
+            continue
+        updated = _parse_ts(chat.get("updated_at"))
+        if updated is not None and updated < cutoff:
+            continue  # this chat hasn't changed at all within the window
+        for msg in reversed(chat.get("messages") or []):
+            if msg.get("role") != "user":
+                continue
+            ts = _parse_ts(msg.get("ts"))
+            if ts is not None and ts >= cutoff and (newest is None or ts > newest):
+                newest = ts
+            break  # messages are append-only; the last "user" one is the newest in this chat
+    return newest
+
+
+def _parse_ts(raw: Optional[str]) -> Optional[datetime]:
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 
 def create_chat(user: str, title: str = "") -> dict:
@@ -119,12 +173,16 @@ def history_messages(user: str, chat_id: str) -> List[Dict[str, str]]:
 
 
 def append_message(user: str, chat_id: str, role: str, content: str,
-                   trace: Optional[dict] = None) -> Optional[dict]:
-    """Append one message; auto-title from the first user message. Returns summary."""
+                   trace: Optional[dict] = None, bump_unread: bool = False) -> Optional[dict]:
+    """Append one message; auto-title from the first user message. Returns summary.
+
+    ``bump_unread`` increments the chat's unread counter (used by the Coach chat
+    when a proactive/deep message the user hasn't seen in the web UI is delivered).
+    """
     path = _chat_path(user, chat_id)
     if path is None:
         return None
-    with _lock:
+    with _lock, _flock(path):
         chat = _read(path)
         if chat is None:  # gone / never created → recreate under this id
             chat = {"id": chat_id, "title": "", "created_at": _now(),
@@ -135,9 +193,53 @@ def append_message(user: str, chat_id: str, role: str, content: str,
         chat.setdefault("messages", []).append(msg)
         if not chat.get("title") and role == "user" and content.strip():
             chat["title"] = content.strip()[:_TITLE_MAX]
+        if bump_unread:
+            chat["unread"] = int(chat.get("unread") or 0) + 1
         chat["updated_at"] = _now()
         _write(path, chat)
         return _summary(chat)
+
+
+def ensure_special_chat(user: str, chat_id: str, title: str,
+                        special: Optional[str] = None) -> Optional[dict]:
+    """Create a pinned special chat (e.g. the Coach chat) if it doesn't exist yet.
+
+    Idempotent: returns the existing summary when already present, preserving its
+    messages/unread. The pinned/special/title metadata makes it sort first
+    (``list_chats``) and lets the UI mark it.
+    """
+    path = _chat_path(user, chat_id)
+    if path is None:
+        return None
+    with _lock, _flock(path):
+        chat = _read(path)
+        if chat is None:
+            chat = {
+                "id": chat_id,
+                "title": (title or "").strip()[:_TITLE_MAX] or chat_id,
+                "created_at": _now(),
+                "updated_at": _now(),
+                "messages": [],
+                "pinned": True,
+                "special": special or chat_id,
+            }
+            _write(path, chat)
+        return _summary(chat)
+
+
+def mark_read(user: str, chat_id: str) -> bool:
+    """Clear a chat's unread counter. Returns True if the chat exists."""
+    path = _chat_path(user, chat_id)
+    if path is None:
+        return False
+    with _lock, _flock(path):
+        chat = _read(path)
+        if chat is None:
+            return False
+        if chat.get("unread"):
+            chat["unread"] = 0
+            _write(path, chat)
+        return True
 
 
 def rename_chat(user: str, chat_id: str, title: str) -> bool:

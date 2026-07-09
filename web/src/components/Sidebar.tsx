@@ -3,6 +3,7 @@ import { Dumbbell, RefreshCw, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { NAV } from "../nav";
+import { useChatStore } from "../store/chatStore";
 import { SPORT_TYPES, useUiStore } from "../store/uiStore";
 import { StatusDots } from "./StatusDots";
 
@@ -13,6 +14,7 @@ import { StatusDots } from "./StatusDots";
 export function Sidebar() {
   const qc = useQueryClient();
   const { sportFilter, setSportFilter, bumpRefresh, sidebarOpen, setSidebarOpen } = useUiStore();
+  const coachUnread = useChatStore((s) => s.coachUnread);
 
   const refresh = () => {
     bumpRefresh();
@@ -59,17 +61,28 @@ export function Sidebar() {
 
         {/* Primary navigation */}
         <nav className="flex flex-col gap-1">
-          {NAV.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) => `fd-nav ${isActive ? "fd-nav-active" : ""}`}
-            >
-              <Icon size={18} strokeWidth={2} />
-              {label}
-            </NavLink>
-          ))}
+          {NAV.map(({ to, label, icon: Icon }) => {
+            const showUnread = to === "/chat" && coachUnread > 0;
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) => `fd-nav ${isActive ? "fd-nav-active" : ""}`}
+              >
+                <Icon size={18} strokeWidth={2} />
+                {label}
+                {showUnread && (
+                  <span
+                    className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-metric-red px-1 text-[10px] font-semibold leading-none text-white"
+                    aria-label={`${coachUnread} unread coach messages`}
+                  >
+                    {coachUnread > 9 ? "9+" : coachUnread}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <hr className="border-border" />
