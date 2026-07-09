@@ -31,9 +31,9 @@ FitDash is a Streamlit sports analytics dashboard that unifies Strava activities
      ┌───────────────┼───────────────┐
      ▼               ▼               ▼
  :8101 weather   :8103 strava    :8104 garmin     :8107 flythrough
- :8102 routes    :8105 calendar  :8106 telegram*  :8108 google_maps*
+ :8102 routes    :8105 calendar  :8106 telegram*  :8108 google_maps
  (native FastMCP servers — each an independent process)
- (* telegram & google_maps = Streamable-HTTP proxies to external stdio MCP servers; need extra setup)
+ (* telegram = Streamable-HTTP proxy to an external stdio MCP server; needs extra setup)
 ```
 
 All data flows through the MCP servers — the UI never calls Strava or Garmin APIs directly. Each server handles auth, retries, and data formatting; the UI receives clean, ready-to-display JSON.
@@ -74,7 +74,7 @@ fitdash/
 │   ├── garmin_mcp.py            # FastMCP server — Garmin Connect (port 8104)
 │   ├── calendar_mcp.py          # FastMCP server — Google Calendar, read-only (port 8105)
 │   ├── telegram_mcp.py          # Proxy → external stdio telegram-mcp (port 8106, optional)
-│   └── google_maps_mcp.py       # Proxy → @modelcontextprotocol/server-google-maps via npx (port 8108)
+│   └── google_maps_mcp.py       # FastMCP server — Places (New), Geocoding v4, Routes API (port 8108)
 │
 └── ui/
     ├── shared.py                # ToolHost singleton, call_tool(), connection checks
@@ -153,9 +153,9 @@ Each server is a self-contained FastMCP service. The UI calls every tool via `ca
 
 Unlike the others, this is **not** a native FastMCP server. [`servers/telegram_mcp.py`](servers/telegram_mcp.py) is a thin proxy that runs the external [chigwell/telegram-mcp](https://github.com/chigwell/telegram-mcp) (stdio-only) unmodified in its own `uv` environment and re-exposes its tools over Streamable HTTP, so `ToolHost` reaches them like any other server. Tools are discovered live (`telegram__send_message`, `telegram__list_chats`, `telegram__search_messages`, …) — send/edit/delete/forward/pin messages, manage chats, contacts, media and drafts. Set `TELEGRAM_EXPOSED_TOOLS=read-only` to expose only read tools. See [Telegram Setup](#telegram-setup).
 
-### Google Maps (port 8108) — optional, 7 tools
+### Google Maps (port 8108) — optional, 5 tools
 
-Also a proxy, not a native server. [`servers/google_maps_mcp.py`](servers/google_maps_mcp.py) bridges the upstream [`@modelcontextprotocol/server-google-maps`](https://www.npmjs.com/package/@modelcontextprotocol/server-google-maps) (stdio, launched with `npx`) onto the Streamable-HTTP bus, so `ToolHost` reaches it like any other server. Tools are discovered live: `google_maps__maps_geocode`, `maps_reverse_geocode`, `maps_search_places`, `maps_place_details`, `maps_directions`, `maps_distance_matrix`, `maps_elevation` — geocoding, place/POI search, place details, directions, travel-time matrices and elevation. Scoped to the **Route** agent. Needs **Node.js/`npx`** on PATH and **`GOOGLE_MAPS_API_KEY`** (enable the Places API + Geocoding/Directions). Note: the upstream package is the deprecated reference server and calls Google's legacy Places API.
+A native FastMCP server against Google's **current** APIs — Places API (New), Geocoding API v4 and the Routes API. All three work with a billing-free [Maps Demo Key](https://mapsplatform.google.com/maps-demo-key/), so no credit card is needed for development (demo keys serve no user-generated content like reviews/photos; the server degrades gracefully). Tools: `google_maps__maps_search_places` (POI/business search), `maps_place_details` (hours, phone, website, rating), `maps_geocode`, `maps_reverse_geocode`, `maps_directions` (walking/driving/cycling/transit ETA via Routes API). Scoped to the **Route** agent. Needs only **`GOOGLE_MAPS_API_KEY`**. (It replaces the archived `@modelcontextprotocol/server-google-maps` npx proxy, which called the billing-only legacy APIs; tool names were kept, `maps_distance_matrix`/`maps_elevation` dropped — elevation is covered by `routes__get_elevation_profile`.)
 
 ## Adding a New Server
 

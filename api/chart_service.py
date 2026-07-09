@@ -17,11 +17,21 @@ import plotly.graph_objects as go
 from core.llm import get_llm_client
 
 # Tools whose results are visualised as maps/flythroughs elsewhere — skip here.
+# Geo/place data (routes, geocodes, POI searches) is map material, not chart
+# material: a Plotly "chart" of lat/lons is just nonsense lines over the city.
 _SKIP_TOOLS = {
-    "plan_route", "plan_circular_route", "explore_trails", "get_isochrone",
+    "plan_route", "plan_circular_route", "plan_park_loop", "explore_trails",
+    "get_isochrone", "geocode",
     "get_activity_streams", "get_activity_gps_track", "prepare_flythrough",
     "get_current_weather", "get_weather_forecast", "get_pollen_levels", "get_uv_index",
+    "maps_search_places", "maps_place_details", "maps_geocode",
+    "maps_reverse_geocode", "maps_directions",
 }
+
+# Plotly trace types that render a map — rejected in generate_figures (the route
+# map component is the app's single map surface).
+_MAP_TRACE_TYPES = {"scattermapbox", "scattermap", "densitymapbox", "densitymap",
+                    "scattergeo", "choropleth", "choroplethmapbox", "choroplethmap"}
 
 # run_id -> working python code (so repeat requests skip the LLM entirely)
 _code_cache: Dict[str, str] = {}
@@ -191,6 +201,10 @@ def generate_figures(trace: Dict) -> List[dict]:
         if figures:
             out = []
             for fig in figures:
+                # Map-shaped figures never belong here — the route map (RouteResult)
+                # is the single map surface. Drop them even if the model builds one.
+                if any(getattr(tr, "type", "") in _MAP_TRACE_TYPES for tr in fig.data):
+                    continue
                 fig.update_layout(height=320)
                 out.append(json.loads(fig.to_json()))
             return out

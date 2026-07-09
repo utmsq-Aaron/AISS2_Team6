@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { AgentTrace } from "../components/chat/AgentTrace";
 import { ChatSidebar } from "../components/chat/ChatSidebar";
 import { Markdown } from "../components/chat/Markdown";
-import { RouteResult } from "../components/chat/RouteResult";
+import { extractPois, RouteResult } from "../components/chat/RouteResult";
 import type { RouteData } from "../components/chat/RouteResult";
 import { PageHeader } from "../components/PageHeader";
 import { PlotlyFigure } from "../components/PlotlyChart";
@@ -228,7 +228,13 @@ function AssistantBubble({ turn }: { turn: AssistantTurn }) {
         />
         <Markdown>{turn.content}</Markdown>
         <AgentTrace trace={turn.trace} />
-        {routeData?.tool && <RouteResult routeData={routeData} />}
+        {routeData?.tool && (
+          <RouteResult
+            routeData={routeData}
+            pois={extractPois(turn.trace as Record<string, unknown>)}
+            question={(turn.trace as Record<string, unknown>).user_input as string | undefined}
+          />
+        )}
         {charts.map((fig, i) => (
           <PlotlyFigure key={i} figure={fig} />
         ))}

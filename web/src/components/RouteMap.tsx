@@ -15,6 +15,8 @@ export interface MarkerSpec {
   lon: number;
   color?: string;
   label?: string;
+  /** Optional pre-escaped HTML for the popup (falls back to the plain-text label). */
+  html?: string;
 }
 
 interface RouteMapProps {
@@ -139,7 +141,11 @@ export function RouteMap({
           `width:14px;height:14px;border-radius:50%;border:2px solid #fff;` +
           `background:${mk.color ?? ACCENT};box-shadow:0 0 0 2px rgba(0,0,0,.4)`;
         const marker = new maplibregl.Marker({ element: el }).setLngLat([mk.lon, mk.lat]);
-        if (mk.label) marker.setPopup(new maplibregl.Popup({ offset: 12 }).setText(mk.label));
+        if (mk.html) {
+          marker.setPopup(new maplibregl.Popup({ offset: 12, maxWidth: "280px" }).setHTML(mk.html));
+        } else if (mk.label) {
+          marker.setPopup(new maplibregl.Popup({ offset: 12 }).setText(mk.label));
+        }
         return marker.addTo(m);
       });
 

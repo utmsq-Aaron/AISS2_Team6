@@ -91,3 +91,30 @@ h3 {
     @apply border-accent font-bold text-accent;
   }
 }
+
+/* MapLibre popups (route-map markers): the library ships a white popup that
+   inherits the app's near-white text color → invisible text. Theme it dark. */
+.maplibregl-popup-content {
+  background: #151c26;
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 260px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+.maplibregl-popup-close-button {
+  color: #94a3b8;
+  font-size: 16px;
+  padding: 2px 6px;
+}
+.maplibregl-popup-close-button:hover {
+  color: #f8fafc;
+  background: transparent;
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: #151c26; }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: #151c26; }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: #151c26; }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: #151c26; }

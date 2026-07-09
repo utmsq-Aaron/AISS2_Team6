@@ -27,7 +27,15 @@ export function Login() {
       setStep("code");
       setNotice(`We sent a 6-digit code to ${email.trim()}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send the code.");
+      // 429 = a recent code is still valid (resend cooldown). Don't strand the
+      // user on the email step — their emailed code works, so let them enter it.
+      if ((err as any)?.status === 429) {
+        setStep("code");
+        setNotice(`A code was already sent to ${email.trim()} — enter it below.`);
+        setError(err instanceof Error ? err.message : null);
+      } else {
+        setError(err instanceof Error ? err.message : "Could not send the code.");
+      }
     } finally {
       setBusy(false);
     }
@@ -86,9 +94,21 @@ export function Login() {
             <button type="submit" className="fd-btn-primary mt-4 w-full" disabled={busy || !email.trim()}>
               {busy ? "Sending…" : "Send code"}
             </button>
-            <p className="mt-3 text-[11px] text-text-muted">
-              First time? Entering your code creates your account.
-            </p>
+            <div className="mt-3 flex items-center justify-between text-[11px] text-text-muted">
+              <span>First time? Entering your code creates your account.</span>
+              <button
+                type="button"
+                className="shrink-0 hover:text-text-primary"
+                disabled={!email.trim()}
+                onClick={() => {
+                  setStep("code");
+                  setError(null);
+                  setNotice(`Enter the code we sent to ${email.trim()}.`);
+                }}
+              >
+                I already have a code
+              </button>
+            </div>
           </form>
         ) : (
           <form onSubmit={verify}>

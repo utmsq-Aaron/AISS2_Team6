@@ -60,12 +60,115 @@ export interface RouteData {
   data: Record<string, unknown>;
 }
 
-export function RouteResult({ routeData }: { routeData: RouteData }) {
+/** A point of interest (café, shop, …) found by the agent's place searches,
+ *  enriched with any maps_place_details the agent also fetched. */
+export interface Poi {
+  lat: number;
+  lon: number;
+  label: string;
+  placeId?: string;
+  rating?: number;
+  ratingCount?: number;
+  openNow?: boolean;
+  hours?: string[];
+  phone?: string;
+  website?: string;
+}
+
+/** Pull POIs (place searches + fetched details) out of the trace's tool calls. */
+export function extractPois(trace: Record<string, unknown>): Poi[] {
+  const calls = (trace?.tool_calls as Array<Record<string, unknown>> | undefined) ?? [];
+  const pois: Poi[] = [];
+  const byId = new Map<string, Poi>();
+  for (const c of calls) {
+    const tool = (c?.tool as string) || "";
+    if (c?.error) continue;
+    let data: Record<string, unknown>;
+    try {
+      data = typeof c.result === "string" ? JSON.parse(c.result) : (c.result as never);
+    } catch {
+      continue;
+    }
+    if (tool.endsWith("maps_search_places") || tool.endsWith("maps_search_along_route")) {
+      for (const p of (data?.places ?? []) as Array<Record<string, unknown>>) {
+        const lat = p?.lat as number | undefined;
+        const lon = p?.lon as number | undefined;
+        if (lat == null || lon == null) continue;
+        const id = (p.place_id as string) ?? `${lat},${lon}`;
+        if (byId.has(id)) continue;
+        const name = (p.name as string) || "Ort";
+        const address = (p.address as string) || "";
+        const poi: Poi = {
+          lat,
+          lon,
+          label: address ? `${name} · ${address}` : name,
+          placeId: p.place_id as string | undefined,
+          rating: p.rating as number | undefined,
+          ratingCount: p.rating_count as number | undefined,
+          openNow: p.open_now as boolean | undefined,
+        };
+        byId.set(id, poi);
+        pois.push(poi);
+      }
+    } else if (tool.endsWith("maps_place_details")) {
+      const id = data?.place_id as string | undefined;
+      const poi = id ? byId.get(id) : undefined;
+      if (!poi) continue;
+      poi.rating = (data.rating as number | undefined) ?? poi.rating;
+      poi.ratingCount = (data.rating_count as number | undefined) ?? poi.ratingCount;
+      poi.openNow = (data.open_now as boolean | undefined) ?? poi.openNow;
+      poi.hours = (data.opening_hours as string[] | undefined) ?? poi.hours;
+      poi.phone = (data.phone as string | undefined) ?? poi.phone;
+      poi.website = (data.website as string | undefined) ?? poi.website;
+    }
+  }
+  return pois;
+}
+
+const esc = (s: unknown) =>
+  String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
+
+/** Build the (escaped) popup HTML for a POI pin: name, address, rating, hours. */
+function poiPopupHtml(p: Poi, distM: number): string {
+  const [name, ...rest] = p.label.split(" · ");
+  const address = rest.join(" · ");
+  // Google's weekdayDescriptions start on Monday; JS getDay() starts on Sunday.
+  const today = p.hours?.[(new Date().getDay() + 6) % 7];
+  const lines = [
+    `<strong>${esc(name)}</strong>`,
+    address ? `<span style="opacity:.75">${esc(address)}</span>` : "",
+    p.rating != null ? `★ ${esc(p.rating)}${p.ratingCount != null ? ` (${esc(p.ratingCount)})` : ""}` : "",
+    today ? esc(today) : "",
+    p.openNow != null ? (p.openNow ? "Jetzt geöffnet" : "Derzeit geschlossen") : "",
+    `~${Math.round(distM)} m von der Route`,
+  ].filter(Boolean);
+  return lines.join("<br/>");
+}
+
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const rad = Math.PI / 180;
+  const a =
+    Math.sin(((lat2 - lat1) * rad) / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(((lon2 - lon1) * rad) / 2) ** 2;
+  return 12742000 * Math.asin(Math.sqrt(a));
+}
+
+export function RouteResult({
+  routeData,
+  pois = [],
+  question = "",
+}: {
+  routeData: RouteData;
+  pois?: Poi[];
+  question?: string;
+}) {
   const tool = routeData.tool || "";
   const data = (routeData.data || {}) as Record<string, unknown>;
 
   if (tool === "plan_route" || tool === "plan_circular_route" || tool === "plan_park_loop") {
-    return <SingleRoute data={data} />;
+    return <SingleRoute data={data} pois={pois} question={question} />;
   }
   if (tool === "explore_trails") {
     return <TrailSelection initial={data as TrailsData} />;
@@ -80,11 +183,70 @@ export function RouteResult({ routeData }: { routeData: RouteData }) {
 }
 
 // ── Single route (plan_route / plan_circular_route) ───────────────────────────
-function SingleRoute({ data }: { data: Record<string, unknown> }) {
-  const waypoints = (data.waypoints as Waypoint[] | undefined) ?? [];
-  if (!waypoints.length) return null;
+function SingleRoute({
+  data,
+  pois = [],
+  question = "",
+}: {
+  data: Record<string, unknown>;
+  pois?: Poi[];
+  question?: string;
+}) {
+  // "Route mit Umweg": planning a variant through a chosen POI replaces the shown
+  // route locally (the original stays one click away).
+  const [alt, setAlt] = useState<{ data: Record<string, unknown>; via: string } | null>(null);
+  const [planning, setPlanning] = useState<string | null>(null);
 
+  // Personalised duration: ORS's duration_min is the PROFILE's pace — walking
+  // speed for all foot routes. For a jogging/cycling request, estimate from the
+  // user's own recent Strava pace instead (median avg speed of that sport).
+  // The sport comes from the tool's requested_profile AND the user's own words —
+  // the agent often normalises "jogging" to the ORS profile "foot-walking"
+  // before calling the tool, so the question text is the more reliable signal.
+  const requested = (
+    ((data.requested_profile as string) ?? (data.profile as string)) || ""
+  ).toLowerCase();
+  const q = (question || "").toLowerCase();
+  const sport: "Run" | "Ride" | null =
+    /run|jog/.test(requested) || /jogg|joggen|lauf|läuf|run\b|rennen/.test(q)
+      ? "Run"
+      : /cycl|bike|ride|mtb/.test(requested) || /\brad|fahrrad|bike|cycl|velo|mtb/.test(q)
+        ? "Ride"
+        : null;
+  const [personalKmh, setPersonalKmh] = useState<number | null>(null);
+  useEffect(() => {
+    if (!sport) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await callTool<{
+          activities?: Array<{ type?: string; sport_type?: string; avg_speed_kmh?: number | null }>;
+        }>("strava__get_activities", { limit: 30 });
+        const speeds = (res?.activities ?? [])
+          .filter((a) => (a.sport_type ?? a.type ?? "").includes(sport))
+          .map((a) => a.avg_speed_kmh)
+          .filter((v): v is number => v != null && v > 0)
+          .sort((x, y) => x - y);
+        if (!cancelled && speeds.length >= 2) {
+          setPersonalKmh(speeds[Math.floor(speeds.length / 2)]);
+        }
+      } catch {
+        /* Strava not connected — keep the ORS estimate */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sport]);
+
+  const origWaypoints = (data.waypoints as Waypoint[] | undefined) ?? [];
+  if (!origWaypoints.length) return null;
+  const origCoords: [number, number][] = origWaypoints.map((wp) => [wp.lat, wp.lon]);
+
+  const shown = alt?.data ?? data;
+  const waypoints = (shown.waypoints as Waypoint[] | undefined) ?? origWaypoints;
   const coords: [number, number][] = waypoints.map((wp) => [wp.lat, wp.lon]);
+
   const polylines: PolyLineSpec[] = [
     { coords, color: "#f97316", weight: 5, opacity: 0.9 },
   ];
@@ -98,30 +260,138 @@ function SingleRoute({ data }: { data: Record<string, unknown> }) {
     },
   ];
 
-  const distanceKm = data.distance_km as number | undefined;
-  const durationMin = data.duration_min as number | undefined;
-  const elevation = data.elevation as
+  // POIs (cafés etc. the agent found) as extra pins — but ONLY those actually on
+  // the route (≤500 m from the ORIGINAL track); a hit across town has nothing to
+  // do with this route and is not shown at all. Capped so the map stays readable.
+  const nearby = pois
+    .map((p) => ({
+      poi: p,
+      dist: Math.min(...origCoords.map(([la, lo]) => haversineM(p.lat, p.lon, la, lo))),
+    }))
+    .filter((x) => x.dist <= 500)
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 5);
+  nearby.forEach(({ poi, dist }) =>
+    markers.push({
+      lat: poi.lat,
+      lon: poi.lon,
+      color: "#1E96FF",
+      label: poi.label,
+      html: poiPopupHtml(poi, dist),
+    }),
+  );
+
+  const planVia = async (poi: Poi) => {
+    setPlanning(poi.label);
+    try {
+      // Keep the WHOLE original route, detouring via the POI — not just start→POI.
+      // Route through ~14 points sampled from the original track, with the sample
+      // nearest the POI replaced by the POI itself. Dense enough that ORS follows
+      // the original shape (length stays within ~1 %), and the route now passes
+      // the café. (Fewer vias would let ORS shortcut the loop's meanders.)
+      const inner = origCoords.slice(1, -1);
+      const step = Math.max(1, Math.floor(inner.length / 14));
+      const sampled = inner.filter((_, i) => i % step === 0).slice(0, 14);
+      let vias: [number, number][];
+      if (sampled.length) {
+        const nearestIdx = sampled.reduce(
+          (best, c, i) =>
+            haversineM(poi.lat, poi.lon, c[0], c[1]) <
+            haversineM(poi.lat, poi.lon, sampled[best][0], sampled[best][1])
+              ? i
+              : best,
+          0,
+        );
+        vias = sampled.map((c, i) => (i === nearestIdx ? [poi.lat, poi.lon] : c));
+      } else {
+        vias = [[poi.lat, poi.lon]]; // degenerate track — plain detour
+      }
+      const res = await callTool<Record<string, unknown>>("routes__plan_route", {
+        start_lat: origCoords[0][0],
+        start_lon: origCoords[0][1],
+        end_lat: origCoords[origCoords.length - 1][0],
+        end_lon: origCoords[origCoords.length - 1][1],
+        waypoints: vias,
+        profile: (data.profile as string) ?? undefined,
+      });
+      if (res && Array.isArray(res.waypoints) && res.waypoints.length) {
+        setAlt({ data: res, via: poi.label });
+      }
+    } finally {
+      setPlanning(null);
+    }
+  };
+
+  // plan_route/plan_park_loop → distance_km; plan_circular_route → actual_distance_km
+  const distanceKm =
+    (shown.distance_km as number | undefined) ?? (shown.actual_distance_km as number | undefined);
+  const durationMin = shown.duration_min as number | undefined;
+  const elevation = shown.elevation as
     | { gain_m?: number; loss_m?: number }
     | undefined;
 
   return (
     <div className="mt-3 space-y-3">
-      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
-      {(distanceKm != null || durationMin != null || elevation) && (
-        <div className="grid grid-cols-3 gap-3">
-          <MetricCard
-            label="Distanz"
-            value={distanceKm != null ? `${distanceKm} km` : "?"}
-          />
-          <MetricCard
-            label="Dauer"
-            value={durationMin != null ? `${Math.round(durationMin)} min` : "?"}
-          />
-          <MetricCard
-            label="Höhenmeter"
-            value={elevation?.gain_m != null ? `${Math.round(elevation.gain_m)} m` : "?"}
-          />
+      {alt && (
+        <div className="flex items-center justify-between gap-3 text-xs text-text-muted">
+          <span>Route mit Umweg über {alt.via.split(" · ")[0]}</span>
+          <button
+            type="button"
+            className="rounded-md border border-border bg-bg-surface px-2 py-1 hover:border-accent"
+            onClick={() => setAlt(null)}
+          >
+            ← Originalroute
+          </button>
         </div>
+      )}
+      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
+      <div className="grid grid-cols-3 gap-3">
+        <MetricCard label="Distanz" value={distanceKm != null ? `${distanceKm} km` : "?"} />
+        <MetricCard
+          label={personalKmh != null && distanceKm != null ? "Dauer (dein Tempo)" : "Dauer"}
+          value={
+            personalKmh != null && distanceKm != null
+              ? `~${Math.round((distanceKm / personalKmh) * 60)} min`
+              : durationMin != null
+                ? `${Math.round(durationMin)} min`
+                : "?"
+          }
+        />
+        <MetricCard
+          label="Höhenmeter"
+          value={elevation?.gain_m != null ? `${Math.round(elevation.gain_m)} m` : "?"}
+        />
+      </div>
+      {nearby.length > 0 && (
+        <Card className="px-4 py-3">
+          <div className="fd-label mb-2">Orte an der Strecke</div>
+          <div className="space-y-2">
+            {nearby.map(({ poi, dist }) => {
+              const name = poi.label.split(" · ")[0];
+              const active = alt?.via === poi.label;
+              return (
+                <div key={poi.label} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="min-w-0 truncate text-text-primary">
+                    <span
+                      className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
+                      style={{ background: "#1E96FF" }}
+                    />
+                    {name}
+                    <span className="ml-2 text-xs text-text-muted">~{Math.round(dist)} m abseits</span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={planning !== null || active}
+                    onClick={() => planVia(poi)}
+                    className="shrink-0 rounded-md border border-border bg-bg-surface px-2 py-1 text-xs text-text-primary hover:border-accent disabled:opacity-50"
+                  >
+                    {active ? "✓ im Umweg" : planning === poi.label ? "plane…" : "Route mit Umweg"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
     </div>
   );

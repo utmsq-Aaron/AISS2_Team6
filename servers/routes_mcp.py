@@ -11,8 +11,10 @@ Optional:      GOOGLE_GEOCODING_API_KEY in .env — enables the geocode tool (pl
                name → coordinates) so routes can be anchored at named places.
 """
 
+import math
 import os
 import time
+import urllib.parse
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -23,7 +25,9 @@ load_dotenv()
 
 ORS_BASE = "https://api.openrouteservice.org"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+# Geocoding API v4 — works with a billing-free Maps Demo Key (the legacy
+# /maps/api/geocode/json endpoint requires billing on the project).
+GOOGLE_GEOCODE_URL = "https://geocode.googleapis.com/v4/geocode/address/{address}"
 
 HOST = os.getenv("ROUTES_MCP_HOST", "127.0.0.1")
 PORT = int(os.getenv("ROUTES_MCP_PORT", "8102"))
@@ -42,6 +46,7 @@ STRAVA_TO_PROFILE: Dict[str, str] = {
     "ride": "cycling-regular", "virtualride": "cycling-regular",
     "mountainbikeride": "cycling-mountain", "gravel_ride": "cycling-regular",
     "run": "foot-walking", "virtualrun": "foot-walking", "running": "foot-walking",
+    "jog": "foot-walking", "jogging": "foot-walking", "foot-running": "foot-walking",
     "hike": "foot-hiking", "walk": "foot-walking",
     "alpineski": "foot-hiking", "nordicski": "foot-hiking",
 }
@@ -99,6 +104,39 @@ def _simplify(raw: List[List[float]], target: int) -> List[Dict[str, Any]]:
              "ele_m": round(c[2], 1) if len(c) > 2 else None} for c in raw[::step]]
 
 
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 12742000 * math.asin(math.sqrt(a))
+
+
+def _poi_anchors(raw: List[List[float]], n: int = 5) -> List[Dict[str, Any]]:
+    """Few evenly spaced track points WITH their km mark, for place searches.
+
+    The full ``waypoints`` array is clipped out of the model's context (see
+    core.agent_trace.LARGE_ARRAY_KEYS), so the agent cannot pick coordinates
+    from it. These ≤5 anchors survive clipping — the agent uses them as
+    near_lat/near_lon for google_maps__maps_search_places and quotes their km
+    mark, keeping "café at km 4" claims grounded in the actual track.
+    """
+    if len(raw) < 2:
+        return []
+    cum = [0.0]
+    for i in range(1, len(raw)):
+        cum.append(cum[-1] + _haversine_m(raw[i - 1][1], raw[i - 1][0], raw[i][1], raw[i][0]))
+    total = cum[-1]
+    if total <= 0:
+        return []
+    anchors = []
+    for frac in [i / (n - 1) for i in range(n)]:
+        target = frac * total
+        idx = min(range(len(cum)), key=lambda i: abs(cum[i] - target))
+        anchors.append({"km": round(cum[idx] / 1000, 1),
+                        "lat": round(raw[idx][1], 6), "lon": round(raw[idx][0], 6)})
+    return anchors
+
+
 # ── Geometry helpers (containment / centroid) ─────────────────────────────────
 
 def _norm(s: str) -> str:
@@ -138,33 +176,31 @@ def _geocode(query: str, region: str = "de") -> Dict[str, Any]:
     # unaffected, so normalise commas to spaces.
     q = " ".join(q.replace(",", " ").split())
     try:
-        resp = requests.get(GOOGLE_GEOCODE_URL, params={
-            "address": q, "region": region or "", "key": _google_key(),
-        }, timeout=15)
+        url = GOOGLE_GEOCODE_URL.format(address=urllib.parse.quote(q, safe=""))
+        resp = requests.get(url, params={"regionCode": (region or "").upper() or None},
+                            headers={"X-Goog-Api-Key": _google_key()}, timeout=15)
     except RuntimeError as exc:  # missing key — surface clearly
         return {"error": str(exc)}
     except Exception as exc:  # noqa: BLE001 — network/transport
         return {"error": f"geocode request failed: {type(exc).__name__}: {exc}"}
     if not resp.ok:
         return {"error": f"Google geocode HTTP {resp.status_code}: {resp.text[:200]}"}
-    body = resp.json()
-    status = body.get("status")
-    if status != "OK" or not body.get("results"):
-        return {"error": f"geocode {status}: {body.get('error_message', 'no results')}",
-                "query": q}
-    top = body["results"][0]
-    geom = top.get("geometry", {})
-    loc = geom.get("location", {})
-    box = geom.get("viewport") or geom.get("bounds") or {}
-    ne, sw = box.get("northeast", {}), box.get("southwest", {})
-    bbox = ({"min_lat": sw.get("lat"), "min_lon": sw.get("lng"),
-             "max_lat": ne.get("lat"), "max_lon": ne.get("lng")} if ne and sw else None)
+    results = resp.json().get("results", [])
+    if not results:
+        return {"error": "geocode: no results", "query": q}
+    top = results[0]
+    loc = top.get("location", {})
+    box = top.get("viewport") or {}
+    low, high = box.get("low", {}), box.get("high", {})
+    bbox = ({"min_lat": low.get("latitude"), "min_lon": low.get("longitude"),
+             "max_lat": high.get("latitude"), "max_lon": high.get("longitude")}
+            if low and high else None)
     return {
         "query": q,
-        "lat": loc.get("lat"), "lon": loc.get("lng"),
-        "name": top.get("formatted_address"),
+        "lat": loc.get("latitude"), "lon": loc.get("longitude"),
+        "name": top.get("formattedAddress"),
         "bbox": bbox,
-        "location_type": geom.get("location_type"),
+        "location_type": top.get("granularity"),
         "types": top.get("types", []),
     }
 
@@ -293,11 +329,13 @@ def plan_route(
              for seg in props.get("segments", []) for s in (seg.get("steps") or []) if s.get("instruction")]
     return {
         "profile": prof,
+        "requested_profile": (profile or "").strip() or prof,
         "distance_km": round(summary.get("distance", 0), 2),
         "duration_min": round(summary.get("duration", 0) / 60, 1),
         "elevation": _elevation_stats([c[2] for c in raw if len(c) > 2]),
         "waypoints_count": len(raw),
         "waypoints": _simplify(raw, min(int(simplify_points or 100), 500)),
+        "poi_anchors": _poi_anchors(raw),
         "instructions": steps[:50],
     }
 
@@ -328,12 +366,14 @@ def plan_circular_route(lat: float, lon: float, distance_km: float,
     raw = feat.get("geometry", {}).get("coordinates", [])
     return {
         "profile": prof,
+        "requested_profile": (profile or "").strip() or prof,
         "target_distance_km": float(distance_km),
         "actual_distance_km": round(summary.get("distance", 0), 2),
         "duration_min": round(summary.get("duration", 0) / 60, 1),
         "elevation": _elevation_stats([c[2] for c in raw if len(c) > 2]),
         "start_lat": lat, "start_lon": lon,
         "waypoints": _simplify(raw, 100),
+        "poi_anchors": _poi_anchors(raw),
     }
 
 
@@ -422,6 +462,7 @@ def plan_park_loop(area: str, distance_km: float = 3.0,
     summary = feat.get("properties", {}).get("summary", {})
     return {
         "profile": prof,
+        "requested_profile": (profile or "").strip() or prof,
         "target_distance_km": float(distance_km),
         "distance_km": round(summary.get("distance", 0), 2),
         "duration_min": round(summary.get("duration", 0) / 60, 1),
@@ -433,6 +474,7 @@ def plan_park_loop(area: str, distance_km: float = 3.0,
         "containment_pct": pct,
         "note": note,
         "waypoints": _simplify(raw, 100),
+        "poi_anchors": _poi_anchors(raw),
     }
 
 
@@ -557,7 +599,8 @@ def get_isochrone(lat: float, lon: float, range_value: float,
     poly = geom.get("coordinates", [[]])[0]
     lats, lons = [c[1] for c in poly], [c[0] for c in poly]
     return {
-        "profile": prof, "range_type": range_type, "range_value": float(range_value),
+        "profile": prof,
+        "requested_profile": (profile or "").strip() or prof, "range_type": range_type, "range_value": float(range_value),
         "range_label": (f"{int(range_value / 60)} min" if range_type == "time"
                         else f"{range_value / 1000:.1f} km"),
         "area_km2": round(props.get("area", 0), 2), "reach_factor": props.get("reachfactor"),

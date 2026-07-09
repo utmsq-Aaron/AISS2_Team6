@@ -17,7 +17,6 @@ via the same fresh-event-loop helper ToolHost uses.
 from __future__ import annotations
 
 import json
-import os
 import threading
 import uuid
 from datetime import datetime
@@ -28,6 +27,7 @@ from core.a2a_client import call_agent, fetch_agent_card
 from core.agent_trace import build_trace
 from core.config import A2A_AGENTS
 from core.host import _run
+from core.llm import _env
 
 LOG_DIR = Path(".logs")
 LOG_FILE = LOG_DIR / "agent_interactions.jsonl"
@@ -173,7 +173,7 @@ def _write_log(trace: Dict) -> None:
         entry = {
             "run_id":       trace.get("run_id"),
             "ts":           trace.get("ts") or (datetime.utcnow().isoformat() + "Z"),
-            "model":        os.getenv("AGENT_LLM_MODEL") or os.getenv("AGENT_MODEL", ""),
+            "model":        _env("AGENT_LLM_MODEL") or _env("AGENT_MODEL"),
             "user_input":   trace.get("user_input"),
             "n_tool_calls": len(tool_calls),
             "tools":        [r.get("tool") for r in tool_calls],
