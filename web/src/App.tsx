@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { CoachPoll } from "./components/CoachPoll";
+import { FeedbackButton } from "./components/FeedbackButton";
 import { GoalPoll } from "./components/GoalPoll";
 import { Header } from "./components/Header";
 import { OnboardingWizard } from "./components/onboarding/OnboardingWizard";
@@ -68,6 +69,7 @@ function MainShell() {
           </Routes>
         </main>
       </div>
+      <FeedbackButton />
     </div>
   );
 }

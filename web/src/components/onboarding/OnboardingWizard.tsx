@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 
+import { FeedbackButton } from "../FeedbackButton";
 import { GoalsStep } from "./GoalsStep";
 import { PhotoStep } from "./PhotoStep";
 import { ServicesStep } from "./ServicesStep";
@@ -55,6 +56,7 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
           {step === 4 && <ServicesStep onFinish={onDone} />}
         </div>
       </div>
+      <FeedbackButton />
     </div>
   );
 }

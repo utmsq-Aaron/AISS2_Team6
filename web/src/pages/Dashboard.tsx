@@ -24,6 +24,7 @@ import {
   useRefreshGoalPanel,
   useUpdateGoal,
 } from "../lib/goalQueries";
+import { useAvatarUrl, useProfile } from "../lib/profileHooks";
 import { useUiStore } from "../store/uiStore";
 import type { AthleteResult, AthleteProfile } from "../lib/stravaTypes";
 
@@ -78,11 +79,16 @@ export function Dashboard() {
     queryKey: ["athlete", refreshVersion],
     queryFn: () => callTool<AthleteResult>("strava__get_athlete_profile", {}),
   });
-  const profile = athleteQ.data?.profile ?? {};
+  const stravaProfile = athleteQ.data?.profile ?? {};
   const coords = {
-    lat: profile.lat ?? KARLSRUHE.lat,
-    lon: profile.lon ?? KARLSRUHE.lon,
+    lat: stravaProfile.lat ?? KARLSRUHE.lat,
+    lon: stravaProfile.lon ?? KARLSRUHE.lon,
   };
+
+  // ── Onboarding profile (name + avatar the user actually set) — takes
+  // priority over the deployment-global Strava identity in the greeting. ──
+  const profileQuery = useProfile();
+  const avatarUrl = useAvatarUrl(Boolean(profileQuery.data?.has_avatar));
 
   // ── Weather (one compact current-conditions card) ──
   const weatherQ = useQuery({
@@ -105,7 +111,12 @@ export function Dashboard() {
 
   return (
     <div>
-      <AthleteGreeting profile={profile} loading={athleteQ.isLoading} />
+      <AthleteGreeting
+        profile={stravaProfile}
+        profileName={profileQuery.data?.name}
+        avatarUrl={avatarUrl}
+        loading={athleteQ.isLoading}
+      />
 
       {/* ── Quick glance ── */}
       <section className="mt-4">
@@ -240,24 +251,32 @@ export function Dashboard() {
 }
 
 // ── Slim athlete greeting (name + avatar only) ────────────────────────────────
+// Name/avatar priority: the onboarding profile (what the user actually set for
+// themselves) first, then the Strava athlete profile, then a generic fallback —
+// since Strava tokens are deployment-global, every tester would otherwise see
+// the Strava account owner's identity instead of their own.
 function AthleteGreeting({
   profile,
+  profileName,
+  avatarUrl,
   loading,
 }: {
   profile: AthleteProfile;
+  profileName?: string;
+  avatarUrl?: string | null;
   loading: boolean;
 }) {
   if (loading) return <Spinner label="Loading athlete…" />;
-  const name =
-    profile.name ||
-    `${profile.firstname || ""} ${profile.lastname || ""}`.trim() ||
-    "Athlete";
+  const stravaName =
+    profile.name || `${profile.firstname || ""} ${profile.lastname || ""}`.trim();
+  const name = profileName || stravaName || "Athlete";
   const first = name.split(" ")[0];
-  const url = profile.profile_url || profile.profile || "";
+  const stravaUrl = profile.profile_url || profile.profile || "";
+  const url = avatarUrl || (stravaUrl.startsWith("http") ? stravaUrl : "");
 
   return (
     <div className="flex items-center gap-4">
-      {url.startsWith("http") ? (
+      {url ? (
         <img
           src={url}
           alt={name}

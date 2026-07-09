@@ -47,6 +47,7 @@ def add_goal(body: AddGoalBody, user: str = Depends(current_user)) -> dict:
     if not goal:
         raise HTTPException(status_code=500, detail="could not save goal")
     goal_build_queue.enqueue(user, goal["id"])
+    goal = goal_store.set_panel_status(user, goal["id"], "building") or goal
     return goal
 
 
