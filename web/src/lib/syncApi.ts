@@ -1,12 +1,21 @@
 // Client for the Garmin → Strava sync endpoints (api/routers/sync.py).
-// Self-contained: a local http() helper (mirrors lib/api.ts's module-private one)
-// plus typed fetch/route calls and an SSE consumer for the export stream.
+// Self-contained: a local http() helper (mirrors lib/api.ts's module-private one,
+// including its auth headers + 401→logout handling — all /sync/* routes are
+// protected by Depends(current_user)) plus typed fetch/route calls and an SSE
+// consumer for the export stream.
+
+import { authHeaders } from "./api";
+import { forceLogout } from "../store/authStore";
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     ...init,
   });
+  if (res.status === 401) {
+    forceLogout(); // token missing/expired → drop back to the login screen
+    throw new Error("Session expired — please log in again.");
+  }
   if (!res.ok) {
     const detail = await res.text().catch(() => res.statusText);
     throw new Error(`API ${res.status}: ${detail}`);
@@ -107,10 +116,14 @@ export function streamExport(
     try {
       const res = await fetch("/api/sync/export", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ activities }),
         signal: controller.signal,
       });
+      if (res.status === 401) {
+        forceLogout();
+        throw new Error("Session expired — please log in again.");
+      }
       if (!res.ok || !res.body) throw new Error(`export ${res.status}`);
 
       const reader = res.body.getReader();
