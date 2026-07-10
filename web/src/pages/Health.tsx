@@ -776,10 +776,7 @@ export function Health() {
               </div>
               {row2.length > 0 && (
                 <div
-                  className="mt-3 grid grid-cols-2 gap-3"
-                  style={{
-                    gridTemplateColumns: `repeat(${Math.min(row2.length, 5)}, minmax(0, 1fr))`,
-                  }}
+                  className={`mt-3 grid grid-cols-2 gap-3 ${["", "md:grid-cols-1", "md:grid-cols-2", "md:grid-cols-3", "md:grid-cols-4", "md:grid-cols-5"][Math.min(row2.length, 5)]}`}
                 >
                   {row2.map(([val, label]) => (
                     <MetricCard key={label} label={label} value={fmtRow2(val, label)} />
