@@ -11,7 +11,7 @@ import type { RouteData } from "../components/chat/RouteResult";
 import FlythroughModal from "../components/FlythroughModal";
 import { PageHeader } from "../components/PageHeader";
 import { PlotlyFigure } from "../components/PlotlyChart";
-import { generateCharts, getServerHealth } from "../lib/api";
+import { generateCharts, getServerHealth, refreshChatTools } from "../lib/api";
 import type { FlythroughAction } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { AssistantTurn } from "../store/chatStore";
@@ -74,7 +74,7 @@ export function Chat() {
   const refreshTools = async () => {
     setRefreshing(true);
     try {
-      await fetch("/api/chat/refresh-tools", { method: "POST" });
+      await refreshChatTools().catch(() => undefined);
       await refetchHealth();
     } finally {
       setRefreshing(false);

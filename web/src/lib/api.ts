@@ -281,6 +281,8 @@ export interface HealthResponse {
 }
 
 export const getServerHealth = () => http<HealthResponse>("/health/servers");
+/** Re-discover MCP tools on the orchestrator (POST /chat/refresh-tools). */
+export const refreshChatTools = () => http<{ count: number }>("/chat/refresh-tools", { method: "POST" });
 export const getConfigIssues = () => http<{ issues: string[] }>("/health/config");
 export const getSettings = () => http<SettingsResponse>("/settings");
 export const putEnv = (values: Record<string, string>) =>
