@@ -19,7 +19,7 @@ import {
   type Activity,
   type DeleteResult,
 } from "../../lib/stravaTypes";
-import { ACCENT, activityIcon } from "../../theme/tokens";
+import { ACCENT, MAP_FINISH, MAP_START, activityIcon } from "../../theme/tokens";
 
 function decodeRoute(a: Activity): [number, number][] {
   return decodePolyline(a.map_polyline);
@@ -143,11 +143,11 @@ function ActivityMapPanel({
           : Math.max(0.25, 1.0 - (i / Math.max(n, 1)) * 0.75);
       lines.push({ coords, color: ACCENT, weight, opacity });
       if (isSel) {
-        marks.push({ lat: coords[0][0], lon: coords[0][1], color: "#2ECC71", label: "Start" });
+        marks.push({ lat: coords[0][0], lon: coords[0][1], color: MAP_START, label: "Start" });
         marks.push({
           lat: coords[coords.length - 1][0],
           lon: coords[coords.length - 1][1],
-          color: "#E74C3C",
+          color: MAP_FINISH,
           label: "Finish",
         });
       }

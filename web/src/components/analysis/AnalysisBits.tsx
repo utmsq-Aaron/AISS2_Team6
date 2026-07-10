@@ -4,6 +4,8 @@
 
 import type { ReactNode } from "react";
 
+import { C_GREEN, C_RED, C_ORANGE, TEXT_MUTED, TEXT_FAINT } from "../../theme/tokens";
+
 // ── Collapsible section card (clickable header toggles open/closed) ─────────────
 
 export function CollapsibleSection({
@@ -42,14 +44,14 @@ export function CollapsibleSection({
 // ── Trend pill (mirrors _trend_pill) ────────────────────────────────────────────
 
 const TREND_MAP: Record<string, { color: string; label: string }> = {
-  improving: { color: "#10b981", label: "📈 Improving" },
-  declining: { color: "#ef4444", label: "📉 Declining" },
-  stable: { color: "#94a3b8", label: "➡️ Stable" },
-  "insufficient data": { color: "#64748b", label: "❓ Insufficient data" },
+  improving: { color: C_GREEN, label: "📈 Improving" },
+  declining: { color: C_RED, label: "📉 Declining" },
+  stable: { color: TEXT_MUTED, label: "➡️ Stable" },
+  "insufficient data": { color: TEXT_FAINT, label: "❓ Insufficient data" },
 };
 
 export function TrendPill({ direction }: { direction: string }) {
-  const entry = TREND_MAP[direction] ?? { color: "#64748b", label: direction };
+  const entry = TREND_MAP[direction] ?? { color: TEXT_FAINT, label: direction };
   return (
     <span
       className="inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-[0.78rem]"
@@ -81,26 +83,26 @@ export function PctBar({
 }) {
   const clamp = Math.min(Math.max(pct, 0), 100);
   let barCol: string;
-  if (clamp >= 75) barCol = "#ef4444";
-  else if (clamp >= 50) barCol = "#f97316";
-  else if (clamp <= 25) barCol = "#10b981";
-  else barCol = "#94a3b8";
+  if (clamp >= 75) barCol = C_RED;
+  else if (clamp >= 50) barCol = C_ORANGE;
+  else if (clamp <= 25) barCol = C_GREEN;
+  else barCol = TEXT_MUTED;
 
   return (
     <div className="my-2">
-      <div className="flex justify-between text-[0.82rem] text-[#ccc]">
+      <div className="flex justify-between text-[0.82rem] text-text-muted">
         <span>{label}</span>
         <span>
           <strong>{value}</strong> {unit} &nbsp;·&nbsp; avg&nbsp;{mean} {unit}
         </span>
       </div>
-      <div className="mt-1 h-[7px] rounded bg-[#1e293b]">
+      <div className="mt-1 h-[7px] rounded bg-border">
         <div
           className="h-[7px] rounded"
           style={{ background: barCol, width: `${clamp}%` }}
         />
       </div>
-      <div className="text-[0.72rem] text-[#64748b]">harder than {pct}% of baseline</div>
+      <div className="text-[0.72rem] text-text-faint">harder than {pct}% of baseline</div>
     </div>
   );
 }

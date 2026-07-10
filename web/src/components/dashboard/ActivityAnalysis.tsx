@@ -10,7 +10,7 @@ import { RouteMap } from "../RouteMap";
 import { Spinner, EmptyState } from "../Spinner";
 import { callTool } from "../../lib/api";
 import {
-  C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_ROSE, TEXT_MUTED,
+  C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_ROSE, MAP_FINISH, MAP_START, TEXT_MUTED,
 } from "../../theme/tokens";
 import { useUiStore } from "../../store/uiStore";
 import {
@@ -298,10 +298,10 @@ export function ActivityAnalysis({ activityId }: { activityId: number }) {
               polylines={segs}
               markers={[
                 ...(startPt
-                  ? [{ lat: startPt.lat as number, lon: startPt.lon as number, color: "#2ECC71", label: "Start" }]
+                  ? [{ lat: startPt.lat as number, lon: startPt.lon as number, color: MAP_START, label: "Start" }]
                   : []),
                 ...(finishPt
-                  ? [{ lat: finishPt.lat as number, lon: finishPt.lon as number, color: "#E74C3C", label: "Finish" }]
+                  ? [{ lat: finishPt.lat as number, lon: finishPt.lon as number, color: MAP_FINISH, label: "Finish" }]
                   : []),
               ]}
               height={440}

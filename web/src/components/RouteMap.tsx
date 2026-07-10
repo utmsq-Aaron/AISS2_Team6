@@ -5,10 +5,13 @@ import {
   ACCENT,
   DARK_MAP_ATTR,
   DARK_MAP_TILES,
+  ISO_BLUE,
+  ISO_BLUE_DARK,
   OSM_MAP_ATTR,
   OSM_MAP_TILES,
   SATELLITE_MAP_ATTR,
   SATELLITE_MAP_TILES,
+  WHITE,
 } from "../theme/tokens";
 
 // A polyline given as [lat, lon][] (folium order) — converted to GeoJSON [lon, lat].
@@ -152,13 +155,13 @@ export function RouteMap({
           id: "polys-fill",
           type: "fill",
           source: "polys",
-          paint: { "fill-color": "#1E96FF", "fill-opacity": 0.2 },
+          paint: { "fill-color": ISO_BLUE, "fill-opacity": 0.2 },
         });
         m.addLayer({
           id: "polys-line",
           type: "line",
           source: "polys",
-          paint: { "line-color": "#0050AA", "line-width": 2 },
+          paint: { "line-color": ISO_BLUE_DARK, "line-width": 2 },
         });
       }
 
@@ -167,7 +170,7 @@ export function RouteMap({
       markerObjs.current = markers.map((mk) => {
         const el = document.createElement("div");
         el.style.cssText =
-          `width:14px;height:14px;border-radius:50%;border:2px solid #fff;` +
+          `width:14px;height:14px;border-radius:50%;border:2px solid ${WHITE};` +
           `background:${mk.color ?? ACCENT};box-shadow:0 0 0 2px rgba(0,0,0,.4)`;
         const marker = new maplibregl.Marker({ element: el }).setLngLat([mk.lon, mk.lat]);
         if (mk.html) {

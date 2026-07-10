@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { callTool } from "../../lib/api";
-import { C_GREEN, C_RED } from "../../theme/tokens";
+import { C_GREEN, C_ORANGE, C_RED, ISO_BLUE, TRAIL_COLORS } from "../../theme/tokens";
 import { Card } from "../Card";
 import { MetricCard } from "../MetricCard";
 import { RouteMap } from "../RouteMap";
@@ -17,8 +17,6 @@ import {
 // get_isochrone, and an activity's recorded GPS track (get_activity_streams /
 // get_activity_gps_track) — the last of which Telegram already drew but the web
 // dropped, so the same run/ride map now renders in both.
-
-const TRAIL_COLORS = ["#f97316", "#1E96FF", "#00C864", "#C832C8", "#FFC800"];
 
 interface Waypoint {
   lat: number;
@@ -253,7 +251,7 @@ function SingleRoute({
   const coords: [number, number][] = waypoints.map((wp) => [wp.lat, wp.lon]);
 
   const polylines: PolyLineSpec[] = [
-    { coords, color: "#f97316", weight: 5, opacity: 0.9 },
+    { coords, color: C_ORANGE, weight: 5, opacity: 0.9 },
   ];
   const markers: MarkerSpec[] = [
     { lat: coords[0][0], lon: coords[0][1], color: C_GREEN, label: "Start" },
@@ -280,7 +278,7 @@ function SingleRoute({
     markers.push({
       lat: poi.lat,
       lon: poi.lon,
-      color: "#1E96FF",
+      color: ISO_BLUE,
       label: poi.label,
       html: poiPopupHtml(poi, dist),
     }),
@@ -385,7 +383,7 @@ function SingleRoute({
                   <span className="min-w-0 truncate text-text-primary">
                     <span
                       className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
-                      style={{ background: "#1E96FF" }}
+                      style={{ background: ISO_BLUE }}
                     />
                     {name}
                     <span className="ml-2 text-xs text-text-muted">~{Math.round(dist)} m off route</span>
@@ -688,7 +686,7 @@ function TrailSelection({ initial, answer = "" }: { initial: TrailsData; answer?
   if (sb) {
     const clat = ((sb.min_lat ?? 0) + (sb.max_lat ?? 0)) / 2;
     const clon = ((sb.min_lon ?? 0) + (sb.max_lon ?? 0)) / 2;
-    markers.push({ lat: clat, lon: clon, color: "#f97316", label: selTrail.name });
+    markers.push({ lat: clat, lon: clon, color: C_ORANGE, label: selTrail.name });
   }
 
   const from = pageStart + 1;
@@ -786,7 +784,7 @@ function Isochrone({ data }: { data: Record<string, unknown> }) {
     { type: "Feature", geometry, properties: {} },
   ];
   const markers: MarkerSpec[] = [
-    { lat: centre.lat, lon: centre.lon, color: "#1E96FF", label: "Start" },
+    { lat: centre.lat, lon: centre.lon, color: ISO_BLUE, label: "Start" },
   ];
 
   return (

@@ -45,7 +45,7 @@ function Segmented({
             className={
               "px-2.5 py-1 text-xs font-medium transition-colors " +
               (value === o.v
-                ? "bg-accent text-[#0B1219]"
+                ? "bg-accent text-bg-app"
                 : "text-text-muted hover:bg-bg-surface hover:text-text-primary")
             }
           >

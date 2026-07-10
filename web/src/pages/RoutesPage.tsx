@@ -7,7 +7,7 @@ import { Card, SectionLabel } from "../components/Card";
 import { Spinner, ErrorBox, EmptyState } from "../components/Spinner";
 import { RouteMap, type PolyLineSpec, type MarkerSpec } from "../components/RouteMap";
 import { callTool } from "../lib/api";
-import { CHART_COLORS, C_GREEN, C_RED } from "../theme/tokens";
+import { CHART_COLORS, C_GREEN, C_ORANGE, C_RED, ISO_BLUE } from "../theme/tokens";
 
 // ── Preset locations (ui/routes_explorer.py PRESETS) ───────────────────────────
 const PRESETS: Record<string, [number, number]> = {
@@ -522,7 +522,7 @@ function RouteResultView({ tool, data }: { tool: ToolName; data: RouteResult }) 
     return [
       {
         coords: waypoints.map((wp) => [wp.lat, wp.lon] as [number, number]),
-        color: "#f97316",
+        color: C_ORANGE,
         weight: 5,
         opacity: 0.9,
       },
@@ -602,7 +602,7 @@ function TrailsResultView({
     if (!b) return [];
     const clat = ((b.min_lat ?? 0) + (b.max_lat ?? 0)) / 2;
     const clon = ((b.min_lon ?? 0) + (b.max_lon ?? 0)) / 2;
-    return [{ lat: clat, lon: clon, color: "#FF9800", label: t?.name }];
+    return [{ lat: clat, lon: clon, color: C_ORANGE, label: t?.name }];
   }, [trails, sel]);
 
   if (!trails.length) {
@@ -690,7 +690,7 @@ function IsochroneResultView({ data }: { data: IsochroneResult }) {
     return [{ type: "Feature", geometry, properties: {} }];
   }, [geometry]);
   const markers: MarkerSpec[] = centre
-    ? [{ lat: centre.lat, lon: centre.lon, color: "#1E96FF", label: "Start" }]
+    ? [{ lat: centre.lat, lon: centre.lon, color: ISO_BLUE, label: "Start" }]
     : [];
 
   return (

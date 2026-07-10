@@ -1,15 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getServerHealth } from "../lib/api";
-
-const GREEN = "#10b981";
-const RED = "#ef4444";
+import { C_GREEN, C_RED } from "../theme/tokens";
 
 function Dot({ ok }: { ok: boolean }) {
   return (
     <span
       className="inline-block h-2 w-2 flex-shrink-0 rounded-full"
-      style={{ background: ok ? GREEN : RED }}
+      style={{ background: ok ? C_GREEN : C_RED }}
     />
   );
 }

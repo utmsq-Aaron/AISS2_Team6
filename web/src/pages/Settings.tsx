@@ -44,7 +44,7 @@ import {
   type EnvVar,
   type GarminState,
 } from "../lib/settingsApi";
-import { ACCENT, BORDER, C_GREEN, C_AMBER, TEXT_PRIMARY, TEXT_MUTED } from "../theme/tokens";
+import { ACCENT, BORDER, C_GREEN, C_AMBER, C_RED, TEXT_PRIMARY, TEXT_MUTED, WHITE } from "../theme/tokens";
 
 // ── Integration metadata (drives the card layout) — mirrors INTEGRATION_META ─────
 interface Meta {
@@ -83,7 +83,7 @@ function EnvRow({ name, env, hint }: { name: string; env: Record<string, EnvVar>
       className="flex items-center gap-2 py-1.5"
       style={{ borderBottom: `1px solid ${BORDER}` }}
     >
-      <span style={{ color: ok ? C_GREEN : "#EF4444", fontWeight: 700, fontSize: 13, width: 16 }}>
+      <span style={{ color: ok ? C_GREEN : C_RED, fontWeight: 700, fontSize: 13, width: 16 }}>
         {ok ? "✓" : "✗"}
       </span>
       <code style={{ color: TEXT_PRIMARY, fontSize: 13, marginLeft: 4 }}>{name}</code>
@@ -151,7 +151,7 @@ function ProgressBar({ integ }: { integ: Integrations }) {
                     justifyContent: "center",
                     fontSize: 13,
                     fontWeight: 700,
-                    color: ok ? "#fff" : color,
+                    color: ok ? WHITE : color,
                   }}
                 >
                   {icon}
@@ -798,7 +798,7 @@ function BridgeControl({ data, refetch }: { data: SettingsResponse; refetch: () 
               width: 12,
               height: 12,
               borderRadius: "50%",
-              background: running ? "#10b981" : "#ef4444",
+              background: running ? C_GREEN : C_RED,
               display: "inline-block",
             }}
           />

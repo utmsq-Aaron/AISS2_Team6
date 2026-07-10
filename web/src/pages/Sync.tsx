@@ -14,6 +14,7 @@ import {
   type SyncActivity,
   type SyncFetchResponse,
 } from "../lib/syncApi";
+import { C_BLUE, C_BLUE_LIGHT, C_GREEN } from "../theme/tokens";
 
 // Sync tab — two-stage Garmin → Strava export (port of ui/sync.py).
 //   Stage 1 (setup):   pick a date range, click Fetch. Zero API calls until then.
@@ -230,15 +231,15 @@ export function Sync() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div
                 className="rounded-lg px-3 py-2 text-[0.85rem]"
-                style={{ background: "#10b98115", border: "1px solid #10b98144" }}
+                style={{ background: `${C_GREEN}15`, border: `1px solid ${C_GREEN}44` }}
               >
-                ✅ <strong style={{ color: "#10b981" }}>{nInStrava}</strong> already on Strava
+                ✅ <strong style={{ color: C_GREEN }}>{nInStrava}</strong> already on Strava
               </div>
               <div
                 className="rounded-lg px-3 py-2 text-[0.85rem]"
-                style={{ background: "#3b82f615", border: "1px solid #3b82f644" }}
+                style={{ background: `${C_BLUE}15`, border: `1px solid ${C_BLUE}44` }}
               >
-                ⬆️ <strong style={{ color: "#60a5fa" }}>{nMissing}</strong> not yet on Strava
+                ⬆️ <strong style={{ color: C_BLUE_LIGHT }}>{nMissing}</strong> not yet on Strava
               </div>
             </div>
           )}
@@ -305,7 +306,7 @@ export function Sync() {
             ) : view === "missing" ? (
               <div
                 className="rounded-lg px-4 py-3 text-sm"
-                style={{ background: "#10b98115", border: "1px solid #10b98144", color: "#10b981" }}
+                style={{ background: `${C_GREEN}15`, border: `1px solid ${C_GREEN}44`, color: C_GREEN }}
               >
                 All activities in this range are already on Strava! 🎉
               </div>
@@ -492,7 +493,7 @@ function ExportPanel({
         <>
           <div
             className="rounded-lg px-4 py-3 text-sm"
-            style={{ background: "#10b98115", border: "1px solid #10b98144", color: "#10b981" }}
+            style={{ background: `${C_GREEN}15`, border: `1px solid ${C_GREEN}44`, color: C_GREEN }}
           >
             Done — {summaryParts.join(", ")}.
           </div>

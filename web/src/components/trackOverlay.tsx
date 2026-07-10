@@ -3,7 +3,7 @@
 // (ActivityAnalysis) and the chat (chat/RouteResult → ActivityTrack) can render
 // the same heart-rate / pace / altitude / cadence / power overlay on an activity map.
 
-import { ACCENT, TEXT_MUTED } from "../theme/tokens";
+import { ACCENT, GRAD_HIGH, GRAD_LOW, GRAD_MID, TEXT_MUTED } from "../theme/tokens";
 import type { PolyLineSpec } from "./RouteMap";
 
 export const MAX_ROUTE_SEGMENTS = 200;
@@ -32,20 +32,30 @@ export const METRIC_DEFS: Record<MetricKey, [string, boolean, string, string]> =
   watts: ["Power", false, "High Power", "Low Power"],
 };
 
-// Green (0.0) -> Yellow (0.5) -> Red (1.0)
+// Endpoints of the metric gradient, derived once from the shared GRAD_* tokens so
+// the coloured line and the Legend's CSS gradient can never drift apart.
+function hexToRgb(h: string): [number, number, number] {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const GRAD_LOW_RGB = hexToRgb(GRAD_LOW);
+const GRAD_MID_RGB = hexToRgb(GRAD_MID);
+const GRAD_HIGH_RGB = hexToRgb(GRAD_HIGH);
+
+// Green/low (0.0) -> Yellow/mid (0.5) -> Red/high (1.0)
 export function gradientColor(t: number): string {
   t = Math.max(0, Math.min(1, t));
   let r: number, g: number, b: number;
   if (t <= 0.5) {
     const s = t * 2;
-    r = Math.round(34 + s * (252 - 34));
-    g = Math.round(197 + s * (211 - 197));
-    b = Math.round(94 + s * (77 - 94));
+    r = Math.round(GRAD_LOW_RGB[0] + s * (GRAD_MID_RGB[0] - GRAD_LOW_RGB[0]));
+    g = Math.round(GRAD_LOW_RGB[1] + s * (GRAD_MID_RGB[1] - GRAD_LOW_RGB[1]));
+    b = Math.round(GRAD_LOW_RGB[2] + s * (GRAD_MID_RGB[2] - GRAD_LOW_RGB[2]));
   } else {
     const s = (t - 0.5) * 2;
-    r = Math.round(252 + s * (239 - 252));
-    g = Math.round(211 + s * (68 - 211));
-    b = Math.round(77 + s * (68 - 77));
+    r = Math.round(GRAD_MID_RGB[0] + s * (GRAD_HIGH_RGB[0] - GRAD_MID_RGB[0]));
+    g = Math.round(GRAD_MID_RGB[1] + s * (GRAD_HIGH_RGB[1] - GRAD_MID_RGB[1]));
+    b = Math.round(GRAD_MID_RGB[2] + s * (GRAD_HIGH_RGB[2] - GRAD_MID_RGB[2]));
   }
   const hex = (n: number) => n.toString(16).padStart(2, "0");
   return `#${hex(r)}${hex(g)}${hex(b)}`;
@@ -113,7 +123,7 @@ export function Legend({ highLabel, lowLabel }: { highLabel: string; lowLabel: s
         style={{
           width: 16,
           height: 110,
-          background: "linear-gradient(to bottom,#EF4444,#FCDA4D,#22C55E)",
+          background: `linear-gradient(to bottom,${GRAD_HIGH},${GRAD_MID},${GRAD_LOW})`,
         }}
       />
       <span className="text-[10px] text-center" style={{ color: TEXT_MUTED }}>

@@ -14,20 +14,19 @@ import { useUiStore } from "../store/uiStore";
 import {
   ACCENT,
   C_AMBER,
+  C_BLUE_LIGHT,
   C_CYAN,
   C_GREEN,
   C_ROSE,
+  C_SLEEP_AWAKE,
+  C_SLEEP_DEEP,
+  C_SLEEP_LIGHT,
+  C_SLEEP_REM,
   TEXT_MUTED,
   TEXT_PRIMARY,
   BORDER,
   BG_CARD,
 } from "../theme/tokens";
-
-// ── Sleep stage colours (health.py) ────────────────────────────────────────────
-const C_SLEEP_DEEP = "#1E40AF";
-const C_SLEEP_REM = "#7C3AED";
-const C_SLEEP_LIGHT = "#60A5FA";
-const C_SLEEP_AWAKE = "#ED79D5";
 
 // ── Sleep quality thresholds (health.py) ────────────────────────────────────────
 const SLEEP_TOTAL_GOOD_H = 7;
@@ -162,28 +161,28 @@ function sleepHover(row: TrendRow): string {
   const awakePct = (awakeH / total) * 100;
 
   const durLabel = (h: number): [string, string] => {
-    if (h >= SLEEP_TOTAL_GREAT_H) return ["Great", "#10b981"];
-    if (h >= SLEEP_TOTAL_GOOD_H) return ["Good", "#60A5FA"];
-    if (h >= 6) return ["A bit short", "#f59e0b"];
-    return ["Too short", "#FB7185"];
+    if (h >= SLEEP_TOTAL_GREAT_H) return ["Great", C_GREEN];
+    if (h >= SLEEP_TOTAL_GOOD_H) return ["Good", C_BLUE_LIGHT];
+    if (h >= 6) return ["A bit short", C_AMBER];
+    return ["Too short", C_ROSE];
   };
   const deepLabel = (pct: number): [string, string] => {
-    if (pct >= 20) return ["Excellent", "#10b981"];
-    if (pct >= SLEEP_DEEP_GOOD_PCT) return ["Good", "#60A5FA"];
-    if (pct >= 7) return ["Low", "#f59e0b"];
-    return ["Very low", "#FB7185"];
+    if (pct >= 20) return ["Excellent", C_GREEN];
+    if (pct >= SLEEP_DEEP_GOOD_PCT) return ["Good", C_BLUE_LIGHT];
+    if (pct >= 7) return ["Low", C_AMBER];
+    return ["Very low", C_ROSE];
   };
   const remLabel = (pct: number): [string, string] => {
-    if (pct >= 22) return ["Excellent", "#10b981"];
-    if (pct >= SLEEP_REM_GOOD_PCT) return ["Good", "#60A5FA"];
-    if (pct >= 9) return ["Low", "#f59e0b"];
-    return ["Very low", "#FB7185"];
+    if (pct >= 22) return ["Excellent", C_GREEN];
+    if (pct >= SLEEP_REM_GOOD_PCT) return ["Good", C_BLUE_LIGHT];
+    if (pct >= 9) return ["Low", C_AMBER];
+    return ["Very low", C_ROSE];
   };
   const awakeLabel = (h: number): [string, string] => {
-    if (h <= 0.25) return ["Minimal", "#10b981"];
-    if (h <= 0.5) return ["Normal", "#60A5FA"];
-    if (h <= 1.0) return ["Elevated", "#f59e0b"];
-    return ["Disruptive", "#FB7185"];
+    if (h <= 0.25) return ["Minimal", C_GREEN];
+    if (h <= 0.5) return ["Normal", C_BLUE_LIGHT];
+    if (h <= 1.0) return ["Elevated", C_AMBER];
+    return ["Disruptive", C_ROSE];
   };
   const tag = (label: string, color: string) =>
     `<span style="color:${color};font-weight:600">${label}</span>`;
@@ -241,7 +240,7 @@ function sleepHover(row: TrendRow): string {
   const lines = [
     header,
     sep,
-    `<span style="color:#9BA3C8">  Total    ${total.toFixed(1)} h  </span>${tag(durLbl, durCol)}`,
+    `<span style="color:${TEXT_MUTED}">  Total    ${total.toFixed(1)} h  </span>${tag(durLbl, durCol)}`,
     rowLine(C_SLEEP_DEEP, "Deep ", deepH, deepPct, tag(deepLbl, deepCol)),
     rowLine(C_SLEEP_REM, "REM  ", remH, remPct, tag(remLbl, remCol)),
     rowLine(C_SLEEP_LIGHT, "Light", lightH, lightPct),
