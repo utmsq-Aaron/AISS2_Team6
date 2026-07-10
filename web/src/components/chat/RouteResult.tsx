@@ -162,10 +162,12 @@ export function RouteResult({
   routeData,
   pois = [],
   question = "",
+  answer = "",
 }: {
   routeData: RouteData;
   pois?: Poi[];
   question?: string;
+  answer?: string;
 }) {
   const tool = routeData.tool || "";
   const data = (routeData.data || {}) as Record<string, unknown>;
@@ -174,7 +176,7 @@ export function RouteResult({
     return <SingleRoute data={data} pois={pois} question={question} />;
   }
   if (tool === "explore_trails") {
-    return <TrailSelection initial={data as TrailsData} />;
+    return <TrailSelection initial={data as TrailsData} answer={answer} />;
   }
   if (tool === "get_isochrone") {
     return <Isochrone data={data} />;
@@ -566,20 +568,40 @@ function ActivityTrack({
   );
 }
 
+// Default-select the trail the answer actually recommends (GitHub #11): the
+// longest trail name (≥4 chars, casefold substring) found in the answer wins.
+// Falls back to 0 when nothing matches — the previous hard default.
+function trailIndexFromAnswer(trails: Trail[] | undefined, answer: string): number {
+  const a = (answer || "").toLowerCase();
+  if (!a || !trails?.length) return 0;
+  let bestIdx = 0;
+  let bestLen = 0;
+  trails.forEach((t, i) => {
+    const nm = (t.name || "").trim().toLowerCase();
+    if (nm.length >= 4 && a.includes(nm) && nm.length > bestLen) {
+      bestLen = nm.length;
+      bestIdx = i;
+    }
+  });
+  return bestIdx;
+}
+
 // ── Trail selection (explore_trails) — selection + pagination ─────────────────
-function TrailSelection({ initial }: { initial: TrailsData }) {
+function TrailSelection({ initial, answer = "" }: { initial: TrailsData; answer?: string }) {
   // Pagination via local state — mirrors st.session_state cache + page index.
   const [pageData, setPageData] = useState<TrailsData>(initial);
   const [pageStart, setPageStart] = useState<number>(initial.offset ?? 0);
-  const [selIdx, setSelIdx] = useState<number>(0);
+  const [selIdx, setSelIdx] = useState<number>(() =>
+    trailIndexFromAnswer(initial.trails, answer),
+  );
   const [loading, setLoading] = useState(false);
 
-  // Reset when a fresh tool result arrives.
+  // Reset when a fresh tool result arrives — re-derive the answer-matched trail.
   useEffect(() => {
     setPageData(initial);
     setPageStart(initial.offset ?? 0);
-    setSelIdx(0);
-  }, [initial]);
+    setSelIdx(trailIndexFromAnswer(initial.trails, answer));
+  }, [initial, answer]);
 
   const trails = pageData.trails ?? [];
   if (!trails.length) {

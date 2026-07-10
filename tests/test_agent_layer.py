@@ -176,6 +176,71 @@ def test_build_trace_sub_artifacts():
     print("PASS  build_trace flattens peer sub_artifacts (mesh peers become agent rows)")
 
 
+def test_route_data_selection():
+    """route_data() plots the entity the ANSWER names, not the first-to-return (GH #11)."""
+    from core.agent_trace import route_data
+
+    def streams(activity_id, name):
+        return {"tool": "strava__get_activity_streams", "args": {"activity_id": activity_id},
+                "error": None, "result": json.dumps({
+                    "activity_id": activity_id,
+                    "activity": {"id": activity_id, "name": name},
+                    "points": [{"lat": 1, "lon": 2}, {"lat": 3, "lon": 4}]})}
+
+    # 1. Two streams results; the answer names the SECOND by activity name → second wins.
+    res = [streams(111, "Morning Ridge Loop"), streams(222, "Sunset Valley Trail")]
+    rd = route_data(res, "The most scenic option is the Sunset Valley Trail — go for it.")
+    assert rd and rd["data"]["activity_id"] == 222, rd
+    assert rd["tool"] == "get_activity_streams", rd
+
+    # 2. Answer contains only the numeric id (no name) → id wins.
+    rd = route_data(res, "I'd recommend activity 111 today.")
+    assert rd and rd["data"]["activity_id"] == 111, rd
+
+    # 2b. A bare id must not match inside a longer number (word-boundary).
+    rd = route_data(res, "You logged 22200 steps.")  # 222 is a substring, not a token
+    assert rd and rd["data"]["activity_id"] == 111, ("id must be a whole token", rd)
+
+    # 3. Match via the call args activity_name (data carries no name).
+    def streams_argname(activity_id, arg_name):
+        return {"tool": "strava__get_activity_streams", "args": {"activity_name": arg_name},
+                "error": None, "result": json.dumps({
+                    "activity_id": activity_id,
+                    "points": [{"lat": 1, "lon": 2}, {"lat": 3, "lon": 4}]})}
+    res_args = [streams_argname(111, "Ridge Loop"), streams_argname(222, "Sunset Valley Trail")]
+    rd = route_data(res_args, "Take the Sunset Valley Trail.")
+    assert rd and rd["data"]["activity_id"] == 222, rd
+
+    # 4. Multiple results + a non-matching answer → FIRST (byte-identical to old behavior).
+    rd = route_data(res, "Any of these would be a solid choice.")
+    assert rd and rd["data"]["activity_id"] == 111, ("fallback must be first", rd)
+    # ...and no answer at all → also the first successful candidate.
+    rd = route_data(res, "")
+    assert rd and rd["data"]["activity_id"] == 111, rd
+
+    # 5. explore_trails + a later plan_route: the answer names the PLANNED route → plan_route wins.
+    trails = {"tool": "routes__explore_trails", "args": {}, "error": None,
+              "result": json.dumps({"trails": [{"name": "Forest Ridge Path"},
+                                                {"name": "Riverside Ramble"}]})}
+    planned = {"tool": "routes__plan_route", "args": {}, "error": None,
+               "result": json.dumps({"name": "Riverside Ramble",
+                                      "waypoints": [[1, 2], [3, 4]], "distance_km": 8})}
+    rd = route_data([trails, planned], "I planned the Riverside Ramble for you — 8 km along the water.")
+    assert rd and rd["tool"] == "plan_route", rd
+    assert rd["data"].get("distance_km") == 8, rd
+
+    # A single candidate is returned verbatim regardless of the answer (unchanged path).
+    rd = route_data([streams(111, "Ridge Loop")], "irrelevant text with no names")
+    assert rd and rd["data"]["activity_id"] == 111 and "record" not in rd, rd
+
+    # Later-tie tiebreak: two identically-named candidates → the LATER call wins.
+    tie = [streams(111, "Scenic Loop"), streams(222, "Scenic Loop")]
+    rd = route_data(tie, "Go do the Scenic Loop.")
+    assert rd and rd["data"]["activity_id"] == 222, ("ties break toward the later call", rd)
+
+    print("PASS  route_data selection (answer names the plotted route: name/id/args/fallback)")
+
+
 def test_peers_and_depth():
     import agents._base_executor as be
     p = be._peers_for("recovery", 1)
@@ -234,6 +299,7 @@ def test_mesh_peer_delegation():
 if __name__ == "__main__":
     test_build_trace_contract()
     test_build_trace_sub_artifacts()
+    test_route_data_selection()
     test_peers_and_depth()
     test_a2a_two_hop()
     test_mesh_peer_delegation()

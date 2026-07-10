@@ -114,16 +114,92 @@ def summary(results: List[Dict]) -> str:
     return " · ".join(parts) or "no data fetched"
 
 
-def route_data(results: List[Dict]) -> Optional[Dict]:
-    """First successful route-tool result → {tool(bare), data} for the map."""
+def _identity_score(record: Dict, data: Any, answer_cf: str) -> int:
+    """How strongly a route-tool result matches the entity the answer names.
+
+    Tool calls are recorded in COMPLETION order, and the specialists fire parallel
+    fetches for several candidates — so the first successful route result is NOT
+    necessarily the one the answer recommends (GitHub #11: names Hike A, plots Hike
+    B). This scores a candidate against the (chart-tag-stripped, casefolded) answer:
+
+      • id match  → 100: the activity id (``data["activity_id"]``,
+        ``data["activity"]["id"]``, or the ``activity_id`` call arg) appears in the
+        answer as a bare token.
+      • name match → len(name): a name ≥4 chars found case-insensitively in the
+        answer (``data["activity"]["name"]``, the ``activity_name`` call arg,
+        ``data["name"]``, and each ``data["trails"][i]["name"]``). Longer matches win.
+
+    0 means "no evidence" — the caller falls back to today's first-result behavior.
+    """
+    if not isinstance(answer_cf, str) or not answer_cf:
+        return 0
+    args = record.get("args") if isinstance(record, dict) else None
+    args = args if isinstance(args, dict) else {}
+    d = data if isinstance(data, dict) else {}
+    activity = d.get("activity") if isinstance(d.get("activity"), dict) else {}
+
+    # ── id match (exact, wins over any name) ──
+    id_candidates = [d.get("activity_id"), activity.get("id"), args.get("activity_id")]
+    for raw in id_candidates:
+        if raw is None:
+            continue
+        tok = str(raw).strip()
+        if tok and re.search(rf'(?<![0-9a-zA-Z]){re.escape(tok)}(?![0-9a-zA-Z])', answer_cf):
+            return 100
+
+    # ── name match (longest ≥4-char name found in the answer) ──
+    name_candidates: List[Any] = [activity.get("name"), args.get("activity_name"), d.get("name")]
+    for t in d.get("trails") or []:
+        if isinstance(t, dict):
+            name_candidates.append(t.get("name"))
+    best = 0
+    for nm in name_candidates:
+        if not isinstance(nm, str):
+            continue
+        nm_cf = nm.strip().casefold()
+        if len(nm_cf) >= 4 and nm_cf in answer_cf:
+            best = max(best, len(nm_cf))
+    return best
+
+
+def route_data(results: List[Dict], answer: str = "") -> Optional[Dict]:
+    """Pick the route-tool result to plot on the map → {tool(bare), data}.
+
+    With 0/1 route candidates the behavior is identical to before (None / that one).
+    With several, the answer decides which entity to plot (GitHub #11): each
+    candidate is scored via :func:`_identity_score` against the answer, and the
+    highest-scoring one wins — ties broken toward the LATER call (the agent's final
+    decision). When nothing scores (empty answer or no name/id overlap) it falls
+    back byte-identically to the FIRST successful candidate.
+    """
+    candidates: List[Dict[str, Any]] = []
     for r in results:
         bare = (r.get("tool") or "").split(SEP, 1)[-1]
         if bare in ROUTE_TOOLS and not r.get("error"):
             try:
-                return {"tool": bare, "data": json.loads(r["result"])}
+                candidates.append({"tool": bare, "data": json.loads(r["result"]), "record": r})
             except (json.JSONDecodeError, TypeError, KeyError):
                 pass
-    return None
+
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        c = candidates[0]
+        return {"tool": c["tool"], "data": c["data"]}
+
+    answer_cf = (answer or "").casefold()
+    best = None
+    best_score = 0
+    for c in candidates:  # iterate in completion order; ">=" lets a later tie win
+        score = _identity_score(c["record"], c["data"], answer_cf)
+        if score > 0 and score >= best_score:
+            best_score = score
+            best = c
+    if best is not None:
+        return {"tool": best["tool"], "data": best["data"]}
+
+    c = candidates[0]  # no evidence → first successful (unchanged behavior)
+    return {"tool": c["tool"], "data": c["data"]}
 
 
 def flythrough_from_results(results: List[Dict]) -> Optional[Dict]:
@@ -281,7 +357,7 @@ def build_trace(
         "error":       error,
         "actions":     [],
         "agents":      agents,
-        "route_data":  route_data(results),
+        "route_data":  route_data(results, answer),
         "chart_hints": chart_hints,
         "answer":      answer,
     }

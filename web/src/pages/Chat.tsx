@@ -276,6 +276,7 @@ function AssistantBubble({
             routeData={routeData}
             pois={extractPois(turn.trace as Record<string, unknown>)}
             question={(turn.trace as Record<string, unknown>).user_input as string | undefined}
+            answer={turn.content}
           />
         )}
         {charts.map((fig, i) => (

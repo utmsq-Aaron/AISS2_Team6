@@ -373,6 +373,9 @@ SYNTHESIS
   your final answer — keep a "Sources:" section at the end listing them verbatim.
   Never drop the citations and never invent new ones.
 • If a specialist reports missing data or an error, reflect that honestly.
+• MAP: when specialists fetched GPS tracks or routes for several candidates, name the
+  single one you recommend by its exact activity/trail name (and id if known) — the app
+  plots the route whose name/id appears in your answer.
 • Apply training-planning judgement (periodisation, recovery-vs-load balance) when
   giving recommendations.
 • If a chart would meaningfully illustrate the conclusion, end your final answer
