@@ -40,6 +40,15 @@ export const DARK_MAP_TILES = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/
 export const DARK_MAP_ATTR =
   '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>';
 
+// Standard OpenStreetMap raster ("Map" mode).
+export const OSM_MAP_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+export const OSM_MAP_ATTR = "© OpenStreetMap contributors";
+
+// Esri World Imagery satellite raster — same source as the 3D flythrough.
+export const SATELLITE_MAP_TILES =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+export const SATELLITE_MAP_ATTR = "© Esri, Maxar, GeoEye, Earthstar Geographics";
+
 // Activity icons (styles.ACTIVITY_ICONS)
 export const ACTIVITY_ICONS: Record<string, string> = {
   Run: "🏃", Ride: "🚴", Hike: "🥾", Walk: "🚶",
