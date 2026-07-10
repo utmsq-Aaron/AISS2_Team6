@@ -307,14 +307,13 @@ Rules (apply in order, stop at first match):
 9. default  →  activity_scatter"""
 
     try:
-        from core.llm import get_llm_client
+        from core.llm import completion_params, get_llm_client
         client, model = get_llm_client()
         resp = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=150,
             timeout=12,
+            **completion_params(model, 150),
         )
         raw = resp.choices[0].message.content or ""
         # Strip possible markdown fences

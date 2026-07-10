@@ -126,6 +126,36 @@ def get_llm_client() -> Tuple[OpenAI, str]:
     return _client(), model()
 
 
+def completion_params(model_name: str, max_tokens: int,
+                      temperature: float | None = 0) -> dict:
+    """Per-model kwargs for ``chat.completions.create`` (the raw OpenAI-SDK path).
+
+    Why this exists: OpenAI's reasoning models (``o1``/``o3``/``o4`` and the
+    ``gpt-5`` family, EXCEPT the ``*-chat`` variants) **reject** ``max_tokens`` and
+    a non-default ``temperature`` on ``chat.completions`` — they require
+    ``max_completion_tokens`` and only accept the default temperature, so passing
+    the classic kwargs makes every call 400. (The LangChain agent path is spared
+    because ``langchain-openai`` strips these for gpt-5; the raw-SDK callers here —
+    chart service, viz_telegram, the legacy ui/chart_gen — have no such seam, which
+    is exactly the bug that silently killed LLM-generated charts.) This is the one
+    place that per-model choice lives.
+
+    Reasoning models: ``max_completion_tokens`` counts the (hidden) reasoning
+    tokens against the same budget, so we widen it (``max(2*max_tokens, 3000)``)
+    to leave room for the actual answer, and emit NO temperature key.
+
+    Everything else: the classic ``max_tokens`` + ``temperature`` (temperature key
+    omitted when ``temperature is None``).
+    """
+    name = (model_name or "").lower()
+    if name.startswith(("o1", "o3", "o4", "gpt-5")) and "chat" not in name:
+        return {"max_completion_tokens": max(2 * max_tokens, 3000)}
+    params: dict = {"max_tokens": max_tokens}
+    if temperature is not None:
+        params["temperature"] = temperature
+    return params
+
+
 # ── LangChain chat model (the LangGraph agent layer) ──────────────────────────
 
 def get_chat_model():
