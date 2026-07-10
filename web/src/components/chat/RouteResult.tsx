@@ -348,7 +348,13 @@ function SingleRoute({
       <div className="grid grid-cols-3 gap-3">
         <MetricCard label="Distanz" value={distanceKm != null ? `${distanceKm} km` : "?"} />
         <MetricCard
-          label={personalKmh != null && distanceKm != null ? "Dauer (dein Tempo)" : "Dauer"}
+          label={
+            personalKmh != null && distanceKm != null
+              ? "Dauer (dein Tempo)"
+              : sport === "Run"
+                ? "Gehzeit"
+                : "Dauer"
+          }
           value={
             personalKmh != null && distanceKm != null
               ? `~${Math.round((distanceKm / personalKmh) * 60)} min`
