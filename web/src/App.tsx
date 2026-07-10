@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { CoachPoll } from "./components/CoachPoll";
+import { RouteErrorBoundary } from "./components/ErrorBoundary";
 import { FeedbackButton } from "./components/FeedbackButton";
 import { GoalPoll } from "./components/GoalPoll";
 import { Header } from "./components/Header";
@@ -57,16 +58,18 @@ function MainShell() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5">
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/health" element={<Health />} />
-            <Route path="/routes" element={<RoutesPage />} />
-            <Route path="/analysis" element={<Analysis />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/sync" element={<Sync />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
+          <RouteErrorBoundary>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/health" element={<Health />} />
+              <Route path="/routes" element={<RoutesPage />} />
+              <Route path="/analysis" element={<Analysis />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/sync" element={<Sync />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </RouteErrorBoundary>
         </main>
       </div>
       <FeedbackButton />
