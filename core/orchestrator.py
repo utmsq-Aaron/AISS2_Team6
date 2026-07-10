@@ -147,7 +147,10 @@ def _flatten_history(history: List[Dict], user_input: str) -> str:
             lines.append(f"{role}: {content}")
     convo = "\n".join(lines)
     if convo:
-        return f"Conversation so far:\n{convo}\n\nCurrent user message:\n{user_input}"
+        return (
+            "Conversation so far (context only — the current message below defines "
+            f"the task):\n{convo}\n\nCurrent user message:\n{user_input}"
+        )
     return user_input
 
 

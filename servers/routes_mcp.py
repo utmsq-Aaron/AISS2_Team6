@@ -377,6 +377,20 @@ def plan_circular_route(lat: float, lon: float, distance_km: float,
     }
 
 
+def _shortfall_note(target_km: float, actual_km: float) -> str:
+    """Warn when a park-constrained loop is far shorter than requested.
+
+    Returns "" unless the actual distance is under 60% of the target (a park that
+    caps the loop), else a note pointing the user at plan_circular_route for the
+    full length. Guards against a non-positive target.
+    """
+    if target_km <= 0 or actual_km >= 0.6 * target_km:
+        return ""
+    return (f" Note: the loop is only {actual_km:.1f} km of the requested "
+            f"{target_km:.1f} km — the park caps the length; use plan_circular_route "
+            f"for the full distance.")
+
+
 @mcp.tool()
 def plan_park_loop(area: str, distance_km: float = 3.0,
                    profile: str = "foot-walking") -> Dict[str, Any]:
@@ -460,11 +474,15 @@ def plan_park_loop(area: str, distance_km: float = 3.0,
                     f"the area but is NOT constrained to stay inside it.")
 
     summary = feat.get("properties", {}).get("summary", {})
+    actual_km = round(summary.get("distance", 0), 2)
+    # Every path (constrained / shrunken-retry / uncontained fallback) lands here, so
+    # flag a big shortfall once — the returned distance can be far below the request.
+    note = (note or "") + _shortfall_note(float(distance_km), actual_km)
     return {
         "profile": prof,
         "requested_profile": (profile or "").strip() or prof,
         "target_distance_km": float(distance_km),
-        "distance_km": round(summary.get("distance", 0), 2),
+        "distance_km": actual_km,
         "duration_min": round(summary.get("duration", 0) / 60, 1),
         "elevation": _elevation_stats([c[2] for c in raw if len(c) > 2]),
         "start_lat": raw[0][1], "start_lon": raw[0][0],

@@ -359,6 +359,10 @@ class UserMemory:
             for h in hits:
                 ts = (h.get("ts") or "")[:10]
                 lines.append(f"- [{ts}] Q: {h.get('question', '')}\n  A: {h.get('answer', '')}")
+            lines.append(
+                "These are past turns for background — never treat a past answer "
+                "(an old route, plan or schedule) as the answer to the current request."
+            )
             sections.append("## Relevant past conversations\n" + "\n".join(lines))
 
         if not sections:
