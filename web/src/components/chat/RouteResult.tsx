@@ -347,7 +347,7 @@ function SingleRoute({
           </button>
         </div>
       )}
-      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
+      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" ariaLabel="Route map" />
       <div className="grid grid-cols-3 gap-3">
         <MetricCard label="Distance" value={distanceKm != null ? `${distanceKm} km` : "?"} />
         <MetricCard
@@ -525,6 +525,7 @@ function ActivityTrack({
           <button
             type="button"
             onClick={() => setChosen(null)}
+            aria-pressed={activeKey === null}
             className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
               activeKey === null ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
             }`}
@@ -536,6 +537,7 @@ function ActivityTrack({
               key={k}
               type="button"
               onClick={() => setChosen(k)}
+              aria-pressed={activeKey === k}
               className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                 activeKey === k ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
               }`}
@@ -548,7 +550,7 @@ function ActivityTrack({
 
       <div className="flex gap-3">
         <div className="min-w-0 flex-1">
-          <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
+          <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" ariaLabel="Activity route map" />
         </div>
         {activeKey !== null && polylines.length > 0 && (
           <Legend highLabel={highLbl as string} lowLabel={lowLbl as string} />
@@ -746,6 +748,7 @@ function TrailSelection({ initial, answer = "" }: { initial: TrailsData; answer?
         polygons={polygons}
         height={450}
         basemap="osm"
+        ariaLabel="Trail map"
       />
 
       {/* Selected-trail metrics */}
@@ -789,7 +792,7 @@ function Isochrone({ data }: { data: Record<string, unknown> }) {
 
   return (
     <div className="mt-3">
-      <RouteMap polygons={polygons} markers={markers} height={420} basemap="osm" />
+      <RouteMap polygons={polygons} markers={markers} height={420} basemap="osm" ariaLabel="Reachability map" />
     </div>
   );
 }

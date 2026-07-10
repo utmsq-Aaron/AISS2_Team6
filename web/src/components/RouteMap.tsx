@@ -76,6 +76,8 @@ interface RouteMapProps {
   basemap?: BasemapId;
   /** Show the basemap switcher (Dark/Map/Satellite). Default true. */
   showBasemapSwitcher?: boolean;
+  /** Accessible name for the map region (screen readers). */
+  ariaLabel?: string;
   className?: string;
 }
 
@@ -86,6 +88,7 @@ export function RouteMap({
   height = 420,
   basemap = "dark",
   showBasemapSwitcher = true,
+  ariaLabel = "Interactive map",
   className = "",
 }: RouteMapProps) {
   const container = useRef<HTMLDivElement>(null);
@@ -217,12 +220,16 @@ export function RouteMap({
   return (
     <div className={`relative ${className}`}>
       {showBasemapSwitcher && (
-        <div className="absolute left-2 top-2 z-10 flex gap-1 rounded-lg border border-border bg-bg-card/80 px-1 py-1 backdrop-blur">
+        <div
+          className="absolute left-2 top-2 z-10 flex gap-1 rounded-lg border border-border bg-bg-card/80 px-1 py-1 backdrop-blur"
+          aria-label="Basemap style"
+        >
           {(Object.keys(BASEMAPS) as BasemapId[]).map((id) => (
             <button
               key={id}
               type="button"
               onClick={() => setActive(id)}
+              aria-pressed={active === id}
               className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
                 active === id ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
               }`}
@@ -234,6 +241,8 @@ export function RouteMap({
       )}
       <div
         ref={container}
+        role="region"
+        aria-label={ariaLabel}
         className="overflow-hidden rounded-card border border-border"
         style={{ height }}
       />

@@ -281,6 +281,7 @@ export function ActivityAnalysis({ activityId }: { activityId: number }) {
             <button
               key={k}
               onClick={() => setChosen(k)}
+              aria-pressed={activeKey === k}
               className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                 activeKey === k ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
               }`}
@@ -305,6 +306,7 @@ export function ActivityAnalysis({ activityId }: { activityId: number }) {
                   : []),
               ]}
               height={440}
+              ariaLabel="Activity route map"
             />
           ) : (
             <EmptyState message="Not enough GPS points for route visualization." />

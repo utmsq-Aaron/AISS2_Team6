@@ -105,6 +105,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="What's not working?"
+              aria-label="Feedback message"
               rows={5}
               disabled={submitting}
               className="fd-input mt-4 w-full resize-none disabled:cursor-not-allowed disabled:opacity-60"

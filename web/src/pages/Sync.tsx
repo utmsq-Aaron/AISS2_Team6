@@ -251,11 +251,13 @@ export function Sync() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="🔍 Activity name or sport type…"
+              aria-label="Search activities"
               className="fd-input w-full"
             />
             <button
               className={view === "all" ? "fd-btn-primary" : "fd-btn-secondary"}
               onClick={() => setView("all")}
+              aria-pressed={view === "all"}
             >
               All
             </button>
@@ -263,6 +265,7 @@ export function Sync() {
               className={view === "missing" ? "fd-btn-primary" : "fd-btn-secondary"}
               onClick={() => setView("missing")}
               disabled={!hasMatches}
+              aria-pressed={view === "missing"}
               title="Show only activities not yet on Strava"
             >
               Missing only
@@ -346,6 +349,7 @@ export function Sync() {
             <h3 className="mb-2 text-base font-semibold text-text-primary">Select date range</h3>
             <select
               className="fd-input w-full"
+              aria-label="Date range"
               value={preset}
               onChange={(e) => setPreset(e.target.value)}
             >

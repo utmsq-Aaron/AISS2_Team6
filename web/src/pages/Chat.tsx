@@ -210,6 +210,7 @@ export function Chat() {
                 }
               }}
               placeholder={PLACEHOLDER}
+              aria-label="Chat message"
               className="max-h-40 min-h-[2.5rem] flex-1 resize-y rounded-card border border-border bg-bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none disabled:opacity-60"
             />
             <button
@@ -390,10 +391,11 @@ function StatusAccordion({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         className="flex w-full items-center justify-between px-3 py-1.5 text-left text-text-muted hover:text-text-primary"
       >
         <span>{label}</span>
-        <span>{open ? "▲" : "▼"}</span>
+        <span aria-hidden="true">{open ? "▲" : "▼"}</span>
       </button>
       {open && steps.length > 0 && (
         <div className="space-y-0.5 border-t border-border px-3 py-2 text-text-muted">

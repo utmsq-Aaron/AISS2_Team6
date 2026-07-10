@@ -129,7 +129,7 @@ function ProgressBar({ integ }: { integ: Integrations }) {
 
   return (
     <div>
-      <div className="flex items-start py-2">
+      <div className="flex items-start py-2" aria-hidden="true">
         {steps.map(([label, ok], i) => {
           const color = ok ? C_GREEN : i === done ? ACCENT : BORDER;
           const bg = ok ? color : "transparent";
@@ -300,8 +300,8 @@ function StravaCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
         </p>
         <EnvRow name="CLIENT_ID" env={data.env} hint="not set" />
         <EnvRow name="CLIENT_SECRET" env={data.env} hint="not set" />
-        <input className="fd-input mt-2 w-full" placeholder="Client ID" value={cid} onChange={(e) => setCid(e.target.value)} />
-        <input className="fd-input mt-2 w-full" type="password" placeholder="Client Secret" value={csec} onChange={(e) => setCsec(e.target.value)} />
+        <input className="fd-input mt-2 w-full" aria-label="Strava Client ID" placeholder="Client ID" value={cid} onChange={(e) => setCid(e.target.value)} />
+        <input className="fd-input mt-2 w-full" type="password" aria-label="Strava Client Secret" placeholder="Client Secret" value={csec} onChange={(e) => setCsec(e.target.value)} />
         <button className="fd-btn-primary mt-2 w-full" onClick={() => saveCreds.mutate()} disabled={saveCreds.isPending || !cid.trim() || !csec.trim()}>
           Save & continue
         </button>
@@ -336,6 +336,7 @@ function StravaCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
         </p>
         <textarea
           className="fd-input mt-2 h-28 w-full font-mono text-xs"
+          aria-label="Strava token JSON"
           placeholder='{"access_token": "...", "refresh_token": "...", "expires_at": 0}'
           value={tokenJson}
           onChange={(e) => setTokenJson(e.target.value)}
@@ -397,8 +398,8 @@ function GoogleCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
         <p className="mb-2 text-xs text-text-muted">Create an OAuth project in the Google Cloud Console.</p>
         <EnvRow name="GOOGLE_CLIENT_ID" env={data.env} hint="not set" />
         <EnvRow name="GOOGLE_CLIENT_SECRET" env={data.env} hint="not set" />
-        <input className="fd-input mt-2 w-full" placeholder="Client ID" value={cid} onChange={(e) => setCid(e.target.value)} />
-        <input className="fd-input mt-2 w-full" type="password" placeholder="Client Secret" value={csec} onChange={(e) => setCsec(e.target.value)} />
+        <input className="fd-input mt-2 w-full" aria-label="Google Client ID" placeholder="Client ID" value={cid} onChange={(e) => setCid(e.target.value)} />
+        <input className="fd-input mt-2 w-full" type="password" aria-label="Google Client Secret" placeholder="Client Secret" value={csec} onChange={(e) => setCsec(e.target.value)} />
         <button className="fd-btn-primary mt-2 w-full" onClick={() => saveCreds.mutate()} disabled={saveCreds.isPending || !cid.trim() || !csec.trim()}>
           Save & continue
         </button>
@@ -505,8 +506,8 @@ function GarminCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
       ) : flow === "idle" || flow === "error" ? (
         <>
           <p className="text-xs text-text-muted">Garmin Connect E-Mail und Passwort</p>
-          <input className="fd-input w-full" placeholder="E-Mail" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="fd-input w-full" type="password" placeholder="Passwort" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input className="fd-input w-full" aria-label="Garmin E-Mail" placeholder="E-Mail" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input className="fd-input w-full" type="password" aria-label="Garmin Passwort" placeholder="Passwort" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button className="fd-btn-primary w-full" onClick={() => login.mutate()} disabled={login.isPending || !email.trim() || !password}>
             Verbinden
           </button>
@@ -519,7 +520,7 @@ function GarminCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
       ) : flow === "mfa_needed" ? (
         <div className="rounded-lg border border-metric-amber/40 bg-metric-amber/10 p-3">
           <p className="mb-2 text-sm text-metric-amber">🔐 Zwei-Faktor-Authentifizierung erforderlich</p>
-          <input className="fd-input w-full" placeholder="MFA / OTP Code (123456)" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} />
+          <input className="fd-input w-full" aria-label="Garmin MFA / OTP Code" placeholder="MFA / OTP Code (123456)" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} />
           <button className="fd-btn-primary mt-2 w-full" onClick={() => submitMfa.mutate()} disabled={submitMfa.isPending || !mfaCode.trim()}>
             Bestätigen
           </button>
@@ -600,16 +601,16 @@ function OpenAiCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
   });
 
   // Model field: a type-ahead over the live list that ALSO accepts a custom name.
-  const modelField = (label: string, value: string, setValue: (v: string) => void) => (
+  const modelField = (id: string, label: string, value: string, setValue: (v: string) => void) => (
     <>
       <div className="flex items-center justify-between">
-        <label className="text-xs text-text-muted">{label}</label>
+        <label htmlFor={id} className="text-xs text-text-muted">{label}</label>
         <button type="button" className="text-xs text-accent hover:underline disabled:opacity-50"
           onClick={() => modelsQ.refetch()} disabled={modelsQ.isFetching}>
           {modelsQ.isFetching ? "loading…" : "↻ refresh list"}
         </button>
       </div>
-      <input className="fd-input w-full" list="llm-models" value={value}
+      <input id={id} className="fd-input w-full" list="llm-models" value={value}
         placeholder="pick from the list or type a custom model name"
         onChange={(e) => setValue(e.target.value)} />
       <datalist id="llm-models">
@@ -625,8 +626,8 @@ function OpenAiCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
 
   return (
     <>
-      <label className="text-xs text-text-muted">Provider</label>
-      <select className="fd-input w-full" value={prov} onChange={(e) => setProv(e.target.value as Prov)}>
+      <label htmlFor="llm-provider" className="text-xs text-text-muted">Provider</label>
+      <select id="llm-provider" className="fd-input w-full" value={prov} onChange={(e) => setProv(e.target.value as Prov)}>
         <option value="openai">KIT gateway (OpenAI-compatible)</option>
         <option value="openai_official">OpenAI (official)</option>
         <option value="gemini">Google Gemini</option>
@@ -637,11 +638,12 @@ function OpenAiCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
           <input
             className="fd-input w-full"
             type="password"
+            aria-label="Gemini API key"
             placeholder={data.env.GEMINI_API_KEY?.set ? data.env.GEMINI_API_KEY.value : "AIza..."}
             value={geminiKey}
             onChange={(e) => setGeminiKey(e.target.value)}
           />
-          {modelField("Gemini model", geminiModel, setGeminiModel)}
+          {modelField("llm-model-gemini", "Gemini model", geminiModel, setGeminiModel)}
         </>
       )}
 
@@ -650,13 +652,14 @@ function OpenAiCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
           <input
             className="fd-input w-full"
             type="password"
+            aria-label="OpenAI API key"
             placeholder={data.env.OPENAI_OFFICIAL_API_KEY?.set ? data.env.OPENAI_OFFICIAL_API_KEY.value : "sk-..."}
             value={officialKey}
             onChange={(e) => setOfficialKey(e.target.value)}
           />
-          {modelField("OpenAI model", officialModel, setOfficialModel)}
-          <label className="text-xs text-text-muted">Base URL (blank = api.openai.com)</label>
-          <input className="fd-input w-full" placeholder="https://api.openai.com/v1" value={officialBase} onChange={(e) => setOfficialBase(e.target.value)} />
+          {modelField("llm-model-official", "OpenAI model", officialModel, setOfficialModel)}
+          <label htmlFor="llm-official-base" className="text-xs text-text-muted">Base URL (blank = api.openai.com)</label>
+          <input id="llm-official-base" className="fd-input w-full" placeholder="https://api.openai.com/v1" value={officialBase} onChange={(e) => setOfficialBase(e.target.value)} />
         </>
       )}
 
@@ -665,13 +668,14 @@ function OpenAiCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
           <input
             className="fd-input w-full"
             type="password"
+            aria-label="OpenAI API key"
             placeholder={data.env.OPENAI_API_KEY?.set ? data.env.OPENAI_API_KEY.value : "sk-..."}
             value={kitKey}
             onChange={(e) => setKitKey(e.target.value)}
           />
-          {modelField("Model", kitModel, setKitModel)}
-          <label className="text-xs text-text-muted">OPENAI_BASE_URL</label>
-          <input className="fd-input w-full" value={kitBase} onChange={(e) => setKitBase(e.target.value)} />
+          {modelField("llm-model-kit", "Model", kitModel, setKitModel)}
+          <label htmlFor="llm-kit-base" className="text-xs text-text-muted">OPENAI_BASE_URL</label>
+          <input id="llm-kit-base" className="fd-input w-full" value={kitBase} onChange={(e) => setKitBase(e.target.value)} />
         </>
       )}
 
@@ -697,6 +701,7 @@ function RoutesCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
       <input
         className="fd-input w-full"
         type="password"
+        aria-label="OpenRouteService API key"
         placeholder={data.env.ORS_API_KEY?.set ? data.env.ORS_API_KEY.value : "5b3ce3..."}
         value={key}
         onChange={(e) => setKey(e.target.value)}
@@ -737,8 +742,8 @@ function TelegramCard({ data, refetch }: { data: SettingsResponse; refetch: () =
         <p className="mt-2 text-xs text-text-muted">Create an app at my.telegram.org/apps</p>
         <EnvRow name="TELEGRAM_API_ID" env={data.env} hint="not set" />
         <EnvRow name="TELEGRAM_API_HASH" env={data.env} hint="not set" />
-        <input className="fd-input mt-2 w-full" placeholder="API ID" value={apiId} onChange={(e) => setApiId(e.target.value)} />
-        <input className="fd-input mt-2 w-full" type="password" placeholder="API Hash" value={apiHash} onChange={(e) => setApiHash(e.target.value)} />
+        <input className="fd-input mt-2 w-full" aria-label="Telegram API ID" placeholder="API ID" value={apiId} onChange={(e) => setApiId(e.target.value)} />
+        <input className="fd-input mt-2 w-full" type="password" aria-label="Telegram API Hash" placeholder="API Hash" value={apiHash} onChange={(e) => setApiHash(e.target.value)} />
         <button className="fd-btn-primary mt-2 w-full" onClick={() => { setMsg(null); saveCreds.mutate(); }} disabled={saveCreds.isPending || !apiId.trim() || !apiHash.trim()}>
           Save & continue
         </button>
@@ -750,7 +755,7 @@ function TelegramCard({ data, refetch }: { data: SettingsResponse; refetch: () =
         <p className="mt-2 text-xs text-text-muted">
           Generate via CLI: <code>uv run --directory external/telegram-mcp session_string_generator.py</code>
         </p>
-        <input className="fd-input mt-2 w-full" type="password" placeholder="TELEGRAM_SESSION_STRING" value={sessionStr} onChange={(e) => setSessionStr(e.target.value)} />
+        <input className="fd-input mt-2 w-full" type="password" aria-label="Telegram session string" placeholder="TELEGRAM_SESSION_STRING" value={sessionStr} onChange={(e) => setSessionStr(e.target.value)} />
         <button className="fd-btn-primary mt-2 w-full" onClick={() => { setMsg(null); saveSession.mutate(); }} disabled={saveSession.isPending || !sessionStr.trim()}>
           Save session string
         </button>
@@ -794,6 +799,7 @@ function BridgeControl({ data, refetch }: { data: SettingsResponse; refetch: () 
       ) : (
         <div className="mt-2 flex items-center gap-3">
           <span
+            aria-hidden="true"
             style={{
               width: 12,
               height: 12,
@@ -976,8 +982,9 @@ function TrainingGoalsManager() {
             {active.map((goal) =>
               editingId === goal.id ? (
                 <div key={goal.id} className="fd-card p-5">
-                  <label className="fd-label mb-1 block">Edit goal</label>
+                  <label htmlFor={`edit-goal-${goal.id}`} className="fd-label mb-1 block">Edit goal</label>
                   <input
+                    id={`edit-goal-${goal.id}`}
                     autoFocus
                     className="fd-input w-full"
                     value={editText}
@@ -1012,9 +1019,10 @@ function TrainingGoalsManager() {
           <button
             type="button"
             className="fd-btn-ghost text-sm"
+            aria-expanded={showArchived}
             onClick={() => setShowArchived((s) => !s)}
           >
-            {showArchived ? "▾" : "▸"} Archived & achieved goals ({inactive.length})
+            <span aria-hidden="true">{showArchived ? "▾" : "▸"}</span> Archived & achieved goals ({inactive.length})
           </button>
           {showArchived && (
             <div className="fd-card mt-2 px-4">

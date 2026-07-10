@@ -242,6 +242,7 @@ export function RoutesPage() {
             <SectionLabel>Starting point</SectionLabel>
             <select
               className="fd-input mt-1 w-full"
+              aria-label="Starting point"
               value={presetChoice}
               onChange={(e) => setPresetChoice(e.target.value)}
             >
@@ -287,6 +288,7 @@ export function RoutesPage() {
             <SectionLabel>Function</SectionLabel>
             <select
               className="fd-input mt-1 w-full"
+              aria-label="Function"
               value={tool}
               onChange={(e) => setTool(e.target.value as ToolName)}
             >
@@ -552,7 +554,7 @@ function RouteResultView({ tool, data }: { tool: ToolName; data: RouteResult }) 
         <MetricCard label="Waypoints" value={wpCount} />
       </div>
       {waypoints.length ? (
-        <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" />
+        <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" ariaLabel="Planned route map" />
       ) : (
         <EmptyState message="No waypoints in the response." />
       )}
@@ -650,7 +652,7 @@ function TrailsResultView({
         })}
       </div>
 
-      <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" />
+      <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" ariaLabel="Trail map" />
 
       {/* Selected trail details */}
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -700,7 +702,7 @@ function IsochroneResultView({ data }: { data: IsochroneResult }) {
         <MetricCard label="Label" value={data.range_label ?? "?"} />
       </div>
       {geometry && centre ? (
-        <RouteMap polygons={polygons} markers={markers} height={480} basemap="osm" />
+        <RouteMap polygons={polygons} markers={markers} height={480} basemap="osm" ariaLabel="Reachability map" />
       ) : (
         <EmptyState message="No isochrone data." />
       )}
@@ -735,8 +737,9 @@ function RawData({ data }: { data: ToolResult }) {
       <button
         className="flex w-full items-center gap-2 text-left text-sm font-medium text-text-primary"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
       >
-        <span className="text-text-muted">{open ? "▼" : "▶"}</span>
+        <span className="text-text-muted" aria-hidden="true">{open ? "▼" : "▶"}</span>
         Raw data (JSON)
       </button>
       {open && (

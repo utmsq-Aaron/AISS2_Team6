@@ -26,13 +26,17 @@ export function CollapsibleSection({
       <button
         type="button"
         onClick={onToggle}
+        aria-expanded={open}
         className="flex w-full items-start justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-bg-surface/50"
       >
         <div>
           <div className="text-base font-semibold text-text-primary">{title}</div>
           {caption && <div className="mt-0.5 text-xs text-text-muted">{caption}</div>}
         </div>
-        <span className={`mt-1 text-text-muted transition-transform ${open ? "rotate-180" : ""}`}>
+        <span
+          aria-hidden="true"
+          className={`mt-1 text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
+        >
           ▾
         </span>
       </button>

@@ -1,15 +1,18 @@
 export function Spinner({ label }: { label?: string }) {
   return (
-    <div className="flex items-center gap-3 py-6 text-text-muted">
+    <div className="flex items-center gap-3 py-6 text-text-muted" role="status">
       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent" />
-      {label && <span className="text-sm">{label}</span>}
+      {label ? <span className="text-sm">{label}</span> : <span className="sr-only">Loading…</span>}
     </div>
   );
 }
 
 export function ErrorBox({ message }: { message: string }) {
   return (
-    <div className="rounded-lg border border-metric-red/40 bg-metric-red/10 px-4 py-3 text-sm text-metric-red">
+    <div
+      role="alert"
+      className="rounded-lg border border-metric-red/40 bg-metric-red/10 px-4 py-3 text-sm text-metric-red"
+    >
       {message}
     </div>
   );

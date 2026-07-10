@@ -343,8 +343,11 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
 
       <div className="mb-4 flex flex-wrap items-end gap-4">
         <div>
-          <div className="fd-label mb-1">Sport type</div>
+          <label htmlFor="trend-sport" className="fd-label mb-1 block">
+            Sport type
+          </label>
           <select
+            id="trend-sport"
             className="fd-input"
             value={sport}
             onChange={(e) => setSport(e.target.value)}
@@ -357,8 +360,11 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
           </select>
         </div>
         <div>
-          <div className="fd-label mb-1">Activities: {limit}</div>
+          <label htmlFor="trend-limit" className="fd-label mb-1 block">
+            Activities: {limit}
+          </label>
           <input
+            id="trend-limit"
             type="range"
             min={10}
             max={100}
@@ -721,8 +727,11 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
 
       <div className="mb-3 flex flex-wrap items-end gap-4">
         <div className="flex-1 min-w-[240px]">
-          <div className="fd-label mb-1">Search activity</div>
+          <label htmlFor="cmp-search" className="fd-label mb-1 block">
+            Search activity
+          </label>
           <input
+            id="cmp-search"
             className="fd-input w-full"
             placeholder="e.g. 'wandern', 'morning run', 'trail'"
             value={search}
@@ -734,8 +743,11 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
           />
         </div>
         <div>
-          <div className="fd-label mb-1">Baseline size</div>
+          <label htmlFor="cmp-baseline" className="fd-label mb-1 block">
+            Baseline size
+          </label>
           <input
+            id="cmp-baseline"
             type="number"
             className="fd-input w-28"
             min={5}
@@ -764,8 +776,11 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
 
       {keyword && matches.length > 1 && (
         <div className="mb-3">
-          <div className="fd-label mb-1">{matches.length} matching activities — select one:</div>
+          <label htmlFor="cmp-select" className="fd-label mb-1 block">
+            {matches.length} matching activities — select one:
+          </label>
           <select
+            id="cmp-select"
             className="fd-input w-full max-w-xl"
             value={selectedId ?? ""}
             onChange={(e) => {

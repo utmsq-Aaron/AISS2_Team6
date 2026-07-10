@@ -14,6 +14,7 @@ export function PeriodSelector<T extends string>({
         <button
           key={opt}
           onClick={() => onChange(opt)}
+          aria-pressed={value === opt}
           className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
             value === opt
               ? "bg-accent text-white"

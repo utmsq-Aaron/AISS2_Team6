@@ -169,6 +169,7 @@ function ActivityMapPanel({
       <div>
         <select
           className="fd-input w-full"
+          aria-label="Select activity"
           value={selectedId ?? ""}
           onChange={(e) => onSelect(e.target.value ? Number(e.target.value) : null)}
         >
@@ -207,7 +208,7 @@ function ActivityMapPanel({
       {/* Right map */}
       <div>
         {polylines.length > 0 ? (
-          <RouteMap polylines={polylines} markers={markers} height={500} />
+          <RouteMap polylines={polylines} markers={markers} height={500} ariaLabel="Activity route map" />
         ) : (
           <EmptyState message="No GPS route data available." />
         )}

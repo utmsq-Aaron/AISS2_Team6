@@ -34,6 +34,7 @@ export function AddGoalInput({
     <div className="fd-card flex flex-col gap-2 p-4 sm:flex-row sm:items-center">
       <input
         className="fd-input flex-1"
+        aria-label="New goal"
         placeholder="Add a goal — e.g. 'Sub-40 10K by December'"
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -42,6 +43,7 @@ export function AddGoalInput({
       />
       <input
         className="fd-input w-full sm:w-40"
+        aria-label="Sport (optional)"
         placeholder="Sport (optional)"
         value={sport}
         onChange={(e) => setSport(e.target.value)}

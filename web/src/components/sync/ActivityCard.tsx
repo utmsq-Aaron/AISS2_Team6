@@ -141,7 +141,7 @@ export function ActivityCard({ activity, selected, onToggle, inStrava }: Activit
         <div>
           {hasGps ? (
             has_polyline && coords && coords.length ? (
-              <RouteMap polylines={polylines} markers={markers} height={155} basemap="dark" showBasemapSwitcher={false} />
+              <RouteMap polylines={polylines} markers={markers} height={155} basemap="dark" showBasemapSwitcher={false} ariaLabel="Route preview map" />
             ) : has_polyline && !routeLoaded ? (
               <div
                 className="flex items-center justify-center rounded-card border border-dashed border-border text-xs text-text-muted"
@@ -156,6 +156,7 @@ export function ActivityCard({ activity, selected, onToggle, inStrava }: Activit
                 height={155}
                 basemap="dark"
                 showBasemapSwitcher={false}
+                ariaLabel="Route preview map"
               />
             )
           ) : (
