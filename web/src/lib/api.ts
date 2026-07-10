@@ -1,13 +1,12 @@
 // Thin client over the FastAPI seam (proxied at /api by Vite in dev, by the Node
 // BFF in prod). callTool() is the generic data path; streamChat() consumes SSE.
 
-import { authToken, forceLogout } from "../store/authStore";
+import { forceLogout } from "../store/authStore";
 
-/** Bearer header for the logged-in user (empty before login / on /auth/login). */
-export function authHeaders(): Record<string, string> {
-  const t = authToken();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
+// Auth rides on the httpOnly `fitdash_session` cookie the server set at login;
+// same-origin fetches (via the /api proxy) send it automatically, so there are
+// no Authorization headers to attach here anymore. A 401 (missing/expired
+// session) still drops the user back to the login screen via forceLogout().
 
 export interface ToolResult<T = unknown> {
   name: string;
@@ -18,7 +17,7 @@ export interface ToolResult<T = unknown> {
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     ...init,
   });
   if (res.status === 401) {
@@ -56,7 +55,9 @@ async function authPost<T>(path: string, body: unknown): Promise<T> {
 export const requestOtp = (email: string) =>
   authPost<{ ok: boolean; new_account: boolean; dev_echo?: boolean }>("/auth/request-otp", { email });
 
-/** Verify the code → Bearer token + identity. Throws (status 400) on a bad code. */
+/** Verify the code → identity. On success the server ALSO sets the httpOnly
+ *  session cookie; the returned `token` is kept for non-browser clients but the
+ *  SPA ignores it. Throws (status 400) on a bad code. */
 export const verifyOtp = (email: string, code: string) =>
   authPost<{ token: string; user: string; is_admin: boolean; new_account: boolean }>(
     "/auth/verify-otp",
@@ -205,9 +206,7 @@ export async function fetchFlythroughHtml(
   if (opts.orientation) qs.set("orientation", opts.orientation);
   if (opts.resolution) qs.set("resolution", opts.resolution);
   if (opts.duration) qs.set("duration", String(opts.duration));
-  const res = await fetch(`/api/flythrough/${activityId}?${qs.toString()}`, {
-    headers: { ...authHeaders() },
-  });
+  const res = await fetch(`/api/flythrough/${activityId}?${qs.toString()}`);
   if (res.status === 401) {
     forceLogout();
     throw new Error("Session expired — please log in again.");
@@ -242,7 +241,6 @@ export async function uploadAvatar(file: File): Promise<Profile> {
   form.append("file", file);
   const res = await fetch("/api/profile/avatar", {
     method: "POST",
-    headers: { ...authHeaders() },
     body: form,
   });
   if (res.status === 401) {
@@ -259,7 +257,7 @@ export async function uploadAvatar(file: File): Promise<Profile> {
 /** GET /profile/avatar — raw authed fetch (mirrors fetchFlythroughHtml's auth
  *  pattern). 404 (no avatar set) → null instead of throwing. */
 export async function fetchAvatarBlob(): Promise<Blob | null> {
-  const res = await fetch("/api/profile/avatar", { headers: { ...authHeaders() } });
+  const res = await fetch("/api/profile/avatar");
   if (res.status === 404) return null;
   if (res.status === 401) {
     forceLogout();
@@ -361,7 +359,7 @@ export function streamChat(
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, history, chat_id: chatId }),
         signal: controller.signal,
       });

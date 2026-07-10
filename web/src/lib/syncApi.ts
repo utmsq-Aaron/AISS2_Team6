@@ -1,15 +1,15 @@
 // Client for the Garmin → Strava sync endpoints (api/routers/sync.py).
 // Self-contained: a local http() helper (mirrors lib/api.ts's module-private one,
-// including its auth headers + 401→logout handling — all /sync/* routes are
-// protected by Depends(current_user)) plus typed fetch/route calls and an SSE
-// consumer for the export stream.
+// including its 401→logout handling — all /sync/* routes are protected by
+// Depends(current_user)) plus typed fetch/route calls and an SSE consumer for the
+// export stream. Auth rides on the httpOnly session cookie (same-origin), so
+// there are no auth headers to attach.
 
-import { authHeaders } from "./api";
 import { forceLogout } from "../store/authStore";
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     ...init,
   });
   if (res.status === 401) {
@@ -116,7 +116,7 @@ export function streamExport(
     try {
       const res = await fetch("/api/sync/export", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ activities }),
         signal: controller.signal,
       });

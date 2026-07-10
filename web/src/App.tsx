@@ -21,13 +21,16 @@ import { Sync } from "./pages/Sync";
 import { useAuthStore } from "./store/authStore";
 
 export default function App() {
-  const token = useAuthStore((s) => s.token);
-  if (!token) return <Login />;
+  // Gate on the persisted user hint (the session lives in an httpOnly cookie the
+  // JS can't see). If the cookie is actually stale, the first authenticated call
+  // 401s and forceLogout() clears this and drops back here.
+  const user = useAuthStore((s) => s.user);
+  if (!user) return <Login />;
 
   return <Authenticated />;
 }
 
-// Split out so the profile query (which requires a token) only mounts once
+// Split out so the profile query (which requires a session) only mounts once
 // logged in — hooks can't be called conditionally in the same component.
 function Authenticated() {
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: getProfile });
