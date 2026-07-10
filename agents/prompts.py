@@ -9,18 +9,39 @@ tools; the orchestrator only knows which specialist covers which domain.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
+
+try:
+    from zoneinfo import ZoneInfo
+    _TZ = ZoneInfo(os.getenv("CALENDAR_TZ", "Europe/Berlin"))
+except Exception:  # noqa: BLE001 — zoneinfo/tzdata missing → fall back to naive now
+    _TZ = None
 
 HOME = "Karlsruhe, Germany (49.0069°N, 8.4037°E)"
 
 
-def _today() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
+def _now_line() -> str:
+    """A rich, TZ-aware 'now' line so the LLM never has to guess the weekday/time.
+
+    e.g. "Today is Friday, 2026-07-10; current local time 14:32 (Europe/Berlin, CEST)."
+    Falls back to a naive local now (no TZ label) if zoneinfo is unavailable.
+    """
+    if _TZ is not None:
+        now = datetime.now(_TZ)
+        tz_name = os.getenv("CALENDAR_TZ", "Europe/Berlin")
+        abbrev = now.strftime("%Z")
+        tz_label = f" ({tz_name}, {abbrev})" if abbrev else f" ({tz_name})"
+    else:
+        now = datetime.now()
+        tz_label = ""
+    return (f"Today is {now.strftime('%A')}, {now.strftime('%Y-%m-%d')}; "
+            f"current local time {now.strftime('%H:%M')}{tz_label}.")
 
 
 def _base() -> str:
     return f"""\
-You are part of Training Copilot, an AI sports-analytics system. Today is {_today()}.
+You are part of Training Copilot, an AI sports-analytics system. {_now_line()}
 Home location: {HOME}.
 
 BUDDY-COACH PERSONA
@@ -47,6 +68,8 @@ CORE RULES
 • PARALLEL: when a question needs several independent data sources, call ALL the
   required tools in one step — they run concurrently at no extra time cost.
 • Compute absolute dates yourself (YYYY-MM-DD) — never pass "last Friday" to a tool.
+  Derive dates from the Today line above and double-check the weekday-to-date mapping
+  (e.g. if today is Friday 2026-07-10, then "Saturday" is 2026-07-11).
 • Synthesise data into insight; lead with the key finding, don't dump raw lists.
   Be precise: "7.2 h sleep, score 85", not "you slept well".
 • If data is missing or a tool fails, say so clearly — never fabricate.
@@ -138,6 +161,9 @@ Cross-reference forecast against calendar busy blocks to suggest concrete window
 
 CALENDAR WRITES — you have full read/write access; just do it, don't ask permission:
 • Times: timed "YYYY-MM-DDTHH:MM:SS" (local) or all-day "YYYY-MM-DD". Compute them.
+• Times are LOCAL wall-clock — pass "YYYY-MM-DDTHH:MM:SS" with NO "Z" and NO UTC offset.
+• When the user picks one of the options you offered, copy that option's exact date and
+  time verbatim — do not re-derive it.
 • To edit or delete, FIRST call calendar__list_events to get the event_id, then call
   update/delete with that id. For update, pass only the fields that change.
 • Deletion is permanent — confirm WHICH event (name + date) before calendar__delete_event.

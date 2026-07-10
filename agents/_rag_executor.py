@@ -11,9 +11,10 @@ UI's agent-trace panel exactly like any other tool call — no UI change needed.
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import time
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Union
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
@@ -85,9 +86,15 @@ def _make_search_tool(recorder: List[Dict[str, Any]]) -> StructuredTool:
 
 
 class FitnessExecutor(AgentExecutor):
-    """Runs the Fitness specialist; emits the same {agent, tool_calls} artifact."""
+    """Runs the Fitness specialist; emits the same {agent, tool_calls} artifact.
 
-    def __init__(self, name: str, system_prompt: str) -> None:
+    ``system_prompt`` may be a plain string OR a zero-arg callable rebuilt PER
+    request (e.g. ``functools.partial(specialist_prompt, "fitness")``) so the
+    "Today is …" line stays fresh on a long-running server (GH #13). A bare string
+    is still accepted.
+    """
+
+    def __init__(self, name: str, system_prompt: Union[str, Callable[[], str]]) -> None:
         self.name = name
         self.system_prompt = system_prompt
 
@@ -110,7 +117,8 @@ class FitnessExecutor(AgentExecutor):
                 message=updater.new_agent_message(
                     [Part(root=TextPart(text=f"{self.name}: consulting the fitness library…"))]),
             )
-            agent = create_agent(model=get_chat_model(), tools=tools, system_prompt=self.system_prompt)
+            prompt = self.system_prompt() if callable(self.system_prompt) else self.system_prompt
+            agent = create_agent(model=get_chat_model(), tools=tools, system_prompt=prompt)
             with trace_span(f"{self.name}_agent", service=self.name,
                             role="specialist", question=user_text):
                 out = await agent.ainvoke({"messages": [HumanMessage(user_text)]})
@@ -131,7 +139,8 @@ class FitnessExecutor(AgentExecutor):
 
 def run_fitness() -> None:
     """Entry point for ``python -m agents.fitness_agent``."""
-    executor = FitnessExecutor("fitness", specialist_prompt("fitness"))
+    # Rebuild the prompt PER request so the "Today is …" line never goes stale (GH #13).
+    executor = FitnessExecutor("fitness", functools.partial(specialist_prompt, "fitness"))
     run_agent_server(
         "fitness", executor,
         description="FitDash Fitness Expert — answers training, technique and exercise-science "

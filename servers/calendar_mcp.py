@@ -21,6 +21,7 @@ Endpoint:      http://127.0.0.1:8105/mcp
 
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -43,6 +44,12 @@ PORT = int(os.getenv("CALENDAR_MCP_PORT", "8105"))
 # (e.g. "08:00" means 08:00 *here*). Google rejects a dateTime that has neither an
 # offset nor a timeZone, so we always supply one. Override with CALENDAR_TZ.
 CAL_TZ = os.getenv("CALENDAR_TZ", "Europe/Berlin")
+
+try:
+    from zoneinfo import ZoneInfo
+    _TZ = ZoneInfo(CAL_TZ)
+except Exception:  # noqa: BLE001 — zoneinfo/tzdata missing → naive local comparison
+    _TZ = None
 
 mcp = FastMCP(
     "calendar",
@@ -207,6 +214,89 @@ def _event_time(value: str, tz: str) -> Dict[str, str]:
     return {"date": value}                  # date-only → all-day event
 
 
+def _is_timed(value: str) -> bool:
+    """A value is 'timed' if it carries a clock component ("YYYY-MM-DDTHH:MM…")."""
+    return "T" in value
+
+
+def _has_offset(value: str) -> bool:
+    """True if a timed value carries a UTC designator or numeric offset.
+
+    A naive wall-clock ("2026-07-12T08:00:00") has none — that is what we want.
+    The offset/Z can only live in the time part (index 11+), so a leading date
+    "-" never counts.
+    """
+    tail = value[11:]  # the part after "YYYY-MM-DDT"
+    return value.endswith("Z") or "+" in tail or "-" in tail
+
+
+def _validate_times(start: Optional[str], end: Optional[str], tz: str) -> Optional[Dict[str, str]]:
+    """Validate calendar start/end BEFORE building the Google body (GH #13).
+
+    Returns a corrective ``{"error": …}`` dict if the input is bad, else ``None``.
+    Validates each provided field on its own (offset/parse) and, when BOTH are
+    given, cross-checks kind-match and end > start. ``update_event`` may pass only
+    one of the two — the cross-checks are then skipped.
+    """
+    for label, value in (("start", start), ("end", end)):
+        if value is None:
+            continue
+        if _is_timed(value):
+            # (a) reject offset-bearing timed values — Google honors the Z/offset
+            # over timeZone, so a UTC-thinking model would shift the event.
+            if _has_offset(value):
+                return {"error": f"'{label}' must be a LOCAL wall-clock time without a "
+                                 f"'Z' or UTC offset (e.g. 2026-07-12T08:00:00); it is "
+                                 f"interpreted in {tz}."}
+            # (b) must parse as a datetime.
+            try:
+                datetime.fromisoformat(value)
+            except ValueError:
+                return {"error": f"'{label}' is not a valid date-time — pass "
+                                 f"YYYY-MM-DDTHH:MM:SS (local wall-clock, no Z/offset)."}
+        else:
+            # (b) all-day must parse as a plain date.
+            try:
+                datetime.strptime(value, "%Y-%m-%d")
+            except ValueError:
+                return {"error": f"'{label}' is not a valid date — pass YYYY-MM-DD "
+                                 f"(all-day) or YYYY-MM-DDTHH:MM:SS (timed)."}
+
+    if start is not None and end is not None:
+        # (c) both must be the same kind (both timed or both all-day).
+        if _is_timed(start) != _is_timed(end):
+            return {"error": "start and end must be the same kind — both timed "
+                             "(YYYY-MM-DDTHH:MM:SS) or both all-day (YYYY-MM-DD)."}
+        # (c) end must be strictly after start.
+        try:
+            s = datetime.fromisoformat(start) if _is_timed(start) else datetime.strptime(start, "%Y-%m-%d")
+            e = datetime.fromisoformat(end) if _is_timed(end) else datetime.strptime(end, "%Y-%m-%d")
+            if e <= s:
+                return {"error": "end must be after start."}
+        except ValueError:
+            pass  # already reported above
+    return None
+
+
+def _past_start(start: str) -> bool:
+    """True if a (valid) start is before now — used for a non-fatal create warning.
+
+    Compared in local wall-clock: a naive timed value against local now; an all-day
+    date against today's date. Best-effort — any parse hiccup returns False.
+    """
+    try:
+        now = datetime.now(_TZ) if _TZ is not None else datetime.now()
+        if _is_timed(start):
+            s = datetime.fromisoformat(start)
+            if _TZ is not None and s.tzinfo is None:
+                s = s.replace(tzinfo=_TZ)
+            return s < now
+        s_date = datetime.strptime(start, "%Y-%m-%d").date()
+        return s_date < now.date()
+    except (ValueError, TypeError):
+        return False
+
+
 # ── Tools (read-only) ─────────────────────────────────────────────────────────
 
 @mcp.tool()
@@ -315,6 +405,9 @@ def create_event(
     if not summary or not start or not end:
         return {"error": "summary, start and end are required"}
     tz = time_zone or CAL_TZ
+    bad = _validate_times(start, end, tz)
+    if bad:
+        return bad
     body: Dict[str, Any] = {
         "summary": summary,
         "start": _event_time(start, tz),
@@ -328,7 +421,7 @@ def create_event(
     data = _post(f"/calendars/{calendar_id}/events", body)
     if "error" in data:
         return data
-    return {
+    result = {
         "created": True,
         "id": data.get("id"),
         "summary": data.get("summary"),
@@ -336,6 +429,11 @@ def create_event(
         "end": data.get("end"),
         "htmlLink": data.get("htmlLink"),
     }
+    # Non-fatal: a start in the past is legal (backfilling), but usually a sign the
+    # model mis-derived the date — surface it so the model can double-check (GH #13).
+    if _past_start(start):
+        result["warning"] = "start is in the past — verify the date against today."
+    return result
 
 
 @mcp.tool()
@@ -373,6 +471,12 @@ def update_event(
     if not event_id:
         return {"error": "event_id is required (get it from list_events)"}
     tz = time_zone or CAL_TZ
+    # Partial update: validate whichever of start/end is provided. _validate_times
+    # skips the kind-match and end>start cross-checks unless BOTH are given (GH #13).
+    if start or end:
+        bad = _validate_times(start or None, end or None, tz)
+        if bad:
+            return bad
     body: Dict[str, Any] = {}
     if summary is not None:
         body["summary"] = summary
