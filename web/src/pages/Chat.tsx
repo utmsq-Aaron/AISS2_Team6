@@ -8,9 +8,11 @@ import { COACH, CoachAvatar } from "../components/chat/CoachAvatar";
 import { Markdown } from "../components/chat/Markdown";
 import { extractPois, RouteResult } from "../components/chat/RouteResult";
 import type { RouteData } from "../components/chat/RouteResult";
+import FlythroughModal from "../components/FlythroughModal";
 import { PageHeader } from "../components/PageHeader";
 import { PlotlyFigure } from "../components/PlotlyChart";
 import { generateCharts, getServerHealth } from "../lib/api";
+import type { FlythroughAction } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import type { AssistantTurn } from "../store/chatStore";
 import { useChatStore } from "../store/chatStore";
@@ -246,6 +248,13 @@ function AssistantBubble({
 }) {
   const routeData = turn.trace.route_data as RouteData | null | undefined;
   const charts = turn.charts ?? [];
+  // First "flythrough" action (mirrors the Streamlit renderer). Rendered as a
+  // card the user clicks to open the modal — NOT auto-opened, since the action is
+  // persisted and would re-trigger on every chat reload.
+  const ft = (turn.trace.actions ?? []).find((a) => a?.type === "flythrough") as
+    | FlythroughAction
+    | undefined;
+  const ftActivityId = ft ? Number(ft.activity_id) : NaN;
   return (
     <div className="flex gap-3">
       {coach ? <CoachAvatar /> : <div className="text-xl leading-none">🏃</div>}
@@ -258,6 +267,9 @@ function AssistantBubble({
         />
         <Markdown>{turn.content}</Markdown>
         {turn.backgroundJob && <DeepWorkCard job={turn.backgroundJob} onViewCoach={onViewCoach} />}
+        {ft && Number.isFinite(ftActivityId) && (
+          <FlythroughCard action={ft} activityId={ftActivityId} />
+        )}
         <AgentTrace trace={turn.trace} />
         {routeData?.tool && (
           <RouteResult
@@ -297,6 +309,51 @@ function DeepWorkCard({
         >
           View in Coach chat
         </button>
+      )}
+    </div>
+  );
+}
+
+// The flythrough API accepts only {satellite_3d, dark} (api/routers/flythrough.py).
+// The MCP tool may emit "dark_3d", "satellite_flat", etc. — collapse to the two.
+function mapMode(mode?: string): string {
+  return mode === "dark_3d" ? "dark" : "satellite_3d";
+}
+
+// 3D-flythrough card — the turn produced a `flythrough` trace action. Clicking
+// "Watch flythrough" mounts the FlythroughModal seeded from the action. Not
+// auto-opened (the action is persisted; auto-open would re-trigger on reload).
+function FlythroughCard({
+  action,
+  activityId,
+}: {
+  action: FlythroughAction;
+  activityId: number;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="fd-card space-y-2 border-accent/40 bg-accent/5 px-4 py-3 text-sm">
+      <p className="text-text-primary">
+        🎥 3D Flythrough
+        {action.activity_name ? ` — ${action.activity_name}` : ""}
+      </p>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-md border border-accent/50 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20"
+      >
+        Watch flythrough
+      </button>
+      {open && (
+        <FlythroughModal
+          activityId={activityId}
+          activityName={action.activity_name}
+          initialMode={mapMode(action.mode)}
+          initialOrientation={action.orientation}
+          initialResolution={action.resolution}
+          duration={action.duration_sec}
+          onClose={() => setOpen(false)}
+        />
       )}
     </div>
   );

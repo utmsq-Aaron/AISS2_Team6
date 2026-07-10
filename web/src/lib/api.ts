@@ -302,9 +302,24 @@ export interface BackgroundJobAction {
   job_id: string;
   topic: string;
 }
-/** A trace action — `background_job` (deep-work signal) or any other action the
- *  server emits. Kept loose so we can read `.type` without an exhaustive union. */
-export type TraceAction = (BackgroundJobAction | { type?: string }) & Record<string, unknown>;
+/** A 3D-flythrough action lifted from a `prepare_flythrough` tool result (see
+ *  core/agent_trace.flythrough_from_results). `hidden` keeps it out of the debug
+ *  trace; the Chat renderer reads it to offer a "Watch flythrough" card. */
+export interface FlythroughAction {
+  type: "flythrough";
+  activity_id: number | string;
+  activity_name?: string;
+  mode?: string;
+  duration_sec?: number;
+  orientation?: string;
+  resolution?: string;
+  hidden?: boolean;
+}
+/** A trace action — `background_job` (deep-work signal), `flythrough`, or any other
+ *  action the server emits. Kept loose so we can read `.type` without an exhaustive
+ *  union. */
+export type TraceAction = (BackgroundJobAction | FlythroughAction | { type?: string }) &
+  Record<string, unknown>;
 
 export interface ChatTrace {
   run_id?: string;

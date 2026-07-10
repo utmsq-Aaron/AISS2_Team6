@@ -104,6 +104,9 @@ TOOLS:
   When the user asks for the track coloured by a metric ("Karte mit Puls-Overlay",
   "map with pace colouring"), pass overlay=heartrate|pace|altitude|cadence|power to the
   streams tool — the chat map then renders that gradient automatically.
+• 3D flyover/flythrough video of an activity → flythrough__prepare_flythrough (needs an
+  activity_id from strava__get_activities first; follow the tool's confirm-first workflow
+  for orientation, style, duration)
 
 ELEVATION: elevation_gain_m = metres climbed; elevation_high_m = highest altitude.
 Highest summit → sort by elevation_high_m; most climbing → elevation_gain_m.
@@ -267,7 +270,8 @@ SPECIALISTS you can delegate to (each is a tool named ask_<name>; pass a clear,
 self-contained question and you get back that specialist's analysis):
 • recovery — Garmin sleep, HRV, Body Battery, stress, readiness; rest-vs-train advice.
 • load     — training load (CTL/ATL/TSB), volume/trends, splits, HR zones, PRs, stats,
-             and GPS maps of recorded activities (Strava + Garmin).
+             and GPS maps of recorded activities (Strava + Garmin). Also handles 3D
+             flythrough / flyover videos of a recorded activity.
 • context  — weather forecast + calendar → trainable time windows. CAN ALSO WRITE the
              calendar: add, move/reschedule, rename and delete events. Route any
              "put X on / schedule / move / cancel my calendar" request here, phrased
