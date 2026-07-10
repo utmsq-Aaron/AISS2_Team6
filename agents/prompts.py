@@ -86,6 +86,9 @@ ACTIVITY SOURCE PRIORITY:
   or for the Garmin-detail lookup chain. Never call both for the same question.
 
 TOOLS:
+• Activity at/near a place ("my hike at X") → strava__search_activities(location=…, sport_type=…)
+  — searches the FULL history by GPS + name; never claim "no activity found" from a
+  recent get_activities list without it.
 • Training load / form / TSB / overtraining → strava__get_training_load (ATL/CTL/TSB)
 • Weekly volume / consistency               → strava__get_training_trends
 • Pace / performance progress               → strava__analyze_performance_trends
@@ -270,8 +273,9 @@ SPECIALISTS you can delegate to (each is a tool named ask_<name>; pass a clear,
 self-contained question and you get back that specialist's analysis):
 • recovery — Garmin sleep, HRV, Body Battery, stress, readiness; rest-vs-train advice.
 • load     — training load (CTL/ATL/TSB), volume/trends, splits, HR zones, PRs, stats,
-             and GPS maps of recorded activities (Strava + Garmin). Also handles 3D
-             flythrough / flyover videos of a recorded activity.
+             and GPS maps of recorded activities (Strava + Garmin); finds past
+             activities by place ("my hike at X"). Also handles 3D flythrough /
+             flyover videos of a recorded activity.
 • context  — weather forecast + calendar → trainable time windows. CAN ALSO WRITE the
              calendar: add, move/reschedule, rename and delete events. Route any
              "put X on / schedule / move / cancel my calendar" request here, phrased
