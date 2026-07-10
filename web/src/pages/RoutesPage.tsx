@@ -282,9 +282,9 @@ export function RoutesPage() {
             )}
           </div>
 
-          {/* Funktion picker (2/5) */}
+          {/* Function picker (2/5) */}
           <div className="md:col-span-2">
-            <SectionLabel>Funktion</SectionLabel>
+            <SectionLabel>Function</SectionLabel>
             <select
               className="fd-input mt-1 w-full"
               value={tool}
@@ -474,7 +474,7 @@ export function RoutesPage() {
           )}
           {resultTool === "get_isochrone" && <IsochroneResultView data={result as IsochroneResult} />}
 
-          {/* Rohdaten (JSON) */}
+          {/* Raw data (JSON) */}
           <RawData data={result} />
         </div>
       )}
@@ -534,7 +534,7 @@ function RouteResultView({ tool, data }: { tool: ToolName; data: RouteResult }) 
     const b = waypoints[waypoints.length - 1];
     return [
       { lat: a.lat, lon: a.lon, color: C_GREEN, label: "Start" },
-      { lat: b.lat, lon: b.lon, color: C_RED, label: "Ziel" },
+      { lat: b.lat, lon: b.lon, color: C_RED, label: "Finish" },
     ];
   }, [waypoints]);
 
@@ -554,7 +554,7 @@ function RouteResultView({ tool, data }: { tool: ToolName; data: RouteResult }) 
       {waypoints.length ? (
         <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" />
       ) : (
-        <EmptyState message="Keine Wegpunkte in der Antwort." />
+        <EmptyState message="No waypoints in the response." />
       )}
     </Card>
   );
@@ -608,7 +608,7 @@ function TrailsResultView({
   if (!trails.length) {
     return (
       <Card className="p-5">
-        <EmptyState message="Keine Trails gefunden" />
+        <EmptyState message="No trails found" />
       </Card>
     );
   }
@@ -654,21 +654,21 @@ function TrailsResultView({
 
       {/* Selected trail details */}
       <div className="mt-4 grid grid-cols-3 gap-3">
-        <MetricCard label="Distanz" value={`${t.distance ?? "?"} km`} />
-        <MetricCard label="Typ" value={t.route_type ?? "?"} />
-        <MetricCard label="Netzwerk" value={t.network ?? "?"} />
+        <MetricCard label="Distance" value={`${t.distance ?? "?"} km`} />
+        <MetricCard label="Type" value={t.route_type ?? "?"} />
+        <MetricCard label="Network" value={t.network ?? "?"} />
       </div>
       {t.description && <p className="mt-2 text-xs text-text-muted">{t.description}</p>}
       {t.website && (
         <p className="mt-1 text-xs text-text-muted">
-          Mehr Infos:{" "}
+          More info:{" "}
           <a href={t.website} target="_blank" rel="noreferrer" className="text-accent hover:underline">
             {t.website}
           </a>
         </p>
       )}
 
-      {/* Mehr laden / Load more */}
+      {/* Load more */}
       {data.has_more && (
         <div className="mt-4">
           <button className="fd-btn-secondary" onClick={onLoadMore} disabled={loadingMore}>
@@ -708,7 +708,7 @@ function IsochroneResultView({ data }: { data: IsochroneResult }) {
   );
 }
 
-// ── Rohdaten (JSON) expander ─────────────────────────────────────────────────────
+// ── Raw data (JSON) expander ─────────────────────────────────────────────────────
 function RawData({ data }: { data: ToolResult }) {
   const [open, setOpen] = useState(false);
 
@@ -717,7 +717,7 @@ function RawData({ data }: { data: ToolResult }) {
     const wps = d["waypoints"] as unknown[] | undefined;
     if (Array.isArray(wps) && wps.length > 10) {
       d["waypoints"] = wps.slice(0, 5);
-      d["waypoints_truncated"] = `… ${wps.length - 5} weitere`;
+      d["waypoints_truncated"] = `… ${wps.length - 5} more`;
     }
     const trails = d["trails"] as Trail[] | undefined;
     if (Array.isArray(trails)) {
@@ -737,7 +737,7 @@ function RawData({ data }: { data: ToolResult }) {
         onClick={() => setOpen((o) => !o)}
       >
         <span className="text-text-muted">{open ? "▼" : "▶"}</span>
-        Rohdaten (JSON)
+        Raw data (JSON)
       </button>
       {open && (
         <pre className="mt-3 max-h-96 overflow-auto rounded-lg border border-border bg-bg-surface p-3 text-xs text-text-muted">

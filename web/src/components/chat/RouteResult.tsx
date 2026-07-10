@@ -96,7 +96,7 @@ export function extractPois(trace: Record<string, unknown>): Poi[] {
         if (lat == null || lon == null) continue;
         const id = (p.place_id as string) ?? `${lat},${lon}`;
         if (byId.has(id)) continue;
-        const name = (p.name as string) || "Ort";
+        const name = (p.name as string) || "Place";
         const address = (p.address as string) || "";
         const poi: Poi = {
           lat,
@@ -141,8 +141,8 @@ function poiPopupHtml(p: Poi, distM: number): string {
     address ? `<span style="opacity:.75">${esc(address)}</span>` : "",
     p.rating != null ? `★ ${esc(p.rating)}${p.ratingCount != null ? ` (${esc(p.ratingCount)})` : ""}` : "",
     today ? esc(today) : "",
-    p.openNow != null ? (p.openNow ? "Jetzt geöffnet" : "Derzeit geschlossen") : "",
-    `~${Math.round(distM)} m von der Route`,
+    p.openNow != null ? (p.openNow ? "Open now" : "Currently closed") : "",
+    `~${Math.round(distM)} m from the route`,
   ].filter(Boolean);
   return lines.join("<br/>");
 }
@@ -192,7 +192,7 @@ function SingleRoute({
   pois?: Poi[];
   question?: string;
 }) {
-  // "Route mit Umweg": planning a variant through a chosen POI replaces the shown
+  // "Route with detour": planning a variant through a chosen POI replaces the shown
   // route locally (the original stays one click away).
   const [alt, setAlt] = useState<{ data: Record<string, unknown>; via: string } | null>(null);
   const [planning, setPlanning] = useState<string | null>(null);
@@ -256,7 +256,7 @@ function SingleRoute({
       lat: coords[coords.length - 1][0],
       lon: coords[coords.length - 1][1],
       color: C_RED,
-      label: "Ziel",
+      label: "Finish",
     },
   ];
 
@@ -334,26 +334,26 @@ function SingleRoute({
     <div className="mt-3 space-y-3">
       {alt && (
         <div className="flex items-center justify-between gap-3 text-xs text-text-muted">
-          <span>Route mit Umweg über {alt.via.split(" · ")[0]}</span>
+          <span>Route with detour via {alt.via.split(" · ")[0]}</span>
           <button
             type="button"
             className="rounded-md border border-border bg-bg-surface px-2 py-1 hover:border-accent"
             onClick={() => setAlt(null)}
           >
-            ← Originalroute
+            ← Original route
           </button>
         </div>
       )}
       <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
       <div className="grid grid-cols-3 gap-3">
-        <MetricCard label="Distanz" value={distanceKm != null ? `${distanceKm} km` : "?"} />
+        <MetricCard label="Distance" value={distanceKm != null ? `${distanceKm} km` : "?"} />
         <MetricCard
           label={
             personalKmh != null && distanceKm != null
-              ? "Dauer (dein Tempo)"
+              ? "Duration (your pace)"
               : sport === "Run"
-                ? "Gehzeit"
-                : "Dauer"
+                ? "Walking time"
+                : "Duration"
           }
           value={
             personalKmh != null && distanceKm != null
@@ -364,13 +364,13 @@ function SingleRoute({
           }
         />
         <MetricCard
-          label="Höhenmeter"
+          label="Elevation gain"
           value={elevation?.gain_m != null ? `${Math.round(elevation.gain_m)} m` : "?"}
         />
       </div>
       {nearby.length > 0 && (
         <Card className="px-4 py-3">
-          <div className="fd-label mb-2">Orte an der Strecke</div>
+          <div className="fd-label mb-2">Places along the route</div>
           <div className="space-y-2">
             {nearby.map(({ poi, dist }) => {
               const name = poi.label.split(" · ")[0];
@@ -383,7 +383,7 @@ function SingleRoute({
                       style={{ background: "#1E96FF" }}
                     />
                     {name}
-                    <span className="ml-2 text-xs text-text-muted">~{Math.round(dist)} m abseits</span>
+                    <span className="ml-2 text-xs text-text-muted">~{Math.round(dist)} m off route</span>
                   </span>
                   <button
                     type="button"
@@ -391,7 +391,7 @@ function SingleRoute({
                     onClick={() => planVia(poi)}
                     className="shrink-0 rounded-md border border-border bg-bg-surface px-2 py-1 text-xs text-text-primary hover:border-accent disabled:opacity-50"
                   >
-                    {active ? "✓ im Umweg" : planning === poi.label ? "plane…" : "Route mit Umweg"}
+                    {active ? "✓ on detour" : planning === poi.label ? "planning…" : "Route with detour"}
                   </button>
                 </div>
               );
@@ -435,7 +435,7 @@ function ActivityTrack({ data }: { data: Record<string, unknown> }) {
       lat: coords[coords.length - 1][0],
       lon: coords[coords.length - 1][1],
       color: C_RED,
-      label: "Ziel",
+      label: "Finish",
     },
   ];
 
@@ -456,9 +456,9 @@ function ActivityTrack({ data }: { data: Record<string, unknown> }) {
       <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
       {hasMetrics && (
         <div className="grid grid-cols-3 gap-3">
-          <MetricCard label="Distanz" value={distanceKm != null ? `${distanceKm} km` : "?"} />
+          <MetricCard label="Distance" value={distanceKm != null ? `${distanceKm} km` : "?"} />
           <MetricCard label="Pace" value={pace ? `${pace} /km` : "?"} />
-          <MetricCard label="Ø HF" value={avgHr != null ? `${Math.round(avgHr)} bpm` : "?"} />
+          <MetricCard label="Avg HR" value={avgHr != null ? `${Math.round(avgHr)} bpm` : "?"} />
         </div>
       )}
     </div>
@@ -484,7 +484,7 @@ function TrailSelection({ initial }: { initial: TrailsData }) {
   if (!trails.length) {
     return (
       <Card className="mt-3 px-4 py-3 text-sm text-text-muted">
-        Keine Trails gefunden.
+        No trails found.
       </Card>
     );
   }
@@ -629,16 +629,16 @@ function TrailSelection({ initial }: { initial: TrailsData }) {
 
       {/* Selected-trail metrics */}
       <div className="grid grid-cols-3 gap-3">
-        <MetricCard label="Distanz" value={`${selTrail?.distance ?? "?"} km`} />
-        <MetricCard label="Typ" value={selTrail?.route_type ?? "?"} />
-        <MetricCard label="Netzwerk" value={selTrail?.network ?? "?"} />
+        <MetricCard label="Distance" value={`${selTrail?.distance ?? "?"} km`} />
+        <MetricCard label="Type" value={selTrail?.route_type ?? "?"} />
+        <MetricCard label="Network" value={selTrail?.network ?? "?"} />
       </div>
       {selTrail?.description && (
         <p className="text-xs text-text-muted">{selTrail.description}</p>
       )}
       {selTrail?.website && (
         <p className="text-xs text-text-muted">
-          Mehr Infos:{" "}
+          More info:{" "}
           <a
             href={selTrail.website}
             target="_blank"
