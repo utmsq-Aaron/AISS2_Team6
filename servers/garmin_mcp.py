@@ -814,8 +814,14 @@ def get_garmin_body_composition(
     }
 
 
+_OVERLAY_METRICS = {"altitude"}
+
+
 @mcp.tool()
-def get_activity_gps_track(activity_id: int) -> Dict[str, Any]:
+def get_activity_gps_track(
+    activity_id: int,
+    overlay: Optional[str] = None,
+) -> Dict[str, Any]:
     """Download the GPS track for a Garmin activity as structured lat/lon/elevation
     time-stamped points, parsed from the GPX file.
 
@@ -827,7 +833,15 @@ def get_activity_gps_track(activity_id: int) -> Dict[str, Any]:
 
     Args:
         activity_id: Garmin numeric activity ID (from get_garmin_activities).
+        overlay: pass 'altitude' when the user asks to see the track coloured by elevation —
+                 the chat map renders the gradient automatically. (Garmin GPX carries only
+                 elevation, so heart-rate/pace overlays are not available here.)
     """
+    # Normalise + validate the requested overlay metric; drop silently if unknown.
+    overlay_norm = (overlay or "").strip().lower() or None
+    if overlay_norm not in _OVERLAY_METRICS:
+        overlay_norm = None
+
     g = _api.client()
 
     try:
@@ -876,8 +890,15 @@ def get_activity_gps_track(activity_id: int) -> Dict[str, Any]:
         except (TypeError, ValueError):
             continue
 
-        ele_el  = trkpt.find(f"{NS}ele")  or trkpt.find("ele")
-        time_el = trkpt.find(f"{NS}time") or trkpt.find("time")
+        # Explicit None checks — `find(a) or find(b)` is WRONG for ElementTree:
+        # a childless element like <ele>120.0</ele> is falsy, so the `or` would
+        # discard a successful namespaced match and every ele/time would be None.
+        ele_el = trkpt.find(f"{NS}ele")
+        if ele_el is None:
+            ele_el = trkpt.find("ele")
+        time_el = trkpt.find(f"{NS}time")
+        if time_el is None:
+            time_el = trkpt.find("time")
 
         ele     = None
         if ele_el is not None and ele_el.text:
@@ -897,6 +918,7 @@ def get_activity_gps_track(activity_id: int) -> Dict[str, Any]:
         return {
             "activity_id":  activity_id,
             "total_points": 0,
+            "overlay":      overlay_norm,
             "points":       [],
             "message":      "No GPS track points found — activity may not have GPS data.",
         }
@@ -904,6 +926,7 @@ def get_activity_gps_track(activity_id: int) -> Dict[str, Any]:
     return {
         "activity_id":  activity_id,
         "total_points": len(points),
+        "overlay":      overlay_norm,   # echoed so the chat map can auto-colour the track
         "points":       points,
     }
 

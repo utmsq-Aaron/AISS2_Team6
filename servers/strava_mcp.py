@@ -785,10 +785,14 @@ async def get_activity_detail(
     }
 
 
+_OVERLAY_METRICS = {"heartrate", "pace", "altitude", "cadence", "power"}
+
+
 @mcp.tool()
 async def get_activity_streams(
     activity_id: Optional[int] = None,
     activity_name: Optional[str] = None,
+    overlay: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Raw GPS streams for one activity: lat/lon, altitude (m), elapsed time (s),
     distance, heart rate, cadence, velocity, and power (watts).
@@ -804,12 +808,20 @@ async def get_activity_streams(
     Args:
         activity_id: Strava numeric activity ID.
         activity_name: Short keyword extracted from the activity name (e.g. 'karlsruhe', 'trail run'). NOT the full user sentence.
+        overlay: pass 'heartrate' | 'pace' | 'altitude' | 'cadence' | 'power' when the user
+                 asks to see the track coloured by that metric — the chat map renders the
+                 gradient automatically.
     """
     if not activity_id and not activity_name:
         return {"error": "Provide activity_id or activity_name"}
 
     name_search = (activity_name or "").strip().lower()
     act_meta = None
+
+    # Normalise + validate the requested overlay metric; drop silently if unknown.
+    overlay_norm = (overlay or "").strip().lower() or None
+    if overlay_norm not in _OVERLAY_METRICS:
+        overlay_norm = None
 
     if not activity_id:
         acts = await _api.get_activities_cached(limit=100)
@@ -868,6 +880,7 @@ async def get_activity_streams(
         "has_cadence":  bool(cadence),
         "has_velocity": bool(velocity),
         "has_watts":    bool(watts),
+        "overlay":      overlay_norm,   # echoed so the chat map can auto-colour the track
         "points":       points,
     }
 

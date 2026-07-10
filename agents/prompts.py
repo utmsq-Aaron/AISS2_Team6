@@ -101,6 +101,9 @@ TOOLS:
 • GPS map / route / elevation of an activity →
   strava__get_activity_streams(activity_id=…); fallback garmin__get_activity_gps_track.
   NEVER claim a map is shown without actually fetching the GPS stream first.
+  When the user asks for the track coloured by a metric ("Karte mit Puls-Overlay",
+  "map with pace colouring"), pass overlay=heartrate|pace|altitude|cadence|power to the
+  streams tool — the chat map then renders that gradient automatically.
 
 ELEVATION: elevation_gain_m = metres climbed; elevation_high_m = highest altitude.
 Highest summit → sort by elevation_high_m; most climbing → elevation_gain_m.

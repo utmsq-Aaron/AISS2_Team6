@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { callTool } from "../../lib/api";
 import { C_GREEN, C_RED } from "../../theme/tokens";
@@ -6,6 +6,9 @@ import { Card } from "../Card";
 import { MetricCard } from "../MetricCard";
 import { RouteMap } from "../RouteMap";
 import type { MarkerSpec, PolyLineSpec } from "../RouteMap";
+import {
+  type MetricKey, METRIC_DEFS, coloredSegments, plainRoute, Legend,
+} from "../trackOverlay";
 
 // Mirror of ui/chat.py `_render_route_map` (and core/route_render.py, used by the
 // Telegram bridge). Handles the tools the orchestrator surfaces via trace.route_data
@@ -177,7 +180,7 @@ export function RouteResult({
     return <Isochrone data={data} />;
   }
   if (tool === "get_activity_streams" || tool === "get_activity_gps_track") {
-    return <ActivityTrack data={data} />;
+    return <ActivityTrack data={data} question={question} />;
   }
   return null;
 }
@@ -405,11 +408,18 @@ function SingleRoute({
 
 // ── Activity GPS track (get_activity_streams / get_activity_gps_track) ─────────
 // An activity's recorded GPS track: { points: [{lat, lon, …}] }. The Strava tool
-// also returns an `activity` metadata block (name/distance/pace/HR); the Garmin
-// one returns points only. Mirrors core/route_render.py's track branch.
+// also returns an `activity` metadata block (name/distance/pace/HR) plus per-point
+// hr/velocity/cadence/watts and has_* flags; the Garmin one returns lat/lon/ele
+// points only. Mirrors core/route_render.py's track branch — and now the Dashboard's
+// ActivityAnalysis overlay: the map can be coloured by any available metric.
 interface TrackPoint {
   lat?: number | null;
   lon?: number | null;
+  ele?: number | null;
+  hr?: number | null;
+  velocity?: number | null;
+  cadence?: number | null;
+  watts?: number | null;
 }
 interface ActivityMeta {
   name?: string;
@@ -419,16 +429,69 @@ interface ActivityMeta {
   avg_hr?: number | null;
 }
 
-function ActivityTrack({ data }: { data: Record<string, unknown> }) {
-  const points = (data.points as TrackPoint[] | undefined) ?? [];
+// The tool's `overlay` echo ('heartrate'|'pace'|'altitude'|'cadence'|'power')
+// mapped to this component's internal MetricKey.
+const OVERLAY_TO_METRIC: Record<string, MetricKey> = {
+  heartrate: "hr",
+  pace: "velocity",
+  altitude: "ele",
+  cadence: "cadence",
+  power: "watts",
+};
+
+/** Infer the metric the user asked to colour by from their question (de + en). */
+function metricFromQuestion(question: string): MetricKey | null {
+  const q = (question || "").toLowerCase();
+  if (/puls|herzfrequenz|heart|\bhr\b/.test(q)) return "hr";
+  if (/pace|tempo|geschwind/.test(q)) return "velocity";
+  if (/höhe|altitude|elevation|steigung|profil/.test(q)) return "ele";
+  if (/kadenz|trittfrequenz|cadence/.test(q)) return "cadence";
+  if (/watt|leistung|power/.test(q)) return "watts";
+  return null;
+}
+
+function ActivityTrack({
+  data,
+  question = "",
+}: {
+  data: Record<string, unknown>;
+  question?: string;
+}) {
+  const points = useMemo(() => (data.points as TrackPoint[] | undefined) ?? [], [data]);
   const coords: [number, number][] = points
     .filter((p) => p.lat != null && p.lon != null)
     .map((p) => [p.lat as number, p.lon as number]);
+
+  // Which overlay metrics does this track actually carry? has_* flags come from
+  // the Strava streams tool; the ele check also covers Garmin tracks (no flags).
+  const available = useMemo(() => {
+    const out: MetricKey[] = [];
+    if (data.has_hr) out.push("hr");
+    if (data.has_velocity) out.push("velocity");
+    if (points.some((p) => p.ele != null)) out.push("ele");
+    if (data.has_cadence) out.push("cadence");
+    if (data.has_watts) out.push("watts");
+    return out;
+  }, [data, points]);
+
+  // Initial selection: (a) the tool's echoed overlay, (b) regex on the question,
+  // (c) plain track — but only auto-activate a metric that is actually available.
+  const initial = useMemo<MetricKey | null>(() => {
+    const echoed = OVERLAY_TO_METRIC[String(data.overlay ?? "").toLowerCase()];
+    const guessed = echoed ?? metricFromQuestion(question);
+    return guessed && available.includes(guessed) ? guessed : null;
+  }, [data, question, available]);
+
+  // `chosen === undefined` means "user hasn't clicked yet" → use `initial`.
+  const [chosen, setChosen] = useState<MetricKey | null | undefined>(undefined);
+  const activeKey: MetricKey | null =
+    chosen === undefined ? initial : chosen && available.includes(chosen) ? chosen : null;
+
   if (coords.length < 2) return null; // nothing drawable (e.g. an indoor activity)
 
-  const polylines: PolyLineSpec[] = [
-    { coords, color: "#f97316", weight: 4, opacity: 0.9 },
-  ];
+  const polylines: PolyLineSpec[] = activeKey
+    ? coloredSegments(points, activeKey, METRIC_DEFS[activeKey][1])
+    : plainRoute(points);
   const markers: MarkerSpec[] = [
     { lat: coords[0][0], lon: coords[0][1], color: C_GREEN, label: "Start" },
     {
@@ -438,6 +501,8 @@ function ActivityTrack({ data }: { data: Record<string, unknown> }) {
       label: "Finish",
     },
   ];
+
+  const [, , highLbl, lowLbl] = activeKey ? METRIC_DEFS[activeKey] : ["", false, "", ""];
 
   const meta = (data.activity as ActivityMeta | undefined) ?? {};
   const distanceKm = meta.distance_km;
@@ -453,7 +518,43 @@ function ActivityTrack({ data }: { data: Record<string, unknown> }) {
           {meta.date ? ` · ${meta.date}` : ""}
         </div>
       )}
-      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
+
+      {/* Metric selector — "Track" (plain) + one button per available overlay */}
+      {available.length > 0 && (
+        <div className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-bg-surface p-1">
+          <button
+            type="button"
+            onClick={() => setChosen(null)}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              activeKey === null ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            Track
+          </button>
+          {available.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setChosen(k)}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                activeKey === k ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {METRIC_DEFS[k][0]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <div className="min-w-0 flex-1">
+          <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
+        </div>
+        {activeKey !== null && polylines.length > 0 && (
+          <Legend highLabel={highLbl as string} lowLabel={lowLbl as string} />
+        )}
+      </div>
+
       {hasMetrics && (
         <div className="grid grid-cols-3 gap-3">
           <MetricCard label="Distance" value={distanceKm != null ? `${distanceKm} km` : "?"} />
