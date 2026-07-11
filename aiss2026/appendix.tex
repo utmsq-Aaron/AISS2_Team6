@@ -31,7 +31,7 @@ def get_weather_forecast(lat: float, lon: float,
 \FloatBarrier
 \subsection{MCP Server Tool Inventory}\label{sec:appendix:tools}
 
-Table~\ref{tab:full_tools} provides the complete tool inventory across all MCP servers deployed in Training Copilot.
+Tables~\ref{tab:full_tools} and~\ref{tab:full_tools_b} provide the complete tool inventory across all native MCP servers deployed in Training Copilot.
 
 \input{2_Tables/tab_full_tools}
 
@@ -52,7 +52,7 @@ Table~\ref{tab:env} lists the key environment variables used by Training Copilot
 \FloatBarrier
 \subsection{External API Overview}\label{sec:appendix:apis}
 
-Table~\ref{tab:api_overview} lists every external service Training Copilot talks to over the network---including one-time/offline scripts, not just runtime agent tools---sorted alphabetically by service: what it provides, what access it requires, whether a vendor-native MCP server exists for it, and how we integrate it. Exact environment-variable names for each credential are listed in Table~\ref{tab:env}. Purely local, keyless components---the fitness RAG's embedding model (Section~\ref{sec:data:rag}), local Whisper transcription (Section~\ref{sec:architecture:supporting}), and the self-hosted MLflow tracking server (Section~\ref{sec:agents:observability})---need no external account and are omitted here, as is a commented-out, unimplemented Wahoo integration stub in \texttt{ui/settings.py}. The map-tile rows are a deliberate exception to the MCP-mediated pattern: they are fetched directly by the browser (or, for the Telegram bridge's static image, directly by the server), never through \texttt{ToolHost} or an agent.
+Table~\ref{tab:api_overview} lists every external service Training Copilot talks to over the network (including one-time/offline scripts, not just runtime agent tools), sorted alphabetically by service: what it provides, what access it requires, whether a vendor-native MCP server exists for it, and how we integrate it. Exact environment-variable names for each credential are listed in Table~\ref{tab:env}. Purely local, keyless components (the fitness RAG's embedding model in Section~\ref{sec:data:rag}, local Whisper transcription of Telegram voice memos in Section~\ref{sec:architecture:supporting}, and the self-hosted MLflow tracking server in Section~\ref{sec:agents:observability}) need no external account and are omitted here. The map-tile rows are a deliberate exception to the MCP-mediated pattern: they are fetched directly by the browser (or, for the Telegram bridge's static image, directly by the server), never through \texttt{ToolHost} or an agent.
 
 \input{2_Tables/tab_api_overview}
 

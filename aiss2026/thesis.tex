@@ -110,15 +110,17 @@
 \interfootnotelinepenalty=10000
 
 % ─── CHAPTERS ───────────────────────────────────────────────────
-\include{chapters/1_introduction}
-\include{chapters/2_market_analysis}
-\include{chapters/3_state_of_the_art}
-\include{chapters/4_architecture}
-\include{chapters/5_data_sources}
-\include{chapters/6_agent_interaction}
-\include{chapters/7_evaluation}
-\include{chapters/8_discussion}
-\include{chapters/9_conclusion}
+% Chapters are \input (not \include) so they flow continuously, like the
+% template's single main_body.tex, instead of each starting on a fresh page.
+\input{chapters/1_introduction}
+\input{chapters/2_market_analysis}
+\input{chapters/3_state_of_the_art}
+\input{chapters/4_architecture}
+\input{chapters/5_data_sources}
+\input{chapters/6_agent_interaction}
+\input{chapters/7_evaluation}
+\input{chapters/8_discussion}
+\input{chapters/9_conclusion}
 
 % ─── APPENDIX ───────────────────────────────────────────────────
 \appendix

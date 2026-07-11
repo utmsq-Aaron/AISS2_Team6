@@ -16,29 +16,31 @@
 \endfoot
 \botrule
 \endlastfoot
-AWS Terrain Tiles (Terrarium) & Elevation DEM tiles for 3D terrain in the flythrough & None (public S3 Open Data bucket) & None & None---browser-fetched, outside MCP \\
+AWS Terrain Tiles (Terrarium) & Elevation DEM tiles for 3D terrain in the flythrough & None (public S3 Open Data bucket) & None & None (browser-fetched, outside MCP) \\
 \addlinespace
-CartoDB Dark Matter & Dark basemap style/tiles for the flythrough's non-satellite mode and the dashboard's dark 2D maps & None (public style/tile endpoint) & None & None---browser-fetched, outside MCP \\
+CartoDB Dark Matter & Dark basemap style/tiles for the flythrough's non-satellite mode and the dashboard's dark 2D maps & None (public style/tile endpoint) & None & None (browser-fetched, outside MCP) \\
 \addlinespace
-ESRI World Imagery & Satellite basemap tiles for the 3D flythrough & None (public tile server) & None & None---browser-fetched, outside MCP \\
+ESRI World Imagery & Satellite basemap tiles for the 3D flythrough & None (public tile server) & None & None (browser-fetched, outside MCP) \\
 \addlinespace
-Garmin Connect & Sleep, HRV, Body Battery, stress, VO\textsubscript{2}max & Account credentials + MFA on first login (session cached); no key & None---no public API; reverse-engineered via an open-source client library & Custom MCP server, port 8104 \\
+Garmin Connect & Sleep, HRV, Body Battery, stress, VO\textsubscript{2}max & Account credentials + MFA on first login (session cached); no key & None (no public API; reverse-engineered via an open-source client library) & Custom MCP server, port 8104 \\
 \addlinespace
 Google Calendar & Event read/write, free-slot lookup & OAuth\,2.0, or a per-request bearer token in multi-tenant mode & Community servers exist; none used here & Custom MCP server, port 8105 \\
 \addlinespace
 Google Geocoding & Place name $\to$ coordinates & API key (Google Cloud project) & None & Custom MCP server, port 8102 (bundled) \\
 \addlinespace
-LLM: Google Gemini & Chat completion; free-tier alternate backend & API key from Google AI Studio & N/A---consumed directly, not MCP-wrapped & \texttt{core/llm.py}, native Gemini client \\
+Google Maps Platform & Place/POI search, place details, along-route stops, directions, and geocoding & API key (a billing-free demo key suffices); Places, Routes, and Geocoding APIs & Archived community npm proxy only (unused); we wrote our own & Custom MCP server, port 8108 \\
 \addlinespace
-LLM: KIT AI Gateway & Chat completion; default backend for every agent and specialist & API key from the course gateway & N/A---consumed directly, not MCP-wrapped & \texttt{core/llm.py}, OpenAI-compatible client \\
+LLM: Google Gemini & Chat completion; free-tier alternate backend & API key from Google AI Studio & N/A (consumed directly, not MCP-wrapped) & \texttt{core/llm.py}, native Gemini client \\
 \addlinespace
-LLM: OpenAI (official) & Chat completion; alternate backend & API key from platform.openai.com & N/A---consumed directly, not MCP-wrapped & \texttt{core/llm.py}, same client, official base URL \\
+LLM: KIT gateway & Chat completion; OpenAI-compatible alternative (tried, too slow, not used) & API key from a KIT-hosted gateway: the KIT AI Toolbox (\texttt{ki-toolbox.scc.kit.edu}) or the DSI Experimente AI Gateway (\texttt{ai-gateway.dsi-experimente.de}) & N/A (consumed directly, not MCP-wrapped) & \texttt{core/llm.py}, OpenAI-compatible client \\
+\addlinespace
+LLM: OpenAI (official) & Chat completion; the backend actually used for every agent, specialist, and the evaluation & API key from platform.openai.com & N/A (consumed directly, not MCP-wrapped) & \texttt{core/llm.py}, same client, official base URL \\
 \addlinespace
 Open-Meteo & Weather forecast, UV index, and air-quality/pollen data (two sibling endpoints) & None & None & Custom MCP server, port 8101 \\
 \addlinespace
 OpenRoute\-Service & A--B/circular routing, isochrones, elevation profiles & API key; free tier, 2{,}000 requests/day & None & Custom MCP server, port 8102 (bundled) \\
 \addlinespace
-OpenStreetMap (standard tiles) & Base map tiles for the interactive Chat/Routes maps and the Telegram bridge's static route image & None (public tile server; usage-policy limits apply) & None & None---browser-fetched, or server-side via \texttt{staticmap}; outside MCP \\
+OpenStreetMap (standard tiles) & Base map tiles for the interactive Chat/Routes maps and the Telegram bridge's static route image & None (public tile server; usage-policy limits apply) & None & None (browser-fetched, or server-side via \texttt{staticmap}; outside MCP) \\
 \addlinespace
 OSM Overpass & Boundary polygons for named areas (park loops) & None (public instance) & None & Custom MCP server, port 8102 (bundled) \\
 \addlinespace
