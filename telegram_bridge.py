@@ -1099,15 +1099,32 @@ def _build_client():
     return TelegramClient(StringSession(SESSION), _api_id(), API_HASH)
 
 
+async def _run_headless_worker() -> None:
+    """No Telegram configured — run ONLY the durable loops (proactive scheduler +
+    goal-panel build queue). Deliveries still mirror into the web Coach chat
+    (delivery handles tg_client=None); only the Telegram push is skipped. Without
+    this, a machine without Telegram had NO queue drainer at all and every
+    form-created goal panel stayed on "building…" forever."""
+    log.warning(
+        "No Telegram config (TELEGRAM_API_ID/TELEGRAM_API_HASH/session) — running "
+        "HEADLESS: proactive scheduler + goal-panel builds only, no Telegram chat. "
+        "Set the env vars and restart to enable the Telegram userbot."
+    )
+    scheduler_task = asyncio.create_task(_scheduler_loop(None))
+    goal_build_task = asyncio.create_task(_goal_build_loop())
+    try:
+        await asyncio.gather(scheduler_task, goal_build_task)
+    finally:
+        scheduler_task.cancel()
+        goal_build_task.cancel()
+
+
 async def _run_bridge() -> None:
     from telethon import events
 
     if not API_HASH or not SESSION:
-        raise SystemExit(
-            "Missing Telegram config. Need TELEGRAM_API_ID, TELEGRAM_API_HASH and a "
-            "session string (TELEGRAM_BRIDGE_SESSION_STRING, or TELEGRAM_SESSION_STRING).\n"
-            "Generate one with:  python telegram_bridge.py --login"
-        )
+        await _run_headless_worker()
+        return
     if _USING_SHARED_SESSION:
         log.warning(
             "Reusing TELEGRAM_SESSION_STRING — fine on its own. Just don't keep the "

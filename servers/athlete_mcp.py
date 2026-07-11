@@ -427,6 +427,8 @@ def add_timeline_event(event_type: str, title: str, start_date: str,
         return {"error": f"start_date '{start_date}' is not an ISO date"}
     if end_date and not _parse_date(end_date):
         return {"error": f"end_date '{end_date}' is not an ISO date"}
+    if end_date and _parse_date(end_date) < _parse_date(start_date):
+        return {"error": f"end_date {end_date} is before start_date {start_date}"}
     user = _user()
     doc = _load(user)
     ev = {
@@ -561,6 +563,22 @@ def save_plan(plan: dict) -> Dict[str, Any]:
     violations = _validate_plan(plan, doc.get("timeline") or [])
     if violations:
         return {"error": "plan violates guardrails", "violations": violations}
+    # Deterministic enrichment: a workout that names a zone but no explicit
+    # intensity gets the athlete's OWN stored band for that zone — the numbers
+    # come from compute_zones, never from the plan author.
+    zones = doc.get("zones") or {}
+    hr_bands = (zones.get("hr") or {}).get("bands_bpm") or {}
+    pace_bands = (zones.get("pace") or {}).get("bands_pace") or {}
+    for w in plan.get("weeks") or []:
+        for wo in w.get("workouts") or []:
+            z = str(wo.get("zone") or "").upper()[:2]
+            if z in hr_bands and not wo.get("hr_range"):
+                lo, hi = hr_bands[z]
+                wo["hr_range"] = f"{lo}–{hi}"
+            if z in pace_bands and not wo.get("pace_range"):
+                slow, fast = pace_bands[z]
+                wo["pace_range"] = f"{fast.replace('/km', '')}–{slow}"
+
     plan = {k: v for k, v in plan.items() if k in
             ("race", "weeks", "n_weeks", "guardrails", "notes", "status")}
     plan["status"] = "active"
