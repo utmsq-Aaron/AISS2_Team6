@@ -39,12 +39,19 @@ from core.tracing import trace_span
 
 
 def _ask_tool(spec: str, url: str, collected: List[dict],
-              status: Callable[[str], Awaitable[None]]) -> StructuredTool:
-    """An ``ask_<spec>`` tool: A2A-call the specialist, stash its artifact, return text."""
+              status: Callable[[str], Awaitable[None]],
+              user: str = "") -> StructuredTool:
+    """An ``ask_<spec>`` tool: A2A-call the specialist, stash its artifact, return text.
+
+    The signed-in account rides on the message metadata (same channel as
+    ``delegation_depth``) so per-user specialists (coach → athlete store) act on
+    the right athlete — identity is never a tool argument the model fills in.
+    """
     async def _ask(question: str) -> str:
         await status(f"Consulting {spec} agent…")
+        meta = {"delegation_depth": 1, **({"user": user} if user else {})}
         try:
-            answer, artifacts = await call_agent(url, question, metadata={"delegation_depth": 1})
+            answer, artifacts = await call_agent(url, question, metadata=meta)
         except Exception as exc:  # specialist down / transport error — degrade gracefully
             await status(f"{spec} agent unavailable.")
             return f"(The {spec} specialist is currently unavailable: {type(exc).__name__})"
@@ -303,7 +310,8 @@ class OrchestratorExecutor(AgentExecutor):
         answer, error = "", None
         deep_action = None
         try:
-            tools = [_ask_tool(s, A2A_AGENTS[s], collected, status) for s in ORCHESTRATOR_SPECIALISTS]
+            tools = [_ask_tool(s, A2A_AGENTS[s], collected, status, user=user or "")
+                     for s in ORCHESTRATOR_SPECIALISTS]
             if user:
                 tools.extend(_goal_tools(user))
                 tools.append(_schedule_tool(user))

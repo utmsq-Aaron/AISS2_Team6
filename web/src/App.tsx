@@ -12,6 +12,7 @@ import { Spinner } from "./components/Spinner";
 import { getProfile } from "./lib/api";
 import { Analysis } from "./pages/Analysis";
 import { Chat } from "./pages/Chat";
+import { Coach } from "./pages/Coach";
 import { Dashboard } from "./pages/Dashboard";
 import { Health } from "./pages/Health";
 import { RoutesPage } from "./pages/RoutesPage";
@@ -65,6 +66,7 @@ function MainShell() {
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/coach" element={<Coach />} />
               <Route path="/health" element={<Health />} />
               <Route path="/routes" element={<RoutesPage />} />
               <Route path="/analysis" element={<Analysis />} />

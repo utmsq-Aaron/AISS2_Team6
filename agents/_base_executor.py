@@ -76,6 +76,12 @@ def _incoming_depth(context: RequestContext) -> int:
         return 1
 
 
+def _incoming_user(context: RequestContext) -> str:
+    """Signed-in account carried on the inbound A2A message (may be empty)."""
+    meta = getattr(getattr(context, "message", None), "metadata", None) or {}
+    return str(meta.get("user") or "").strip().lower()
+
+
 def _peers_for(name: str, depth: int) -> List[str]:
     """Specialists this agent may consult, given how deep we already are.
 
@@ -146,10 +152,14 @@ class SpecialistExecutor(AgentExecutor):
     """
 
     def __init__(self, name: str, server_names: List[str],
-                 system_prompt: Union[str, Callable[[], str]]) -> None:
+                 system_prompt: Union[str, Callable[[], str]],
+                 extra_tools: Callable[[List[dict]], List[StructuredTool]] | None = None) -> None:
         self.name = name
         self.server_names = server_names
         self.system_prompt = system_prompt
+        # Optional factory for non-MCP tools (given the recorder so their calls
+        # land in the same artifact/trace) — used by the coach's RAG search.
+        self.extra_tools = extra_tools
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         t0 = time.perf_counter()
@@ -172,8 +182,16 @@ class SpecialistExecutor(AgentExecutor):
         peer_artifacts: List[dict] = []
         answer = ""
         try:
-            host = scoped_host(self.server_names)
+            # The signed-in account (A2A metadata) becomes a connection header on
+            # every scoped server — per-user servers (athlete) key their store on
+            # it, the rest ignore it. Identity via header, never as a tool arg.
+            user = _incoming_user(context)
+            headers = ({name: {"X-FitDash-User": user} for name in self.server_names}
+                       if user else None)
+            host = scoped_host(self.server_names, headers=headers)
             tools = await build_tools(host, recorder)
+            if self.extra_tools:
+                tools = tools + self.extra_tools(recorder)
             peers = _peers_for(self.name, depth)
             prompt = self.system_prompt() if callable(self.system_prompt) else self.system_prompt
             if peers:

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -71,15 +72,19 @@ def _resolve_device() -> str:
 # ── Embedding model (lazy singleton) ──────────────────────────────────────────
 
 _model = None  # cached SentenceTransformer, loaded on first use
+_model_lock = threading.Lock()  # agents fire parallel searches — a load race
+# spawns several models at once and has crashed a uvicorn process on MPS
 
 
 def _get_model():
     global _model
     if _model is None:
-        from sentence_transformers import SentenceTransformer  # heavy → lazy
-        name, device = embed_model_name(), _resolve_device()
-        print(f"[fitness] loading embedding model {name} on {device}", flush=True)
-        _model = SentenceTransformer(name, device=device)
+        with _model_lock:
+            if _model is None:
+                from sentence_transformers import SentenceTransformer  # heavy → lazy
+                name, device = embed_model_name(), _resolve_device()
+                print(f"[fitness] loading embedding model {name} on {device}", flush=True)
+                _model = SentenceTransformer(name, device=device)
     return _model
 
 

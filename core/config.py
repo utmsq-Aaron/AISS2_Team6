@@ -29,6 +29,7 @@ MCP_PORTS: dict[str, int] = {
     "telegram":    8106,
     "flythrough":  8107,
     "google_maps": 8108,
+    "athlete":     8109,
 }
 
 
@@ -62,6 +63,7 @@ AGENT_PORTS: dict[str, int] = {
     "context":      9003,
     "route":        9004,
     "fitness":      9005,
+    "coach":        9006,
 }
 
 A2A_AGENTS: dict[str, str] = {name: _a2a_url(name, port) for name, port in AGENT_PORTS.items()}
@@ -80,6 +82,10 @@ AGENT_MCP_SCOPE: dict[str, list[str]] = {
     # fitness has NO MCP scope — it answers from a RAG vector DB of fitness
     # literature (core.fitness_rag), not from a live MCP server.
     "fitness":  [],
+    # coach: structured athlete state + deterministic training math (athlete),
+    # plus strava/garmin to FETCH the real numbers those computations need.
+    # It additionally gets the fitness-RAG search tool locally (see coach_agent).
+    "coach":    ["athlete", "strava", "garmin"],
 }
 
 # Which specialists the orchestrator may delegate to (one A2A ask_* tool each).
@@ -87,5 +93,5 @@ AGENT_MCP_SCOPE: dict[str, list[str]] = {
 # Unreachable specialists degrade gracefully — the orchestrator reports them as
 # unavailable rather than failing the whole turn.
 ORCHESTRATOR_SPECIALISTS: list[str] = [
-    s.strip() for s in os.getenv("ORCHESTRATOR_SPECIALISTS", "recovery,load,context,route,fitness").split(",") if s.strip()
+    s.strip() for s in os.getenv("ORCHESTRATOR_SPECIALISTS", "recovery,load,context,route,fitness,coach").split(",") if s.strip()
 ]

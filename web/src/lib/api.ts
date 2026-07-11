@@ -436,3 +436,95 @@ export const submitFeedback = (text: string, context?: Record<string, unknown>) 
     method: "POST",
     body: JSON.stringify({ text, context }),
   });
+
+// ── Athlete (structured race goal + zones + training plan — the Coach tab) ───
+// Fronted by api/routers/athlete.py over the athlete MCP server. All numbers
+// (zones, prognosis, week volumes) are computed deterministically server-side;
+// plan GENERATION runs on the coach agent — poll the overview while
+// plan_generation === "running".
+
+export interface RaceGoal {
+  name: string;
+  date: string; // ISO
+  distance_km: number;
+  target_time: string | null;
+}
+
+export interface TimelineEvent {
+  id: string;
+  type: "injury" | "illness" | "race" | "note";
+  title: string;
+  start_date: string;
+  end_date: string | null;
+  severity: string | null;
+  blocked_sports: string[];
+}
+
+export interface ZoneSet {
+  hr?: { bands_bpm: Record<string, [number, number]>; basis: string };
+  pace?: { bands_pace: Record<string, [string, string]>; threshold_pace: string; basis: string };
+  pace_source?: { distance_km: number; time_secs: number; label: string | null };
+  computed_at?: string;
+}
+
+export interface PlanWorkout {
+  day: string;
+  title: string;
+  sport: string;
+  zone: string;
+  duration_min?: number;
+  distance_km?: number;
+  pace_range?: string;
+  hr_range?: string;
+  structure?: string;
+  why?: string;
+  source?: string;
+}
+
+export interface PlanWeek {
+  week: number;
+  phase: "base" | "build" | "peak" | "taper";
+  start_date: string;
+  target_km: number;
+  cutback?: boolean;
+  sessions?: number;
+  workouts: PlanWorkout[];
+}
+
+export interface TrainingPlan {
+  race?: RaceGoal;
+  weeks: PlanWeek[];
+  n_weeks?: number;
+  current_week?: number | null;
+  status?: string;
+  saved_at?: string;
+}
+
+export interface AthleteOverview {
+  user: string;
+  profile: { race?: RaceGoal; weekly_sessions?: number; preferred_days?: string[] };
+  timeline: TimelineEvent[];
+  zones: ZoneSet;
+  plan: TrainingPlan | null;
+  days_to_race?: number;
+  prognosis?: { predicted_time: string; target_time: string | null; on_track: boolean | null; basis: string };
+  plan_generation?: string | null; // "running" | "error: …" | null
+}
+
+export const getAthleteOverview = () => http<AthleteOverview>("/athlete/overview");
+
+export const setRaceGoal = (body: {
+  race_name: string; race_date: string; distance_km: number;
+  target_time?: string; weekly_sessions?: number; preferred_days?: string;
+}) => http<{ ok: boolean }>("/athlete/goal", { method: "POST", body: JSON.stringify(body) });
+
+export const addTimelineEvent = (body: {
+  event_type: string; title: string; start_date: string;
+  end_date?: string; severity?: string; blocked_sports?: string;
+}) => http<{ ok: boolean }>("/athlete/timeline", { method: "POST", body: JSON.stringify(body) });
+
+export const deleteTimelineEvent = (id: string) =>
+  http<{ ok: boolean }>(`/athlete/timeline/${id}`, { method: "DELETE" });
+
+export const generatePlan = () =>
+  http<{ ok: boolean; status: string }>("/athlete/plan/generate", { method: "POST" });

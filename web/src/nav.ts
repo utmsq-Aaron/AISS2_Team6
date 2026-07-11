@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  Flag,
   HeartPulse,
   LayoutDashboard,
   Map,
@@ -19,6 +20,7 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/coach", label: "Coach", icon: Flag },
   { to: "/health", label: "Health", icon: HeartPulse },
   { to: "/routes", label: "Routes", icon: Map },
   { to: "/analysis", label: "Analysis", icon: Activity },
