@@ -14,6 +14,7 @@ the embedding model (~90 MB) and embeds the corpus; later runs skip instantly.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -72,6 +73,27 @@ def load_sources() -> dict[str, dict]:
     return {r["slug"]: r for r in json.loads(SOURCES_JSON.read_text(encoding="utf-8"))}
 
 
+def corpus_fingerprint() -> str:
+    """A checkout-deterministic hash of the corpus, for staleness detection.
+
+    sha256 over the sorted ``(filename, byte-size)`` pairs of ``CORPUS_DIR/*.txt``
+    plus ``sources.json``'s byte-size. Names + sizes are identical on every fresh
+    ``git checkout`` (unlike mtimes, which differ per machine), so the same corpus
+    always yields the same fingerprint, and adding/removing/resizing any book (or
+    editing the manifest) changes it — which is exactly the signal ``--if-missing``
+    needs to know the on-disk index is stale.
+    """
+    h = hashlib.sha256()
+    for path in sorted(CORPUS_DIR.glob("*.txt"), key=lambda p: p.name):
+        h.update(path.name.encode("utf-8"))
+        h.update(b"\0")
+        h.update(str(path.stat().st_size).encode("ascii"))
+        h.update(b"\n")
+    sources_size = SOURCES_JSON.stat().st_size if SOURCES_JSON.exists() else 0
+    h.update(f"sources.json\0{sources_size}\n".encode("ascii"))
+    return h.hexdigest()
+
+
 def build() -> int:
     # Lazy import: only needed for an actual build (keeps --if-missing skip cheap).
     from core.fitness_rag import VectorStore, embed, embed_model_name, index_dir
@@ -83,11 +105,14 @@ def build() -> int:
         return 1
 
     chunks: list[dict] = []
+    indexed_slugs: list[str] = []  # slugs that actually contributed ≥1 chunk
     for path in files:
         slug = path.stem
         meta = sources.get(slug, {})
         body = strip_boilerplate(path.read_text(encoding="utf-8", errors="ignore"))
         pieces = chunk_text(body)
+        if pieces:
+            indexed_slugs.append(slug)
         for i, piece in enumerate(pieces):
             chunks.append({
                 "id":        f"{slug}#{i}",
@@ -107,10 +132,17 @@ def build() -> int:
         "dim":        int(vectors.shape[1]) if vectors.size else 0,
         "count":      len(chunks),
         "normalized": True,
+        "corpus_fingerprint": corpus_fingerprint(),
+        # Derive the book list from the slugs actually indexed in the chunk loop
+        # (not blindly from sources.json), so the manifest can never claim books
+        # whose text never made it into the index.
         "books": [
-            {"slug": s, "title": r.get("title"), "author": r.get("author"),
-             "gutenberg_id": r.get("gutenberg_id"), "license": r.get("license")}
-            for s, r in sources.items()
+            {"slug": s,
+             "title": sources.get(s, {}).get("title", s),
+             "author": sources.get(s, {}).get("author", "Unknown"),
+             "gutenberg_id": sources.get(s, {}).get("gutenberg_id"),
+             "license": sources.get(s, {}).get("license", "Public domain (Project Gutenberg)")}
+            for s in indexed_slugs
         ],
     }
     out = index_dir()
@@ -128,8 +160,23 @@ def main() -> int:
 
     from core.fitness_rag import VectorStore, index_dir
     if args.if_missing and VectorStore.exists(index_dir()):
-        print(f"✓ Fitness index already present at {index_dir()} — skipping build.")
-        return 0
+        # Skip only when the on-disk index matches the current corpus. The stored
+        # fingerprint lets every machine self-heal: if books were added/changed
+        # since the index was built, the fingerprints differ and we rebuild.
+        # Read manifest.json directly (not VectorStore.load) so the skip stays
+        # cheap — no need to load the multi-MB vectors matrix just to compare.
+        manifest_path = index_dir() / VectorStore.MANIFEST
+        stored_fp = None
+        if manifest_path.exists():
+            stored_fp = json.loads(
+                manifest_path.read_text(encoding="utf-8")).get("corpus_fingerprint")
+        current_fp = corpus_fingerprint()
+        if stored_fp == current_fp:
+            print(f"✓ Fitness index already present at {index_dir()} "
+                  f"(corpus unchanged) — skipping build.")
+            return 0
+        n_books = len(sorted(CORPUS_DIR.glob("*.txt")))
+        print(f"corpus changed ({n_books} books) — rebuilding index…")
 
     # Auto-fetch the corpus if it's missing (e.g. a fresh checkout without it).
     if not any(CORPUS_DIR.glob("*.txt")):

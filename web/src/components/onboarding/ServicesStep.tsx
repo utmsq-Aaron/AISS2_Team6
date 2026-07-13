@@ -25,6 +25,7 @@ import { ErrorBox } from "../Spinner";
 function StatusDot({ connected }: { connected: boolean }) {
   return (
     <span
+      aria-hidden="true"
       className={
         "inline-flex h-2 w-2 shrink-0 rounded-full " + (connected ? "bg-metric-green" : "bg-text-muted/40")
       }
@@ -201,6 +202,7 @@ function GarminMiniCard({ connected }: { connected: boolean }) {
         <div className="mt-2 flex flex-col gap-1.5">
           <input
             className="fd-input w-full py-1.5 text-sm"
+            aria-label="Garmin email"
             placeholder="Garmin email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -208,6 +210,7 @@ function GarminMiniCard({ connected }: { connected: boolean }) {
           <input
             className="fd-input w-full py-1.5 text-sm"
             type="password"
+            aria-label="Garmin password"
             placeholder="Garmin password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -235,6 +238,7 @@ function GarminMiniCard({ connected }: { connected: boolean }) {
           <p className="text-xs text-metric-amber">Two-factor code required</p>
           <input
             className="fd-input w-full py-1.5 text-sm"
+            aria-label="Garmin two-factor code"
             placeholder="123456"
             value={mfaCode}
             onChange={(e) => setMfaCode(e.target.value)}

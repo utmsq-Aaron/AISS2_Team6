@@ -11,9 +11,10 @@ as a DataPart artifact so the orchestrator can assemble the UI trace.
 
 from __future__ import annotations
 
+import functools
 import os
 import time
-from typing import Awaitable, Callable, List
+from typing import Awaitable, Callable, List, Union
 
 import uvicorn
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -136,9 +137,16 @@ def _peer_tool(caller: str, peer: str, depth: int, sink: List[dict],
 
 
 class SpecialistExecutor(AgentExecutor):
-    """Runs one domain specialist; emits {agent, duration_ms, tool_calls} artifact."""
+    """Runs one domain specialist; emits {agent, duration_ms, tool_calls} artifact.
 
-    def __init__(self, name: str, server_names: List[str], system_prompt: str) -> None:
+    ``system_prompt`` may be a plain string OR a zero-arg callable rebuilt PER
+    request (e.g. ``functools.partial(specialist_prompt, name)``). The callable
+    form keeps the "Today is …" line fresh on a long-running server; a bare string
+    is still accepted (the tests construct with strings).
+    """
+
+    def __init__(self, name: str, server_names: List[str],
+                 system_prompt: Union[str, Callable[[], str]]) -> None:
         self.name = name
         self.server_names = server_names
         self.system_prompt = system_prompt
@@ -167,7 +175,7 @@ class SpecialistExecutor(AgentExecutor):
             host = scoped_host(self.server_names)
             tools = await build_tools(host, recorder)
             peers = _peers_for(self.name, depth)
-            prompt = self.system_prompt
+            prompt = self.system_prompt() if callable(self.system_prompt) else self.system_prompt
             if peers:
                 tools = tools + [_peer_tool(self.name, p, depth, peer_artifacts, status) for p in peers]
                 prompt = prompt + _peer_prompt(peers)
@@ -237,6 +245,9 @@ _SKILLS = {
 def run_specialist(name: str) -> None:
     """Entry point for ``python -m agents.<name>_agent``."""
     sid, sname, sdesc, tags = _SKILLS[name]
-    executor = SpecialistExecutor(name, AGENT_MCP_SCOPE[name], specialist_prompt(name))
+    # Rebuild the prompt PER request so the "Today is …" line never goes stale on a
+    # long-running uvicorn server (GH #13).
+    executor = SpecialistExecutor(name, AGENT_MCP_SCOPE[name],
+                                  functools.partial(specialist_prompt, name))
     run_agent_server(name, executor, description=sdesc,
                      skill_id=sid, skill_name=sname, skill_desc=sdesc, tags=tags)

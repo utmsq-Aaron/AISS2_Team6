@@ -9,15 +9,18 @@ Endpoint:      http://127.0.0.1:8103/mcp   (override host/port via env)
 """
 
 import json
+import math
 import os
 import random
 import sys
 import threading
 import time
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import polyline
 import requests
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
@@ -31,13 +34,23 @@ from auth.strava_oauth import OAuth2Manager  # noqa: E402
 HOST = os.getenv("STRAVA_MCP_HOST", "127.0.0.1")
 PORT = int(os.getenv("STRAVA_MCP_PORT", "8103"))
 
+# On a cache miss we fetch the FULL activity history (the paging loop stops when
+# Strava runs out), never just the caller's limit — otherwise the persisted cache
+# would be truncated to whichever caller happened to fill it first (GH #12).
+_CACHE_FILL_LIMIT = 2000
+
+# Geocoding API v4 — the same billing-free endpoint the routes server uses; lets
+# place-based activity search resolve "my hike at Odda" to coordinates.
+GOOGLE_GEOCODE_URL = "https://geocode.googleapis.com/v4/geocode/address/{address}"
+
 mcp = FastMCP(
     "strava",
     instructions=(
-        "Strava activity data: list activities, aggregate stats, training trends, "
-        "personal bests, yearly breakdown, gear info, GPS streams, activity detail, "
-        "performance trend analysis over time, activity vs. baseline comparison, "
-        "and training load (ATL/CTL/TSB)."
+        "Strava activity data: list activities, search the full history by place or "
+        "name keyword, aggregate stats, training trends, personal bests, yearly "
+        "breakdown, gear info, GPS streams, activity detail, performance trend "
+        "analysis over time, activity vs. baseline comparison, and training load "
+        "(ATL/CTL/TSB)."
     ),
     host=HOST,
     port=PORT,
@@ -176,31 +189,38 @@ class StravaAPI:
                 return file_data[:limit]
             return self._filter_activities(file_data, sport_type, start_date, end_date)[:limit]
 
-        data = await self.get_activities(
-            limit=limit, sport_type=sport_type,
-            start_date=start_date, end_date=end_date,
-        )
+        # Cache MISS: always fetch the FULL history (independent of the caller's
+        # limit) so the persisted cache is complete and caller-order-independent.
+        # The paging loop in get_activities stops once Strava runs out, so this
+        # costs no more than the data actually contains.
+        full = await self.get_activities(limit=_CACHE_FILL_LIMIT)
 
         # Enrich missing polylines before caching. Strava's list endpoint omits
         # summary_polyline for many activities; the detail endpoint always has it.
-        # Skip sports that never have outdoor GPS to avoid wasting API calls.
+        # Skip sports that never have outdoor GPS to avoid wasting API calls, and
+        # CAP the enrichment at the newest N rows — each is a separate detail call,
+        # so enriching thousands of old activities would blow the rate limit.
         _NO_GPS_TYPES = {"Swim", "WeightTraining", "Yoga", "Crossfit", "Elliptical",
                          "StairStepper", "RockClimbing", "VirtualRide", "VirtualRun"}
-        if is_unfiltered:
-            no_poly = [
-                a for a in data
-                if not (a.get("map") or {}).get("summary_polyline", "")
-                and a.get("type") not in _NO_GPS_TYPES
-            ]
-            for a in no_poly:
-                poly = await self.get_activity_polyline(a["id"])
-                if poly:
-                    if not a.get("map"):
-                        a["map"] = {}
-                    a["map"]["summary_polyline"] = poly
-            self._save_file_cache(data)
+        _ENRICH_LIMIT = 300
+        no_poly = [
+            a for a in full
+            if not (a.get("map") or {}).get("summary_polyline", "")
+            and a.get("type") not in _NO_GPS_TYPES
+        ][:_ENRICH_LIMIT]
+        for a in no_poly:
+            poly = await self.get_activity_polyline(a["id"])
+            if poly:
+                if not a.get("map"):
+                    a["map"] = {}
+                a["map"]["summary_polyline"] = poly
 
-        return data
+        self._save_file_cache(full)
+
+        # Return the same filtered/sliced view the cache-hit path would have.
+        if is_unfiltered:
+            return full[:limit]
+        return self._filter_activities(full, sport_type, start_date, end_date)[:limit]
 
     @staticmethod
     def _filter_activities(
@@ -328,6 +348,102 @@ def _pace_str(speed_kmh: float) -> Optional[str]:
     return f"{mins}:{secs:02d}"
 
 
+# ── Place-based search helpers (GH #12) ───────────────────────────────────────
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in kilometres between two (lat, lon) points."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 12742.0 * math.asin(math.sqrt(a))
+
+
+def _google_geocode_key() -> str:
+    """Geocoding API key — same env fallback chain as servers/routes_mcp.py."""
+    key = os.getenv("GOOGLE_GEOCODING_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY", "")
+    if not key:
+        raise RuntimeError(
+            "GOOGLE_GEOCODING_API_KEY not set. Enable the Geocoding API and get a key at "
+            "https://developers.google.com/maps/documentation/geocoding/get-api-key")
+    return key
+
+
+def _geocode_place(query: str, region: str = "de") -> Dict[str, Any]:
+    """Resolve a place name to coordinates via Google Geocoding API v4.
+
+    Modelled on servers/routes_mcp.py ``_geocode``: a comma makes Google parse the
+    text as a STRUCTURED address and prefer a literal street match, so place-name
+    queries geocode far better comma-free — normalise commas to spaces. Returns
+    {"lat", "lon", "name"} on success or {"error": …}. Never raises.
+    """
+    q = (query or "").strip()
+    if not q:
+        return {"error": "empty query"}
+    q = " ".join(q.replace(",", " ").split())
+    try:
+        url = GOOGLE_GEOCODE_URL.format(address=urllib.parse.quote(q, safe=""))
+        resp = requests.get(url, params={"regionCode": (region or "").upper() or None},
+                            headers={"X-Goog-Api-Key": _google_geocode_key()}, timeout=15)
+    except RuntimeError as exc:  # missing key — surface clearly
+        return {"error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 — network/transport
+        return {"error": f"geocode request failed: {type(exc).__name__}: {exc}"}
+    if not resp.ok:
+        return {"error": f"Google geocode HTTP {resp.status_code}: {resp.text[:200]}"}
+    results = resp.json().get("results", [])
+    if not results:
+        return {"error": "geocode: no results", "query": q}
+    top = results[0]
+    loc = top.get("location", {})
+    return {
+        "query": q,
+        "lat": loc.get("latitude"),
+        "lon": loc.get("longitude"),
+        "name": top.get("formattedAddress"),
+    }
+
+
+def _activity_sample_points(a: Dict) -> List[List[float]]:
+    """Up to 3 sample (lat, lon) points for an activity — first/middle/last.
+
+    Sourced from start_latlng / end_latlng when present, else decoded from the
+    map summary_polyline (Strava's live cache carries polylines but empty
+    start_latlng). Returns [] when the activity has no usable GPS at all.
+    """
+    pts: List[List[float]] = []
+    start = a.get("start_latlng") or []
+    end = a.get("end_latlng") or []
+    if isinstance(start, (list, tuple)) and len(start) == 2:
+        pts.append([float(start[0]), float(start[1])])
+    if isinstance(end, (list, tuple)) and len(end) == 2:
+        pts.append([float(end[0]), float(end[1])])
+
+    if len(pts) < 3:
+        encoded = (a.get("map") or {}).get("summary_polyline") or (a.get("map") or {}).get("polyline") or ""
+        if encoded:
+            try:
+                decoded = polyline.decode(encoded)  # list of (lat, lon)
+            except Exception:
+                decoded = []
+            if decoded:
+                first = list(decoded[0])
+                mid = list(decoded[len(decoded) // 2])
+                last = list(decoded[-1])
+                for p in (first, mid, last):
+                    if p not in pts:
+                        pts.append([float(p[0]), float(p[1])])
+    return pts[:3]
+
+
+def _min_distance_km(a: Dict, lat: float, lon: float) -> Optional[float]:
+    """Minimum haversine distance (km) from a target point to an activity's
+    sample points, or None if the activity has no usable GPS."""
+    samples = _activity_sample_points(a)
+    if not samples:
+        return None
+    return min(_haversine_km(lat, lon, p[0], p[1]) for p in samples)
+
+
 # ── Tools ─────────────────────────────────────────────────────────────────────
 
 @mcp.tool()
@@ -368,6 +484,9 @@ async def get_activities(
     rows = []
     for a in activities:
         spd = round(a.get("average_speed", 0) * 3.6, 2)
+        start_pt = _activity_sample_points(a)
+        start_lat = start_pt[0][0] if start_pt else None
+        start_lon = start_pt[0][1] if start_pt else None
         rows.append({
             "id":                a.get("id"),
             "name":              a.get("name", "Unknown"),
@@ -390,9 +509,119 @@ async def get_activities(
             "pr_count":          a.get("pr_count", 0),
             "kudos":             a.get("kudos_count", 0),
             "gear_id":           a.get("gear_id"),
+            "start_lat":         start_lat,   # from start_latlng or first polyline point; None if no GPS
+            "start_lon":         start_lon,
             "map_polyline":      (a.get("map") or {}).get("summary_polyline", ""),
         })
     return {"total_count": len(rows), "activities": rows}
+
+
+@mcp.tool()
+async def search_activities(
+    location: Optional[str] = None,
+    keyword: Optional[str] = None,
+    sport_type: Optional[str] = None,
+    radius_km: float = 30,
+    limit: int = 20,
+) -> Dict[str, Any]:
+    """Search the user's FULL activity history for activities at or near a named
+    place, or by name keyword — use this for "my hike at X" / "did I ever run in
+    Y"; prefer it over get_activities for any place-based lookup; never conclude an
+    activity doesn't exist without calling this.
+
+    It scans the entire cached history (not just recent activities) and matches two
+    ways: by GPS proximity to a geocoded `location`, and by `keyword`/`location`
+    tokens against the activity name. GPS matching decodes each activity's map
+    polyline, so it works even when the place is not written in the name. If a
+    location can't be geocoded it degrades to name-only matching (geocode_error is
+    set) — it never hard-errors.
+
+    Args:
+        location: A place name, e.g. "Odda", "Turmberg", "Lake Garda". Geocoded,
+                  then activities within `radius_km` are returned nearest-first.
+        keyword: Substring to match against activity names (case-insensitive).
+        sport_type: Restrict to one type, e.g. 'Run', 'Ride', 'Hike', 'Walk'.
+        radius_km: GPS match radius around the geocoded location (default 30 km).
+        limit: Max activities to return (default 20).
+
+    Returns compact rows {id, name, type, date, distance_km, elevation_gain_m,
+    matched_by ("gps"|"name"|"both"), distance_from_location_km} sorted by
+    proximity then recency, plus top-level location_resolved / geocode_error.
+    """
+    if not location and not keyword:
+        return {"error": "Provide a location and/or a keyword to search for."}
+
+    activities = await _api.get_activities_cached(limit=_CACHE_FILL_LIMIT)
+    if sport_type:
+        st = sport_type.lower()
+        activities = [
+            a for a in activities
+            if (a.get("type") or "").lower() == st
+            or (a.get("sport_type") or "").lower() == st
+        ]
+
+    # Name tokens: both the keyword and the location text can match the name.
+    name_tokens = [t.lower() for t in ((keyword or ""), (location or "")) if t.strip()]
+
+    # Geocode the location (best-effort). Failure → name-only, never a hard error.
+    geo_lat = geo_lon = None
+    location_resolved: Optional[str] = None
+    geocode_error: Optional[str] = None
+    if location:
+        geo = _geocode_place(location)
+        if geo.get("error") or geo.get("lat") is None or geo.get("lon") is None:
+            geocode_error = geo.get("error") or "geocode: no coordinates"
+        else:
+            geo_lat, geo_lon = float(geo["lat"]), float(geo["lon"])
+            location_resolved = geo.get("name") or location
+
+    matches: List[Dict[str, Any]] = []
+    for a in activities:
+        name = a.get("name", "") or ""
+        name_hit = any(tok in name.lower() for tok in name_tokens) if name_tokens else False
+
+        dist_km: Optional[float] = None
+        gps_hit = False
+        if geo_lat is not None:
+            dist_km = _min_distance_km(a, geo_lat, geo_lon)
+            gps_hit = dist_km is not None and dist_km <= radius_km
+
+        if not (name_hit or gps_hit):
+            continue
+
+        if name_hit and gps_hit:
+            matched_by = "both"
+        elif gps_hit:
+            matched_by = "gps"
+        else:
+            matched_by = "name"
+
+        matches.append({
+            "id":                       a.get("id"),
+            "name":                     name or "Unknown",
+            "type":                     a.get("type", "Unknown"),
+            "date":                     a.get("start_date", "")[:10],
+            "distance_km":              round(a.get("distance", 0) / 1000, 2),
+            "elevation_gain_m":         a.get("total_elevation_gain", 0),
+            "matched_by":               matched_by,
+            "distance_from_location_km": round(dist_km, 2) if dist_km is not None else None,
+        })
+
+    # Sort by proximity (nearest first; name-only matches, whose distance is None,
+    # sort last), then by recency (newest date first) as the tiebreak. Python's
+    # sort is stable, so sort by the tiebreak first, then by the primary key.
+    matches.sort(key=lambda m: m.get("date", ""), reverse=True)
+    matches.sort(
+        key=lambda m: m["distance_from_location_km"] if m["distance_from_location_km"] is not None else float("inf")
+    )
+    matches = matches[:limit]
+
+    return {
+        "total_count":       len(matches),
+        "location_resolved": location_resolved,
+        "geocode_error":     geocode_error,
+        "activities":        matches,
+    }
 
 
 @mcp.tool()
@@ -704,7 +933,8 @@ async def get_activity_detail(
 
     Identify by numeric ID or by a name substring. When using activity_name,
     returns the MOST RECENT activity whose name contains the keyword (searches
-    the 100 most recent activities, newest first).
+    the user's FULL activity history, newest first). For a place-based lookup
+    where the place may not be in the name ('my hike at X'), use search_activities.
 
     Args:
         activity_id: Strava numeric activity ID.
@@ -718,10 +948,11 @@ async def get_activity_detail(
     if activity_id:
         a = await _api.get_activity_by_id(int(activity_id))
     else:
-        activities = await _api.get_activities_cached(limit=100)
+        activities = await _api.get_activities_cached(limit=_CACHE_FILL_LIMIT)
         matches = [x for x in activities if name_search in x.get("name", "").lower()]
         if not matches:
-            return {"error": f"No activity found matching '{name_search}'"}
+            return {"error": f"No activity found matching '{name_search}'. For a "
+                             f"place-based lookup ('my hike at X'), use search_activities."}
         a = await _api.get_activity_by_id(int(matches[0]["id"]))
 
     avg_spd = round(a.get("average_speed", 0) * 3.6, 2)
@@ -785,10 +1016,14 @@ async def get_activity_detail(
     }
 
 
+_OVERLAY_METRICS = {"heartrate", "pace", "altitude", "cadence", "power"}
+
+
 @mcp.tool()
 async def get_activity_streams(
     activity_id: Optional[int] = None,
     activity_name: Optional[str] = None,
+    overlay: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Raw GPS streams for one activity: lat/lon, altitude (m), elapsed time (s),
     distance, heart rate, cadence, velocity, and power (watts).
@@ -799,11 +1034,16 @@ async def get_activity_streams(
 
     Identify by numeric activity_id OR by activity_name substring. When using
     activity_name, returns the MOST RECENT activity whose name contains the
-    keyword — no prior get_activities call is needed.
+    keyword — searches the user's FULL activity history, no prior get_activities
+    call is needed. For a place-based lookup where the place may not be in the
+    name ('my hike at X'), use search_activities.
 
     Args:
         activity_id: Strava numeric activity ID.
         activity_name: Short keyword extracted from the activity name (e.g. 'karlsruhe', 'trail run'). NOT the full user sentence.
+        overlay: pass 'heartrate' | 'pace' | 'altitude' | 'cadence' | 'power' when the user
+                 asks to see the track coloured by that metric — the chat map renders the
+                 gradient automatically.
     """
     if not activity_id and not activity_name:
         return {"error": "Provide activity_id or activity_name"}
@@ -811,11 +1051,17 @@ async def get_activity_streams(
     name_search = (activity_name or "").strip().lower()
     act_meta = None
 
+    # Normalise + validate the requested overlay metric; drop silently if unknown.
+    overlay_norm = (overlay or "").strip().lower() or None
+    if overlay_norm not in _OVERLAY_METRICS:
+        overlay_norm = None
+
     if not activity_id:
-        acts = await _api.get_activities_cached(limit=100)
+        acts = await _api.get_activities_cached(limit=_CACHE_FILL_LIMIT)
         matches = [a for a in acts if name_search in a.get("name", "").lower()]
         if not matches:
-            return {"error": f"No activity found matching '{name_search}'"}
+            return {"error": f"No activity found matching '{name_search}'. For a "
+                             f"place-based lookup ('my hike at X'), use search_activities."}
         act_meta    = matches[0]
         activity_id = int(act_meta["id"])
 
@@ -868,6 +1114,7 @@ async def get_activity_streams(
         "has_cadence":  bool(cadence),
         "has_velocity": bool(velocity),
         "has_watts":    bool(watts),
+        "overlay":      overlay_norm,   # echoed so the chat map can auto-colour the track
         "points":       points,
     }
 
@@ -1035,10 +1282,11 @@ async def compare_activity_to_baseline(
     if activity_id:
         target = await _api.get_activity_by_id(int(activity_id))
     else:
-        candidates = await _api.get_activities_cached(limit=100)
+        candidates = await _api.get_activities_cached(limit=_CACHE_FILL_LIMIT)
         matches = [a for a in candidates if name_kw in a.get("name", "").lower()]
         if not matches:
-            return {"error": f"No activity found matching '{name_kw}'"}
+            return {"error": f"No activity found matching '{name_kw}'. For a "
+                             f"place-based lookup ('my hike at X'), use search_activities."}
         target = await _api.get_activity_by_id(int(matches[0]["id"]))
 
     sport   = target.get("type", "")

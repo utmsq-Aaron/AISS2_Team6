@@ -6,15 +6,17 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { PlotlyChart } from "../PlotlyChart";
-import { RouteMap, type PolyLineSpec } from "../RouteMap";
+import { RouteMap } from "../RouteMap";
 import { Spinner, EmptyState } from "../Spinner";
 import { callTool } from "../../lib/api";
 import {
-  ACCENT, C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_ROSE, TEXT_MUTED,
+  C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_ROSE, MAP_FINISH, MAP_START, TEXT_MUTED,
 } from "../../theme/tokens";
 import { useUiStore } from "../../store/uiStore";
+import {
+  type MetricKey, METRIC_DEFS, coloredSegments, plainRoute, Legend,
+} from "../trackOverlay";
 
-const MAX_ROUTE_SEGMENTS = 200;
 const MAX_PACE_OUTLIER_MIN_KM = 20;
 
 interface StreamPoint {
@@ -36,108 +38,6 @@ interface StreamData {
   has_velocity?: boolean;
   has_watts?: boolean;
   error?: string;
-}
-
-// key -> [label, invert, highLabel, lowLabel]
-// high is always red (top of legend), low is always green (bottom)
-type MetricKey = "hr" | "velocity" | "ele" | "cadence" | "watts";
-const METRIC_DEFS: Record<MetricKey, [string, boolean, string, string]> = {
-  hr: ["Heart Rate", false, "High HR", "Low HR"],
-  velocity: ["Pace", true, "Slow", "Fast"], // invert: fast (high vel) = green
-  ele: ["Elevation", false, "High Elev.", "Low Elev."],
-  cadence: ["Cadence", false, "High Cadence", "Low Cadence"],
-  watts: ["Power", false, "High Power", "Low Power"],
-};
-
-// Green (0.0) -> Yellow (0.5) -> Red (1.0)
-function gradientColor(t: number): string {
-  t = Math.max(0, Math.min(1, t));
-  let r: number, g: number, b: number;
-  if (t <= 0.5) {
-    const s = t * 2;
-    r = Math.round(34 + s * (252 - 34));
-    g = Math.round(197 + s * (211 - 197));
-    b = Math.round(94 + s * (77 - 94));
-  } else {
-    const s = (t - 0.5) * 2;
-    r = Math.round(252 + s * (239 - 252));
-    g = Math.round(211 + s * (68 - 211));
-    b = Math.round(77 + s * (68 - 77));
-  }
-  const hex = (n: number) => n.toString(16).padStart(2, "0");
-  return `#${hex(r)}${hex(g)}${hex(b)}`;
-}
-
-function norm(val: number, lo: number, hi: number, invert = false): number {
-  if (hi === lo) return 0.5;
-  const t = (val - lo) / (hi - lo);
-  return invert ? 1.0 - t : t;
-}
-
-/** Build colored route polyline segments (each segment its own colour). */
-function coloredSegments(points: StreamPoint[], metric: MetricKey, invert: boolean): PolyLineSpec[] {
-  let valid = points.filter(
-    (p) => p.lat != null && p.lon != null && (p as unknown as Record<string, unknown>)[metric] != null,
-  );
-  if (valid.length < 2) return [];
-  // Downsample for performance — keep the last point to preserve route end
-  if (valid.length > MAX_ROUTE_SEGMENTS + 1) {
-    const step = valid.length / MAX_ROUTE_SEGMENTS;
-    const sampled: StreamPoint[] = [];
-    for (let i = 0; i < MAX_ROUTE_SEGMENTS; i++) sampled.push(valid[Math.floor(i * step)]);
-    sampled.push(valid[valid.length - 1]);
-    valid = sampled;
-  }
-  const values = valid.map((p) => Number((p as unknown as Record<string, unknown>)[metric]));
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
-  const segs: PolyLineSpec[] = [];
-  for (let i = 0; i < valid.length - 1; i++) {
-    segs.push({
-      coords: [
-        [valid[i].lat as number, valid[i].lon as number],
-        [valid[i + 1].lat as number, valid[i + 1].lon as number],
-      ],
-      color: gradientColor(norm(values[i], lo, hi, invert)),
-      weight: 5,
-      opacity: 0.92,
-    });
-  }
-  return segs;
-}
-
-function plainRoute(points: StreamPoint[]): PolyLineSpec[] {
-  const valid = points.filter((p) => p.lat != null && p.lon != null);
-  if (valid.length < 2) return [];
-  return [
-    {
-      coords: valid.map((p) => [p.lat as number, p.lon as number]),
-      color: ACCENT,
-      weight: 4,
-      opacity: 0.9,
-    },
-  ];
-}
-
-function Legend({ highLabel, lowLabel }: { highLabel: string; lowLabel: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1.5 pt-12">
-      <span className="text-[10px] text-center" style={{ color: TEXT_MUTED }}>
-        {highLabel}
-      </span>
-      <div
-        className="rounded"
-        style={{
-          width: 16,
-          height: 110,
-          background: "linear-gradient(to bottom,#EF4444,#FCDA4D,#22C55E)",
-        }}
-      />
-      <span className="text-[10px] text-center" style={{ color: TEXT_MUTED }}>
-        {lowLabel}
-      </span>
-    </div>
-  );
 }
 
 // ── Stream charts ──────────────────────────────────────────────────────────
@@ -381,6 +281,7 @@ export function ActivityAnalysis({ activityId }: { activityId: number }) {
             <button
               key={k}
               onClick={() => setChosen(k)}
+              aria-pressed={activeKey === k}
               className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                 activeKey === k ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
               }`}
@@ -398,13 +299,14 @@ export function ActivityAnalysis({ activityId }: { activityId: number }) {
               polylines={segs}
               markers={[
                 ...(startPt
-                  ? [{ lat: startPt.lat as number, lon: startPt.lon as number, color: "#2ECC71", label: "Start" }]
+                  ? [{ lat: startPt.lat as number, lon: startPt.lon as number, color: MAP_START, label: "Start" }]
                   : []),
                 ...(finishPt
-                  ? [{ lat: finishPt.lat as number, lon: finishPt.lon as number, color: "#E74C3C", label: "Finish" }]
+                  ? [{ lat: finishPt.lat as number, lon: finishPt.lon as number, color: MAP_FINISH, label: "Finish" }]
                   : []),
               ]}
               height={440}
+              ariaLabel="Activity route map"
             />
           ) : (
             <EmptyState message="Not enough GPS points for route visualization." />

@@ -17,7 +17,7 @@ export default {
           header: "#0B1219",
         },
         border: { DEFAULT: "#1E293B" },
-        text: { primary: "#F8FAFC", muted: "#94A3B8" },
+        text: { primary: "#F8FAFC", muted: "#94A3B8", faint: "#64748B" },
         // Status + per-metric chart colours
         metric: {
           green: "#10B981", // status positive — emerald

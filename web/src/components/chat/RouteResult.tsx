@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { callTool } from "../../lib/api";
-import { C_GREEN, C_RED } from "../../theme/tokens";
+import { C_GREEN, C_ORANGE, C_RED, ISO_BLUE, TRAIL_COLORS } from "../../theme/tokens";
 import { Card } from "../Card";
 import { MetricCard } from "../MetricCard";
 import { RouteMap } from "../RouteMap";
 import type { MarkerSpec, PolyLineSpec } from "../RouteMap";
+import {
+  type MetricKey, METRIC_DEFS, coloredSegments, plainRoute, Legend,
+} from "../trackOverlay";
 
 // Mirror of ui/chat.py `_render_route_map` (and core/route_render.py, used by the
 // Telegram bridge). Handles the tools the orchestrator surfaces via trace.route_data
@@ -14,8 +17,6 @@ import type { MarkerSpec, PolyLineSpec } from "../RouteMap";
 // get_isochrone, and an activity's recorded GPS track (get_activity_streams /
 // get_activity_gps_track) — the last of which Telegram already drew but the web
 // dropped, so the same run/ride map now renders in both.
-
-const TRAIL_COLORS = ["#f97316", "#1E96FF", "#00C864", "#C832C8", "#FFC800"];
 
 interface Waypoint {
   lat: number;
@@ -96,7 +97,7 @@ export function extractPois(trace: Record<string, unknown>): Poi[] {
         if (lat == null || lon == null) continue;
         const id = (p.place_id as string) ?? `${lat},${lon}`;
         if (byId.has(id)) continue;
-        const name = (p.name as string) || "Ort";
+        const name = (p.name as string) || "Place";
         const address = (p.address as string) || "";
         const poi: Poi = {
           lat,
@@ -141,8 +142,8 @@ function poiPopupHtml(p: Poi, distM: number): string {
     address ? `<span style="opacity:.75">${esc(address)}</span>` : "",
     p.rating != null ? `★ ${esc(p.rating)}${p.ratingCount != null ? ` (${esc(p.ratingCount)})` : ""}` : "",
     today ? esc(today) : "",
-    p.openNow != null ? (p.openNow ? "Jetzt geöffnet" : "Derzeit geschlossen") : "",
-    `~${Math.round(distM)} m von der Route`,
+    p.openNow != null ? (p.openNow ? "Open now" : "Currently closed") : "",
+    `~${Math.round(distM)} m from the route`,
   ].filter(Boolean);
   return lines.join("<br/>");
 }
@@ -159,10 +160,12 @@ export function RouteResult({
   routeData,
   pois = [],
   question = "",
+  answer = "",
 }: {
   routeData: RouteData;
   pois?: Poi[];
   question?: string;
+  answer?: string;
 }) {
   const tool = routeData.tool || "";
   const data = (routeData.data || {}) as Record<string, unknown>;
@@ -171,13 +174,13 @@ export function RouteResult({
     return <SingleRoute data={data} pois={pois} question={question} />;
   }
   if (tool === "explore_trails") {
-    return <TrailSelection initial={data as TrailsData} />;
+    return <TrailSelection initial={data as TrailsData} answer={answer} />;
   }
   if (tool === "get_isochrone") {
     return <Isochrone data={data} />;
   }
   if (tool === "get_activity_streams" || tool === "get_activity_gps_track") {
-    return <ActivityTrack data={data} />;
+    return <ActivityTrack data={data} question={question} />;
   }
   return null;
 }
@@ -192,7 +195,7 @@ function SingleRoute({
   pois?: Poi[];
   question?: string;
 }) {
-  // "Route mit Umweg": planning a variant through a chosen POI replaces the shown
+  // "Route with detour": planning a variant through a chosen POI replaces the shown
   // route locally (the original stays one click away).
   const [alt, setAlt] = useState<{ data: Record<string, unknown>; via: string } | null>(null);
   const [planning, setPlanning] = useState<string | null>(null);
@@ -248,7 +251,7 @@ function SingleRoute({
   const coords: [number, number][] = waypoints.map((wp) => [wp.lat, wp.lon]);
 
   const polylines: PolyLineSpec[] = [
-    { coords, color: "#f97316", weight: 5, opacity: 0.9 },
+    { coords, color: C_ORANGE, weight: 5, opacity: 0.9 },
   ];
   const markers: MarkerSpec[] = [
     { lat: coords[0][0], lon: coords[0][1], color: C_GREEN, label: "Start" },
@@ -256,7 +259,7 @@ function SingleRoute({
       lat: coords[coords.length - 1][0],
       lon: coords[coords.length - 1][1],
       color: C_RED,
-      label: "Ziel",
+      label: "Finish",
     },
   ];
 
@@ -275,7 +278,7 @@ function SingleRoute({
     markers.push({
       lat: poi.lat,
       lon: poi.lon,
-      color: "#1E96FF",
+      color: ISO_BLUE,
       label: poi.label,
       html: poiPopupHtml(poi, dist),
     }),
@@ -334,21 +337,27 @@ function SingleRoute({
     <div className="mt-3 space-y-3">
       {alt && (
         <div className="flex items-center justify-between gap-3 text-xs text-text-muted">
-          <span>Route mit Umweg über {alt.via.split(" · ")[0]}</span>
+          <span>Route with detour via {alt.via.split(" · ")[0]}</span>
           <button
             type="button"
             className="rounded-md border border-border bg-bg-surface px-2 py-1 hover:border-accent"
             onClick={() => setAlt(null)}
           >
-            ← Originalroute
+            ← Original route
           </button>
         </div>
       )}
-      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
+      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" ariaLabel="Route map" />
       <div className="grid grid-cols-3 gap-3">
-        <MetricCard label="Distanz" value={distanceKm != null ? `${distanceKm} km` : "?"} />
+        <MetricCard label="Distance" value={distanceKm != null ? `${distanceKm} km` : "?"} />
         <MetricCard
-          label={personalKmh != null && distanceKm != null ? "Dauer (dein Tempo)" : "Dauer"}
+          label={
+            personalKmh != null && distanceKm != null
+              ? "Duration (your pace)"
+              : sport === "Run"
+                ? "Walking time"
+                : "Duration"
+          }
           value={
             personalKmh != null && distanceKm != null
               ? `~${Math.round((distanceKm / personalKmh) * 60)} min`
@@ -358,13 +367,13 @@ function SingleRoute({
           }
         />
         <MetricCard
-          label="Höhenmeter"
+          label="Elevation gain"
           value={elevation?.gain_m != null ? `${Math.round(elevation.gain_m)} m` : "?"}
         />
       </div>
       {nearby.length > 0 && (
         <Card className="px-4 py-3">
-          <div className="fd-label mb-2">Orte an der Strecke</div>
+          <div className="fd-label mb-2">Places along the route</div>
           <div className="space-y-2">
             {nearby.map(({ poi, dist }) => {
               const name = poi.label.split(" · ")[0];
@@ -374,10 +383,10 @@ function SingleRoute({
                   <span className="min-w-0 truncate text-text-primary">
                     <span
                       className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle"
-                      style={{ background: "#1E96FF" }}
+                      style={{ background: ISO_BLUE }}
                     />
                     {name}
-                    <span className="ml-2 text-xs text-text-muted">~{Math.round(dist)} m abseits</span>
+                    <span className="ml-2 text-xs text-text-muted">~{Math.round(dist)} m off route</span>
                   </span>
                   <button
                     type="button"
@@ -385,7 +394,7 @@ function SingleRoute({
                     onClick={() => planVia(poi)}
                     className="shrink-0 rounded-md border border-border bg-bg-surface px-2 py-1 text-xs text-text-primary hover:border-accent disabled:opacity-50"
                   >
-                    {active ? "✓ im Umweg" : planning === poi.label ? "plane…" : "Route mit Umweg"}
+                    {active ? "✓ on detour" : planning === poi.label ? "planning…" : "Route with detour"}
                   </button>
                 </div>
               );
@@ -399,11 +408,18 @@ function SingleRoute({
 
 // ── Activity GPS track (get_activity_streams / get_activity_gps_track) ─────────
 // An activity's recorded GPS track: { points: [{lat, lon, …}] }. The Strava tool
-// also returns an `activity` metadata block (name/distance/pace/HR); the Garmin
-// one returns points only. Mirrors core/route_render.py's track branch.
+// also returns an `activity` metadata block (name/distance/pace/HR) plus per-point
+// hr/velocity/cadence/watts and has_* flags; the Garmin one returns lat/lon/ele
+// points only. Mirrors core/route_render.py's track branch — and now the Dashboard's
+// ActivityAnalysis overlay: the map can be coloured by any available metric.
 interface TrackPoint {
   lat?: number | null;
   lon?: number | null;
+  ele?: number | null;
+  hr?: number | null;
+  velocity?: number | null;
+  cadence?: number | null;
+  watts?: number | null;
 }
 interface ActivityMeta {
   name?: string;
@@ -413,25 +429,80 @@ interface ActivityMeta {
   avg_hr?: number | null;
 }
 
-function ActivityTrack({ data }: { data: Record<string, unknown> }) {
-  const points = (data.points as TrackPoint[] | undefined) ?? [];
+// The tool's `overlay` echo ('heartrate'|'pace'|'altitude'|'cadence'|'power')
+// mapped to this component's internal MetricKey.
+const OVERLAY_TO_METRIC: Record<string, MetricKey> = {
+  heartrate: "hr",
+  pace: "velocity",
+  altitude: "ele",
+  cadence: "cadence",
+  power: "watts",
+};
+
+/** Infer the metric the user asked to colour by from their question (de + en). */
+function metricFromQuestion(question: string): MetricKey | null {
+  const q = (question || "").toLowerCase();
+  if (/puls|herzfrequenz|heart|\bhr\b/.test(q)) return "hr";
+  if (/pace|tempo|geschwind/.test(q)) return "velocity";
+  if (/höhe|altitude|elevation|steigung|profil/.test(q)) return "ele";
+  if (/kadenz|trittfrequenz|cadence/.test(q)) return "cadence";
+  if (/watt|leistung|power/.test(q)) return "watts";
+  return null;
+}
+
+function ActivityTrack({
+  data,
+  question = "",
+}: {
+  data: Record<string, unknown>;
+  question?: string;
+}) {
+  const points = useMemo(() => (data.points as TrackPoint[] | undefined) ?? [], [data]);
   const coords: [number, number][] = points
     .filter((p) => p.lat != null && p.lon != null)
     .map((p) => [p.lat as number, p.lon as number]);
+
+  // Which overlay metrics does this track actually carry? has_* flags come from
+  // the Strava streams tool; the ele check also covers Garmin tracks (no flags).
+  const available = useMemo(() => {
+    const out: MetricKey[] = [];
+    if (data.has_hr) out.push("hr");
+    if (data.has_velocity) out.push("velocity");
+    if (points.some((p) => p.ele != null)) out.push("ele");
+    if (data.has_cadence) out.push("cadence");
+    if (data.has_watts) out.push("watts");
+    return out;
+  }, [data, points]);
+
+  // Initial selection: (a) the tool's echoed overlay, (b) regex on the question,
+  // (c) plain track — but only auto-activate a metric that is actually available.
+  const initial = useMemo<MetricKey | null>(() => {
+    const echoed = OVERLAY_TO_METRIC[String(data.overlay ?? "").toLowerCase()];
+    const guessed = echoed ?? metricFromQuestion(question);
+    return guessed && available.includes(guessed) ? guessed : null;
+  }, [data, question, available]);
+
+  // `chosen === undefined` means "user hasn't clicked yet" → use `initial`.
+  const [chosen, setChosen] = useState<MetricKey | null | undefined>(undefined);
+  const activeKey: MetricKey | null =
+    chosen === undefined ? initial : chosen && available.includes(chosen) ? chosen : null;
+
   if (coords.length < 2) return null; // nothing drawable (e.g. an indoor activity)
 
-  const polylines: PolyLineSpec[] = [
-    { coords, color: "#f97316", weight: 4, opacity: 0.9 },
-  ];
+  const polylines: PolyLineSpec[] = activeKey
+    ? coloredSegments(points, activeKey, METRIC_DEFS[activeKey][1])
+    : plainRoute(points);
   const markers: MarkerSpec[] = [
     { lat: coords[0][0], lon: coords[0][1], color: C_GREEN, label: "Start" },
     {
       lat: coords[coords.length - 1][0],
       lon: coords[coords.length - 1][1],
       color: C_RED,
-      label: "Ziel",
+      label: "Finish",
     },
   ];
+
+  const [, , highLbl, lowLbl] = activeKey ? METRIC_DEFS[activeKey] : ["", false, "", ""];
 
   const meta = (data.activity as ActivityMeta | undefined) ?? {};
   const distanceKm = meta.distance_km;
@@ -447,38 +518,96 @@ function ActivityTrack({ data }: { data: Record<string, unknown> }) {
           {meta.date ? ` · ${meta.date}` : ""}
         </div>
       )}
-      <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" />
+
+      {/* Metric selector — "Track" (plain) + one button per available overlay */}
+      {available.length > 0 && (
+        <div className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-bg-surface p-1">
+          <button
+            type="button"
+            onClick={() => setChosen(null)}
+            aria-pressed={activeKey === null}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              activeKey === null ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            Track
+          </button>
+          {available.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setChosen(k)}
+              aria-pressed={activeKey === k}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                activeKey === k ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {METRIC_DEFS[k][0]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <div className="min-w-0 flex-1">
+          <RouteMap polylines={polylines} markers={markers} height={420} basemap="osm" ariaLabel="Activity route map" />
+        </div>
+        {activeKey !== null && polylines.length > 0 && (
+          <Legend highLabel={highLbl as string} lowLabel={lowLbl as string} />
+        )}
+      </div>
+
       {hasMetrics && (
         <div className="grid grid-cols-3 gap-3">
-          <MetricCard label="Distanz" value={distanceKm != null ? `${distanceKm} km` : "?"} />
+          <MetricCard label="Distance" value={distanceKm != null ? `${distanceKm} km` : "?"} />
           <MetricCard label="Pace" value={pace ? `${pace} /km` : "?"} />
-          <MetricCard label="Ø HF" value={avgHr != null ? `${Math.round(avgHr)} bpm` : "?"} />
+          <MetricCard label="Avg HR" value={avgHr != null ? `${Math.round(avgHr)} bpm` : "?"} />
         </div>
       )}
     </div>
   );
 }
 
+// Default-select the trail the answer actually recommends (GitHub #11): the
+// longest trail name (≥4 chars, casefold substring) found in the answer wins.
+// Falls back to 0 when nothing matches — the previous hard default.
+function trailIndexFromAnswer(trails: Trail[] | undefined, answer: string): number {
+  const a = (answer || "").toLowerCase();
+  if (!a || !trails?.length) return 0;
+  let bestIdx = 0;
+  let bestLen = 0;
+  trails.forEach((t, i) => {
+    const nm = (t.name || "").trim().toLowerCase();
+    if (nm.length >= 4 && a.includes(nm) && nm.length > bestLen) {
+      bestLen = nm.length;
+      bestIdx = i;
+    }
+  });
+  return bestIdx;
+}
+
 // ── Trail selection (explore_trails) — selection + pagination ─────────────────
-function TrailSelection({ initial }: { initial: TrailsData }) {
+function TrailSelection({ initial, answer = "" }: { initial: TrailsData; answer?: string }) {
   // Pagination via local state — mirrors st.session_state cache + page index.
   const [pageData, setPageData] = useState<TrailsData>(initial);
   const [pageStart, setPageStart] = useState<number>(initial.offset ?? 0);
-  const [selIdx, setSelIdx] = useState<number>(0);
+  const [selIdx, setSelIdx] = useState<number>(() =>
+    trailIndexFromAnswer(initial.trails, answer),
+  );
   const [loading, setLoading] = useState(false);
 
-  // Reset when a fresh tool result arrives.
+  // Reset when a fresh tool result arrives — re-derive the answer-matched trail.
   useEffect(() => {
     setPageData(initial);
     setPageStart(initial.offset ?? 0);
-    setSelIdx(0);
-  }, [initial]);
+    setSelIdx(trailIndexFromAnswer(initial.trails, answer));
+  }, [initial, answer]);
 
   const trails = pageData.trails ?? [];
   if (!trails.length) {
     return (
       <Card className="mt-3 px-4 py-3 text-sm text-text-muted">
-        Keine Trails gefunden.
+        No trails found.
       </Card>
     );
   }
@@ -559,7 +688,7 @@ function TrailSelection({ initial }: { initial: TrailsData }) {
   if (sb) {
     const clat = ((sb.min_lat ?? 0) + (sb.max_lat ?? 0)) / 2;
     const clon = ((sb.min_lon ?? 0) + (sb.max_lon ?? 0)) / 2;
-    markers.push({ lat: clat, lon: clon, color: "#f97316", label: selTrail.name });
+    markers.push({ lat: clat, lon: clon, color: C_ORANGE, label: selTrail.name });
   }
 
   const from = pageStart + 1;
@@ -619,20 +748,21 @@ function TrailSelection({ initial }: { initial: TrailsData }) {
         polygons={polygons}
         height={450}
         basemap="osm"
+        ariaLabel="Trail map"
       />
 
       {/* Selected-trail metrics */}
       <div className="grid grid-cols-3 gap-3">
-        <MetricCard label="Distanz" value={`${selTrail?.distance ?? "?"} km`} />
-        <MetricCard label="Typ" value={selTrail?.route_type ?? "?"} />
-        <MetricCard label="Netzwerk" value={selTrail?.network ?? "?"} />
+        <MetricCard label="Distance" value={`${selTrail?.distance ?? "?"} km`} />
+        <MetricCard label="Type" value={selTrail?.route_type ?? "?"} />
+        <MetricCard label="Network" value={selTrail?.network ?? "?"} />
       </div>
       {selTrail?.description && (
         <p className="text-xs text-text-muted">{selTrail.description}</p>
       )}
       {selTrail?.website && (
         <p className="text-xs text-text-muted">
-          Mehr Infos:{" "}
+          More info:{" "}
           <a
             href={selTrail.website}
             target="_blank"
@@ -657,12 +787,12 @@ function Isochrone({ data }: { data: Record<string, unknown> }) {
     { type: "Feature", geometry, properties: {} },
   ];
   const markers: MarkerSpec[] = [
-    { lat: centre.lat, lon: centre.lon, color: "#1E96FF", label: "Start" },
+    { lat: centre.lat, lon: centre.lon, color: ISO_BLUE, label: "Start" },
   ];
 
   return (
     <div className="mt-3">
-      <RouteMap polygons={polygons} markers={markers} height={420} basemap="osm" />
+      <RouteMap polygons={polygons} markers={markers} height={420} basemap="osm" ariaLabel="Reachability map" />
     </div>
   );
 }

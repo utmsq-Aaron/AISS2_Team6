@@ -64,6 +64,7 @@ export function PhotoStep({ onNext }: { onNext: () => void }) {
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
+        aria-label="Choose a photo"
         className="fd-card-hover mt-6 flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border border-border bg-bg-surface text-text-muted transition-colors hover:border-accent/50"
       >
         {previewUrl ? (
@@ -77,6 +78,7 @@ export function PhotoStep({ onNext }: { onNext: () => void }) {
         type="file"
         accept={ACCEPTED}
         onChange={handlePick}
+        aria-label="Profile photo file"
         className="hidden"
       />
       <button

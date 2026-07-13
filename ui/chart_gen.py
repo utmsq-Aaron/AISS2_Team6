@@ -19,6 +19,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from core.llm import completion_params
 from ui.shared import MODEL, get_openai_client
 
 # Tools whose results are visualised elsewhere (maps / flythroughs) — skip here.
@@ -116,12 +117,12 @@ def _generate_code(
         "- Handle None/missing values gracefully (dropna, fillna(0), or skip)\n"
         "- Return ONLY the Python code in ```python … ```"
     )
+    model = _model or MODEL
     try:
         resp = (_client or get_openai_client()).chat.completions.create(
-            model=(_model or MODEL),
+            model=model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=1800,
+            **completion_params(model, 1800),
         )
         return resp.choices[0].message.content or ""
     except Exception:
@@ -137,12 +138,12 @@ def _fix_code(code: str, error: str, var_names: List[str], _client=None, _model:
         f"Available variables: {', '.join(var_names)}\n"
         "Return ONLY the corrected ```python … ``` block, nothing else."
     )
+    model = _model or MODEL
     try:
         resp = (_client or get_openai_client()).chat.completions.create(
-            model=(_model or MODEL),
+            model=model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=1600,
+            **completion_params(model, 1600),
         )
         return _extract_code(resp.choices[0].message.content or "")
     except Exception:

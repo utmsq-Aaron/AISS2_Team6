@@ -92,7 +92,13 @@ export function ChatSidebar({ open = false, onClose }: { open?: boolean; onClose
                     title={c.title}
                   >
                     {streaming && (
-                      <span className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent align-middle" />
+                      <>
+                        <span
+                          className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent align-middle"
+                          aria-hidden="true"
+                        />
+                        <span className="sr-only">answer in progress</span>
+                      </>
                     )}
                     {isCoach && <CoachChatBadge source={c.source} unread={c.unread} />}
                     <span className="min-w-0 truncate">{c.title || "New chat"}</span>
@@ -103,6 +109,7 @@ export function ChatSidebar({ open = false, onClose }: { open?: boolean; onClose
                       type="button"
                       onClick={() => void remove(c.id)}
                       title="Delete chat"
+                      aria-label="Delete chat"
                       className="shrink-0 text-text-muted opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
                     >
                       <Trash2 size={14} strokeWidth={2} />

@@ -105,6 +105,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="What's not working?"
+              aria-label="Feedback message"
               rows={5}
               disabled={submitting}
               className="fd-input mt-4 w-full resize-none disabled:cursor-not-allowed disabled:opacity-60"
@@ -133,7 +134,7 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
               >
                 {submitting ? (
                   <span className="flex items-center gap-2">
-                    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#0B1219]/30 border-t-[#0B1219]" />
+                    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-bg-app/30 border-t-bg-app" />
                     Sending…
                   </span>
                 ) : (

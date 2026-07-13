@@ -24,15 +24,22 @@ import re
 import secrets
 import threading
 import time
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Cookie, Depends, Header, HTTPException
 
 _ROOT = Path(__file__).resolve().parent.parent
 _ACCOUNTS_FILE = _ROOT / "data" / "accounts.json"
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+# The signed token is delivered to browsers as this httpOnly cookie (set in
+# api/routers/auth.verify_otp) so JavaScript can no longer read it — an XSS can
+# no longer exfiltrate a durable 30-day credential from localStorage. See the
+# residual-risk notes on ``current_user`` below.
+SESSION_COOKIE = "fitdash_session"
 
 TOKEN_TTL = 30 * 24 * 60 * 60   # signed-token lifetime (30 days)
 OTP_TTL = 10 * 60               # a code is valid for 10 minutes
@@ -96,6 +103,20 @@ def register_or_touch(email: str) -> bool:
 
 def _secret() -> bytes:
     return os.getenv("AUTH_SECRET", "fitdash-dev-secret").encode()
+
+
+# Warn once at import time if AUTH_SECRET is unset: the token secret then falls
+# back to a hardcoded dev string, so anyone who knows it can FORGE tokens (incl.
+# admin ones). This mirrors the Node BFF's PIN-secret warning (server/index.js).
+# We warn rather than refuse to start so ./dev_stack.sh stays friction-free —
+# AUTH_SECRET MUST be set in any real/production deployment (residual risk (e)).
+if "AUTH_SECRET" not in os.environ:
+    warnings.warn(
+        "AUTH_SECRET is not set — auth tokens are signed with a public dev "
+        "fallback and can be forged. Set AUTH_SECRET in .env before deploying.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 
 def _b64(raw: bytes) -> str:
@@ -174,10 +195,38 @@ def verify_otp(email: str, code: str) -> bool:
 
 # ── FastAPI dependencies ──────────────────────────────────────────────────────
 
-def current_user(authorization: str = Header(default="")) -> str:
-    """Require a valid ``Authorization: Bearer <token>`` — returns the user's email."""
+def current_user(
+    authorization: str = Header(default=""),
+    fitdash_session: str = Cookie(default=""),
+) -> str:
+    """Authenticate a request — returns the user's email.
+
+    Dual acceptance: an ``Authorization: Bearer <token>`` header is tried FIRST
+    (so curl, scripts, tests, and the token-in-login-response rollback path keep
+    working), then the httpOnly ``fitdash_session`` cookie the browser sends
+    automatically. The SPA now relies solely on the cookie — it no longer stores
+    or replays the token from JavaScript.
+
+    Residual risks of this stateless-token design (documented, not all fixed):
+      (a) An XSS can still make authenticated calls *in the page* — httpOnly
+          prevents durable token THEFT, not live in-session abuse.
+      (b) Tokens are stateless HMAC with no revocation, so a stolen cookie stays
+          valid until ``exp`` (up to TOKEN_TTL = 30 days). Shortening TOKEN_TTL
+          is an optional follow-up.
+      (c) The token is still returned once in the verify-otp JSON body (compat +
+          rollback for non-browser clients); that is a one-shot at login, not
+          persistent storage.
+      (d) CSRF is mitigated by the cookie's SameSite=Lax only. That is adequate
+          because every authenticated mutating route is POST/PUT/PATCH/DELETE and
+          the sole mutating public GET (/settings/google/callback) is protected by
+          the OAuth ``state`` parameter.
+      (e) AUTH_SECRET must be set in production (warned about at import above,
+          still not hard-enforced).
+    """
     prefix = "bearer "
     token = authorization[len(prefix):].strip() if authorization.lower().startswith(prefix) else ""
+    if not token:
+        token = (fitdash_session or "").strip()
     email = verify_token(token) if token else None
     if email is None:
         raise HTTPException(status_code=401, detail="Not authenticated")

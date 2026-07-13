@@ -69,6 +69,7 @@ export function Header() {
             if (e.key === "Escape") setOpen(false);
           }}
           placeholder="Search pages…"
+          aria-label="Search pages"
           className="fd-input w-full py-1.5 pl-9 text-sm"
         />
         {open && query && (
@@ -105,6 +106,7 @@ export function Header() {
         <button
           onClick={logout}
           title="Sign out"
+          aria-label="Sign out"
           className="ml-1 flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-bg-app hover:text-text-primary"
         >
           <LogOut size={14} strokeWidth={2} />

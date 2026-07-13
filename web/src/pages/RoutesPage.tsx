@@ -7,7 +7,7 @@ import { Card, SectionLabel } from "../components/Card";
 import { Spinner, ErrorBox, EmptyState } from "../components/Spinner";
 import { RouteMap, type PolyLineSpec, type MarkerSpec } from "../components/RouteMap";
 import { callTool } from "../lib/api";
-import { CHART_COLORS, C_GREEN, C_RED } from "../theme/tokens";
+import { CHART_COLORS, C_GREEN, C_ORANGE, C_RED, ISO_BLUE } from "../theme/tokens";
 
 // ── Preset locations (ui/routes_explorer.py PRESETS) ───────────────────────────
 const PRESETS: Record<string, [number, number]> = {
@@ -242,6 +242,7 @@ export function RoutesPage() {
             <SectionLabel>Starting point</SectionLabel>
             <select
               className="fd-input mt-1 w-full"
+              aria-label="Starting point"
               value={presetChoice}
               onChange={(e) => setPresetChoice(e.target.value)}
             >
@@ -282,11 +283,12 @@ export function RoutesPage() {
             )}
           </div>
 
-          {/* Funktion picker (2/5) */}
+          {/* Function picker (2/5) */}
           <div className="md:col-span-2">
-            <SectionLabel>Funktion</SectionLabel>
+            <SectionLabel>Function</SectionLabel>
             <select
               className="fd-input mt-1 w-full"
+              aria-label="Function"
               value={tool}
               onChange={(e) => setTool(e.target.value as ToolName)}
             >
@@ -474,7 +476,7 @@ export function RoutesPage() {
           )}
           {resultTool === "get_isochrone" && <IsochroneResultView data={result as IsochroneResult} />}
 
-          {/* Rohdaten (JSON) */}
+          {/* Raw data (JSON) */}
           <RawData data={result} />
         </div>
       )}
@@ -522,7 +524,7 @@ function RouteResultView({ tool, data }: { tool: ToolName; data: RouteResult }) 
     return [
       {
         coords: waypoints.map((wp) => [wp.lat, wp.lon] as [number, number]),
-        color: "#f97316",
+        color: C_ORANGE,
         weight: 5,
         opacity: 0.9,
       },
@@ -534,7 +536,7 @@ function RouteResultView({ tool, data }: { tool: ToolName; data: RouteResult }) 
     const b = waypoints[waypoints.length - 1];
     return [
       { lat: a.lat, lon: a.lon, color: C_GREEN, label: "Start" },
-      { lat: b.lat, lon: b.lon, color: C_RED, label: "Ziel" },
+      { lat: b.lat, lon: b.lon, color: C_RED, label: "Finish" },
     ];
   }, [waypoints]);
 
@@ -552,9 +554,9 @@ function RouteResultView({ tool, data }: { tool: ToolName; data: RouteResult }) 
         <MetricCard label="Waypoints" value={wpCount} />
       </div>
       {waypoints.length ? (
-        <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" />
+        <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" ariaLabel="Planned route map" />
       ) : (
-        <EmptyState message="Keine Wegpunkte in der Antwort." />
+        <EmptyState message="No waypoints in the response." />
       )}
     </Card>
   );
@@ -602,13 +604,13 @@ function TrailsResultView({
     if (!b) return [];
     const clat = ((b.min_lat ?? 0) + (b.max_lat ?? 0)) / 2;
     const clon = ((b.min_lon ?? 0) + (b.max_lon ?? 0)) / 2;
-    return [{ lat: clat, lon: clon, color: "#FF9800", label: t?.name }];
+    return [{ lat: clat, lon: clon, color: C_ORANGE, label: t?.name }];
   }, [trails, sel]);
 
   if (!trails.length) {
     return (
       <Card className="p-5">
-        <EmptyState message="Keine Trails gefunden" />
+        <EmptyState message="No trails found" />
       </Card>
     );
   }
@@ -650,25 +652,25 @@ function TrailsResultView({
         })}
       </div>
 
-      <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" />
+      <RouteMap polylines={polylines} markers={markers} height={480} basemap="osm" ariaLabel="Trail map" />
 
       {/* Selected trail details */}
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <MetricCard label="Distanz" value={`${t.distance ?? "?"} km`} />
-        <MetricCard label="Typ" value={t.route_type ?? "?"} />
-        <MetricCard label="Netzwerk" value={t.network ?? "?"} />
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <MetricCard label="Distance" value={`${t.distance ?? "?"} km`} />
+        <MetricCard label="Type" value={t.route_type ?? "?"} />
+        <MetricCard label="Network" value={t.network ?? "?"} />
       </div>
       {t.description && <p className="mt-2 text-xs text-text-muted">{t.description}</p>}
       {t.website && (
         <p className="mt-1 text-xs text-text-muted">
-          Mehr Infos:{" "}
+          More info:{" "}
           <a href={t.website} target="_blank" rel="noreferrer" className="text-accent hover:underline">
             {t.website}
           </a>
         </p>
       )}
 
-      {/* Mehr laden / Load more */}
+      {/* Load more */}
       {data.has_more && (
         <div className="mt-4">
           <button className="fd-btn-secondary" onClick={onLoadMore} disabled={loadingMore}>
@@ -690,7 +692,7 @@ function IsochroneResultView({ data }: { data: IsochroneResult }) {
     return [{ type: "Feature", geometry, properties: {} }];
   }, [geometry]);
   const markers: MarkerSpec[] = centre
-    ? [{ lat: centre.lat, lon: centre.lon, color: "#1E96FF", label: "Start" }]
+    ? [{ lat: centre.lat, lon: centre.lon, color: ISO_BLUE, label: "Start" }]
     : [];
 
   return (
@@ -700,7 +702,7 @@ function IsochroneResultView({ data }: { data: IsochroneResult }) {
         <MetricCard label="Label" value={data.range_label ?? "?"} />
       </div>
       {geometry && centre ? (
-        <RouteMap polygons={polygons} markers={markers} height={480} basemap="osm" />
+        <RouteMap polygons={polygons} markers={markers} height={480} basemap="osm" ariaLabel="Reachability map" />
       ) : (
         <EmptyState message="No isochrone data." />
       )}
@@ -708,7 +710,7 @@ function IsochroneResultView({ data }: { data: IsochroneResult }) {
   );
 }
 
-// ── Rohdaten (JSON) expander ─────────────────────────────────────────────────────
+// ── Raw data (JSON) expander ─────────────────────────────────────────────────────
 function RawData({ data }: { data: ToolResult }) {
   const [open, setOpen] = useState(false);
 
@@ -717,7 +719,7 @@ function RawData({ data }: { data: ToolResult }) {
     const wps = d["waypoints"] as unknown[] | undefined;
     if (Array.isArray(wps) && wps.length > 10) {
       d["waypoints"] = wps.slice(0, 5);
-      d["waypoints_truncated"] = `… ${wps.length - 5} weitere`;
+      d["waypoints_truncated"] = `… ${wps.length - 5} more`;
     }
     const trails = d["trails"] as Trail[] | undefined;
     if (Array.isArray(trails)) {
@@ -735,9 +737,10 @@ function RawData({ data }: { data: ToolResult }) {
       <button
         className="flex w-full items-center gap-2 text-left text-sm font-medium text-text-primary"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
       >
-        <span className="text-text-muted">{open ? "▼" : "▶"}</span>
-        Rohdaten (JSON)
+        <span className="text-text-muted" aria-hidden="true">{open ? "▼" : "▶"}</span>
+        Raw data (JSON)
       </button>
       {open && (
         <pre className="mt-3 max-h-96 overflow-auto rounded-lg border border-border bg-bg-surface p-3 text-xs text-text-muted">

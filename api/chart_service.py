@@ -14,7 +14,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from core.llm import get_llm_client
+from core.llm import completion_params, get_llm_client
 
 # Tools whose results are visualised as maps/flythroughs elsewhere — skip here.
 # Geo/place data (routes, geocodes, POI searches) is map material, not chart
@@ -110,11 +110,11 @@ def _generate_code(question: str, answer_text: str, var_lines: List[str],
         resp = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=1800,
+            **completion_params(model, 1800),
         )
         return resp.choices[0].message.content or ""
-    except Exception:
+    except Exception as exc:
+        print(f"[chart_service] chart LLM call failed: {type(exc).__name__}: {exc}", flush=True)
         return None
 
 
@@ -131,11 +131,11 @@ def _fix_code(code: str, error: str, var_names: List[str]) -> Optional[str]:
         resp = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=1600,
+            **completion_params(model, 1600),
         )
         return _extract_code(resp.choices[0].message.content or "")
-    except Exception:
+    except Exception as exc:
+        print(f"[chart_service] chart LLM call failed: {type(exc).__name__}: {exc}", flush=True)
         return None
 
 
@@ -196,6 +196,7 @@ def generate_figures(trace: Dict) -> List[dict]:
     code = _code_cache[run_id]
 
     # ── Execute + one Reflexion fix ───────────────────────────────────────────
+    last_error = ""
     for attempt in range(2):
         figures, error = _try_execute(code, data_vars)
         if figures:
@@ -208,11 +209,14 @@ def generate_figures(trace: Dict) -> List[dict]:
                 fig.update_layout(height=320)
                 out.append(json.loads(fig.to_json()))
             return out
+        last_error = error or last_error
         if error and attempt == 0:
             fixed = _fix_code(code, error, list(data_vars.keys()))
             if fixed and fixed != code:
                 code = fixed
                 _code_cache[run_id] = fixed
 
+    print(f"[chart_service] giving up on run {run_id}: {last_error or 'no figures produced'}",
+          flush=True)
     _failed.add(run_id)
     return []

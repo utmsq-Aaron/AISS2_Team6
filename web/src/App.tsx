@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { CoachPoll } from "./components/CoachPoll";
+import { RouteErrorBoundary } from "./components/ErrorBoundary";
 import { FeedbackButton } from "./components/FeedbackButton";
 import { GoalPoll } from "./components/GoalPoll";
 import { Header } from "./components/Header";
@@ -20,13 +21,16 @@ import { Sync } from "./pages/Sync";
 import { useAuthStore } from "./store/authStore";
 
 export default function App() {
-  const token = useAuthStore((s) => s.token);
-  if (!token) return <Login />;
+  // Gate on the persisted user hint (the session lives in an httpOnly cookie the
+  // JS can't see). If the cookie is actually stale, the first authenticated call
+  // 401s and forceLogout() clears this and drops back here.
+  const user = useAuthStore((s) => s.user);
+  if (!user) return <Login />;
 
   return <Authenticated />;
 }
 
-// Split out so the profile query (which requires a token) only mounts once
+// Split out so the profile query (which requires a session) only mounts once
 // logged in — hooks can't be called conditionally in the same component.
 function Authenticated() {
   const profileQuery = useQuery({ queryKey: ["profile"], queryFn: getProfile });
@@ -57,16 +61,18 @@ function MainShell() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5">
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/health" element={<Health />} />
-            <Route path="/routes" element={<RoutesPage />} />
-            <Route path="/analysis" element={<Analysis />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/sync" element={<Sync />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
+          <RouteErrorBoundary>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/health" element={<Health />} />
+              <Route path="/routes" element={<RoutesPage />} />
+              <Route path="/analysis" element={<Analysis />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/sync" element={<Sync />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </RouteErrorBoundary>
         </main>
       </div>
       <FeedbackButton />

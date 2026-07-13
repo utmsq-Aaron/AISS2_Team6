@@ -45,7 +45,7 @@ function Segmented({
             className={
               "px-2.5 py-1 text-xs font-medium transition-colors " +
               (value === o.v
-                ? "bg-accent text-[#0B1219]"
+                ? "bg-accent text-bg-app"
                 : "text-text-muted hover:bg-bg-surface hover:text-text-primary")
             }
           >
@@ -57,18 +57,37 @@ function Segmented({
   );
 }
 
+/** Return `v` if it's one of the segmented control's legal values, else `fallback`. */
+function pick(v: string | undefined, options: Opt[], fallback: string): string {
+  return v && options.some((o) => o.v === v) ? v : fallback;
+}
+
 export default function FlythroughModal({
   activityId,
   activityName,
+  initialMode,
+  initialOrientation,
+  initialResolution,
+  duration,
   onClose,
 }: {
   activityId: number;
   activityName?: string;
+  // Optional seeds from a chat "flythrough" action — validated against the
+  // segmented-control options; anything invalid falls back to the defaults.
+  initialMode?: string;
+  initialOrientation?: string;
+  initialResolution?: string;
+  duration?: number;
   onClose: () => void;
 }) {
-  const [mode, setMode] = useState("satellite_3d");
-  const [orientation, setOrientation] = useState("landscape");
-  const [resolution, setResolution] = useState("2K");
+  const [mode, setMode] = useState(() => pick(initialMode, MODES, "satellite_3d"));
+  const [orientation, setOrientation] = useState(() =>
+    pick(initialOrientation, ORIENTATIONS, "landscape"),
+  );
+  const [resolution, setResolution] = useState(() =>
+    pick(initialResolution, RESOLUTIONS, "2K"),
+  );
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,7 +98,7 @@ export default function FlythroughModal({
     setLoading(true);
     setError(null);
     setHtml(null);
-    fetchFlythroughHtml(activityId, { mode, orientation, resolution })
+    fetchFlythroughHtml(activityId, { mode, orientation, resolution, duration })
       .then((h) => {
         if (!cancelled) setHtml(h);
       })
@@ -92,7 +111,7 @@ export default function FlythroughModal({
     return () => {
       cancelled = true;
     };
-  }, [activityId, mode, orientation, resolution]);
+  }, [activityId, mode, orientation, resolution, duration]);
 
   // Esc closes the viewer.
   useEffect(() => {

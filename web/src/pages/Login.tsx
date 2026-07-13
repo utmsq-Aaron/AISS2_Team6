@@ -47,8 +47,10 @@ export function Login() {
     setBusy(true);
     setError(null);
     try {
+      // The server set the httpOnly session cookie on this response; we only need
+      // the identity hints for the UI (r.token is ignored — no longer stored).
       const r = await verifyOtp(email.trim(), code.trim());
-      setLogin(r.token, r.user, r.is_admin);
+      setLogin(r.user, r.is_admin);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid code.");
     } finally {

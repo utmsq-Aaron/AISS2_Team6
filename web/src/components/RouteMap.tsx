@@ -1,7 +1,18 @@
 import maplibregl from "maplibre-gl";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { ACCENT, DARK_MAP_ATTR, DARK_MAP_TILES } from "../theme/tokens";
+import {
+  ACCENT,
+  DARK_MAP_ATTR,
+  DARK_MAP_TILES,
+  ISO_BLUE,
+  ISO_BLUE_DARK,
+  OSM_MAP_ATTR,
+  OSM_MAP_TILES,
+  SATELLITE_MAP_ATTR,
+  SATELLITE_MAP_TILES,
+  WHITE,
+} from "../theme/tokens";
 
 // A polyline given as [lat, lon][] (folium order) — converted to GeoJSON [lon, lat].
 export interface PolyLineSpec {
@@ -19,24 +30,22 @@ export interface MarkerSpec {
   html?: string;
 }
 
-interface RouteMapProps {
-  polylines?: PolyLineSpec[];
-  markers?: MarkerSpec[];
-  polygons?: GeoJSON.Feature[]; // already in [lon, lat] GeoJSON order
-  height?: number;
-  basemap?: "dark" | "osm";
-  className?: string;
-}
+// The three selectable basemaps. `basemap` prop is the INITIAL value; the
+// in-map switcher lets the user change it at runtime.
+export type BasemapId = "dark" | "osm" | "satellite";
 
-function rasterStyle(basemap: "dark" | "osm"): maplibregl.StyleSpecification {
-  const tiles =
-    basemap === "osm"
-      ? ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"]
-      : [DARK_MAP_TILES];
+export const BASEMAPS: Record<BasemapId, { label: string; tiles: string; attr: string }> = {
+  dark: { label: "Dark", tiles: DARK_MAP_TILES, attr: DARK_MAP_ATTR },
+  osm: { label: "Map", tiles: OSM_MAP_TILES, attr: OSM_MAP_ATTR },
+  satellite: { label: "Satellite", tiles: SATELLITE_MAP_TILES, attr: SATELLITE_MAP_ATTR },
+};
+
+function rasterStyle(b: BasemapId): maplibregl.StyleSpecification {
+  const { tiles, attr } = BASEMAPS[b];
   return {
     version: 8,
     sources: {
-      base: { type: "raster", tiles, tileSize: 256, attribution: DARK_MAP_ATTR },
+      base: { type: "raster", tiles: [tiles], tileSize: 256, attribution: attr },
     },
     layers: [{ id: "base", type: "raster", source: "base" }],
   };
@@ -58,24 +67,48 @@ function lineFeatures(polylines: PolyLineSpec[]): GeoJSON.FeatureCollection {
   };
 }
 
+interface RouteMapProps {
+  polylines?: PolyLineSpec[];
+  markers?: MarkerSpec[];
+  polygons?: GeoJSON.Feature[]; // already in [lon, lat] GeoJSON order
+  height?: number;
+  /** Initial basemap. The user can switch at runtime via the overlay control. */
+  basemap?: BasemapId;
+  /** Show the basemap switcher (Dark/Map/Satellite). Default true. */
+  showBasemapSwitcher?: boolean;
+  /** Accessible name for the map region (screen readers). */
+  ariaLabel?: string;
+  className?: string;
+}
+
 export function RouteMap({
   polylines = [],
   markers = [],
   polygons = [],
   height = 420,
   basemap = "dark",
+  showBasemapSwitcher = true,
+  ariaLabel = "Interactive map",
   className = "",
 }: RouteMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markerObjs = useRef<maplibregl.Marker[]>([]);
+  // The data-sync logic, hoisted so the style-switch effect can re-run it
+  // (setStyle drops added sources/layers). `fit` gates the fitBounds call so a
+  // pure basemap switch doesn't re-frame the map.
+  const applyRef = useRef<(fit: boolean) => void>();
+  // Which basemap is currently shown. Seeded from the prop; user-switchable.
+  const [active, setActive] = useState<BasemapId>(basemap);
+  // Skip the style-switch effect on the initial render (map already built with it).
+  const firstStyleRun = useRef(true);
 
   // Create the map once.
   useEffect(() => {
     if (!container.current || map.current) return;
     map.current = new maplibregl.Map({
       container: container.current,
-      style: rasterStyle(basemap),
+      style: rasterStyle(active),
       center: [8.4, 48.0],
       zoom: 11,
       attributionControl: { compact: true },
@@ -93,7 +126,9 @@ export function RouteMap({
     const m = map.current;
     if (!m) return;
 
-    const apply = () => {
+    // add-if-missing so re-running after setStyle (which drops sources/layers)
+    // restores everything. `fit` skips the reframe on pure style switches.
+    const apply = (fit: boolean) => {
       // ── Lines ──
       const lines = lineFeatures(polylines);
       const lineSrc = m.getSource("lines") as maplibregl.GeoJSONSource | undefined;
@@ -123,13 +158,13 @@ export function RouteMap({
           id: "polys-fill",
           type: "fill",
           source: "polys",
-          paint: { "fill-color": "#1E96FF", "fill-opacity": 0.2 },
+          paint: { "fill-color": ISO_BLUE, "fill-opacity": 0.2 },
         });
         m.addLayer({
           id: "polys-line",
           type: "line",
           source: "polys",
-          paint: { "line-color": "#0050AA", "line-width": 2 },
+          paint: { "line-color": ISO_BLUE_DARK, "line-width": 2 },
         });
       }
 
@@ -138,7 +173,7 @@ export function RouteMap({
       markerObjs.current = markers.map((mk) => {
         const el = document.createElement("div");
         el.style.cssText =
-          `width:14px;height:14px;border-radius:50%;border:2px solid #fff;` +
+          `width:14px;height:14px;border-radius:50%;border:2px solid ${WHITE};` +
           `background:${mk.color ?? ACCENT};box-shadow:0 0 0 2px rgba(0,0,0,.4)`;
         const marker = new maplibregl.Marker({ element: el }).setLngLat([mk.lon, mk.lat]);
         if (mk.html) {
@@ -149,7 +184,8 @@ export function RouteMap({
         return marker.addTo(m);
       });
 
-      // ── Fit bounds to everything ──
+      // ── Fit bounds to everything (skipped on pure style switches) ──
+      if (!fit) return;
       const bounds = new maplibregl.LngLatBounds();
       let any = false;
       polylines.forEach((p) => p.coords.forEach(([lat, lon]) => { bounds.extend([lon, lat]); any = true; }));
@@ -162,15 +198,54 @@ export function RouteMap({
       if (any && !bounds.isEmpty()) m.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: 400 });
     };
 
-    if (m.isStyleLoaded()) apply();
-    else m.once("load", apply);
+    applyRef.current = apply;
+    if (m.isStyleLoaded()) apply(true);
+    else m.once("load", () => apply(true));
   }, [polylines, markers, polygons]);
 
+  // Swap the basemap raster when the user picks a different one. setStyle drops
+  // the added sources/layers, so re-apply the data (without re-fitting bounds)
+  // once the new style is ready.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    if (firstStyleRun.current) {
+      firstStyleRun.current = false;
+      return;
+    }
+    m.setStyle(rasterStyle(active));
+    m.once("styledata", () => applyRef.current?.(false));
+  }, [active]);
+
   return (
-    <div
-      ref={container}
-      className={`overflow-hidden rounded-card border border-border ${className}`}
-      style={{ height }}
-    />
+    <div className={`relative ${className}`}>
+      {showBasemapSwitcher && (
+        <div
+          className="absolute left-2 top-2 z-10 flex gap-1 rounded-lg border border-border bg-bg-card/80 px-1 py-1 backdrop-blur"
+          aria-label="Basemap style"
+        >
+          {(Object.keys(BASEMAPS) as BasemapId[]).map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActive(id)}
+              aria-pressed={active === id}
+              className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                active === id ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {BASEMAPS[id].label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div
+        ref={container}
+        role="region"
+        aria-label={ariaLabel}
+        className="overflow-hidden rounded-card border border-border"
+        style={{ height }}
+      />
+    </div>
   );
 }

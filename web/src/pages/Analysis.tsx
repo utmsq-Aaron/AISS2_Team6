@@ -27,6 +27,9 @@ import {
   type Period,
 } from "../lib/stravaTypes";
 import { useUiStore } from "../store/uiStore";
+import {
+  ACCENT, C_BLUE, C_GREEN, C_GREEN_DARK, C_ORANGE, C_RED, TEXT_MUTED,
+} from "../theme/tokens";
 
 // ── tool result shapes (confirmed via live curl against :8000) ──────────────────
 
@@ -113,8 +116,6 @@ interface Comparison {
   assessment?: string;
   error?: string;
 }
-
-const STRAVA_ORANGE = "#2dd4bf";
 
 // ── helper for cross-cutting tool-error messaging (mirrors _show_tool_error) ────
 function toolErrorMessage(error: string, tool: string): string {
@@ -230,7 +231,7 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
                         type: "bar",
                         x: xs,
                         y: df.map((w) => w.total_load),
-                        marker: { color: STRAVA_ORANGE },
+                        marker: { color: ACCENT },
                         name: "Training load",
                       } as Data,
                     ]}
@@ -251,7 +252,7 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
                         x: xs,
                         y: df.map((w) => w.avg_atl),
                         name: "ATL (7d)",
-                        line: { color: "#ef4444", width: 2 },
+                        line: { color: C_RED, width: 2 },
                       } as Data,
                       {
                         type: "scatter",
@@ -259,7 +260,7 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
                         x: xs,
                         y: df.map((w) => w.avg_ctl),
                         name: "CTL (42d)",
-                        line: { color: "#3b82f6", width: 2 },
+                        line: { color: C_BLUE, width: 2 },
                       } as Data,
                       {
                         type: "bar",
@@ -267,7 +268,7 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
                         y: df.map((w) => w.avg_tsb),
                         name: "TSB",
                         marker: {
-                          color: df.map((w) => (w.avg_tsb >= 0 ? "#10b981" : "#f97316")),
+                          color: df.map((w) => (w.avg_tsb >= 0 ? C_GREEN : C_ORANGE)),
                         },
                         opacity: 0.5,
                       } as Data,
@@ -342,8 +343,11 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
 
       <div className="mb-4 flex flex-wrap items-end gap-4">
         <div>
-          <div className="fd-label mb-1">Sport type</div>
+          <label htmlFor="trend-sport" className="fd-label mb-1 block">
+            Sport type
+          </label>
           <select
+            id="trend-sport"
             className="fd-input"
             value={sport}
             onChange={(e) => setSport(e.target.value)}
@@ -356,8 +360,11 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
           </select>
         </div>
         <div>
-          <div className="fd-label mb-1">Activities: {limit}</div>
+          <label htmlFor="trend-limit" className="fd-label mb-1 block">
+            Activities: {limit}
+          </label>
           <input
+            id="trend-limit"
             type="range"
             min={10}
             max={100}
@@ -413,7 +420,7 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
                 yref: "y",
                 y0: y,
                 y1: y,
-                line: { color: "#94a3b8", width: 1, dash: "dot" },
+                line: { color: TEXT_MUTED, width: 1, dash: "dot" },
               },
             ],
             annotations: [
@@ -424,7 +431,7 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
                 y,
                 text: label,
                 showarrow: false,
-                font: { color: "#94a3b8", size: 10 },
+                font: { color: TEXT_MUTED, size: 10 },
                 xanchor: "right",
                 yanchor: "bottom",
               },
@@ -486,7 +493,7 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
                         x: paceIdx.map((i) => dates[i]),
                         y: paceIdx.map((i) => series[i].pace_min_per_km as number),
                         name: "Pace",
-                        line: { color: STRAVA_ORANGE, width: 2 },
+                        line: { color: ACCENT, width: 2 },
                         marker: { size: 5 },
                         text: paceIdx.map((i) => names[i]),
                         hovertemplate: "%{text}<br>%{y:.2f} min/km<extra></extra>",
@@ -534,7 +541,7 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
                       x: hrIdx.map((i) => dates[i]),
                       y: hrIdx.map((i) => series[i].avg_hr as number),
                       name: "Ø HR",
-                      line: { color: "#ef4444", width: 2 },
+                      line: { color: C_RED, width: 2 },
                       marker: { size: 5 },
                       text: hrIdx.map((i) => names[i]),
                       hovertemplate: "%{text}<br>%{y:.0f} bpm<extra></extra>",
@@ -558,7 +565,7 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
                     x: distIdx.map((i) => dates[i]),
                     y: distIdx.map((i) => series[i].distance_km as number),
                     name: "Distance",
-                    marker: { color: "#3b82f6" },
+                    marker: { color: C_BLUE },
                     text: distIdx.map((i) => names[i]),
                     hovertemplate: "%{text}<br>%{y:.1f} km<extra></extra>",
                   } as Data,
@@ -584,7 +591,7 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
                       x: elevIdx.map((i) => dates[i]),
                       y: elevIdx.map((i) => series[i].elevation_per_km as number),
                       name: "m/km",
-                      marker: { color: "#10b981" },
+                      marker: { color: C_GREEN },
                       text: elevIdx.map((i) => names[i]),
                       hovertemplate: "%{text}<br>%{y:.1f} m/km<extra></extra>",
                     } as Data,
@@ -630,11 +637,11 @@ const ASSESSMENT_ICONS: Record<string, string> = {
   "one of your easiest": "🛋️",
 };
 const ASSESSMENT_COLORS: Record<string, string> = {
-  "one of your hardest": "#ef4444",
-  "harder than usual": "#f97316",
-  typical: "#94a3b8",
-  "easier than usual": "#10b981",
-  "one of your easiest": "#16a34a",
+  "one of your hardest": C_RED,
+  "harder than usual": C_ORANGE,
+  typical: TEXT_MUTED,
+  "easier than usual": C_GREEN,
+  "one of your easiest": C_GREEN_DARK,
 };
 const ASSESSMENT_LABELS: Record<string, string> = {
   "one of your hardest": "One of your hardest",
@@ -720,8 +727,11 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
 
       <div className="mb-3 flex flex-wrap items-end gap-4">
         <div className="flex-1 min-w-[240px]">
-          <div className="fd-label mb-1">Search activity</div>
+          <label htmlFor="cmp-search" className="fd-label mb-1 block">
+            Search activity
+          </label>
           <input
+            id="cmp-search"
             className="fd-input w-full"
             placeholder="e.g. 'wandern', 'morning run', 'trail'"
             value={search}
@@ -733,8 +743,11 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
           />
         </div>
         <div>
-          <div className="fd-label mb-1">Baseline size</div>
+          <label htmlFor="cmp-baseline" className="fd-label mb-1 block">
+            Baseline size
+          </label>
           <input
+            id="cmp-baseline"
             type="number"
             className="fd-input w-28"
             min={5}
@@ -763,8 +776,11 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
 
       {keyword && matches.length > 1 && (
         <div className="mb-3">
-          <div className="fd-label mb-1">{matches.length} matching activities — select one:</div>
+          <label htmlFor="cmp-select" className="fd-label mb-1 block">
+            {matches.length} matching activities — select one:
+          </label>
           <select
+            id="cmp-select"
             className="fd-input w-full max-w-xl"
             value={selectedId ?? ""}
             onChange={(e) => {
@@ -811,7 +827,7 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
         const nBase = result.baseline_activity_count ?? "?";
 
         const icon = ASSESSMENT_ICONS[assessment] ?? "📊";
-        const color = ASSESSMENT_COLORS[assessment] ?? "#94a3b8";
+        const color = ASSESSMENT_COLORS[assessment] ?? TEXT_MUTED;
         const label = ASSESSMENT_LABELS[assessment] ?? assessment;
         const sport = act.sport_type ?? "";
 

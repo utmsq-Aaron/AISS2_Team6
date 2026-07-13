@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { RouteMap, type MarkerSpec, type PolyLineSpec } from "../RouteMap";
-import { ACCENT, C_GREEN, C_RED, activityIcon } from "../../theme/tokens";
+import { ACCENT, C_BLUE, C_BLUE_LIGHT, C_GREEN, C_RED, TEXT_MUTED, activityIcon } from "../../theme/tokens";
 import { duration, fmtNum } from "../../lib/format";
 import { syncRoute, type SyncActivity } from "../../lib/syncApi";
 
@@ -22,7 +22,7 @@ function StravaBadge({ inStrava }: { inStrava: boolean | null }) {
     return (
       <span
         className="ml-1.5 rounded-[10px] px-2 py-px text-[0.75rem]"
-        style={{ background: "#10b98122", color: "#10b981", border: "1px solid #10b98155" }}
+        style={{ background: `${C_GREEN}22`, color: C_GREEN, border: `1px solid ${C_GREEN}55` }}
       >
         ✅ Already on Strava
       </span>
@@ -32,7 +32,7 @@ function StravaBadge({ inStrava }: { inStrava: boolean | null }) {
     return (
       <span
         className="ml-1.5 rounded-[10px] px-2 py-px text-[0.75rem]"
-        style={{ background: "#3b82f622", color: "#60a5fa", border: "1px solid #3b82f655" }}
+        style={{ background: `${C_BLUE}22`, color: C_BLUE_LIGHT, border: `1px solid ${C_BLUE}55` }}
       >
         ⬆️ Not on Strava
       </span>
@@ -121,7 +121,7 @@ export function ActivityCard({ activity, selected, onToggle, inStrava }: Activit
             </span>
           </label>
 
-          <div className="mt-1 flex flex-wrap items-center text-[0.8rem]" style={{ color: "#94a3b8" }}>
+          <div className="mt-1 flex flex-wrap items-center text-[0.8rem]" style={{ color: TEXT_MUTED }}>
             <span>
               {type || "Activity"}  ·  {date}
             </span>
@@ -141,7 +141,7 @@ export function ActivityCard({ activity, selected, onToggle, inStrava }: Activit
         <div>
           {hasGps ? (
             has_polyline && coords && coords.length ? (
-              <RouteMap polylines={polylines} markers={markers} height={155} basemap="dark" />
+              <RouteMap polylines={polylines} markers={markers} height={155} basemap="dark" showBasemapSwitcher={false} ariaLabel="Route preview map" />
             ) : has_polyline && !routeLoaded ? (
               <div
                 className="flex items-center justify-center rounded-card border border-dashed border-border text-xs text-text-muted"
@@ -155,6 +155,8 @@ export function ActivityCard({ activity, selected, onToggle, inStrava }: Activit
                 markers={[{ lat: start_lat as number, lon: start_lon as number, color: ACCENT }]}
                 height={155}
                 basemap="dark"
+                showBasemapSwitcher={false}
+                ariaLabel="Route preview map"
               />
             )
           ) : (

@@ -28,10 +28,12 @@ UI's agent-trace panel exactly like any other tool call. No UI change was needed
 
 ## The corpus
 
-8 **public-domain** fitness / physical-culture books from **Project Gutenberg**
-(redistributable, so the corpus lives in the repo). Curated for breadth — strength,
-endurance/athletic conditioning, women's physical training, physical culture/massage
-and general exercise & health. The manifest is `data/fitness_library/sources.json`.
+50 **public-domain** fitness / physical-culture books from **Project Gutenberg**
+(redistributable, so the corpus lives in the repo). Curated for breadth — physical
+culture & strength training, athletics & specific sports (swimming, boxing,
+wrestling, fencing, football, golf, cycling, dancing), the physiology and anatomy of
+the human body, and personal/public hygiene, longevity & health. The manifest is
+`data/fitness_library/sources.json`.
 
 > We deliberately do **not** pull from shadow-library sites (e.g. libgen): those
 > distribute copyrighted books without permission. Public-domain sources give the
@@ -45,8 +47,12 @@ Dependency-light by design — no faiss/chroma. The index is just:
 data/fitness_library/index/
   vectors.npy     float32 (N, 384), L2-normalised   → cosine = a dot product
   chunks.json     [{id, text, title, author, source_id, license}, …]
-  manifest.json   {model, dim, count, books, normalized}
+  manifest.json   {model, dim, count, books, normalized, corpus_fingerprint}
 ```
+
+`corpus_fingerprint` is a checkout-deterministic sha256 over the corpus's
+`(filename, byte-size)` pairs (plus `sources.json`'s size) — the staleness signal
+the launchers use to auto-rebuild when the corpus changes (see *Build / run*).
 
 Embeddings come from a small **local** model (default
 `sentence-transformers/all-MiniLM-L6-v2`, ~90 MB) — no embedding API needed; runs on
@@ -56,7 +62,14 @@ search in numpy is instant. Runtime code is in `core/fitness_rag.py`.
 ## Build / run
 
 The launch scripts (`./dev_stack.sh`, `./start.sh`) build the index automatically on
-first run (idempotent — skipped if present) and then start the agent on :9005.
+first run and then start the agent on :9005. They call
+`build_fitness_index --if-missing`, which is **corpus-aware**: it skips instantly
+when an index already exists *and* its stored `corpus_fingerprint` matches the
+current corpus, but **auto-rebuilds** when the fingerprint differs — i.e. whenever
+books were added, removed, resized, or `sources.json` changed since the index was
+last built. So every machine self-heals a stale index on its next start; no launcher
+change and no manual rebuild is needed after the corpus grows.
+
 Manually:
 
 ```bash
@@ -83,4 +96,8 @@ committed, so a rebuild is deterministic and offline.
 ## Adding / changing books
 
 Edit the `BOOKS` list in `scripts/fetch_fitness_books.py` (Gutenberg id + slug), then
-re-run fetch + build. Use only public-domain / openly-licensed sources.
+re-run fetch (`python -m scripts.fetch_fitness_books`). You can rebuild the index
+explicitly with `python -m scripts.build_fitness_index`, but you don't have to: the
+corpus change bumps the `corpus_fingerprint`, so the next launcher start (which runs
+`--if-missing`) detects the mismatch and rebuilds automatically. Use only
+public-domain / openly-licensed sources.

@@ -189,8 +189,9 @@ export function Dashboard() {
               {activeGoals.map((goal) =>
                 editingId === goal.id ? (
                   <div key={goal.id} className="fd-card p-5 sm:p-6">
-                    <label className="fd-label mb-1 block">Edit goal</label>
+                    <label htmlFor={`edit-goal-${goal.id}`} className="fd-label mb-1 block">Edit goal</label>
                     <input
+                      id={`edit-goal-${goal.id}`}
                       autoFocus
                       className="fd-input w-full"
                       value={editText}

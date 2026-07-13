@@ -105,6 +105,7 @@ export function Sidebar() {
           <select
             value={sportFilter}
             onChange={(e) => setSportFilter(e.target.value)}
+            aria-label="Sport filter"
             className="fd-input w-full text-sm"
           >
             {SPORT_TYPES.map((s) => (
