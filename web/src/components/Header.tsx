@@ -6,6 +6,7 @@ import { useAvatarUrl, useProfile } from "../lib/profileHooks";
 import { NAV, navLabel } from "../nav";
 import { useAuthStore } from "../store/authStore";
 import { useUiStore } from "../store/uiStore";
+import { FeedbackButton } from "./FeedbackButton";
 
 // Minimalist header — breadcrumb, quick search (page jump), and user profile.
 export function Header() {
@@ -93,24 +94,27 @@ export function Header() {
         )}
       </div>
 
-      {/* User profile + logout */}
-      <div className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-surface px-2.5 py-1.5">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-accent">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <User size={14} strokeWidth={2} />
-          )}
-        </span>
-        <span className="hidden text-sm text-text-primary sm:inline">{displayName}</span>
-        <button
-          onClick={logout}
-          title="Sign out"
-          aria-label="Sign out"
-          className="ml-1 flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-bg-app hover:text-text-primary"
-        >
-          <LogOut size={14} strokeWidth={2} />
-        </button>
+      {/* Report-a-problem + user profile + logout */}
+      <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        <FeedbackButton variant="header" />
+        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-surface px-2.5 py-1.5">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-accent">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <User size={14} strokeWidth={2} />
+            )}
+          </span>
+          <span className="hidden text-sm text-text-primary sm:inline">{displayName}</span>
+          <button
+            onClick={logout}
+            title="Sign out"
+            aria-label="Sign out"
+            className="ml-1 flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-bg-app hover:text-text-primary"
+          >
+            <LogOut size={14} strokeWidth={2} />
+          </button>
+        </div>
       </div>
     </header>
   );
