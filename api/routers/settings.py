@@ -147,9 +147,9 @@ def google_disconnect():
     return {"ok": True}
 
 
-def _google_result_page(title: str, body: str, color: str) -> HTMLResponse:
+def _oauth_result_page(title: str, body: str, color: str, service: str = "OAuth") -> HTMLResponse:
     return HTMLResponse(
-        "<html><head><meta charset='utf-8'><title>FitDash · Google</title></head>"
+        f"<html><head><meta charset='utf-8'><title>FitDash · {service}</title></head>"
         "<body style='font-family:sans-serif;text-align:center;padding:60px'>"
         f"<h1 style='color:{color}'>{title}</h1><p>{body}</p>"
         "<script>setTimeout(function(){window.close()},3000)</script>"
@@ -161,14 +161,32 @@ def _google_result_page(title: str, body: str, color: str) -> HTMLResponse:
 def google_callback(code: str = "", state: str = "", error: str = ""):
     """Google's OAuth redirect target (public — no Bearer token on a browser redirect)."""
     if error:
-        return _google_result_page("Google sign-in cancelled", error, "#d33")
+        return _oauth_result_page("Google sign-in cancelled", error, "#d33", "Google")
     try:
         svc.google_handle_callback(code, state)
     except Exception as exc:  # noqa: BLE001 — show the reason in the browser tab
-        return _google_result_page("Connection failed", str(exc), "#d33")
-    return _google_result_page(
+        return _oauth_result_page("Connection failed", str(exc), "#d33", "Google")
+    return _oauth_result_page(
         "✓ Google Calendar connected!",
-        "You can close this window and return to FitDash.", "#4285F4")
+        "You can close this window and return to FitDash.", "#4285F4", "Google")
+
+
+@public_router.get("/settings/strava/callback")
+def strava_callback(code: str = "", state: str = "", error: str = "", scope: str = ""):
+    """Strava's OAuth redirect target (public — no Bearer token on a browser redirect).
+
+    Replaces the old one-shot localhost:8080 listener, so it works behind the
+    Tailscale funnel. The Strava app's Authorization Callback Domain must equal the
+    HOST of PUBLIC_BASE_URL (Strava allows only one)."""
+    if error:
+        return _oauth_result_page("Strava sign-in cancelled", error, "#d33", "Strava")
+    try:
+        svc.strava_handle_callback(code, state)
+    except Exception as exc:  # noqa: BLE001 — show the reason in the browser tab
+        return _oauth_result_page("Connection failed", str(exc), "#d33", "Strava")
+    return _oauth_result_page(
+        "✓ Strava connected!",
+        "You can close this window and return to FitDash.", "#FC4C02", "Strava")
 
 
 # ── Garmin ──────────────────────────────────────────────────────────────────
