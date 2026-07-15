@@ -140,12 +140,23 @@ export interface Panel {
   generated_at: string; // ISO
 }
 
+/** One optional structured target event a goal is built around (issue #25). All
+ *  fields optional; normalized server-side (ISO date, numeric distance/elevation). */
+export interface GoalEvent {
+  date?: string | null; // ISO "YYYY-MM-DD"
+  name?: string | null;
+  distance_km?: number | null;
+  sport?: string | null;
+  elevation_gain_m?: number | null;
+}
+
 export interface Goal {
   id: string;
   text: string; // freeform — the goal, in the user's/coach's words
   sport?: string | null;
   source: GoalSource;
   status: GoalLifecycleStatus;
+  event?: GoalEvent | null; // optional target race/challenge (issue #25)
   created_at: string; // ISO
   updated_at: string; // ISO
   panel: Panel | null;
@@ -157,9 +168,10 @@ export interface Goal {
 /** GET /goals — never 404s; `{goals: []}` for a new user. */
 export const listGoals = () => http<{ goals: Goal[] }>("/goals").then((r) => r.goals);
 
-/** POST /goals — create a goal from freeform text; its panel builds in the background. */
-export const addGoal = (text: string, sport?: string) =>
-  http<Goal>("/goals", { method: "POST", body: JSON.stringify({ text, sport }) });
+/** POST /goals — create a goal from freeform text (+ optional sport and a structured
+ *  target event); its panel builds in the background. */
+export const addGoal = (text: string, sport?: string, event?: GoalEvent | null) =>
+  http<Goal>("/goals", { method: "POST", body: JSON.stringify({ text, sport, event }) });
 
 /** PATCH /goals/{id} — update text/sport/status (send only what changed). */
 export const updateGoal = (

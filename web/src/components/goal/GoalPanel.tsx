@@ -9,7 +9,7 @@
 import { AlertCircle, ArchiveRestore, Archive as ArchiveIcon, Pencil, RefreshCw, Sparkles } from "lucide-react";
 
 import type { Goal } from "../../lib/api";
-import { timeAgoLabel } from "../../lib/goalFormat";
+import { formatEventChip, timeAgoLabel } from "../../lib/goalFormat";
 import { Markdown } from "../chat/Markdown";
 import { MetricCard } from "../MetricCard";
 import { PlotlyChart } from "../PlotlyChart";
@@ -42,6 +42,7 @@ export function GoalPanel({
   const isArchived = goal.status === "archived";
   const tag = lifecycleTag(goal.status);
   const rebuilding = panelStatus === "building" && panel != null;
+  const eventChip = formatEventChip(goal.event);
 
   return (
     <div className={`fd-card flex flex-col p-5 sm:p-6 ${isArchived ? "opacity-60" : ""}`}>
@@ -65,6 +66,14 @@ export function GoalPanel({
             {tag && (
               <span className="inline-block whitespace-nowrap rounded-full border border-border bg-bg-surface px-2 py-0.5 text-[0.72rem] font-medium text-text-muted">
                 {tag.label}
+              </span>
+            )}
+            {eventChip && (
+              <span
+                className="inline-block max-w-full truncate whitespace-nowrap rounded-full border border-border bg-bg-surface px-2 py-0.5 text-[0.72rem] font-medium text-text-muted"
+                title={eventChip}
+              >
+                🎯 {eventChip}
               </span>
             )}
           </div>

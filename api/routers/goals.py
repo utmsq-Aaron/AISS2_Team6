@@ -20,15 +20,27 @@ from core import goal_build_queue, goal_store
 router = APIRouter(prefix="/goals", tags=["goals"])
 
 
+class GoalEventBody(BaseModel):
+    """One optional structured target event for a goal (issue #25) — all fields
+    optional; normalized server-side by ``goal_store._normalize_event``."""
+    date: Optional[str] = None
+    name: Optional[str] = None
+    distance_km: Optional[float] = None
+    sport: Optional[str] = None
+    elevation_gain_m: Optional[float] = None
+
+
 class AddGoalBody(BaseModel):
     text: str
     sport: Optional[str] = None
+    event: Optional[GoalEventBody] = None
 
 
 class UpdateGoalBody(BaseModel):
     text: Optional[str] = None
     sport: Optional[str] = None
     status: Optional[str] = None
+    event: Optional[GoalEventBody] = None
 
 
 @router.get("")
@@ -43,7 +55,8 @@ def add_goal(body: AddGoalBody, user: str = Depends(current_user)) -> dict:
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=422, detail="text must not be empty")
-    goal = goal_store.add_goal(user, text, sport=body.sport, source="user")
+    event = body.event.model_dump() if body.event else None
+    goal = goal_store.add_goal(user, text, sport=body.sport, source="user", event=event)
     if not goal:
         raise HTTPException(status_code=500, detail="could not save goal")
     goal_build_queue.enqueue(user, goal["id"])

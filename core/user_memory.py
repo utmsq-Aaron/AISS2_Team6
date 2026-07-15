@@ -138,6 +138,43 @@ Rules:
 """
 
 
+def _num(v: Any) -> str:
+    """Render a float without a trailing ``.0`` (12.0 → "12", 12.5 → "12.5")."""
+    f = float(v)
+    return str(int(f)) if f == int(f) else f"{f:g}"
+
+
+def _format_event(event: Any) -> str:
+    """One compact line describing a goal's optional target event, omitting missing
+    fields gracefully. Returns "" when there is no usable event. Fed into the coach's
+    goal directive (``goal_block``) so it can plan around the race date/distance/climb.
+    e.g. "Berlin Marathon on 2026-09-27 — 42.2 km, 120 m elevation (Running)"."""
+    if not isinstance(event, dict):
+        return ""
+    name = (event.get("name") or "").strip() if isinstance(event.get("name"), str) else event.get("name")
+    date_s = event.get("date")
+    dist = event.get("distance_km")
+    elev = event.get("elevation_gain_m")
+    sport = (event.get("sport") or "").strip() if isinstance(event.get("sport"), str) else event.get("sport")
+
+    head = name or "event"
+    if date_s:
+        head += f" on {date_s}"
+    specs: List[str] = []
+    if dist is not None:
+        specs.append(f"{_num(dist)} km")
+    if elev is not None:
+        specs.append(f"{_num(elev)} m elevation")
+    tail = ""
+    if specs:
+        tail = " — " + ", ".join(specs)
+    if sport:
+        tail += f" ({sport})"
+    line = (head + tail).strip()
+    # Guard: if literally nothing but the "event" placeholder survived, treat as empty.
+    return "" if line == "event" else line
+
+
 class UserMemory:
     """One user's private memory: the soul file + a conversation vector store."""
 
@@ -320,6 +357,9 @@ class UserMemory:
         for g in goals:
             sport = f" [{g['sport']}]" if g.get("sport") else ""
             lines.append(f"- ({g.get('id', '?')}){sport} {g.get('text', '')}")
+            event_line = _format_event(g.get("event"))
+            if event_line:
+                lines.append(f"  Target event: {event_line}")
         lines.append("Balance these goals in your answers; when the data or the user's plan "
                      "drifts from any of them, say so and steer them back. Create a new goal "
                      "with add_goal, revise one with update_goal, and (re)build a goal's "

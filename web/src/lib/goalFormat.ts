@@ -5,6 +5,7 @@
 // unknown) — a distinct axis from a goal's LIFECYCLE status (active/achieved/
 // archived, handled directly in GoalPanel).
 
+import type { GoalEvent } from "./api";
 import { C_AMBER, C_GREEN, C_RED, TEXT_MUTED } from "../theme/tokens";
 
 // ── Status → colour + label ─────────────────────────────────────────────────────
@@ -27,6 +28,21 @@ export function statusStyle(status: string | null | undefined): StatusStyle {
     default:
       return { label: "No data", color: TEXT_MUTED };
   }
+}
+
+// ── Target event (issue #25) ─────────────────────────────────────────────────────
+
+/** Compact one-line label for a goal's optional target event, e.g.
+ *  "Berlin Marathon · 2026-09-27 · 42.2 km". Omits missing parts; returns "" when the
+ *  event has nothing worth showing (caller then renders no chip). */
+export function formatEventChip(event: GoalEvent | null | undefined): string {
+  if (!event) return "";
+  const parts: string[] = [];
+  if (event.name) parts.push(event.name);
+  if (event.date) parts.push(event.date);
+  if (event.distance_km != null) parts.push(`${event.distance_km} km`);
+  if (parts.length === 0 && event.elevation_gain_m != null) parts.push(`${event.elevation_gain_m} m`);
+  return parts.join(" · ");
 }
 
 // ── Relative time ────────────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ export function GoalsStep({ onNext }: { onNext: () => void }) {
 
       <div className="mt-6 text-left">
         <AddGoalInput
-          onAdd={(text, sport) => addGoal.mutate({ text, sport })}
+          onAdd={(text, sport, event) => addGoal.mutate({ text, sport, event })}
           adding={addGoal.isPending}
         />
         {addGoal.isError && (

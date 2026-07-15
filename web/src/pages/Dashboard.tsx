@@ -145,7 +145,7 @@ export function Dashboard() {
         <h3 className="fd-label mb-2">Your goals</h3>
 
         <AddGoalInput
-          onAdd={(text, sport) => addGoal.mutate({ text, sport })}
+          onAdd={(text, sport, event) => addGoal.mutate({ text, sport, event })}
           adding={addGoal.isPending}
         />
         {addGoal.isError && (

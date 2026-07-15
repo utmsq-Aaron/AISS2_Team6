@@ -12,6 +12,7 @@ import {
   refreshGoalPanel,
   updateGoal,
   type Goal,
+  type GoalEvent,
 } from "./api";
 
 export const goalKeys = {
@@ -36,7 +37,8 @@ export function useGoals() {
 export function useAddGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ text, sport }: { text: string; sport?: string }) => addGoal(text, sport),
+    mutationFn: ({ text, sport, event }: { text: string; sport?: string; event?: GoalEvent | null }) =>
+      addGoal(text, sport, event),
     onSuccess: (newGoal) => {
       qc.setQueryData<Goal[]>(goalKeys.all, (old = []) => [newGoal, ...old]);
       qc.invalidateQueries({ queryKey: goalKeys.all });

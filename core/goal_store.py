@@ -7,6 +7,7 @@ Multiple goals per user are stored at ``data/user_memory/<slug>/goals.json``:
 
     { "goals": [
         { id, text, sport?, source, status ("active"|"achieved"|"archived"),
+          event: {date, name, distance_km, sport, elevation_gain_m} | null,  # optional target race (#25)
           created_at, updated_at,
           panel: Panel | null,               # agent-authored dashboard content
           panel_status ("empty"|"building"|"ready"|"error"),
@@ -41,7 +42,7 @@ from __future__ import annotations
 
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -121,6 +122,7 @@ def _new_goal(text: str, sport: Optional[str], source: str) -> Dict[str, Any]:
         "sport": sport or None,
         "source": source if source in ("user", "coach") else "user",
         "status": "active",
+        "event": None,                     # optional structured target event (see _normalize_event)
         "created_at": now,
         "updated_at": now,
         "panel": None,
@@ -129,6 +131,58 @@ def _new_goal(text: str, sport: Optional[str], source: str) -> Dict[str, Any]:
         "panel_build_started_at": None,
         "panel_error": None,
     }
+
+
+# ── Target-event normalization (one optional structured race per goal) ─────────
+
+# A goal can carry ONE optional target event — the race/challenge it's built around
+# (added via the AddGoalInput form; issue #25). It's a plain field on the goal, not a
+# separate store, and it's surfaced to the coach via ``user_memory.goal_block`` so it
+# can plan around the date/distance/elevation. Any of the five fields may be absent.
+_EVENT_KEYS = ("date", "name", "distance_km", "sport", "elevation_gain_m")
+
+
+def _coerce_float(v: Any) -> Optional[float]:
+    """"12.5"/12.5 → 12.5; ""/None/garbage → None (never raises)."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_event_date(v: Any) -> Optional[str]:
+    """Coerce to an ISO date string (``YYYY-MM-DD``). Accepts a plain date or a full
+    ISO datetime (keeps the date part); anything unparseable → None."""
+    if not v:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s[:10]).isoformat()
+    except ValueError:
+        return None
+
+
+def _normalize_event(event: Any) -> Optional[Dict[str, Any]]:
+    """Coerce an arbitrary event dict into ``{date, name, distance_km, sport,
+    elevation_gain_m}`` or None. Trims strings, coerces the date to an ISO string and
+    the numerics to floats-or-None, drops unknown keys, and returns None when the event
+    is entirely empty. Never raises."""
+    if not isinstance(event, dict):
+        return None
+    norm = {
+        "date": _coerce_event_date(event.get("date")),
+        "name": (str(event.get("name") or "").strip()[:120]) or None,
+        "distance_km": _coerce_float(event.get("distance_km")),
+        "sport": (str(event.get("sport") or "").strip()[:60]) or None,
+        "elevation_gain_m": _coerce_float(event.get("elevation_gain_m")),
+    }
+    if all(v is None for v in norm.values()):
+        return None
+    return norm
 
 
 def _legacy_to_text(g: dict) -> str:
@@ -250,7 +304,7 @@ def get_goal(user: str, goal_id: str) -> Optional[Dict[str, Any]]:
 # ── Writes (each: lock → re-read the whole doc → mutate → atomic write) ────────
 
 def add_goal(user: str, text: str, sport: Optional[str] = None,
-             source: str = "user") -> Optional[Dict[str, Any]]:
+             source: str = "user", event: Optional[dict] = None) -> Optional[Dict[str, Any]]:
     text = (text or "").strip()
     if not user or not text:
         return None
@@ -258,6 +312,7 @@ def add_goal(user: str, text: str, sport: Optional[str] = None,
     with _lock_for(user), jsonstore.flock(path):
         doc = _load_doc(user)
         goal = _new_goal(text, sport, source)
+        goal["event"] = _normalize_event(event)
         doc.setdefault("goals", []).append(goal)
         try:
             jsonstore.atomic_write(path, doc)
@@ -268,12 +323,13 @@ def add_goal(user: str, text: str, sport: Optional[str] = None,
         return goal
 
 
-_UPDATE_ALLOWED = {"text", "sport", "status"}
+_UPDATE_ALLOWED = {"text", "sport", "status", "event"}
 
 
 def update_goal(user: str, goal_id: str, **fields: Any) -> Optional[Dict[str, Any]]:
-    """Update text/sport/status. No-ops (returns None) if the goal doesn't exist —
-    e.g. it was deleted while a background panel build was in flight."""
+    """Update text/sport/status/event. No-ops (returns None) if the goal doesn't exist —
+    e.g. it was deleted while a background panel build was in flight. An ``event`` value
+    is normalized via :func:`_normalize_event` (an all-empty event clears it to None)."""
     if not user or not goal_id:
         return None
     path = _goals_path(user)
@@ -291,6 +347,8 @@ def update_goal(user: str, goal_id: str, **fields: Any) -> Optional[Dict[str, An
                 v = (v or "").strip()
                 if not v:
                     continue
+            if k == "event":
+                v = _normalize_event(v)
             goal[k] = v
         goal["updated_at"] = _now()
         try:
@@ -299,6 +357,14 @@ def update_goal(user: str, goal_id: str, **fields: Any) -> Optional[Dict[str, An
             print(f"[goal_store] update_goal write skipped: {exc}", flush=True)
             return None
         return goal
+
+
+def update_goal_event(user: str, goal_id: str,
+                      event: Optional[dict]) -> Optional[Dict[str, Any]]:
+    """Set/replace a goal's optional target event (normalized). Thin wrapper over
+    :func:`update_goal`; pass an all-empty/None event to clear it. Returns the updated
+    goal (or None if it doesn't exist)."""
+    return update_goal(user, goal_id, event=event)
 
 
 def delete_goal(user: str, goal_id: str) -> bool:
