@@ -278,6 +278,10 @@ def google_handle_callback(code: str, state: str) -> None:
         raise RuntimeError(f"Token exchange failed: {resp.status_code} {resp.text}")
     tok = resp.json()
     tok["expires_at"] = time.time() + int(tok.get("expires_in", 3600))
+    if not tok.get("refresh_token"):
+        print("[settings] Google returned no refresh_token — the OAuth consent screen "
+              "is probably in 'Testing' (7-day expiry) or prompt=consent didn't apply; "
+              "calendar will expire and require reconnect.", flush=True)
     TOKENS.mkdir(exist_ok=True)
     (TOKENS / "google.json").write_text(json.dumps(tok, indent=2))
 
