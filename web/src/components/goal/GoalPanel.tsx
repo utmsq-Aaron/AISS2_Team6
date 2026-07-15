@@ -88,7 +88,7 @@ export function GoalPanel({
         ) : panelStatus === "error" ? (
           <div className="flex flex-col items-center gap-3 py-8 text-center">
             <AlertCircle size={28} className="text-metric-red" />
-            <p className="text-sm text-text-muted">Couldn't build this panel.</p>
+            <p className="text-sm text-text-muted">{goal.panel_error ?? "Couldn't build this panel."}</p>
             <button type="button" className="fd-btn-secondary text-sm" onClick={onRefresh}>
               Retry
             </button>

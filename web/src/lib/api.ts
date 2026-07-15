@@ -151,6 +151,7 @@ export interface Goal {
   panel: Panel | null;
   panel_status: PanelStatus;
   panel_updated_at: string | null;
+  panel_error?: string | null; // user-facing reason a build ended in "error"
 }
 
 /** GET /goals — never 404s; `{goals: []}` for a new user. */

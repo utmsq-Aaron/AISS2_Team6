@@ -10,7 +10,9 @@ Multiple goals per user are stored at ``data/user_memory/<slug>/goals.json``:
           created_at, updated_at,
           panel: Panel | null,               # agent-authored dashboard content
           panel_status ("empty"|"building"|"ready"|"error"),
-          panel_updated_at },
+          panel_updated_at,
+          panel_build_started_at,            # stamped ONLY by the real builder (concurrency guard)
+          panel_error },                     # user-facing reason a build ended in "error"
         …
     ] }
 
@@ -54,6 +56,23 @@ _VALID_PANEL_STATUS = {"empty", "building", "ready", "error"}
 _VALID_PANEL_HEALTH = {"on_track", "at_risk", "behind", "reached", "unknown"}
 _MAX_TILES = 4
 _MAX_CHART_POINTS = 60
+
+
+def _stuck_seconds() -> int:
+    """Read the read-path watchdog threshold LIVE from env (like ``core.llm``), so a
+    ``.env`` edit applies without restarting the FastAPI/bridge processes."""
+    try:
+        return int(_env("GOAL_PANEL_STUCK_SECONDS", str(GOAL_PANEL_STUCK_SECONDS))
+                   or GOAL_PANEL_STUCK_SECONDS)
+    except ValueError:
+        return GOAL_PANEL_STUCK_SECONDS
+
+
+# A panel wedged in "building" longer than this (as seen on any READ) is flipped to
+# "error" — the lazy watchdog that unwedges GH #29 even when the build worker (the
+# Telegram bridge) is entirely offline. Module const = the default; ``_stuck_seconds``
+# re-reads env live so it can be overridden without a restart.
+GOAL_PANEL_STUCK_SECONDS = 600
 
 # Per-user threading lock (defense-in-depth alongside jsonstore.flock — matters on
 # non-Unix where flock is a no-op; mirrors core.chat_store's `with _lock, _flock():`).
@@ -107,6 +126,8 @@ def _new_goal(text: str, sport: Optional[str], source: str) -> Dict[str, Any]:
         "panel": None,
         "panel_status": "empty",
         "panel_updated_at": None,
+        "panel_build_started_at": None,
+        "panel_error": None,
     }
 
 
@@ -156,6 +177,40 @@ def _load_doc(user: str) -> Dict[str, Any]:
     return doc
 
 
+# ── Read-path watchdog (unwedges a "building" panel even if the worker is down) ──
+
+def _reap_stale_building(doc: Dict[str, Any]) -> bool:
+    """Flip any panel wedged in "building" past :func:`_stuck_seconds` to "error".
+
+    Runs on every locked read (``list_goals``/``get_goal``), so a stuck panel self-heals
+    the moment the dashboard next polls — no always-on process, and it works even when
+    the build worker (the Telegram bridge) is offline entirely (GH #29, Defect B). The
+    age reference falls back to ``updated_at`` because the FastAPI form path sets
+    "building" WITHOUT stamping ``panel_build_started_at``. Returns whether it mutated
+    ``doc`` (so the caller writes only when something actually changed)."""
+    threshold = _stuck_seconds()
+    now = datetime.now(timezone.utc)
+    changed = False
+    for g in doc.get("goals") or []:
+        if g.get("panel_status") != "building":
+            continue
+        stamp = g.get("panel_build_started_at") or g.get("updated_at")
+        if not stamp:
+            continue
+        try:
+            age = (now - datetime.fromisoformat(stamp.replace("Z", "+00:00"))).total_seconds()
+        except (ValueError, AttributeError):
+            continue
+        if age > threshold:
+            g["panel_status"] = "error"
+            g["panel_error"] = ("Panel build timed out — the build worker may be "
+                                "offline. Try Retry.")
+            g["panel_build_started_at"] = None
+            g["updated_at"] = _now()
+            changed = True
+    return changed
+
+
 # ── Reads ──────────────────────────────────────────────────────────────────────
 
 def list_goals(user: str) -> List[Dict[str, Any]]:
@@ -164,6 +219,11 @@ def list_goals(user: str) -> List[Dict[str, Any]]:
         return []
     with _lock_for(user), jsonstore.flock(_goals_path(user)):
         doc = _load_doc(user)
+        if _reap_stale_building(doc):
+            try:
+                jsonstore.atomic_write(_goals_path(user), doc)
+            except OSError:
+                pass
     goals = list(doc.get("goals") or [])
     goals.sort(key=lambda g: g.get("created_at") or "", reverse=True)
     goals.sort(key=lambda g: 0 if g.get("status") == "active" else 1)
@@ -179,6 +239,11 @@ def get_goal(user: str, goal_id: str) -> Optional[Dict[str, Any]]:
         return None
     with _lock_for(user), jsonstore.flock(_goals_path(user)):
         doc = _load_doc(user)
+        if _reap_stale_building(doc):
+            try:
+                jsonstore.atomic_write(_goals_path(user), doc)
+            except OSError:
+                pass
         return _find(doc, goal_id)
 
 
@@ -253,8 +318,18 @@ def delete_goal(user: str, goal_id: str) -> bool:
             return False
 
 
-def set_panel_status(user: str, goal_id: str, status: str) -> Optional[Dict[str, Any]]:
-    """No-ops on a missing goal (deleted mid-build) or an invalid status."""
+def set_panel_status(user: str, goal_id: str, status: str, *,
+                     build_started: bool = False,
+                     error: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """No-ops on a missing goal (deleted mid-build) or an invalid status.
+
+    ``build_started`` is stamped ONLY by the real builder (``core.goal_panel``) when it
+    actually begins work — it records ``panel_build_started_at``, the dedicated
+    concurrency marker the skip-window reads. The API's optimistic "building" flip
+    (instant UI feedback) leaves it default False and so does NOT stamp it — that
+    separation is what fixes GH #29 Defect A (the API's own stamp used to make the
+    first-and-only build skip itself). ``status=="error"`` records ``panel_error`` for
+    the frontend; any non-"building" status clears the in-flight build marker."""
     if status not in _VALID_PANEL_STATUS or not user or not goal_id:
         return None
     path = _goals_path(user)
@@ -264,6 +339,14 @@ def set_panel_status(user: str, goal_id: str, status: str) -> Optional[Dict[str,
         if goal is None:
             return None
         goal["panel_status"] = status
+        if status == "building":
+            if build_started:
+                goal["panel_build_started_at"] = _now()
+                goal["panel_error"] = None
+        else:
+            goal["panel_build_started_at"] = None
+        if status == "error":
+            goal["panel_error"] = error or "Couldn't build this panel. Try Retry."
         goal["updated_at"] = _now()
         try:
             jsonstore.atomic_write(path, doc)
@@ -288,6 +371,10 @@ def set_panel(user: str, goal_id: str, panel: Any) -> Optional[Dict[str, Any]]:
         goal["panel"] = normalized
         goal["panel_status"] = "ready"
         goal["panel_updated_at"] = normalized["generated_at"]
+        # A completed build is no longer in flight — clear the concurrency marker and
+        # any prior error so the panel reads clean.
+        goal["panel_build_started_at"] = None
+        goal["panel_error"] = None
         goal["updated_at"] = _now()
         try:
             jsonstore.atomic_write(path, doc)

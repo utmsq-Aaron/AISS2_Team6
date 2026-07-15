@@ -128,24 +128,37 @@ def build_panel(user: str, goal_id: str) -> None:
         return
 
     if not _SEM.acquire(timeout=GOAL_PANEL_TIMEOUT + 30):
-        goal_store.set_panel_status(user, goal_id, "error")
+        goal_store.set_panel_status(
+            user, goal_id, "error",
+            error="Couldn't gather your data for this panel. Try Retry.")
         return
     try:
-        goal_store.set_panel_status(user, goal_id, "building")
+        # Only the REAL builder stamps panel_build_started_at (build_started=True) — the
+        # dedicated concurrency marker the skip-window reads. The API's optimistic
+        # "building" flip must NOT stamp it, else this first-and-only build skips itself
+        # (GH #29, Defect A).
+        goal_store.set_panel_status(user, goal_id, "building", build_started=True)
         asyncio.run(_build_async(user, goal_id, goal))
     except Exception:  # noqa: BLE001 — last-resort guard
-        goal_store.set_panel_status(user, goal_id, "error")
+        goal_store.set_panel_status(
+            user, goal_id, "error",
+            error="Couldn't gather your data for this panel. Try Retry.")
     finally:
         _SEM.release()
 
 
 def _already_building_recently(goal: dict) -> bool:
-    """Skip-window: true if another build is already in flight and hasn't timed out
-    yet. NOT a hard lock — if that build crashed without updating the timestamp,
+    """Skip-window: true iff a REAL build is already in flight and hasn't timed out yet.
+
+    Reads ``panel_build_started_at`` ONLY — the marker stamped exclusively by the real
+    builder (never by the API's optimistic "building" flip). A fresh form goal has it
+    None → returns False → this first build runs (GH #29, Defect A); a genuinely
+    concurrent second build sees the first's recent stamp → returns True → correctly
+    skipped. NOT a hard lock — if that build crashed without updating the timestamp,
     this expires after GOAL_PANEL_TIMEOUT so the goal never wedges forever."""
     if goal.get("panel_status") != "building":
         return False
-    stamp = goal.get("panel_updated_at") or goal.get("updated_at")
+    stamp = goal.get("panel_build_started_at")
     if not stamp:
         return False
     try:
@@ -166,6 +179,7 @@ async def _build_async(user: str, goal_id: str, goal: dict) -> None:
 
     result: Dict[str, bool] = {"called": False}
     collected: List[dict] = []
+    error_msg = "Couldn't gather your data for this panel. Try Retry."
     try:
         tools = [_ask_tool(s, A2A_AGENTS[s], collected, _noop_status)
                  for s in ORCHESTRATOR_SPECIALISTS]
@@ -183,9 +197,9 @@ async def _build_async(user: str, goal_id: str, goal: dict) -> None:
             timeout=GOAL_PANEL_TIMEOUT,
         )
     except asyncio.TimeoutError:
-        pass
+        error_msg = "Panel build timed out. Try Retry."
     except Exception:  # noqa: BLE001 — degrade to "error" below
         pass
 
     if not result["called"]:
-        goal_store.set_panel_status(user, goal_id, "error")
+        goal_store.set_panel_status(user, goal_id, "error", error=error_msg)
