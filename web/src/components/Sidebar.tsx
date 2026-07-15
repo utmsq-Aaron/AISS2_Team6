@@ -1,7 +1,8 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dumbbell, RefreshCw, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
+import { getConfig } from "../lib/api";
 import { NAV } from "../nav";
 import { useChatStore } from "../store/chatStore";
 import { SPORT_TYPES, useUiStore } from "../store/uiStore";
@@ -15,6 +16,13 @@ export function Sidebar() {
   const qc = useQueryClient();
   const { sportFilter, setSportFilter, bumpRefresh, sidebarOpen, setSidebarOpen } = useUiStore();
   const coachUnread = useChatStore((s) => s.coachUnread);
+
+  // Public, non-secret UI flags (GET /api/config). Fail-open: a missing/failed
+  // fetch keeps every section visible, so a transient error never hides controls.
+  const { data: cfg } = useQuery({ queryKey: ["config"], queryFn: getConfig, staleTime: Infinity });
+  const showServiceStatus = cfg?.show_service_status ?? true;
+  const showSportFilter = cfg?.show_sport_filter ?? true;
+  const showRefresh = cfg?.show_refresh ?? true;
 
   const refresh = () => {
     bumpRefresh();
@@ -85,40 +93,54 @@ export function Sidebar() {
           })}
         </nav>
 
-        <hr className="border-border" />
+        {showServiceStatus && (
+          <>
+            <hr className="border-border" />
 
-        {/* Real-time service status */}
-        <div>
-          <h3 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-            Service status
-          </h3>
-          <StatusDots />
-        </div>
+            {/* Real-time service status */}
+            <div>
+              <h3 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+                Service status
+              </h3>
+              <StatusDots />
+            </div>
+          </>
+        )}
 
-        <hr className="border-border" />
+        {(showSportFilter || showRefresh) && (
+          <>
+            <hr className="border-border" />
 
-        {/* Secondary controls */}
-        <div className="px-1">
-          <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-            Sport filter
-          </h3>
-          <select
-            value={sportFilter}
-            onChange={(e) => setSportFilter(e.target.value)}
-            aria-label="Sport filter"
-            className="fd-input w-full text-sm"
-          >
-            {SPORT_TYPES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <button onClick={refresh} className="fd-btn-secondary mt-3 flex w-full items-center justify-center gap-2 text-sm">
-            <RefreshCw size={15} strokeWidth={2} />
-            Refresh data
-          </button>
-        </div>
+            {/* Secondary controls */}
+            <div className="px-1">
+              {showSportFilter && (
+                <>
+                  <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+                    Sport filter
+                  </h3>
+                  <select
+                    value={sportFilter}
+                    onChange={(e) => setSportFilter(e.target.value)}
+                    aria-label="Sport filter"
+                    className="fd-input w-full text-sm"
+                  >
+                    {SPORT_TYPES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+              {showRefresh && (
+                <button onClick={refresh} className="fd-btn-secondary mt-3 flex w-full items-center justify-center gap-2 text-sm">
+                  <RefreshCw size={15} strokeWidth={2} />
+                  Refresh data
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="mt-auto px-1 text-[11px] text-text-muted">Training Copilot · AISS2 Team 6</div>
       </aside>

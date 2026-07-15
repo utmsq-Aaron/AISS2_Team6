@@ -12,8 +12,8 @@ load_dotenv()
 
 from api.auth import current_user  # noqa: E402
 from api.routers import (  # noqa: E402
-    auth, chat, chats, charts, feedback, flythrough, goals, health, memory, profile,
-    schedules, settings, sync, tools,
+    auth, chat, chats, charts, config, feedback, flythrough, goals, health, memory,
+    profile, schedules, settings, sync, tools,
 )
 from core.tracing import setup_tracing  # noqa: E402
 
@@ -38,6 +38,9 @@ app.add_middleware(
 # Google reaches via a browser redirect that carries no Authorization header.
 app.include_router(auth.router, prefix="/api")
 app.include_router(settings.public_router, prefix="/api")
+# Non-secret UI feature flags (sidebar section visibility) — public so the SPA can
+# read them independent of login, and they carry no secrets.
+app.include_router(config.router, prefix="/api")
 
 _PROTECTED = [Depends(current_user)]
 for r in (health.router, tools.router, chat.router, chats.router, charts.router,

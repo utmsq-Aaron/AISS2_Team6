@@ -282,6 +282,10 @@ export const getServerHealth = () => http<HealthResponse>("/health/servers");
 /** Re-discover MCP tools on the orchestrator (POST /chat/refresh-tools). */
 export const refreshChatTools = () => http<{ count: number }>("/chat/refresh-tools", { method: "POST" });
 export const getConfigIssues = () => http<{ issues: string[] }>("/health/config");
+
+export interface AppConfig { show_service_status: boolean; show_sport_filter: boolean; show_refresh: boolean; }
+/** GET /api/config — public, non-secret UI flags. */
+export const getConfig = () => http<AppConfig>("/config");
 export const getSettings = () => http<SettingsResponse>("/settings");
 export const putEnv = (values: Record<string, string>) =>
   http<{ written: string[] }>("/settings/env", { method: "PUT", body: JSON.stringify({ values }) });
