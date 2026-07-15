@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Menu } from "lucide-react";
+import { Copy, FileSpreadsheet, FileText, Menu } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { AgentTrace } from "../components/chat/AgentTrace";
@@ -13,6 +13,7 @@ import { PageHeader } from "../components/PageHeader";
 import { PlotlyFigure } from "../components/PlotlyChart";
 import { generateCharts, getServerHealth, refreshChatTools } from "../lib/api";
 import type { FlythroughAction } from "../lib/api";
+import { copyPlan, downloadPlanPdf, downloadPlanXlsx, planTitle } from "../lib/exportPlan";
 import { useAuthStore } from "../store/authStore";
 import type { AssistantTurn } from "../store/chatStore";
 import { useChatStore } from "../store/chatStore";
@@ -267,6 +268,7 @@ function AssistantBubble({
           error={!!turn.trace.error}
         />
         <Markdown>{turn.content}</Markdown>
+        <PlanExportToolbar content={turn.content} />
         {turn.backgroundJob && <DeepWorkCard job={turn.backgroundJob} onViewCoach={onViewCoach} />}
         {ft && Number.isFinite(ftActivityId) && (
           <FlythroughCard action={ft} activityId={ftActivityId} />
@@ -284,6 +286,56 @@ function AssistantBubble({
           <PlotlyFigure key={i} figure={fig} />
         ))}
       </div>
+    </div>
+  );
+}
+
+// Export toolbar (issue #30) — Copy / PDF / Excel for any assistant message.
+// A "training plan" is just the message markdown, so we offer this on every
+// assistant turn (no fragile plan-detection); Excel degrades to a single-column
+// sheet when the message has no table. Skipped for empty/whitespace content.
+function PlanExportToolbar({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false);
+  if (!content || !content.trim()) return null;
+
+  const filename = planTitle(content);
+  const btn =
+    "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:bg-bg-surface hover:text-text-primary";
+
+  const doCopy = async () => {
+    try {
+      await copyPlan(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — ignore */
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <button type="button" className={btn} onClick={doCopy} aria-label="Copy plan to clipboard">
+        <Copy size={13} strokeWidth={2} />
+        {copied ? "Copied" : "Copy"}
+      </button>
+      <button
+        type="button"
+        className={btn}
+        onClick={() => downloadPlanPdf(content, filename)}
+        aria-label="Download plan as PDF"
+      >
+        <FileText size={13} strokeWidth={2} />
+        PDF
+      </button>
+      <button
+        type="button"
+        className={btn}
+        onClick={() => downloadPlanXlsx(content, filename)}
+        aria-label="Download plan as Excel spreadsheet"
+      >
+        <FileSpreadsheet size={13} strokeWidth={2} />
+        Excel
+      </button>
     </div>
   );
 }
