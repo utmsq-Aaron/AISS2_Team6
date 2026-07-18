@@ -12,7 +12,7 @@ This paper presents \textit{Training Copilot}, an open-source sports analytics p
 \subsection{Contributions}\label{sec:intro:contributions}
 
 \begin{itemize}
-\item An MCP-based integration architecture achieving single-line extensibility, verified empirically by adding a Telegram bridge and a flythrough renderer without changes to the host, agents, or UI.
+\item An MCP-based integration architecture achieving single-line extensibility, verified empirically by adding a Telegram bridge and a flythrough renderer without changes to the host, agents, or User Interface (UI).
 \item A multi-agent system with five domain-scoped specialists coordinated via A2A; scoping each specialist to at most three MCP servers counters the tool-selection degradation observed with large tool sets~\citep{qu_tool_2024}.
 \item A RAG-based fitness knowledge agent that grounds exercise-science advice in a local vector database of public-domain literature, with explicit citation preservation.
 \item An automated evaluation framework built on MLflow conversation simulation~\citep{mlflow_multiturn_2025}, using ten persona-driven test cases and five scoring dimensions, including a deterministic trace-based grounding scorer.
