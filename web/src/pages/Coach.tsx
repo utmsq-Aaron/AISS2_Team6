@@ -22,7 +22,7 @@ const ZONE_COLORS: Record<string, string> = {
   REKOM: "#FFD9B8", GA1: "#FDBA74", GA12: "#FB923C", GA2: "#FB923C", WSA: "#B45309",
 };
 const ZONE_NAME: Record<string, string> = {
-  REKOM: "Regeneration", GA1: "Grundlage 1", GA2: "Grundlage 2", WSA: "Wettkampf",
+  REKOM: "Regeneration", GA1: "Grundlage 1", GA2: "Grundlage 2", WSA: "Wettkampftempo",
 };
 const ZONE_ORDER = ["ReKom", "GA1", "GA2", "WSA"];
 // Legacy Z1–Z5 plans map onto the German bands, so old and new plans read alike.

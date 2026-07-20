@@ -1070,6 +1070,36 @@ async def _scheduler_loop(client) -> None:
         await asyncio.sleep(SCHEDULE_POLL_SECONDS)
 
 
+def _recover_wedged_builds() -> None:
+    """After a crash/restart, re-enqueue active goals wedged in 'building' with NO
+    panel: their in-flight build died with the process, the queue entry was already
+    drained, and nothing else retriggers them (the staleness sweep only refreshes
+    panels that already exist). Enqueue by the on-disk slug — build_panel slugifies
+    again, so this is safe. Idempotent."""
+    import json
+    from pathlib import Path
+
+    from core import goal_build_queue
+
+    base = Path(__file__).resolve().parent / "data" / "user_memory"
+    if not base.exists():
+        return
+    n = 0
+    for gp in base.glob("*/goals.json"):
+        slug = gp.parent.name
+        try:
+            goals = (json.loads(gp.read_text(encoding="utf-8")) or {}).get("goals") or []
+        except (OSError, ValueError):
+            continue
+        for g in goals:
+            if (g.get("status") == "active" and g.get("panel_status") == "building"
+                    and not g.get("panel") and g.get("id")
+                    and goal_build_queue.enqueue(slug, g["id"])):
+                n += 1
+    if n:
+        log.info("recovered %d wedged goal-panel build(s) from a prior restart", n)
+
+
 async def _goal_build_loop() -> None:
     """Drains core.goal_build_queue on its OWN short cadence — independent of
     _scheduler_loop's 60s cadence — so a form-created/refreshed goal's "building…"
@@ -1080,6 +1110,7 @@ async def _goal_build_loop() -> None:
     mid-way is caught by the hourly staleness sweep, never silently lost."""
     from core import goal_build_queue, goal_panel
     log.info("Goal-panel build loop started (poll=%ss).", GOAL_BUILD_POLL_SECONDS)
+    _recover_wedged_builds()  # re-enqueue builds that died in a prior crash/restart
     while True:
         try:
             for path, rec in goal_build_queue.pending():
