@@ -121,7 +121,7 @@ export function Chat() {
 
         <PageHeader
           title="Ask anything about your fitness data"
-          subtitle="The assistant fetches live data from Strava and Garmin before answering — no guessing, only real numbers."
+          subtitle="Live answers from your Strava and Garmin data."
         />
 
         {/* Tool availability banner */}
@@ -139,7 +139,7 @@ export function Chat() {
           </div>
         ) : health && reachable.length < 10 ? (
           <div className="mb-3 flex items-center gap-3 text-xs text-text-muted">
-            <span>⚡ {reachable.length} servers reachable (some may be offline)</span>
+            <span>⚡ {reachable.length} services online</span>
             <button
               type="button"
               disabled={refreshing}

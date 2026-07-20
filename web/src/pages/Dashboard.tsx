@@ -172,16 +172,9 @@ export function Dashboard() {
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
                 <Target size={24} />
               </div>
-              <h3 className="text-lg font-semibold text-text-primary">
-                Add a goal to see your progress.
-              </h3>
+              <h3 className="text-lg font-semibold text-text-primary">Add your first goal</h3>
               <p className="mt-1 text-sm text-text-muted">
-                Freeform is fine — "sub-40 10K by December", "swim 3x/week". Your coach
-                builds a dashboard panel for it automatically.
-              </p>
-              <p className="mt-3 text-xs text-text-muted">
-                …or ask your coach to set one in{" "}
-                <span className="font-medium text-text-primary">Chat</span>.
+                Pick a type above — your coach builds a panel for it automatically.
               </p>
             </div>
           ) : (
@@ -237,10 +230,7 @@ export function Dashboard() {
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-text-primary">Your coach</h3>
-            <p className="mt-0.5 text-sm text-text-muted">
-              Ask about your training, plan the week ahead, or adjust your goals — your
-              coach reads your data and answers in Chat.
-            </p>
+            <p className="mt-0.5 text-sm text-text-muted">Plan your week or adjust goals — answers in Chat.</p>
           </div>
           <Link to="/chat" className="fd-btn-primary inline-flex shrink-0 items-center gap-1.5">
             Open Chat <ArrowRight size={16} />

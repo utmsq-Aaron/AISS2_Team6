@@ -460,10 +460,21 @@ export interface TimelineEvent {
   blocked_sports: string[];
 }
 
+// Zones use the German bands ReKom/GA1/GA2/WSA (keys of the band records),
+// grounded in the textbook corpus (%HFmax + Karvonen/HFR; pace = factor × race
+// pace). See docs/trainingsregeln.md.
 export interface ZoneSet {
-  hr?: { bands_bpm: Record<string, [number, number]>; basis: string };
-  pace?: { bands_pace: Record<string, [string, string]>; threshold_pace: string; basis: string };
+  hr?: {
+    bands_bpm: Record<string, [number, number]>;      // %HFmax bands
+    bands_bpm_hfr?: Record<string, [number, number]>; // Karvonen/%HFR bands (if resting HR)
+    method?: string;
+    basis: string;
+    hfr_basis?: string;
+  };
+  pace?: { bands_pace: Record<string, [string, string]>; race_pace?: string; basis: string };
   pace_source?: { distance_km: number; time_secs: number; label: string | null };
+  hr_max_used?: number;
+  hr_max_estimated?: boolean;
   computed_at?: string;
 }
 
@@ -507,7 +518,16 @@ export interface AthleteOverview {
   zones: ZoneSet;
   plan: TrainingPlan | null;
   days_to_race?: number;
-  prognosis?: { predicted_time: string; target_time: string | null; on_track: boolean | null; basis: string };
+  // Prognosis is EITHER a benchmark comparison (real race near the goal distance)
+  // OR a note asking for a benchmark — no distance extrapolation (docs/trainingsregeln.md §3).
+  prognosis?: {
+    benchmark?: string;
+    benchmark_pace?: string;
+    required_pace?: string | null;
+    on_track?: boolean | null;
+    basis?: string;
+    note?: string;
+  };
   plan_generation?: string | null; // "running" | "error: …" | null
 }
 

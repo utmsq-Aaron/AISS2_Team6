@@ -10,7 +10,9 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { InfoHint } from "../components/InfoHint";
 import { PageHeader } from "../components/PageHeader";
+import { ServiceStatus } from "../components/StatusDots";
 import { Spinner, ErrorBox } from "../components/Spinner";
 import { AddGoalInput } from "../components/goal/AddGoalInput";
 import { GoalPanel } from "../components/goal/GoalPanel";
@@ -1094,21 +1096,25 @@ export function Settings() {
 
   return (
     <div>
-      <PageHeader
-        title="⚙️ Integrations"
-        subtitle="Connect your services. Credentials are stored locally in .env and never shared with third parties."
-      />
+      <div className="flex items-start gap-1.5">
+        <PageHeader title="⚙️ Settings" subtitle="Connect your services and manage your account." />
+        <InfoHint
+          className="mt-1"
+          label="Privacy"
+          text="Credentials are stored locally in .env and never shared with third parties."
+        />
+      </div>
 
       <ProgressBar integ={integ} />
 
       {requiredOk && (
         allOk ? (
-          <div className="mt-3 rounded-lg border border-metric-green/40 bg-metric-green/10 px-4 py-3 text-sm text-metric-green">
-            <strong>All services connected</strong> — Training Copilot is fully set up. 🎉
+          <div className="mt-3 rounded-lg border border-metric-green/40 bg-metric-green/10 px-4 py-2.5 text-sm text-metric-green">
+            All services connected — you're fully set up. 🎉
           </div>
         ) : (
-          <div className="mt-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-text-primary">
-            <strong>Required services connected</strong> — Training Copilot is ready. Garmin and Google Calendar are optional.
+          <div className="mt-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-2.5 text-sm text-text-primary">
+            Ready to go. Garmin and Google Calendar are optional.
           </div>
         )
       )}
@@ -1130,6 +1136,9 @@ export function Settings() {
           {i < cards.length - 1 && <div className="h-px bg-border" />}
         </div>
       ))}
+
+      <div className="my-5 h-px bg-border" />
+      <ServiceStatus />
 
       <div className="my-5 h-px bg-border" />
       <TrainingGoalsManager />

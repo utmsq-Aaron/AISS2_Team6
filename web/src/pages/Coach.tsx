@@ -1,7 +1,7 @@
-// Coach tab — the structured race-goal journey (design: docs artifact
-// "Coach-Tab — Design-Entwurf"). Everything numeric on this page comes from the
-// athlete server's deterministic math (Riegel prognosis, zone bands, ramp-capped
-// week volumes); the coach agent only fills workouts. Three states:
+// Coach tab — the structured race-goal journey. Everything numeric on this page
+// comes from the athlete server's deterministic, corpus-grounded math (%HFmax +
+// Karvonen zone bands, benchmark prognosis, ramp-capped week volumes — see
+// docs/trainingsregeln.md); the coach agent only fills workouts. Three states:
 //   1. no race goal   → goal capture form
 //   2. goal, no plan  → hero tiles + "Plan erstellen" (polls while generating)
 //   3. plan           → hero + timeline band + this-week cards + volume chart + zones
@@ -10,16 +10,31 @@ import { AlertTriangle, CalendarDays, Flag, Loader2, Sparkles } from "lucide-rea
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { InfoHint } from "../components/InfoHint";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
 import type { AthleteOverview, PlanWeek, TimelineEvent } from "../lib/api";
 import { generatePlan, getAthleteOverview, setRaceGoal } from "../lib/api";
 
-// Zone ramp — sequential warm ramp on the app's secondary (orange) accent,
-// light→dark = easy→hard; matches the artifact's z1–z5 scale.
+// Zone ramp — warm ramp on the secondary (orange) accent, light→dark = easy→hard.
+// German training bands ReKom/GA1/GA2/WSA (%HFmax; docs/trainingsregeln.md).
 const ZONE_COLORS: Record<string, string> = {
-  Z1: "#FFD9B8", Z2: "#FDBA74", Z3: "#FB923C", Z4: "#F97316", Z5: "#B45309",
+  REKOM: "#FFD9B8", GA1: "#FDBA74", GA12: "#FB923C", GA2: "#FB923C", WSA: "#B45309",
 };
+const ZONE_NAME: Record<string, string> = {
+  REKOM: "Regeneration", GA1: "Grundlage 1", GA2: "Grundlage 2", WSA: "Wettkampf",
+};
+const ZONE_ORDER = ["ReKom", "GA1", "GA2", "WSA"];
+// Legacy Z1–Z5 plans map onto the German bands, so old and new plans read alike.
+const Z_ALIAS: Record<string, string> = { Z1: "ReKom", Z2: "GA1", Z3: "GA2", Z4: "WSA", Z5: "WSA", GA12: "GA2" };
+const DE_LABEL: Record<string, string> = { REKOM: "ReKom", GA1: "GA1", GA2: "GA2", WSA: "WSA" };
+const zoneKey = (z?: string) => (z ?? "").replace(/[\s/_-]/g, "").toUpperCase();
+// Canonical German zone label for any input (aliases legacy Z1–Z5 → ReKom/GA1/GA2/WSA).
+const canonZone = (z?: string): string => {
+  const k = zoneKey(z);
+  return Z_ALIAS[k] ?? DE_LABEL[k] ?? (z ?? "");
+};
+const zoneColor = (z?: string) => ZONE_COLORS[zoneKey(canonZone(z))] ?? "#64748B";
 const PHASE_COLORS: Record<string, string> = {
   base: "#FDBA74", build: "#FB923C", peak: "#F97316", taper: "#FFD9B8",
 };
@@ -50,7 +65,7 @@ export function Coach() {
   }
   if (q.isError || !q.data) {
     return (
-      <div className="rounded-xl border border-border bg-bg-card p-6 text-text-muted">
+      <div className="fd-card p-6 text-text-muted">
         Athleten-Daten nicht erreichbar — läuft der athlete-Server (:8109)?
       </div>
     );
@@ -60,19 +75,19 @@ export function Coach() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Coach"
-        subtitle={race ? `Dein Weg: ${race.name}` : "Dein strukturiertes Trainingsziel"}
-      />
       {!race ? (
-        <GoalForm onSaved={() => qc.invalidateQueries({ queryKey: ["athlete-overview"] })} />
+        <>
+          <PageHeader title="Coach" subtitle="Dein strukturiertes Trainingsziel" />
+          <GoalForm onSaved={() => qc.invalidateQueries({ queryKey: ["athlete-overview"] })} />
+        </>
       ) : (
         <>
-          <HeroTiles ov={ov} />
+          {/* Roter Faden: Ziel & Status → was diese Woche ansteht → Details darunter. */}
+          <Hero ov={ov} />
           {ov.plan ? (
             <>
-              <TimelineBand ov={ov} />
               <ThisWeek plan={ov.plan} />
+              <TimelineBand ov={ov} />
               <div className="grid gap-4 lg:grid-cols-5">
                 <VolumeChart weeks={ov.plan.weeks} currentWeek={ov.plan.current_week ?? null} />
                 <ZonesTable ov={ov} />
@@ -111,14 +126,14 @@ function GoalForm({ onSaved }: { onSaved: () => void }) {
   const valid = form.race_name && form.race_date && parseFloat(form.distance_km) > 0;
 
   return (
-    <div className="max-w-xl rounded-xl border border-border bg-bg-card p-6">
+    <div className="max-w-xl fd-card p-6">
       <div className="mb-1 flex items-center gap-2 text-text-primary">
         <Flag size={18} className="text-secondary" />
         <h2 className="text-sm font-semibold">Wettkampfziel festlegen</h2>
       </div>
-      <p className="mb-5 text-xs text-text-muted">
-        Datum, Distanz und Zielzeit — daraus baut der Coach deinen periodisierten Plan.
-        Motivations-Ziele in Freitext bleiben auf dem Dashboard; hier geht es um den Wettkampf.
+      <p className="mb-5 flex items-center gap-1.5 text-xs text-text-muted">
+        Datum, Distanz und Zielzeit — daraus baut der Coach deinen Plan.
+        <InfoHint text="Für einen konkreten Wettkampf mit Datum. Freie Motivations-Ziele bleiben auf dem Dashboard." />
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs text-text-muted">
@@ -156,51 +171,57 @@ function GoalForm({ onSaved }: { onSaved: () => void }) {
   );
 }
 
-// ── 2. hero tiles ─────────────────────────────────────────────────────────────
+// ── 2. hero — the thesis at a glance: which race, how far off, on track? ───────
 
-function HeroTiles({ ov }: { ov: AthleteOverview }) {
+function Hero({ ov }: { ov: AthleteOverview }) {
   const race = ov.profile.race!;
   const plan = ov.plan;
-  const prog = ov.prognosis;
-  const weekLabel = plan?.current_week
-    ? `Woche ${plan.current_week} von ${plan.n_weeks ?? plan.weeks.length}`
-    : plan ? `${plan.n_weeks ?? plan.weeks.length} Wochen geplant` : "noch kein Plan";
+  const prog = prognosisShort(ov.prognosis);
+  const onTrack = ov.prognosis?.on_track;
   const thisWeek = plan?.weeks.find((w) => w.week === plan.current_week);
+  const weekLabel = plan?.current_week
+    ? `Woche ${plan.current_week}/${plan.n_weeks ?? plan.weeks.length}`
+    : plan ? `${plan.n_weeks ?? plan.weeks.length} Wochen` : "kein Plan";
+  const phaseLabel = thisWeek ? `${PHASE_LABEL[thisWeek.phase]}-Phase` : fmtDate(race.date);
+  const chipClass =
+    onTrack === false ? "border-metric-amber/40 bg-metric-amber/10 text-metric-amber"
+      : onTrack ? "border-metric-green/40 bg-metric-green/10 text-metric-green"
+        : "border-border bg-bg-surface text-text-muted";
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <Tile label="Countdown"
-        big={ov.days_to_race != null ? `${ov.days_to_race}` : "—"} small="Tage"
-        hint={`${fmtDate(race.date)} · ${weekLabel}`} />
-      <Tile label="Ziel & Prognose"
-        big={race.target_time ?? "—"} small="Ziel"
-        hint={prog
-          ? `Prognose ${prog.predicted_time} · ${prog.on_track == null ? prog.basis : prog.on_track ? "auf Kurs" : "Tempo fehlt noch"}`
-          : "Prognose folgt mit den Zonen (echtes Rennergebnis nötig)"}
-        hintClass={prog?.on_track === false ? "text-metric-amber" : prog?.on_track ? "text-metric-green" : undefined} />
-      <Tile label="Distanz" big={`${race.distance_km}`} small="km"
-        hint={ov.zones?.pace ? `Schwellen-Pace ${ov.zones.pace.threshold_pace}` : "Zonen noch nicht berechnet"} />
-      <Tile label="Diese Woche"
-        big={thisWeek ? `${thisWeek.workouts.length}` : "—"} small={thisWeek ? `Einheiten · ${thisWeek.target_km} km` : ""}
-        hint={thisWeek
-          ? `${PHASE_LABEL[thisWeek.phase]}-Phase${thisWeek.cutback ? " · Entlastung" : ""}`
-          : plan
-            ? `Plan startet am ${fmtDate(plan.weeks[0].start_date)}`
-            : "Plan erstellen, um zu starten"} />
+    <div className="fd-card px-5 py-4 sm:px-6 sm:py-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="fd-label">Coach · Dein Weg</div>
+          <h1 className="mt-0.5 truncate text-xl font-bold text-text-primary sm:text-2xl">{race.name}</h1>
+        </div>
+        <span className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${chipClass}`}>
+          {prog.text}
+          {prog.info && <InfoHint text={prog.info} label="Prognose-Detail" />}
+        </span>
+      </div>
+      <div className="mt-4 flex flex-wrap items-end gap-x-7 gap-y-3">
+        <Stat big={ov.days_to_race != null ? `${ov.days_to_race}` : "—"} unit="Tage" label="bis zum Wettkampf" primary />
+        <Stat big={weekLabel} label={phaseLabel} />
+        <Stat big={race.target_time ?? "—"} label="Zielzeit" />
+        <Stat big={`${race.distance_km} km`} label="Distanz" muted />
+      </div>
     </div>
   );
 }
 
-function Tile({ label, big, small, hint, hintClass }: {
-  label: string; big: string; small?: string; hint?: string; hintClass?: string;
+function Stat({ big, unit, label, primary, muted }: {
+  big: string; unit?: string; label: string; primary?: boolean; muted?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-bg-card px-4 py-3.5">
-      <div className="text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">{label}</div>
-      <div className="mt-1 text-2xl font-bold tabular-nums text-text-primary">
-        {big} {small && <span className="text-sm font-medium text-text-muted">{small}</span>}
+    <div>
+      <div className={`font-bold leading-none tabular-nums ${
+        primary ? "text-3xl text-text-primary sm:text-4xl"
+          : muted ? "text-lg text-text-muted" : "text-2xl text-text-primary"}`}>
+        {big}
+        {unit && <span className="ml-1 text-sm font-medium text-text-muted">{unit}</span>}
       </div>
-      {hint && <div className={`mt-0.5 text-[11.5px] ${hintClass ?? "text-text-muted"}`}>{hint}</div>}
+      <div className="mt-1 text-[11px] text-text-faint">{label}</div>
     </div>
   );
 }
@@ -213,7 +234,7 @@ function GenerateCard({ ov, onGenerate, busy }: {
   const running = ov.plan_generation === "running" || busy;
   const failed = ov.plan_generation?.startsWith("error");
   return (
-    <div className="rounded-xl border border-border bg-bg-card p-6">
+    <div className="fd-card p-6">
       {running ? (
         <div className="flex items-center gap-3 text-text-muted">
           <Loader2 size={18} className="animate-spin text-accent" />
@@ -234,10 +255,9 @@ function GenerateCard({ ov, onGenerate, busy }: {
             <Sparkles size={18} className="text-accent" />
             <h2 className="text-sm font-semibold">Trainingsplan erstellen</h2>
           </div>
-          <p className="mb-4 text-xs text-text-muted">
-            Periodisierung (Basis → Aufbau → Peak → Taper) und Wochenvolumen werden deterministisch
-            berechnet (Rampe ≤ 8 %/Woche); der Coach füllt die Einheiten aus deinen echten Zonen
-            und begründet jede Wahl.
+          <p className="mb-4 flex items-center gap-1.5 text-xs text-text-muted">
+            Periodisierter Plan aus deinen echten Werten — Basis → Aufbau → Peak → Taper.
+            <InfoHint text="Wochenvolumen und Rampe (≤ 8 %/Woche) werden deterministisch berechnet; der Coach füllt die Einheiten aus deinen Zonen und begründet jede Wahl." />
           </p>
           <button type="button" onClick={onGenerate}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-bg-app hover:bg-accent-hover">
@@ -275,7 +295,7 @@ function TimelineBand({ ov }: { ov: AthleteOverview }) {
   const injuries = ov.timeline.filter((e) => e.type === "injury" || e.type === "illness");
 
   return (
-    <div className="rounded-xl border border-border bg-bg-card px-5 py-4">
+    <div className="fd-card px-5 py-4">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-text-primary">Deine Timeline</h2>
         <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
@@ -348,12 +368,12 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {week.workouts.map((wo, i) => (
-          <div key={`${wo.day}-${i}`} className="flex flex-col gap-2 rounded-xl border border-border bg-bg-card px-4 py-3.5">
+          <div key={`${wo.day}-${i}`} className="flex flex-col gap-2 fd-card px-4 py-3.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-text-faint">{wo.day}</span>
               <span className="rounded-md px-2 py-0.5 text-[11px] font-bold text-bg-app"
-                style={{ background: ZONE_COLORS[wo.zone?.toUpperCase()] ?? "#64748B" }}>
-                {wo.zone}
+                style={{ background: zoneColor(wo.zone) }}>
+                {canonZone(wo.zone)}
               </span>
             </div>
             <h3 className="text-[14.5px] font-semibold text-text-primary">{wo.title}</h3>
@@ -363,11 +383,9 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
                 .filter(Boolean).join(" · ")}
             </div>
             {wo.why && (
-              <p className="border-l-2 border-border pl-2.5 text-[11.5px] text-text-muted">
-                {wo.why}
-                {wo.source && <span className="ml-1.5 text-metric-cyan" title="Quelle aus der Literatur-Bibliothek">({wo.source})</span>}
-              </p>
+              <p className="border-l-2 border-border pl-2.5 text-[11.5px] text-text-muted">{wo.why}</p>
             )}
+            {wo.source && <SourceReveal source={wo.source} />}
             <div className="mt-0.5 flex gap-2">
               <Link to="/chat"
                 className="rounded-md border border-border bg-bg-app px-2.5 py-1 text-[11.5px] font-semibold text-text-muted hover:border-accent hover:text-text-primary">
@@ -381,7 +399,7 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
           </div>
         ))}
         {!week.workouts.length && (
-          <div className="rounded-xl border border-border bg-bg-card p-4 text-xs text-text-muted">
+          <div className="fd-card p-4 text-xs text-text-muted">
             Keine Einheiten in dieser Woche hinterlegt.
           </div>
         )}
@@ -395,7 +413,7 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
 function VolumeChart({ weeks, currentWeek }: { weeks: PlanWeek[]; currentWeek: number | null }) {
   const max = Math.max(...weeks.map((w) => w.target_km), 1);
   return (
-    <div className="rounded-xl border border-border bg-bg-card px-5 py-4 lg:col-span-3">
+    <div className="fd-card px-5 py-4 lg:col-span-3">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-text-primary">Wochenvolumen · Plan</h2>
         <span className="text-[10.5px] text-text-faint">Ist-Abgleich mit Strava folgt</span>
@@ -423,33 +441,37 @@ function VolumeChart({ weeks, currentWeek }: { weeks: PlanWeek[]; currentWeek: n
 function ZonesTable({ ov }: { ov: AthleteOverview }) {
   const hr = ov.zones?.hr?.bands_bpm;
   const pace = ov.zones?.pace?.bands_pace;
-  const order = ["Z1", "Z2", "Z3", "Z4", "Z5"];
-  const names: Record<string, string> = {
-    Z1: "Regeneration", Z2: "Grundlage", Z3: "Tempo", Z4: "Schwelle", Z5: "VO₂max",
-  };
   return (
-    <div className="rounded-xl border border-border bg-bg-card px-5 py-4 lg:col-span-2">
+    <div className="fd-card px-5 py-4 lg:col-span-2">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">Deine Zonen</h2>
-        <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
+        <span className="flex items-center gap-1.5">
+          <h2 className="text-sm font-semibold text-text-primary">Deine Zonen</h2>
+          {(ov.zones?.hr?.basis || ov.zones?.pace?.basis) && (
+            <InfoHint
+              label="Berechnungsbasis"
+              text={`Basis: ${[ov.zones.hr?.basis, ov.zones.pace?.basis].filter(Boolean).join(" · ")}`}
+            />
+          )}
+        </span>
+        <span className="fd-label">
           {hr || pace ? "berechnet, nicht geschätzt" : "noch nicht berechnet"}
         </span>
       </div>
       {hr || pace ? (
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-[10.5px] uppercase tracking-wider text-text-faint">
-              <th className="border-b border-border px-1.5 py-1 font-semibold">Zone</th>
-              <th className="border-b border-border px-1.5 py-1 font-semibold">Herzfrequenz</th>
-              <th className="border-b border-border px-1.5 py-1 font-semibold">Pace</th>
+            <tr className="fd-label text-left">
+              <th className="border-b border-border px-1.5 py-1">Bereich</th>
+              <th className="border-b border-border px-1.5 py-1">HF (%HFmax)</th>
+              <th className="border-b border-border px-1.5 py-1">Pace</th>
             </tr>
           </thead>
           <tbody>
-            {order.map((z) => (
+            {ZONE_ORDER.map((z) => (
               <tr key={z}>
                 <td className="border-b border-border px-1.5 py-1.5 font-bold text-text-primary">
-                  <span className="mr-2 inline-block h-2.5 w-2.5 rounded-sm align-[-1px]" style={{ background: ZONE_COLORS[z] }} />
-                  {z} {names[z]}
+                  <span className="mr-2 inline-block h-2.5 w-2.5 rounded-sm align-[-1px]" style={{ background: zoneColor(z) }} />
+                  {z} <span className="font-normal text-text-muted">{ZONE_NAME[zoneKey(z)]}</span>
                 </td>
                 <td className="border-b border-border px-1.5 py-1.5 tabular-nums text-text-muted">
                   {hr?.[z] ? `${hr[z][0]}–${hr[z][1]} bpm` : "—"}
@@ -463,16 +485,39 @@ function ZonesTable({ ov }: { ov: AthleteOverview }) {
         </table>
       ) : (
         <p className="text-xs text-text-muted">
-          Der Coach berechnet die Zonen beim Plan-Erstellen aus deinen echten Garmin-/Strava-Werten.
-        </p>
-      )}
-      {(ov.zones?.hr?.basis || ov.zones?.pace?.basis) && (
-        <p className="mt-2 text-[10.5px] text-text-faint">
-          Basis: {[ov.zones.hr?.basis, ov.zones.pace?.basis].filter(Boolean).join(" · ")}
+          Zonen werden beim Plan-Erstellen aus deinen echten Garmin-/Strava-Werten berechnet.
         </p>
       )}
     </div>
   );
+}
+
+// Source is opt-in: show a quiet toggle, reveal the literature source on request.
+function SourceReveal({ source }: { source: string }) {
+  const [open, setOpen] = useState(false);
+  if (open) return <p className="text-[11px] text-text-faint">Quelle: {source}</p>;
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="self-start text-[11px] font-medium text-text-faint transition-colors hover:text-text-muted"
+    >
+      Quelle anzeigen
+    </button>
+  );
+}
+
+// Prognosis: a SHORT status for the tile, with the full detail behind an ⓘ.
+function prognosisShort(prog?: AthleteOverview["prognosis"]): { text: string; info?: string } {
+  if (!prog)
+    return { text: "Prognose offen", info: "Für eine Prognose einen Referenzlauf nahe der Zieldistanz aufnehmen." };
+  if (prog.note) return { text: "Benchmark nötig", info: prog.note };
+  if (prog.required_pace)
+    return {
+      text: prog.on_track ? "auf Kurs" : "Tempo fehlt noch",
+      info: `Benchmark ${prog.benchmark_pace ?? "—"} · Zieltempo ${prog.required_pace}`,
+    };
+  return { text: prog.basis ?? "—" };
 }
 
 function fmtDate(iso: string): string {

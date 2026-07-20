@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getServerHealth } from "../lib/api";
 import { C_GREEN, C_RED } from "../theme/tokens";
+import { InfoHint } from "./InfoHint";
 
 function Dot({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -14,41 +15,49 @@ function Dot({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
-// Live sidebar status — mirrors app.py _status_dots (🔑 service · 🖥️ server),
-// auto-refreshing every 5 s.
-export function StatusDots() {
-  const { data } = useQuery({
+// Service status — lives in Settings (moved off the sidebar). Two checks per
+// integration: Auth = the account/credentials are connected; Server = the local
+// MCP service is up. Refreshes on its own while the Settings page is open.
+export function ServiceStatus() {
+  const { data, isLoading } = useQuery({
     queryKey: ["health", "servers"],
     queryFn: getServerHealth,
-    refetchInterval: 5000,
+    refetchInterval: 8000,
   });
+  const servers = data?.servers ?? [];
 
   return (
-    <div className="space-y-1.5">
-      <div
-        className="mb-1.5 flex items-center gap-2.5 text-[11px] text-text-muted"
-        aria-hidden="true"
-      >
-        <span>🔑 Service</span>
-        <span>🖥️ Server</span>
+    <div>
+      <div className="mb-2 flex items-center gap-1.5">
+        <h3 className="text-lg font-semibold text-text-primary">Service status</h3>
+        <InfoHint text="Auth = your account/credentials are connected. Server = the local service is running. Green means OK." />
       </div>
-      {(data?.servers ?? []).map((s) => (
-        <div key={s.key} className="flex items-center gap-1.5">
-          <span aria-hidden="true">🔑</span>
-          <Dot
-            ok={s.service_ok}
-            label={`${s.label} service ${s.service_ok ? "connected" : "not connected"}`}
-          />
-          <span className="ml-1" aria-hidden="true">
-            🖥️
-          </span>
-          <Dot
-            ok={s.server_up}
-            label={`${s.label} server ${s.server_up ? "running" : "down"}`}
-          />
-          <span className="ml-0.5 text-[13px] text-text-primary/80">{s.label}</span>
+      {isLoading ? (
+        <p className="text-sm text-text-muted">Checking…</p>
+      ) : servers.length === 0 ? (
+        <p className="text-sm text-text-muted">No services reachable right now.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {servers.map((s) => (
+            <div
+              key={s.key}
+              className="flex items-center justify-between rounded-lg border border-border bg-bg-surface px-3 py-1.5"
+            >
+              <span className="text-sm text-text-primary">{s.label}</span>
+              <span className="flex items-center gap-3 text-[11px] text-text-muted">
+                <span className="flex items-center gap-1">
+                  <Dot ok={s.service_ok} label={`${s.label} auth ${s.service_ok ? "connected" : "not connected"}`} />
+                  Auth
+                </span>
+                <span className="flex items-center gap-1">
+                  <Dot ok={s.server_up} label={`${s.label} server ${s.server_up ? "up" : "down"}`} />
+                  Server
+                </span>
+              </span>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

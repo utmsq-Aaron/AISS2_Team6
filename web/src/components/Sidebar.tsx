@@ -5,7 +5,6 @@ import { NavLink } from "react-router-dom";
 import { NAV } from "../nav";
 import { useChatStore } from "../store/chatStore";
 import { SPORT_TYPES, useUiStore } from "../store/uiStore";
-import { StatusDots } from "./StatusDots";
 
 // Sidebar — focused on global navigation + real-time service status (design IA),
 // with the sport filter and data refresh as secondary controls below. Below `md`
@@ -84,16 +83,6 @@ export function Sidebar() {
             );
           })}
         </nav>
-
-        <hr className="border-border" />
-
-        {/* Real-time service status */}
-        <div>
-          <h3 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-            Service status
-          </h3>
-          <StatusDots />
-        </div>
 
         <hr className="border-border" />
 
