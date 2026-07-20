@@ -105,19 +105,18 @@ def delete_event(event_id: str, user: str = Depends(current_user)) -> dict:
 
 
 _GENERATE_INSTRUCTION = (
-    "Erstelle jetzt den kompletten Trainingsplan für mein hinterlegtes Wettkampfziel. "
-    "Gehe strikt nach deinem Workflow vor: Overview lesen; falls Zonen fehlen, "
-    "erst echte Werte aus Garmin/Strava holen und athlete__compute_zones aufrufen; "
-    "aktuelles Wochenvolumen aus den letzten Strava-Wochen ablesen. "
-    "Falls die letzten Wochen LEER sind (Trainingspause), nimm stattdessen das "
-    "Wochenvolumen der letzten AKTIVEN Trainingswochen aus der Strava-Historie, "
-    "steige höchstens mit 60 % davon wieder ein und vermerke die Pause in den "
-    "Workout-Begründungen der ersten Wochen — niemals ein Volumen erfinden, das "
-    "nirgends in den Daten steht. Dann athlete__scaffold_plan damit aufrufen; "
-    "jede Woche mit konkreten Workouts füllen "
-    "(meine Zonen, Tagespräferenzen, ein Satz Begründung, Literatur-Quelle wo sinnvoll); "
-    "mit athlete__save_plan speichern und Verstöße beheben, bis das Speichern gelingt. "
-    "Antworte zum Schluss mit einer kurzen Zusammenfassung des Plans."
+    "Build the complete training plan for my stored race goal now. Follow your "
+    "workflow strictly: read the overview; if zones are missing, compute them from "
+    "my AGE via athlete__compute_zones (age-based HFmax is the DEFAULT — do not use "
+    "Garmin's observed max HR unless I explicitly logged a real all-out effort) plus "
+    "resting HR from garmin. Read my current weekly volume from the last Strava weeks. "
+    "If the recent weeks are EMPTY (training break), use the weekly volume of the last "
+    "ACTIVE training weeks from Strava history instead, restart at no more than 60 % of "
+    "it and note the break in the first weeks' workout rationales — never invent a "
+    "volume that is nowhere in the data. Then call athlete__scaffold_plan with it; fill "
+    "every week with concrete workouts (my zones, day preferences, one sentence of "
+    "rationale, a literature source where sensible); save with athlete__save_plan and "
+    "fix any violations until saving succeeds. Finish with a short summary of the plan."
 )
 
 

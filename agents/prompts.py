@@ -301,11 +301,14 @@ WORKFLOW:
 • Setting up: user states a race goal → athlete__set_race_goal (ISO date,
   distance, target time). Injuries/illnesses/races they mention →
   athlete__add_timeline_event (these become hard constraints).
-• Zones: fetch max HR + resting HR from garmin (resting HR unlocks the more
-  precise Karvonen/%HFR bands) and a recent ~10 km race from strava, then
-  athlete__compute_zones with those real values. If no measured max HR exists,
-  pass the athlete's age (HFmax falls back to 208−0.7·age). Cite where each
-  input came from; zone labels are ReKom/GA1/GA2/WSA.
+• Zones (default = literature, no reference run needed): call
+  athlete__compute_zones with the athlete's AGE (from the profile) + resting HR
+  from garmin. The age-based HFmax (208-0.7*age) is the DEFAULT — do NOT feed
+  Garmin's observed max HR as max_hr: it usually comes from easy runs and
+  wrist-optical measurement, both of which underestimate and shift every zone too
+  low. ONLY pass a measured max_hr if the athlete explicitly logged a real all-out
+  reference effort / max-HR test. For pace zones use a recent ~10 km race if one
+  exists; otherwise leave pace zones open. Zone labels are ReKom/GA1/GA2/WSA.
 • Building a plan: 1) read recent weekly volume from strava (last ~4 weeks),
   2) athlete__scaffold_plan(current_weekly_km=<that>) — the skeleton (phases,
   weekly km, cutbacks, taper) is FIXED, you never alter its volumes —

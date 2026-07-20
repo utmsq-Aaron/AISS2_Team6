@@ -484,39 +484,59 @@ def delete_timeline_event(event_id: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
+def set_athlete_profile(age: int = 0) -> Dict[str, Any]:
+    """Store stable athlete attributes used for zone defaults. Currently: age (years),
+    which drives the literature HFmax estimate 208-0.7*age when no measured max HR from
+    a real all-out effort exists. Captured at onboarding / editable in settings."""
+    user = _user()
+    doc = _load(user)
+    if age and int(age) > 0:
+        doc["profile"]["age"] = int(age)
+    _save(user, doc)
+    return {"ok": True, "profile": doc["profile"]}
+
+
+@mcp.tool()
 def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
                   race_distance_km: float = 0, race_time: str = "",
                   race_label: str = "") -> Dict[str, Any]:
-    """Berechne und speichere HF- + Pace-Zonen DETERMINISTISCH aus echten Messwerten.
+    """Compute and store HR + pace zones DETERMINISTICALLY.
 
-    Deutsche Trainingsbereiche ReKom/GA1/GA2/WSA. HF-Zonen als %HFmax und — mit Ruhe-HF —
-    zusätzlich %HFR/Karvonen (Ferrauti S.459). Pace-Zonen als Faktor × Renntempo aus einem
-    realen ~10-km-Wettkampf (Ferrauti Tab. 7.7, Joch 2004). KEIN Laktat/Schwelle (aus
-    Garmin/Strava nicht messbar). Werte zuerst aus garmin/strava holen, nie raten.
+    German training bands ReKom/GA1/GA2/WSA. HR zones as %HFmax and — with a resting
+    HR — additionally %HFR/Karvonen (Ferrauti p.459). Pace zones as a factor x race
+    pace from a real ~10 km race (Ferrauti tab. 7.7, Joch 2004). No lactate/threshold.
+
+    DEFAULT = literature: if no measured max_hr is passed, HFmax is estimated from AGE
+    (208 - 0.7*age, Tanaka via Guellich p.771), falling back to the stored profile age.
+    Only pass a measured max_hr when the athlete has done a REAL all-out effort (a
+    reference run / max-HR test) — a wrist-optical max from easy runs underestimates and
+    would shift every zone too low. Pace zones need a real ~10 km race; otherwise omit.
 
     Args:
-        max_hr: gemessene maximale Herzfrequenz in bpm (Garmin / beobachtetes Maximum).
-        resting_hr: Ruhe-HF in bpm (aus Garmin) — aktiviert die genaueren Karvonen/%HFR-Bänder.
-        age: Alter in Jahren — NUR Fallback: schätzt HFmax als 208−0,7·Alter, wenn keine
-            gemessene max_hr vorliegt. Gemessen ist immer besser.
-        race_distance_km: Distanz eines realen ALL-OUT-Wettkampfs/PR in km (ideal ~10 km).
-        race_time: dessen Zielzeit "H:MM:SS" oder "MM:SS".
-        race_label: Herkunft, z. B. "Strava 10k PR 2026-05-03".
+        max_hr: measured max HR in bpm — ONLY from a genuine all-out reference effort.
+        resting_hr: resting HR in bpm (Garmin) — enables the more precise Karvonen/%HFR bands.
+        age: age in years (defaults to the stored profile age) — drives the literature HFmax.
+        race_distance_km: distance of a recent ~10 km race for pace zones (optional).
+        race_time: its finish time "H:MM:SS" / "MM:SS".
+        race_label: where the race result came from.
     """
-    mh = int(max_hr) or _estimate_hfmax(int(age) or None)
+    user = _user()
+    doc = _load(user)
+    eff_age = int(age) or int((doc.get("profile") or {}).get("age") or 0)
+    measured = bool(int(max_hr))
+    mh = int(max_hr) or _estimate_hfmax(eff_age or None)
     hr = _hr_zones(mh, int(resting_hr) or None)
     secs = _parse_hms(race_time)
     pace = _pace_zones(float(race_distance_km) or None, secs)
     if not hr and not pace:
-        return {"error": "need max_hr (oder age für die 208−0,7·Alter-Schätzung) für HF-Zonen "
-                         "und/oder race_distance_km+race_time für Pace-Zonen"}
-    user = _user()
-    doc = _load(user)
+        return {"error": "need a max_hr, or an age (arg or stored profile) for the "
+                         "208-0.7*age estimate, for HR zones; and/or race_distance_km+race_time"}
     zones: Dict[str, Any] = {"computed_at": datetime.utcnow().isoformat() + "Z"}
     if hr:
         zones["hr"] = hr
         zones["hr_max_used"] = mh
-        zones["hr_max_estimated"] = not int(max_hr)        # True = aus Alter geschätzt
+        zones["hr_max_source"] = "measured" if measured else f"age {eff_age} (208-0.7*age)"
+        zones["hr_max_estimated"] = not measured           # True = literature/age estimate
     if pace:
         zones["pace"] = pace
         zones["pace_source"] = {"distance_km": float(race_distance_km),
