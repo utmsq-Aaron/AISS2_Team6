@@ -15,10 +15,8 @@ import { Chat } from "./pages/Chat";
 import { Coach } from "./pages/Coach";
 import { Dashboard } from "./pages/Dashboard";
 import { Health } from "./pages/Health";
-import { RoutesPage } from "./pages/RoutesPage";
 import { Login } from "./pages/Login";
 import { Settings } from "./pages/Settings";
-import { Sync } from "./pages/Sync";
 import { useAuthStore } from "./store/authStore";
 
 export default function App() {
@@ -68,10 +66,8 @@ function MainShell() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/coach" element={<Coach />} />
               <Route path="/health" element={<Health />} />
-              <Route path="/routes" element={<RoutesPage />} />
               <Route path="/analysis" element={<Analysis />} />
               <Route path="/chat" element={<Chat />} />
-              <Route path="/sync" element={<Sync />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </RouteErrorBoundary>

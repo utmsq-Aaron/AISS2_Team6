@@ -4,9 +4,7 @@ import {
   Flag,
   HeartPulse,
   LayoutDashboard,
-  Map,
   MessageSquare,
-  RefreshCw,
   Settings as SettingsIcon,
 } from "lucide-react";
 
@@ -22,10 +20,8 @@ export const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/coach", label: "Coach", icon: Flag },
   { to: "/health", label: "Health", icon: HeartPulse },
-  { to: "/routes", label: "Routes", icon: Map },
   { to: "/analysis", label: "Analysis", icon: Activity },
   { to: "/chat", label: "Chat", icon: MessageSquare },
-  { to: "/sync", label: "Sync", icon: RefreshCw },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
