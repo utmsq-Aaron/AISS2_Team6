@@ -29,7 +29,6 @@ cross-process lock as the goal store).
 
 from __future__ import annotations
 
-import math
 import os
 import uuid
 from datetime import date, datetime, timedelta
@@ -49,11 +48,24 @@ PORT = int(os.getenv("ATHLETE_MCP_PORT", "8109"))
 _ROOT = Path(__file__).resolve().parent.parent
 _DATA_DIR = _ROOT / "data" / "user_memory"
 
-# Guardrails — hard-coded sport science, not model output.
-MAX_WEEKLY_RAMP = 0.08          # ≤ +8 % volume week over week (non-cutback weeks)
-CUTBACK_EVERY = 4               # every 4th week is a recovery week
-CUTBACK_FACTOR = 0.70           # cutback week ≈ 70 % of the previous build week
-RIEGEL_EXPONENT = 1.06          # Riegel (1981) endurance prediction exponent
+# Guardrails + zone definitions — hard-coded sport science from the German
+# textbook corpus, NOT model output. Every number is sourced in docs/trainingsregeln.md.
+MAX_WEEKLY_RAMP = 0.08          # ≤ +8 %/Woche — konservative "allmähliche progressive
+                               # Belastungssteigerung" (Güllich S.631; Roux-Reizstufenregel).
+                               # Weiche Guardrail, kein exakter Buchwert.
+CUTBACK_EVERY = 4              # 4-Wochen-Zyklus, Entlastung am Zyklusende (Ferrauti S.295)
+CUTBACK_FACTOR = 0.70          # Entlastungswoche ≈ 70 % der vorangehenden Aufbauwoche
+HFMAX_AGE_A = 208.0           # HFmax-Schätzung 208 − 0,7·Alter (Tanaka 2001, via Güllich S.771)
+HFMAX_AGE_B = 0.7             # NUR Fallback — echte Messung immer bevorzugt
+
+# HF-Zonen (deutsche Bereiche ReKom/GA1/GA2/WSA) als %HFmax und %HFR/Karvonen — Ferrauti S.459.
+HR_ZONES_PCT_MAX = {"ReKom": (0.50, 0.60), "GA1": (0.60, 0.80),
+                    "GA2": (0.80, 0.90), "WSA": (0.90, 1.00)}
+HR_ZONES_PCT_HFR = {"ReKom": (0.35, 0.50), "GA1": (0.50, 0.70),
+                    "GA2": (0.70, 0.85), "WSA": (0.85, 1.00)}
+# Pace-Zonen als (langsam, schnell)-Faktor × 10-km-Renntempo — Ferrauti Tab. 7.7 (Joch 2004).
+PACE_ZONES_FACTOR = {"ReKom": (1.43, 1.33), "GA1": (1.33, 1.18),
+                     "GA2": (1.11, 1.05), "WSA": (1.00, 0.95)}
 
 EVENT_TYPES = ("injury", "illness", "race", "note")
 
@@ -152,53 +164,55 @@ def _fmt_pace(sec_per_km: Optional[float]) -> Optional[str]:
 
 # ── deterministic math ─────────────────────────────────────────────────────────
 
-def _riegel(known_dist_km: float, known_secs: float, target_dist_km: float) -> float:
-    """Riegel (1981): t2 = t1 · (d2/d1)^1.06 — race-time prediction."""
-    return known_secs * (target_dist_km / known_dist_km) ** RIEGEL_EXPONENT
-
-
-def _hr_zones(max_hr: Optional[int], threshold_hr: Optional[int],
-              resting_hr: Optional[int]) -> Optional[Dict[str, Any]]:
-    """Five HR zones. Preferred basis: lactate-threshold HR (Friel's percentages);
-    fallback: %HRmax. Pure arithmetic, basis recorded for transparency."""
-    def band(lo: float, hi: float, ref: int) -> List[int]:
-        return [int(round(ref * lo)), int(round(ref * hi))]
-
-    if threshold_hr:
-        z = {"Z1": band(0.00, 0.85, threshold_hr), "Z2": band(0.85, 0.89, threshold_hr),
-             "Z3": band(0.90, 0.94, threshold_hr), "Z4": band(0.95, 0.99, threshold_hr),
-             "Z5": [threshold_hr, max_hr or int(round(threshold_hr * 1.10))]}
-        basis = f"threshold_hr={threshold_hr} (Friel %LTHR)"
-    elif max_hr:
-        z = {"Z1": band(0.50, 0.60, max_hr), "Z2": band(0.60, 0.70, max_hr),
-             "Z3": band(0.70, 0.80, max_hr), "Z4": band(0.80, 0.90, max_hr),
-             "Z5": band(0.90, 1.00, max_hr)}
-        basis = f"max_hr={max_hr} (%HRmax)"
-    else:
+def _estimate_hfmax(age: Optional[int]) -> Optional[int]:
+    """Fallback HFmax = 208 − 0,7·Alter (Tanaka 2001, via Güllich S.771). Nur wenn keine
+    gemessene HFmax vorliegt — Messung ist laut Buch immer genauer."""
+    if not age or age <= 0:
         return None
-    z["Z1"][0] = max(z["Z1"][0], resting_hr or 0)
-    return {"bands_bpm": z, "basis": basis}
+    return int(round(HFMAX_AGE_A - HFMAX_AGE_B * int(age)))
+
+
+def _hr_zones(max_hr: Optional[int], resting_hr: Optional[int]) -> Optional[Dict[str, Any]]:
+    """Deutsche HF-Zonen ReKom/GA1/GA2/WSA als %HFmax; zusätzlich %HFR/Karvonen, sobald eine
+    Ruhe-HF vorliegt (Ferrauti S.459 — HFR bei niedriger/moderater Intensität präziser).
+    Reine Arithmetik, Basis protokolliert; KEIN Laktat/v4 (nicht messbar aus Garmin/Strava)."""
+    if not max_hr:
+        return None
+
+    def band_max(lo: float, hi: float) -> List[int]:
+        return [int(round(max_hr * lo)), int(round(max_hr * hi))]
+
+    out: Dict[str, Any] = {
+        "bands_bpm": {z: band_max(lo, hi) for z, (lo, hi) in HR_ZONES_PCT_MAX.items()},
+        "method": "%HFmax",
+        "basis": f"max_hr={max_hr} — %HFmax-Bänder ReKom/GA1/GA2/WSA (Ferrauti S.459)",
+    }
+    if resting_hr and resting_hr < max_hr:
+        hrr = max_hr - resting_hr                           # Herzfrequenzreserve
+
+        def band_hfr(lo: float, hi: float) -> List[int]:    # Karvonen: rest + %HFR·HFR
+            return [int(round(resting_hr + hrr * lo)), int(round(resting_hr + hrr * hi))]
+
+        out["bands_bpm_hfr"] = {z: band_hfr(lo, hi) for z, (lo, hi) in HR_ZONES_PCT_HFR.items()}
+        out["hfr_basis"] = (f"resting_hr={resting_hr} — Karvonen/%HFR "
+                            f"(Ferrauti S.459: bei niedriger/moderater Intensität präziser)")
+    return out
 
 
 def _pace_zones(race_dist_km: Optional[float], race_secs: Optional[int]) -> Optional[Dict[str, Any]]:
-    """Five pace zones from ONE recent race result.
-
-    Threshold pace = the pace of a ~60-minute all-out race, obtained by inverting
-    Riegel from the given result. Zone bands as multiples of threshold pace
-    (Daniels-style approximations, documented so they can be re-checked).
-    """
+    """Deutsche Pace-Zonen aus EINEM realen Wettkampf (idealerweise ~10 km): Bänder als
+    Faktor × Renntempo nach Ferrauti Tab. 7.7 (Joch 2004). Keine Distanz-Extrapolation."""
     if not race_dist_km or not race_secs:
         return None
-    # distance runnable in 60 min: 60·60 = t1 · (d/d1)^1.06  →  d = d1·(3600/t1)^(1/1.06)
-    d60 = race_dist_km * (3600.0 / race_secs) ** (1.0 / RIEGEL_EXPONENT)
-    thr = 3600.0 / d60                                     # sec per km at threshold
-    mult = {"Z1": (1.24, 1.40), "Z2": (1.14, 1.24), "Z3": (1.06, 1.14),
-            "Z4": (0.99, 1.06), "Z5": (0.92, 0.99)}
-    bands = {z: [_fmt_pace(thr * hi), _fmt_pace(thr * lo)] for z, (lo, hi) in mult.items()}
+    race_pace = race_secs / race_dist_km                   # sec/km — 10-km-Bestleistung als Anker
+    bands = {z: [_fmt_pace(race_pace * f_slow), _fmt_pace(race_pace * f_fast)]
+             for z, (f_slow, f_fast) in PACE_ZONES_FACTOR.items()}  # [langsam, schnell]
+    anchor = "" if abs(race_dist_km - 10) <= 3 else " (Anker idealerweise ~10 km)"
     return {
-        "bands_pace": bands,                               # [slow bound, fast bound]
-        "threshold_pace": _fmt_pace(thr),
-        "basis": f"race {race_dist_km} km in {_fmt_secs(race_secs)} → Riegel(exp {RIEGEL_EXPONENT})",
+        "bands_pace": bands,
+        "race_pace": _fmt_pace(race_pace),
+        "basis": f"Renntempo {_fmt_pace(race_pace)} aus {race_dist_km} km in {_fmt_secs(race_secs)} "
+                 f"→ Faktor×Renntempo (Ferrauti Tab. 7.7, Joch 2004){anchor}",
     }
 
 
@@ -349,17 +363,29 @@ def get_athlete_overview() -> Dict[str, Any]:
         out["plan"] = {**plan, "current_week": cur, "n_weeks": len(weeks)}
     else:
         out["plan"] = None
-    # prognosis: Riegel from the race the pace zones were computed from
+    # Prognose: NUR mit einem realen Benchmark-Wettkampf nahe der Zieldistanz — Vergleich
+    # des tatsächlichen Renntempos mit dem Zieltempo. KEINE Distanz-Extrapolation (Riegel);
+    # fehlt der Benchmark, ehrlich auf Leistungsdiagnostik verweisen (Ferrauti S.50).
     z = (doc.get("zones") or {}).get("pace_source") or {}
     if rd and race.get("distance_km") and z.get("distance_km") and z.get("time_secs"):
-        pred = _riegel(float(z["distance_km"]), float(z["time_secs"]), float(race["distance_km"]))
-        out["prognosis"] = {
-            "predicted_time": _fmt_secs(pred),
-            "target_time": race.get("target_time"),
-            "on_track": (_parse_hms(race.get("target_time", "")) or 0) >= pred
-            if race.get("target_time") else None,
-            "basis": z.get("label") or "recent race (Riegel)",
-        }
+        goal_dist = float(race["distance_km"])
+        bench_dist = float(z["distance_km"])
+        if abs(goal_dist - bench_dist) <= max(1.0, 0.15 * goal_dist):
+            bench_pace = float(z["time_secs"]) / bench_dist       # sec/km
+            target_secs = _parse_hms(race.get("target_time", "")) if race.get("target_time") else None
+            req_pace = target_secs / goal_dist if target_secs else None
+            out["prognosis"] = {
+                "benchmark": z.get("label") or f"{bench_dist} km",
+                "benchmark_pace": _fmt_pace(bench_pace),
+                "required_pace": _fmt_pace(req_pace) if req_pace else None,
+                "on_track": (bench_pace <= req_pace) if req_pace else None,
+                "basis": "Benchmark-Renntempo vs. Zieltempo (Ferrauti S.50; keine Extrapolation)",
+            }
+        else:
+            out["prognosis"] = {
+                "note": f"kein Benchmark nahe der Zieldistanz ({goal_dist} km) — für eine Prognose "
+                        f"einen Testlauf/Wettkampf ~Zieldistanz absolvieren (messen statt schätzen)",
+            }
     return out
 
 
@@ -458,36 +484,39 @@ def delete_timeline_event(event_id: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def compute_zones(max_hr: int = 0, threshold_hr: int = 0, resting_hr: int = 0,
+def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
                   race_distance_km: float = 0, race_time: str = "",
                   race_label: str = "") -> Dict[str, Any]:
-    """Compute and store HR + pace zones DETERMINISTICALLY from real measurements.
+    """Berechne und speichere HF- + Pace-Zonen DETERMINISTISCH aus echten Messwerten.
 
-    Fetch the inputs from the garmin/strava servers first (max HR, resting HR,
-    lactate threshold HR if available; the athlete's best recent race or PR) and
-    pass them here — this tool only does the arithmetic (Friel %LTHR or %HRmax
-    bands; Riegel-derived threshold pace with Daniels-style multiples) and
-    records the basis so every number is re-checkable. Never guess the inputs.
+    Deutsche Trainingsbereiche ReKom/GA1/GA2/WSA. HF-Zonen als %HFmax und — mit Ruhe-HF —
+    zusätzlich %HFR/Karvonen (Ferrauti S.459). Pace-Zonen als Faktor × Renntempo aus einem
+    realen ~10-km-Wettkampf (Ferrauti Tab. 7.7, Joch 2004). KEIN Laktat/Schwelle (aus
+    Garmin/Strava nicht messbar). Werte zuerst aus garmin/strava holen, nie raten.
 
     Args:
-        max_hr: maximum heart rate in bpm (Garmin profile / observed max).
-        threshold_hr: lactate-threshold HR in bpm, if Garmin provides it (preferred).
-        resting_hr: resting HR in bpm (optional, floors Z1).
-        race_distance_km: distance of a recent ALL-OUT race/PR effort in km.
-        race_time: its finish time "H:MM:SS" or "MM:SS".
-        race_label: where the result came from, e.g. "Strava 10k PR 2026-05-03".
+        max_hr: gemessene maximale Herzfrequenz in bpm (Garmin / beobachtetes Maximum).
+        resting_hr: Ruhe-HF in bpm (aus Garmin) — aktiviert die genaueren Karvonen/%HFR-Bänder.
+        age: Alter in Jahren — NUR Fallback: schätzt HFmax als 208−0,7·Alter, wenn keine
+            gemessene max_hr vorliegt. Gemessen ist immer besser.
+        race_distance_km: Distanz eines realen ALL-OUT-Wettkampfs/PR in km (ideal ~10 km).
+        race_time: dessen Zielzeit "H:MM:SS" oder "MM:SS".
+        race_label: Herkunft, z. B. "Strava 10k PR 2026-05-03".
     """
-    hr = _hr_zones(int(max_hr) or None, int(threshold_hr) or None, int(resting_hr) or None)
+    mh = int(max_hr) or _estimate_hfmax(int(age) or None)
+    hr = _hr_zones(mh, int(resting_hr) or None)
     secs = _parse_hms(race_time)
     pace = _pace_zones(float(race_distance_km) or None, secs)
     if not hr and not pace:
-        return {"error": "need max_hr/threshold_hr for HR zones and/or "
-                         "race_distance_km+race_time for pace zones"}
+        return {"error": "need max_hr (oder age für die 208−0,7·Alter-Schätzung) für HF-Zonen "
+                         "und/oder race_distance_km+race_time für Pace-Zonen"}
     user = _user()
     doc = _load(user)
     zones: Dict[str, Any] = {"computed_at": datetime.utcnow().isoformat() + "Z"}
     if hr:
         zones["hr"] = hr
+        zones["hr_max_used"] = mh
+        zones["hr_max_estimated"] = not int(max_hr)        # True = aus Alter geschätzt
     if pace:
         zones["pace"] = pace
         zones["pace_source"] = {"distance_km": float(race_distance_km),
@@ -563,15 +592,19 @@ def save_plan(plan: dict) -> Dict[str, Any]:
     violations = _validate_plan(plan, doc.get("timeline") or [])
     if violations:
         return {"error": "plan violates guardrails", "violations": violations}
-    # Deterministic enrichment: a workout that names a zone but no explicit
-    # intensity gets the athlete's OWN stored band for that zone — the numbers
-    # come from compute_zones, never from the plan author.
+    # Deterministic enrichment: a workout that names a zone (ReKom/GA1/GA2/WSA) but no
+    # explicit intensity gets the athlete's OWN stored band for that zone — the numbers
+    # come from compute_zones, never from the plan author. Match zone labels case- and
+    # separator-insensitively ("GA 1" / "ga1" → "GA1").
+    def _zkey(s: str) -> str:
+        return str(s or "").replace(" ", "").replace("/", "").replace("-", "").replace("_", "").upper()
+
     zones = doc.get("zones") or {}
-    hr_bands = (zones.get("hr") or {}).get("bands_bpm") or {}
-    pace_bands = (zones.get("pace") or {}).get("bands_pace") or {}
+    hr_bands = {_zkey(k): v for k, v in ((zones.get("hr") or {}).get("bands_bpm") or {}).items()}
+    pace_bands = {_zkey(k): v for k, v in ((zones.get("pace") or {}).get("bands_pace") or {}).items()}
     for w in plan.get("weeks") or []:
         for wo in w.get("workouts") or []:
-            z = str(wo.get("zone") or "").upper()[:2]
+            z = _zkey(wo.get("zone"))
             if z in hr_bands and not wo.get("hr_range"):
                 lo, hi = hr_bands[z]
                 wo["hr_range"] = f"{lo}–{hi}"
