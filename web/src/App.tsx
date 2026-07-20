@@ -10,7 +10,6 @@ import { OnboardingWizard } from "./components/onboarding/OnboardingWizard";
 import { Sidebar } from "./components/Sidebar";
 import { Spinner } from "./components/Spinner";
 import { getProfile } from "./lib/api";
-import { Analysis } from "./pages/Analysis";
 import { Chat } from "./pages/Chat";
 import { Coach } from "./pages/Coach";
 import { Dashboard } from "./pages/Dashboard";
@@ -66,7 +65,6 @@ function MainShell() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/coach" element={<Coach />} />
               <Route path="/health" element={<Health />} />
-              <Route path="/analysis" element={<Analysis />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>

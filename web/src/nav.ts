@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Activity,
   Flag,
   HeartPulse,
   LayoutDashboard,
@@ -20,7 +19,6 @@ export const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/coach", label: "Coach", icon: Flag },
   { to: "/health", label: "Health", icon: HeartPulse },
-  { to: "/analysis", label: "Analysis", icon: Activity },
   { to: "/chat", label: "Chat", icon: MessageSquare },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
