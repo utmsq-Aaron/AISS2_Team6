@@ -513,7 +513,7 @@ export interface TrainingPlan {
 
 export interface AthleteOverview {
   user: string;
-  profile: { race?: RaceGoal; weekly_sessions?: number; preferred_days?: string[] };
+  profile: { race?: RaceGoal; weekly_sessions?: number; preferred_days?: string[]; age?: number };
   timeline: TimelineEvent[];
   zones: ZoneSet;
   plan: TrainingPlan | null;
@@ -532,6 +532,10 @@ export interface AthleteOverview {
 }
 
 export const getAthleteOverview = () => http<AthleteOverview>("/athlete/overview");
+
+/** POST /athlete/profile — store the athlete's age (drives the literature HFmax default). */
+export const setAthleteProfile = (age: number) =>
+  http<{ ok: boolean }>("/athlete/profile", { method: "POST", body: JSON.stringify({ age }) });
 
 export const setRaceGoal = (body: {
   race_name: string; race_date: string; distance_km: number;

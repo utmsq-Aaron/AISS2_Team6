@@ -88,6 +88,18 @@ def set_goal(body: RaceGoalBody, user: str = Depends(current_user)) -> dict:
     return out
 
 
+class ProfileBody(BaseModel):
+    age: int = 0                         # years — drives the literature HFmax default
+
+
+@router.post("/profile")
+def set_profile(body: ProfileBody, user: str = Depends(current_user)) -> dict:
+    out = _call(user, "set_athlete_profile", body.model_dump())
+    if isinstance(out, dict) and out.get("error"):
+        raise HTTPException(status_code=422, detail=out["error"])
+    return out
+
+
 @router.post("/timeline")
 def add_event(body: TimelineEventBody, user: str = Depends(current_user)) -> dict:
     out = _call(user, "add_timeline_event", body.model_dump())

@@ -10,10 +10,12 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { LogOut } from "lucide-react";
+
 import { InfoHint } from "../components/InfoHint";
 import { PageHeader } from "../components/PageHeader";
-import { ServiceStatus } from "../components/StatusDots";
 import { Spinner, ErrorBox } from "../components/Spinner";
+import { getAthleteOverview, setAthleteProfile } from "../lib/api";
 import {
   getSettings,
   getModels,
@@ -847,6 +849,80 @@ function DeveloperSection() {
   );
 }
 
+// ── Account (age → literature HR-zone default) ────────────────────────────────
+function AccountSection() {
+  const ov = useQuery({ queryKey: ["athlete-overview"], queryFn: getAthleteOverview });
+  const qc = useQueryClient();
+  const [age, setAge] = useState("");
+  useEffect(() => {
+    const a = ov.data?.profile?.age;
+    if (a) setAge(String(a));
+  }, [ov.data?.profile?.age]);
+  const save = useMutation({
+    mutationFn: () => setAthleteProfile(parseInt(age, 10) || 0),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["athlete-overview"] }),
+  });
+  return (
+    <div className="fd-card p-4">
+      <div className="mb-2 flex items-center gap-1.5">
+        <h3 className="text-sm font-semibold text-text-primary">Account</h3>
+        <InfoHint text="Your age sets your default heart-rate zones via the literature formula (208 − 0.7 × age). Log a reference run in the Coach tab to refine them from a measured max HR." />
+      </div>
+      <label className="fd-label">Age
+        <div className="mt-1 flex items-center gap-2">
+          <input
+            type="number" min={10} max={100} value={age}
+            onChange={(e) => setAge(e.target.value)} placeholder="e.g. 30"
+            className="fd-input w-28 font-normal normal-case tracking-normal text-text-primary"
+          />
+          <button
+            type="button" onClick={() => save.mutate()} disabled={save.isPending || !age}
+            className="fd-btn-secondary text-sm disabled:opacity-40"
+          >
+            {save.isPending ? "Saving…" : save.isSuccess ? "Saved ✓" : "Save"}
+          </button>
+        </div>
+      </label>
+    </div>
+  );
+}
+
+// ── Compact connection row (status + connect/manage; full flow on demand) ──────
+function ConnectionRow({ meta, connected, children }: { meta: Meta; connected: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const none = meta.type === "none";
+  return (
+    <div className="fd-card overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <span className="text-lg" aria-hidden="true">{meta.icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-text-primary">{meta.label}</div>
+          <div className="truncate text-xs text-text-muted">{meta.description}</div>
+        </div>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+          none || connected ? "bg-metric-green/10 text-metric-green" : "bg-metric-amber/10 text-metric-amber"
+        }`}>
+          {none ? "Active" : connected ? "Connected" : "Not connected"}
+        </span>
+        {!none && (connected ? (
+          <button
+            type="button" onClick={() => setOpen((o) => !o)} title="Manage / switch account"
+            aria-label={`Manage ${meta.label}`}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-muted hover:bg-bg-surface hover:text-text-primary"
+          >
+            <LogOut size={16} strokeWidth={2} />
+          </button>
+        ) : (
+          <button type="button" onClick={() => setOpen(true)} className="fd-btn-primary shrink-0 text-xs">
+            Connect
+          </button>
+        ))}
+      </div>
+      {open && !none && <div className="border-t border-border px-4 py-3">{children}</div>}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export function Settings() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: getSettings });
@@ -879,13 +955,12 @@ export function Settings() {
   const USER_CARDS = new Set(["strava", "garmin", "google"]);
   const cards = isAdmin ? META : META.filter((m) => USER_CARDS.has(m.key));
 
-  const requiredOk = integ.strava && integ.openai;
-  const allOk = integ.strava && integ.garmin && integ.google && integ.openai;
+  const coreConnected = [integ.strava, integ.garmin, integ.google, integ.openai].filter(Boolean).length;
 
   return (
-    <div>
+    <div className="space-y-5">
       <div className="flex items-start gap-1.5">
-        <PageHeader title="⚙️ Settings" subtitle="Connect your services and manage your account." />
+        <PageHeader title="Settings" subtitle="Connect your services and manage your account." />
         <InfoHint
           className="mt-1"
           label="Privacy"
@@ -893,47 +968,29 @@ export function Settings() {
         />
       </div>
 
-      <ProgressBar integ={integ} />
+      <AccountSection />
 
-      {requiredOk && (
-        allOk ? (
-          <div className="mt-3 rounded-lg border border-metric-green/40 bg-metric-green/10 px-4 py-2.5 text-sm text-metric-green">
-            All services connected — you're fully set up. 🎉
-          </div>
-        ) : (
-          <div className="mt-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-2.5 text-sm text-text-primary">
-            Ready to go. Garmin and Google Calendar are optional.
-          </div>
-        )
-      )}
-
-      <div className="my-5 h-px bg-border" />
-
-      {cards.map((meta, i) => (
-        <div key={meta.key}>
-          <CardShell meta={meta} connected={isConnected(meta, integ)}>
-            {meta.key === "strava" && <StravaCard data={data} refetch={refetch} />}
-            {meta.key === "garmin" && <GarminCard data={data} refetch={refetch} />}
-            {meta.key === "google" && <GoogleCard data={data} refetch={refetch} />}
-            {meta.key === "openai" && <OpenAiCard data={data} refetch={refetch} />}
-            {meta.key === "routes" && <RoutesCard data={data} refetch={refetch} />}
-            {meta.key === "weather" && <WeatherCard />}
-            {meta.key === "telegram" && <TelegramCard data={data} refetch={refetch} />}
-          </CardShell>
-          {meta.key === "telegram" && <BridgeControl data={data} refetch={refetch} />}
-          {i < cards.length - 1 && <div className="h-px bg-border" />}
+      <div>
+        <div className="fd-label mb-2">Connections · {coreConnected} of 4 core connected</div>
+        <div className="space-y-2">
+          {cards.map((meta) => (
+            <div key={meta.key} className="space-y-2">
+              <ConnectionRow meta={meta} connected={isConnected(meta, integ)}>
+                {meta.key === "strava" && <StravaCard data={data} refetch={refetch} />}
+                {meta.key === "garmin" && <GarminCard data={data} refetch={refetch} />}
+                {meta.key === "google" && <GoogleCard data={data} refetch={refetch} />}
+                {meta.key === "openai" && <OpenAiCard data={data} refetch={refetch} />}
+                {meta.key === "routes" && <RoutesCard data={data} refetch={refetch} />}
+                {meta.key === "weather" && <WeatherCard />}
+                {meta.key === "telegram" && <TelegramCard data={data} refetch={refetch} />}
+              </ConnectionRow>
+              {meta.key === "telegram" && <BridgeControl data={data} refetch={refetch} />}
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
 
-      <div className="my-5 h-px bg-border" />
-      <ServiceStatus />
-
-      {isAdmin && (
-        <>
-          <div className="my-5 h-px bg-border" />
-          <DeveloperSection />
-        </>
-      )}
+      {isAdmin && <DeveloperSection />}
     </div>
   );
 }
