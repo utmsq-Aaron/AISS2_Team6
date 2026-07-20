@@ -5,29 +5,32 @@ import { Dumbbell } from "lucide-react";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { putProfile } from "../../lib/api";
+import { putProfile, setAthleteProfile } from "../../lib/api";
 import { ErrorBox } from "../Spinner";
 
 export function WelcomeStep({ onNext }: { onNext: () => void }) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
+  const [age, setAge] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleContinue() {
     const trimmed = name.trim();
-    if (!trimmed) {
+    const ageNum = parseInt(age, 10) || 0;
+    if (!trimmed && !ageNum) {
       onNext();
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await putProfile({ name: trimmed });
+      if (trimmed) await putProfile({ name: trimmed });
+      if (ageNum > 0) await setAthleteProfile(ageNum);
       qc.invalidateQueries({ queryKey: ["profile"] });
       onNext();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save your name.");
+      setError(err instanceof Error ? err.message : "Could not save your details.");
     } finally {
       setBusy(false);
     }
@@ -61,6 +64,20 @@ export function WelcomeStep({ onNext }: { onNext: () => void }) {
             if (e.key === "Enter") handleContinue();
           }}
           placeholder="Your first name"
+          className="fd-input mt-1 w-full"
+          disabled={busy}
+        />
+
+        <label className="fd-label mt-4 block" htmlFor="onboarding-age">
+          Your age <span className="font-normal normal-case tracking-normal text-text-faint">— sets your default heart-rate zones</span>
+        </label>
+        <input
+          id="onboarding-age"
+          type="number" min={10} max={100}
+          value={age}
+          onChange={(e) => { setAge(e.target.value); setError(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter") handleContinue(); }}
+          placeholder="e.g. 30"
           className="fd-input mt-1 w-full"
           disabled={busy}
         />
