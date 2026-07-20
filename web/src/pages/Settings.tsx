@@ -949,13 +949,12 @@ export function Settings() {
   const data = settingsQ.data;
   const integ = data.integrations;
 
-  // Regular users may only manage their own data sources: Strava, Garmin, Google
-  // Calendar. The admin sees every card plus the Developer (restart) section.
+  // Show every connection compactly (status for all; the manage/connect flow
+  // expands on demand). The admin still gets the Developer (restart) section.
   const isAdmin = data.is_admin;
-  const USER_CARDS = new Set(["strava", "garmin", "google"]);
-  const cards = isAdmin ? META : META.filter((m) => USER_CARDS.has(m.key));
+  const cards = META;
 
-  const coreConnected = [integ.strava, integ.garmin, integ.google, integ.openai].filter(Boolean).length;
+  const connectedCount = cards.filter((m) => isConnected(m, integ)).length;
 
   return (
     <div className="space-y-5">
@@ -971,7 +970,7 @@ export function Settings() {
       <AccountSection />
 
       <div>
-        <div className="fd-label mb-2">Connections · {coreConnected} of 4 core connected</div>
+        <div className="fd-label mb-2">Connections · {connectedCount} of {cards.length} connected</div>
         <div className="space-y-2">
           {cards.map((meta) => (
             <div key={meta.key} className="space-y-2">
