@@ -79,6 +79,10 @@ server/dist/
 # corpus via `python -m scripts.build_fitness_index` (the launch scripts do this).
 data/fitness_library/index/
 
+# Copyrighted source PDFs — not distributed (too large + licensed); colleagues
+# fetch them from the university library. See data/fitness_library/QUELLEN.txt.
+data/fitness_library/Literatur_Fitness/
+
 # Per-user memory — entirely per-deployment runtime state, never committed:
 # the soul.md profiles (rewritten by the agent over time), the embedded
 # conversation vectors, and the turn counter. Created on demand at runtime.
