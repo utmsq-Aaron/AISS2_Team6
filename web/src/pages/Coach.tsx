@@ -10,7 +10,6 @@ import { AlertTriangle, CalendarDays, Flag, Loader2, Pencil, Sparkles } from "lu
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { GoalsSection } from "../components/goal/GoalsSection";
 import { InfoHint } from "../components/InfoHint";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
@@ -103,9 +102,6 @@ export function Coach() {
           )}
         </>
       )}
-
-      <div className="h-px bg-border" />
-      <GoalsSection />
     </div>
   );
 }

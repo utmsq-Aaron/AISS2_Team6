@@ -7,7 +7,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { GoalsSection } from "../components/goal/GoalsSection";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
 import { callTool, getAthleteOverview } from "../lib/api";
@@ -146,9 +145,6 @@ export function Dashboard() {
 
       {/* ── Recent activity calendar ── */}
       <RecentCalendar acts={acts} loading={actsQ.isLoading} />
-
-      {/* ── Goals (read-only mirror of the Coach) ── */}
-      <GoalsSection readOnly />
 
       {/* ── Deeper analysis (merged in — no separate tab) ── */}
       <div className="border-t border-border pt-2">

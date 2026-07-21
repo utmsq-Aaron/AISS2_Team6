@@ -74,121 +74,6 @@ def _ask_tool(spec: str, url: str, collected: List[dict],
     )
 
 
-def _goal_tools(user: str) -> List[StructuredTool]:
-    """``add_goal`` / ``update_goal`` / ``set_goal_panel`` — the coach's write path to
-    the user's freeform, possibly-MULTIPLE goals (``data/user_memory/<slug>/goals.json``).
-    The web app writes the same store with ``source="user"``; here ``source="coach"``.
-    A newly added goal's dashboard panel builds in the BACKGROUND — spawned directly
-    (this orchestrator process is durable, unlike FastAPI's ``--reload``, which is why
-    web-created goals instead enqueue for the bridge to build; see ``core.goal_panel``
-    / ``core.goal_build_queue``)."""
-    from core import goal_store
-
-    async def _add(text: str, sport: str = None) -> str:
-        if not user:
-            return "(no signed-in user — goal not saved)"
-        g = goal_store.add_goal(user, text, sport=sport, source="coach")
-        if not g:
-            return "(goal not saved)"
-        try:
-            from core import goal_panel
-            threading.Thread(target=goal_panel.build_panel,
-                             args=(user, g["id"]), daemon=True).start()
-        except Exception:  # noqa: BLE001 — the goal itself is still saved
-            pass
-        return f"Goal added (id={g['id']}): {g['text']}. Building its dashboard panel now."
-
-    add_tool = StructuredTool(
-        name="add_goal",
-        description=("Record a new training goal for the user, in their own words. Sport-"
-                     "specific goals are common — pass sport when it's clear (e.g. 'running', "
-                     "'swimming'). A dashboard panel builds automatically in the background."),
-        args_schema={
-            "type": "object",
-            "properties": {
-                "text":  {"type": "string", "description": "The goal, close to how the user said it."},
-                "sport": {"type": "string", "description": "Optional sport/discipline tag."},
-            },
-            "required": ["text"],
-        },
-        coroutine=_add,
-    )
-
-    async def _update(goal_id: str, text: str = None, sport: str = None,
-                      status: str = None) -> str:
-        if not user:
-            return "(no signed-in user — goal not updated)"
-        g = goal_store.update_goal(user, goal_id, text=text, sport=sport, status=status)
-        return f"Goal updated (id={g['id']}): {g['text']} [{g['status']}]" if g \
-            else "(goal not found or nothing changed)"
-
-    update_tool = StructuredTool(
-        name="update_goal",
-        description=("Revise an existing goal's text, sport, or status (active/achieved/"
-                     "archived). Pass only the fields that change. Use this to mark a goal "
-                     "achieved or archive one the user no longer wants tracked."),
-        args_schema={
-            "type": "object",
-            "properties": {
-                "goal_id": {"type": "string", "description": "The goal's id (from the Active goals list)."},
-                "text":    {"type": "string"},
-                "sport":   {"type": "string"},
-                "status":  {"type": "string", "enum": ["active", "achieved", "archived"]},
-            },
-            "required": ["goal_id"],
-        },
-        coroutine=_update,
-    )
-
-    async def _set_panel(goal_id: str, headline: str, status: str, tiles: list,
-                        progress: dict = None, chart: dict = None, note: str = "") -> str:
-        if not user:
-            return "(no signed-in user — panel not saved)"
-        panel = {"headline": headline, "status": status, "tiles": tiles,
-                "progress": progress, "chart": chart, "note": note}
-        g = goal_store.set_panel(user, goal_id, panel)
-        return "Panel saved." if g else "(panel not saved — goal not found)"
-
-    panel_tool = StructuredTool(
-        name="set_goal_panel",
-        description=("Build/refresh a goal's dashboard panel from real data you just gathered "
-                     "via the specialists. tiles: 2-4 concrete {label,value,sub?} stats. "
-                     "progress: optional {pct 0-100, label}. chart: optional {kind:'line'|'bar', "
-                     "points:[{x,y}], y_label?}. note: a short markdown note. Use status:"
-                     "'unknown' rather than guessing if you don't have real data for this goal."),
-        args_schema={
-            "type": "object",
-            "properties": {
-                "goal_id":  {"type": "string"},
-                "headline": {"type": "string"},
-                "status":   {"type": "string",
-                             "enum": ["on_track", "at_risk", "behind", "reached", "unknown"]},
-                "tiles":    {"type": "array", "minItems": 2, "maxItems": 4,
-                             "items": {"type": "object",
-                                       "properties": {"label": {"type": "string"},
-                                                       "value": {"type": "string"},
-                                                       "sub": {"type": "string"}},
-                                       "required": ["label", "value"]}},
-                "progress": {"type": "object",
-                             "properties": {"pct": {"type": "number"}, "label": {"type": "string"}}},
-                "chart":    {"type": "object",
-                             "properties": {
-                                 "kind": {"type": "string", "enum": ["line", "bar"]},
-                                 "points": {"type": "array",
-                                            "items": {"type": "object",
-                                                      "properties": {"x": {}, "y": {"type": "number"}},
-                                                      "required": ["x", "y"]}},
-                                 "y_label": {"type": "string"}}},
-                "note":     {"type": "string"},
-            },
-            "required": ["goal_id", "headline", "status", "tiles"],
-        },
-        coroutine=_set_panel,
-    )
-
-    return [add_tool, update_tool, panel_tool]
-
-
 def _schedule_tool(user: str) -> StructuredTool:
     """``schedule_followup`` — the coach schedules its own future re-activation.
     Backed by ``core.schedule_store``; the bridge poll loop fires it (dedup by
@@ -313,7 +198,6 @@ class OrchestratorExecutor(AgentExecutor):
             tools = [_ask_tool(s, A2A_AGENTS[s], collected, status, user=user or "")
                      for s in ORCHESTRATOR_SPECIALISTS]
             if user:
-                tools.extend(_goal_tools(user))
                 tools.append(_schedule_tool(user))
                 tools.append(_deep_tool(user))
             agent = create_agent(model=get_chat_model(), tools=tools,

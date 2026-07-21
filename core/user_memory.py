@@ -299,33 +299,6 @@ class UserMemory:
 
     # ── context assembly (injected into the agent prompt) ─────────────────────
 
-    def goal_block(self) -> str:
-        """Render the user's ACTIVE goals (goals.json — freeform text, possibly
-        several, sport-specific) as a coaching DIRECTIVE.
-
-        Returns "" when there are no active goals. Injected ahead of the soul so
-        the coach frames every answer around them and notices drift. Each goal's
-        dashboard panel is NOT injected here — it's derived UI, built separately
-        by core.goal_panel; only the goal text (what to steer toward) belongs in
-        every turn's context.
-        """
-        try:
-            from core.goal_store import list_goals as _list_goals
-            goals = [g for g in (_list_goals(self.user) or []) if g.get("status") == "active"]
-        except Exception:  # noqa: BLE001 — goals are best-effort
-            goals = []
-        if not goals:
-            return ""
-        lines = ["## Active goals (directive)"]
-        for g in goals:
-            sport = f" [{g['sport']}]" if g.get("sport") else ""
-            lines.append(f"- ({g.get('id', '?')}){sport} {g.get('text', '')}")
-        lines.append("Balance these goals in your answers; when the data or the user's plan "
-                     "drifts from any of them, say so and steer them back. Create a new goal "
-                     "with add_goal, revise one with update_goal, and (re)build a goal's "
-                     "dashboard panel with set_goal_panel.")
-        return "\n".join(lines)
-
     def context_block(self, query: str) -> str:
         """A prompt preamble blending the goal + soul + the turns most relevant to
         ``query``.
@@ -344,10 +317,6 @@ class UserMemory:
             name = ""
         if name:
             sections.append(f"## User's name\nThe user's name is {name} — address them by it.")
-
-        goal = self.goal_block()
-        if goal:
-            sections.append(goal)
 
         soul = self.read_soul().strip()
         if soul:

@@ -1,9 +1,9 @@
 """Structured athlete state for the Coach tab — a thin adapter over athlete_mcp.
 
-Unlike the freeform goals (``core.goal_store``, direct file access), the athlete
-store lives behind its own MCP server: this router fronts it through a per-request
-ToolHost whose ``X-FitDash-User`` connection header carries the signed-in account
-(identity via header, never a tool argument — the calendar server's pattern).
+The athlete store (main goal, milestones, timeline, zones, plan) lives behind its
+own MCP server: this router fronts it through a per-request ToolHost whose
+``X-FitDash-User`` connection header carries the signed-in account (identity via
+header, never a tool argument — the calendar server's pattern).
 The React Coach tab reads ``GET /overview``; plan GENERATION delegates to the
 coach agent (:9006) over A2A in a background thread — the tab polls the overview
 until ``plan`` appears (or ``/plan/status`` reports the error).

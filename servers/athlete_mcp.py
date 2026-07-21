@@ -279,9 +279,7 @@ def _blocked_windows(timeline: List[dict]) -> List[dict]:
 # or a non-race training checkpoint (kind="checkpoint", e.g. "first 15 km long
 # run"). Milestones never alter the plan's deterministic volumes; scaffold_plan
 # only annotates which week they fall in so the coach can plan gently around a
-# race-kind milestone. This is a SEPARATE system from the freeform dashboard
-# goals (core.goal_store) — those track open-ended personal goals unrelated to
-# the race plan (e.g. "swim 3x/week") and are never read here.
+# race-kind milestone. This is the app's ONE goal/progress system.
 
 def _races(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
     return list((doc.get("profile") or {}).get("races") or [])
@@ -393,8 +391,7 @@ def get_athlete_overview() -> Dict[str, Any]:
     its own days_to_race. Also returns training preferences, the personal
     timeline (injuries/illnesses/races/notes), the computed HR/pace zones (with
     the formula basis), a race-time prognosis for the main goal's distance, and
-    the plan summary if one exists. (Freeform dashboard goals are a SEPARATE
-    system — core.goal_store — not returned here.)
+    the plan summary if one exists.
     """
     user = _user()
     doc = _load(user)

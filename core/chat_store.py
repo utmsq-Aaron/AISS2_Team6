@@ -25,8 +25,8 @@ from core import jsonstore
 from core.llm import _env
 
 # Cross-process JSON safety (lock + atomic write + slug) lives in core.jsonstore —
-# shared with core.goal_store, since coach.json / goals.json are written by both
-# FastAPI and the Telegram bridge. These aliases keep the rest of this module intact.
+# shared with servers.athlete_mcp, since coach.json / athlete.json are written by
+# both FastAPI and the Telegram bridge. These aliases keep the rest of this module intact.
 _slug = jsonstore.slugify
 _flock = jsonstore.flock
 _read = jsonstore.read_json

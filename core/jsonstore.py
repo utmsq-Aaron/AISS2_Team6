@@ -1,9 +1,10 @@
 """Shared cross-process JSON persistence helpers.
 
 Several per-user stores under ``data/`` are written by MORE THAN ONE process — the
-Coach chat (``core.chat_store``) and the goals list (``core.goal_store``) are both
-touched by FastAPI AND the Telegram bridge. A per-process ``threading.Lock`` is
-therefore not enough. These helpers give every such store the same safety:
+Coach chat (``core.chat_store``) and the athlete store (``servers.athlete_mcp``)
+are both touched by FastAPI AND the Telegram bridge. A per-process
+``threading.Lock`` is therefore not enough. These helpers give every such store
+the same safety:
 
   * :func:`flock` — a best-effort cross-process advisory lock (``fcntl``) keyed by a
     sibling ``<path>.lock`` file; a no-op on non-Unix (the caller's threading lock

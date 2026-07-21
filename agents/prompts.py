@@ -284,7 +284,7 @@ zones and training plan (the athlete__* tools) and you tailor the plan to the re
 person — using strava/garmin tools for their actual numbers and
 search_fitness_literature for the science behind a workout choice.
 
-TERMINOLOGY — three separate things, don't conflate them:
+TERMINOLOGY — two separate things, don't conflate them:
 • MAIN GOAL (athlete__set_race_goal) — the ONE race that drives the plan. Only
   one exists; replacing it clears the stored plan.
 • MILESTONES (athlete__add_milestone) — checkpoints on the way to the main goal:
@@ -292,10 +292,8 @@ TERMINOLOGY — three separate things, don't conflate them:
   (kind="checkpoint", e.g. "first 15 km long run", "hit goal pace for 5 km").
   They never alter the plan's volumes; you use them to plan gently around a
   race-kind one (never the hardest session of the week ON that date) and to
-  keep a distant goal feeling reachable.
-• FREEFORM GOALS (core.goal_store, your add_goal/update_goal/set_goal_panel
-  tools) — open-ended personal goals unrelated to the race plan (e.g. "swim
-  3x/week"). Entirely separate system; don't route race/milestone requests there.
+  keep a distant goal feeling reachable. This is the ONLY goal/progress system —
+  there is no separate freeform-goals mechanism.
 
 IRON RULE — deterministic math over model estimates:
 • You NEVER compute zones, race prognoses, week volumes or ramp rates yourself.
@@ -396,12 +394,11 @@ self-contained question and you get back that specialist's analysis):
 • fitness  — training methods, exercise technique, programming and general
              exercise-science knowledge (RAG over a library of fitness books).
              No personal data — pure domain knowledge.
-• coach    — the athlete's STRUCTURED race goal, personal timeline (injuries/
-             illnesses/races), HR+pace zones and the multi-week TRAINING PLAN.
-             Route here: "set my race goal", "what are my zones?", "build/adapt
-             my training plan", "I'm injured", "am I on track for my race?".
-             (Freeform motivational goals stay with YOUR add_goal/update_goal
-             tools; a concrete race with a date belongs to coach.)"""
+• coach    — the athlete's STRUCTURED race goal, milestones, personal timeline
+             (injuries/illnesses/races), HR+pace zones and the multi-week
+             TRAINING PLAN. Route here: "set my race goal", "add a milestone",
+             "what are my zones?", "build/adapt my training plan", "I'm
+             injured", "am I on track for my race?"."""
 
 
 def orchestrator_prompt(enabled: list[str]) -> str:
@@ -418,22 +415,9 @@ no MCP tools; you coordinate specialists via the ask_<name> tools.
 
 Currently available specialists: {avail}.
 
-GOAL (directive, not background)
-• The user's ACTIVE goals (freeform text, possibly several — sport-specific goals
-  are common) may be injected each turn as "## Active goals (directive)". Treat them
-  as the frame for every answer: relate advice back to them, and when today's data
-  or the user's plan drifts from any of them, call it out and steer them back.
-• When the user states a new goal in plain language ("I want to run a sub-45 10K by
-  October", "I want to get better at the butterfly stroke"), just record it —
-  add_goal(text, sport?) with the text close to what they said. Don't force it into
-  a rigid metric/target shape; a goal is whatever they're trying to achieve.
-• Revise an existing goal's text/sport/status with update_goal(goal_id, …).
-• After creating or meaningfully changing a goal, you may build its dashboard panel
-  right away with set_goal_panel (gather the user's real data first, same as any
-  other answer) — or leave it to the background builder if you're mid-conversation
-  and don't want to stall the reply.
-• If no goal is set and the request is about planning or progress, help set one: ask
-  1–2 sharp questions, then record it with add_goal.
+GOAL — the athlete's race goal + milestones (set via the coach specialist) are the
+one goal/progress system. If the request is about setting or checking a race goal,
+milestones, zones, or the training plan, delegate to coach.
 
 TRIAGE — decide STRAIGHTFORWARD vs DEEP before you route.
 • STRAIGHTFORWARD (the default): a specific question answerable in one coordinated
@@ -535,43 +519,3 @@ HOW TO WORK
 • PRESERVE SOURCES: if a specialist cited sources (e.g. fitness books), keep a "Sources:"
   section listing them verbatim. Never invent data or citations.
 The report is delivered to the user later (they are not waiting) — make it worth the wait."""
-
-
-# ── Goal panel (background worker) ────────────────────────────────────────────
-
-def goal_panel_prompt(goal: dict) -> str:
-    """System prompt for building/refreshing ONE goal's dashboard panel
-    (core.goal_panel). The goal is freeform text — interpret it, don't expect a
-    structured schema."""
-    text = goal.get("text") or ""
-    sport = goal.get("sport")
-    sport_line = f"\nSport: {sport}" if sport else ""
-    return f"""\
-{_base()}
-
-ROLE: You are building the DASHBOARD PANEL for one specific goal — not answering
-the user directly. You have no data of your own; gather it via the ask_<name>
-specialists, then call set_goal_panel EXACTLY ONCE with what you found.
-
-GOAL (freeform text, interpret it yourself — there is no fixed schema):
-"{text}"{sport_line}
-
-{_SPECIALIST_CATALOG}
-
-HOW TO WORK
-• Decide what this specific goal is actually about (distance, time, weight, a
-  skill, consistency, …) and which specialist(s) have the relevant real data.
-• Gather concretely — call the specialists needed to find the user's CURRENT
-  numbers relevant to this goal (recent performance, trend, relevant health data).
-• Judge honestly whether the data shows them on_track, at_risk, behind, already
-  reached, or unknown (data unavailable) — do not default to on_track.
-• Call set_goal_panel with: a one-line headline; that status; 2-4 concrete tiles
-  (real numbers, e.g. {{"label":"This week","value":"32 km","sub":"of ~40 km target"}});
-  an optional progress {{pct, label}} when a clean 0-100 fraction makes sense;
-  an optional chart with real data points ONLY if you found a genuine short time
-  series (e.g. weekly distance over recent weeks) — omit it otherwise, never invent
-  points; and a short markdown note with any context, caveat, or coaching nudge the
-  tiles don't capture.
-• If the specialists can't find relevant data, still call set_goal_panel with
-  status:"unknown", tiles that say so plainly, and a note explaining what's missing.
-  Never fabricate a number. Call set_goal_panel exactly once."""

@@ -1,7 +1,7 @@
 """Feedback bundles — a snapshot of diagnostics + the user's report, for the
 prototype-handout phase. Pressing the red feedback button captures log tails,
 MLflow trace references (never the raw 128 MB mlflow.db), and the reporting
-user's own state (soul, goals, schedules, recent chats) into one JSON bundle on
+user's own state (soul, schedules, recent chats) into one JSON bundle on
 disk, then best-effort emails a short notification to the admin.
 
 Bundles are scoped to the REPORTING user's own data only — never another user's.
@@ -148,7 +148,7 @@ def _capture_mlflow_refs(user: str) -> Dict[str, Any]:
 
 
 def _capture_user_state(user: str) -> Dict[str, Any]:
-    """This user's own soul/goals/schedules/deep-jobs/outbox/recent chats. Never
+    """This user's own soul/schedules/deep-jobs/outbox/recent chats. Never
     another user's data; never .tokens/.secrets/env values."""
     state: Dict[str, Any] = {}
     slug = jsonstore.slugify(user)
@@ -158,12 +158,6 @@ def _capture_user_state(user: str) -> Dict[str, Any]:
         state["soul"] = get_user_memory(user).read_soul()
     except Exception:  # noqa: BLE001
         state["soul"] = None
-
-    try:
-        from core import goal_store
-        state["goals"] = goal_store.list_goals(user)
-    except Exception:  # noqa: BLE001
-        state["goals"] = []
 
     try:
         from core import schedule_store
