@@ -729,6 +729,11 @@ async def get_training_trends(weeks: int = 12) -> Dict[str, Any]:
     """Weekly training volume (distance, time, elevation, activity count) for the
     last N weeks — useful for showing training consistency and peak weeks.
 
+    Each week carries ``distance_by_sport_km`` (e.g. {"Run": 24.5, "Ride": 80.0})
+    — when you need the volume of ONE sport (e.g. the run baseline for a running
+    training plan), read it from there; the top-level distance_km mixes all
+    sports and is NEVER a single-sport baseline.
+
     NOTE: for ATL/CTL/TSB training load (overtraining, form, fitness), use
     strava__get_training_load instead.
 
@@ -751,6 +756,7 @@ async def get_training_trends(weeks: int = 12) -> Dict[str, Any]:
             "moving_time_hours": 0.0,
             "elevation_gain_m":  0.0,
             "sport_types":       {},
+            "distance_by_sport_km": {},
         }
 
     for a in activities:
@@ -774,6 +780,8 @@ async def get_training_trends(weeks: int = 12) -> Dict[str, Any]:
         w["elevation_gain_m"]   = round(w["elevation_gain_m"]  + a.get("total_elevation_gain", 0), 1)
         sport = a.get("type", "Unknown")
         w["sport_types"][sport] = w["sport_types"].get(sport, 0) + 1
+        w["distance_by_sport_km"][sport] = round(
+            w["distance_by_sport_km"].get(sport, 0) + a.get("distance", 0) / 1000, 2)
 
     active = [w for w in week_data.values() if w["activities"] > 0]
     return {

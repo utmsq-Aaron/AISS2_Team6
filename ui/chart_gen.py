@@ -22,11 +22,16 @@ import streamlit as st
 from core.llm import completion_params
 from ui.shared import MODEL, get_openai_client
 
-# Tools whose results are visualised elsewhere (maps / flythroughs) — skip here.
+# Tools whose results are visualised elsewhere (maps / flythroughs) or are never
+# chart material (place searches, literature passages) — skip here.
 _SKIP_TOOLS = {
-    "plan_route", "plan_circular_route", "explore_trails", "get_isochrone",
+    "plan_route", "plan_circular_route", "plan_park_loop", "explore_trails",
+    "get_isochrone", "geocode",
     "get_activity_streams", "get_activity_gps_track", "prepare_flythrough",
     "get_current_weather", "get_weather_forecast", "get_pollen_levels", "get_uv_index",
+    "maps_search_places", "maps_place_details", "maps_geocode",
+    "maps_reverse_geocode", "maps_directions", "maps_search_along_route",
+    "search_fitness_literature",
 }
 
 
@@ -192,6 +197,11 @@ def generate_and_render(trace: Dict, key_suffix: str = "") -> None:
     question = trace.get("question", "")
     answer   = trace.get("answer", "")   # orchestrator's conclusion → shared context
     if not question:
+        return
+    # Charts only on the agent layer's explicit <!--charts:--> request — no
+    # request, no chart (the invent-from-conclusion fallback produced nonsense
+    # figures for place searches and knowledge answers).
+    if not (trace.get("chart_hints") or []):
         return
 
     # ── Collect tool results ──────────────────────────────────────────────────

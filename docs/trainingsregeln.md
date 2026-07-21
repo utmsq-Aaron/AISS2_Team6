@@ -270,6 +270,104 @@ fenster"). Steuerung über progressive Belastung + Entlastung + Monitoring (Absc
 
 ---
 
+## 11. Zielorientierte Planstruktur, Cross-Training & Aufbauwettkämpfe
+
+**Regel (Ziel zuerst):** Der Plan wird **für das Ziel** gebaut (Stufe 1 des
+6-Stufen-Programms, Abschnitt 4), die Historie liefert nur den Startpunkt. Ferrautis
+Beispielpläne (Tab. 7.10–7.13) zeigen die zielgerichtete Phasenstruktur inklusive der
+Rolle **unspezifischen Ausdauertrainings** (Cross-Training) und **Aufbauwettkämpfen**
+auf dem Weg zum Saisonhöhepunkt.
+
+> Ferrauti, Tab. 7.10 (Marathon-Jahresübersicht): Allgemeine Vorbereitungsphase =
+> „Allgemeine Athletik (Koordination, Beweglichkeit, Technik, Kraft), unspezifisches
+> Ausdauertraining (Skilanglauf, Rad/MTB, Schwimmen, Aquajogging), Ausdauer im Laufen";
+> Spezielle Vorbereitungsphase = „Allgemeine Athletik und spezifische Ausdauer im Laufen
+> (GA 1, GA 1-2, GA 2)"; danach Unmittelbare Wettkampfvorbereitung („Wettkampfspezifische
+> Ausdauer"). Wettkampfzeile auf dem Weg zum Marathon: „Crosslauf … 5 km und 10 km …
+> 10 km und HM …" — reale **Aufbauwettkämpfe als Zwischenstationen**.
+
+> Ferrauti, Tab. 7.11 (Marathon-Wochenpläne): Regenerationseinheiten quer durch alle
+> Phasen als Cross-Training — „Regenerationslauf oder Aquajogging (REKOM) 60 min",
+> „90 min Radfahren oder 60 min Aquajogging (REKOM)"; Schlüsseleinheiten der
+> Wettkampfvorbereitung laufspezifisch im Renntempo („4-5 x 2000 m in
+> Halbmarathonrenntempo", „3 x 5 km in Marathonrenntempo (GA 2)").
+
+> Ferrauti, Tab. 7.12 (Triathlon-Jahresübersicht): Allgemeine Vorbereitung = „viel
+> unspezifisches Ausdauertraining (MTB, Ruderergometer, Aquajogging, Skilanglauf)",
+> später „vermehrt disziplinspezifisches Ausdauertraining" — Multi-Sport-Kombination
+> ist sinnvoll, aber phasengebunden.
+
+**Cross-Training-Regeln (abgeleitet):** Unspezifische Ausdauer (Rad/Schwimmen/
+Aquajogging) gehört in die **Basisphase** (GA1) und als **ReKom-Regeneration** in jede
+Phase; je näher der Wettkampf, desto **sportart-spezifischer** die Schlüsseleinheiten —
+Cross-Training ersetzt nie die rennspezifische Einheit. Bei Verletzungsfenstern ist
+Cross-Training der designte Ersatz (blocked_sports).
+
+**Feasibility als Fakten (kein erfundener Schwellwert):** Der Korpus liefert keine
+Tabelle „Marathon braucht X km/Woche". Deshalb stellt der Server nur nachrechenbare
+Fakten nebeneinander — erreichbares Peak-Wochenvolumen (deterministische Rampe) vs.
+Renndistanz, nötiges Renntempo (Zielzeit/Distanz) vs. Benchmark-Renntempo (Abschnitt 3)
+— und der Coach beurteilt sie gegen das SMART-Kriterium „achievable" (Tab. 1.2, Stufe 1)
+im Gespräch mit dem Athleten. Ein Vergleich ist dabei selbstevident arithmetisch und
+wird als explizite `warning` ausgewiesen: Bleibt selbst die maximal erlaubte Rampe mit
+der Peak-**Woche** unter der Renn-**Distanz**, kann der Athlet auf diesem Weg nicht
+rennfertig werden — der Coach MUSS das offen ansprechen (Ziel/Termin/Erwartung anpassen).
+
+**Zwei-Phasen-Progression: erst Häufigkeit, dann Dauer (Freizeitläufer-Modell).**
+Eine %-Rampe auf kleiner Basis (8 km/Woche × 1,08 = +0,7 km) ist trainingspraktisch
+unsinnig — und der Korpus schreibt für genau diesen Fall die **Häufigkeits-Steigerung**
+vor:
+
+> Ferrauti (Belastungsnormative): „Dies kann beispielsweise während der Vorbereitung auf
+> einen **Halbmarathon** zunächst durch einen **Anstieg der Belastungshäufigkeit pro
+> Woche** und anschließend durch eine **Steigerung der Belastungsdauer** … erfolgen.
+> Schließlich sollte die Belastungsintensität … in Richtung des avisierten
+> Wettkampftempos zunehmen." (S.83)
+> Ferrauti, S.83: „Während die Trainingshäufigkeit im **Freizeitsport häufig nur 2–3
+> TE/Woche** erreicht …"
+> Ferrauti, S.188: „… zunächst den Trainingsumfang (**erst Trainingshäufigkeit dann
+> -dauer**) steigern …"
+
+**Code-Konsequenz (`_run_targets`) — die Long-Run-Linie:** Geplant werden **Läufe, nicht
+Wochensummen**, rückwärts vom Renntag (das Ziel bestimmt den Plan, die Historie nur das
+Gespräch): Die **Linie der Schlüsseleinheiten** endet in der letzten Aufbauwoche beim
+**Renn-Anspruch** — volle Renndistanz bei Zielen bis ~25 km („die Distanz einmal vorher
+am Stück"), 75 % darüber (Marathon wird nie voll vorgelaufen) — und beginnt bei der
+halben Ankerdistanz, in gleichmäßigen Schritten über alle Aufbauwochen (stetige
+Annäherung, keine Sprünge = progressive Belastung §6). Häufigkeit steigt weiterhin
+zuerst (+1 Einheit/Woche, S.83/S.188); **Begleitläufe ≈ 40 % des Wochen-Long-Runs**, das
+Wochenvolumen ist damit eine **Ableitung der Läufe**. Cutback-Woche: Long Run ×0,7
+(S.295); Taper: 50 %/30 % des Peaks (S.117). Die Faktoren (25-km-Grenze, 75 %, ½-Start,
+40 % Begleitlauf, 50/30 Taper) sind **dokumentierte Engineering-Konventionen**, keine
+Buchwerte. Guardrails (`_validate_plan`): größter Lauf der Woche = `long_run_km` (±10 %),
+Workouts ≙ Wochensumme (±10 %), max. +1 Einheit/Woche; der alte Wochen-%-Cap gilt nur
+noch für Alt-Pläne ohne Linie.
+
+**Ausblick (bewusst noch nicht umgesetzt):** Die Struktur-Entscheidung liegt derzeit in
+dieser deterministischen Schicht. Geplant ist die Umkehrung — der Coach-Agent entwirft
+die Planstruktur selbst, literatur-gestützt aus einem um **präskriptive Laufliteratur**
+(z. B. Steffny, Hottenrott/Zülch — von Ferrauti selbst zitiert) erweiterten Korpus mit
+strukturierten Referenzplänen und einem expliziten Athleten-Diagnose-Schritt; der Server
+wird dann reiner **Validator + Rechner** (Guardrails, Zonen, Termine, Ist-Erfassung).
+
+**Adaptionsschleife (Stufe 6 + Monitoring):** Der Kurzzeitplan wird „laufend an
+aktuelles Athleten-Monitoring angepasst" (Tab. 1.2, Abschnitt 4; Monitoring als
+„zentrale Schlüsselstelle", Abschnitt 9). Umsetzung: `record_week_actual` protokolliert
+Ist-Werte (nur Rohwerte — keine Blackbox-Scores, Ferrauti S.202) und rechnet die
+Ist/Soll-Quote; `rescaffold_plan` re-basiert **nur zukünftige** Wochen auf dem real
+demonstrierten Volumen — progressiv gedeckelt (+8 %-Cap ab der letzten eingefrorenen
+Woche, Abschnitt 6), Entlastung bei Überlastung (Ferrauti S.295, Reizstufenregel).
+
+**Code-Konsequenz:** `set_race_goal` trägt die Sportart (`sport: run|ride`);
+`scaffold_plan` liefert je Woche `phase_focus` (Inhalte nach Tab. 7.10/7.11) und einen
+`feasibility`-Faktenblock; `save_plan` markiert Nicht-Zielsport-Workouts als
+Cross-Training (Dauer-basiert, zählen nicht ins `target_km`-Ramp-Guardrail);
+Milestones werden aus den gespeicherten Planwochen abgeleitet (+ ein reales
+Aufbaurennen nach Tab. 7.10); `record_week_actual`/`rescaffold_plan` bilden die
+Adaptionsschleife.
+
+---
+
 ## Mapping: aktuelle Code-Konstanten → Buchbeleg → Änderung
 
 | `athlete_mcp.py` | bisher (Anglo) | Buch-Grundlage | Änderung |
@@ -284,3 +382,8 @@ fenster"). Steuerung über progressive Belastung + Entlastung + Monitoring (Absc
 | Taper-Check | ≤75 % Peak | 2–15 Tage, Umfang↓ Intensität erhalten (Ferrauti S.117) | **belegt** — Quelle ergänzen |
 | HIIT-Workouts | frei erfunden | Protokolle Ferrauti S.58–59 | **in Coach-Prompt** verankern |
 | Superkompensation-Annahme | implizit | kritisch (Ferrauti/Güllich) | Timing-Annahmen entfernen |
+| `PHASE_FOCUS` (Phaseninhalte) | (neu) | Tab. 7.10/7.11 (Phasen + Cross-Training) | je Scaffold-Woche als Inhalts-Vorgabe |
+| `_feasibility` (Ziel-vs-Daten) | (neu) | SMART/Tab. 1.2 + Abschnitt 3 (Benchmark) | nur Fakten, Urteil beim Coach |
+| Cross-Training-Validierung | (neu) | Tab. 7.10/7.11 (REKOM/unspezifisch) | Dauer-basiert, nicht im km-Ramp |
+| `record_week_actual` | (neu) | Tab. 1.2 Stufe 6 + S.185/S.202 (Monitoring, Rohwerte) | Ist-Werte + Ist/Soll-Quote deterministisch |
+| `rescaffold_plan` | (neu) | S.295 (Entlastung), Güllich S.631 (progressiv) | Re-Baseline nur zukünftiger Wochen, +8 %-Cap ab letzter eingefrorener Woche |

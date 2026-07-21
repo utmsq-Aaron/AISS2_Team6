@@ -353,6 +353,13 @@ export async function generateCharts(trace: ChatTrace): Promise<any[]> {
   return r.figures || [];
 }
 
+/** POST /charts/explain — 2-3 plain-language sentences about a chart's current data. */
+export const explainChart = (title: string, dataSummary: Record<string, unknown>) =>
+  http<{ explanation: string }>("/charts/explain", {
+    method: "POST",
+    body: JSON.stringify({ title, data_summary: dataSummary }),
+  });
+
 // ── Feedback (tester bug-report button) ──────────────────────────────────────
 // The server captures the full diagnostic bundle (logs, chats, etc.) itself;
 // the frontend only sends the report text plus cheap client-side context.
@@ -380,6 +387,7 @@ export interface RaceGoal {
   name: string;
   date: string; // ISO
   distance_km: number;
+  sport?: "run" | "ride";      // the main goal's sport (chosen when the goal is set)
   target_time: string | null;
   is_main?: boolean;
   kind?: "race" | "checkpoint";
@@ -429,16 +437,33 @@ export interface PlanWorkout {
   structure?: string;
   why?: string;
   source?: string;
+  cross_training?: boolean;    // sport ≠ goal sport — planned by duration, not km
+}
+
+// What the athlete ACTUALLY did in a reviewed week (recorded by the coach's
+// weekly plan review — raw values, compliance computed server-side).
+export interface WeekActual {
+  distance_km: number;
+  sessions?: number | null;
+  note?: string | null;
+  compliance_pct?: number;
+  reviewed_at?: string;
 }
 
 export interface PlanWeek {
   week: number;
   phase: "base" | "build" | "peak" | "taper";
+  phase_label?: string;        // e.g. "Allgemeine Vorbereitung" (Ferrauti Tab. 7.10)
+  phase_focus?: string;        // content prescription for the phase
+  focus?: string;              // coach-written one-liner: what this week is FOR
   start_date: string;
   target_km: number;
+  long_run_km?: number;        // the week's key session from the backward-planned line
   cutback?: boolean;
   sessions?: number;
   workouts: PlanWorkout[];
+  actual?: WeekActual;         // present once the week was reviewed
+  milestones?: { id?: string; name?: string; date?: string; kind?: string }[];
 }
 
 export interface TrainingPlan {
@@ -485,7 +510,8 @@ export const setAthleteProfile = (age: number) =>
 /** POST /athlete/goal — set (replace) the MAIN goal. Clears the stored plan. */
 export const setRaceGoal = (body: {
   race_name: string; race_date: string; distance_km: number;
-  target_time?: string; weekly_sessions?: number; preferred_days?: string;
+  sport?: "run" | "ride"; target_time?: string; weekly_sessions?: number;
+  preferred_days?: string;
 }) => http<{ ok: boolean }>("/athlete/goal", { method: "POST", body: JSON.stringify(body) });
 
 /** POST /athlete/milestone — add a milestone (race tune-up or non-race checkpoint). */

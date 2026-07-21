@@ -481,7 +481,9 @@ async def _send_plotly_charts(event, trace: Dict) -> int:
     answer   = trace.get("answer", "")
     hints    = trace.get("chart_hints") or []
 
-    if not question:
+    # No explicit <!--charts:--> request from the agent layer → no charts
+    # (same gating as the web chart service).
+    if not question or not hints:
         return 0
 
     # Build data_vars — same logic as chart_gen.generate_and_render
@@ -796,12 +798,36 @@ async def _handle_message(event) -> None:
 # hourly, auto-schedules pre/post-event nudges from the calendar + a daily check-in.
 # Every step is wrapped so a scheduler error never disturbs inbound chat.
 
+# Woven into the Monday daily check-in when an active plan exists — composed
+# fresh each time, never persisted into the stored note.
+MONDAY_PLAN_REVIEW_NOTE = (
+    " It's Monday and the athlete has an active training plan, so also run the weekly "
+    "plan review: fetch last week's REAL goal-sport volume and session count from "
+    "Strava plus Garmin recovery raw trends (resting-HR trend, HRV, sleep), record "
+    "them with athlete__record_week_actual, and judge on-plan / stronger than "
+    "expected / overloaded. If the plan no longer fits, adapt it now — "
+    "athlete__rescaffold_plan with the demonstrated (or a deliberately reduced) "
+    "volume, refill the changed weeks, save — and say in 2-3 sentences what changed "
+    "and why. Also sweep pending milestones whose date has passed: confirmed by real "
+    "data → mark achieved and celebrate in one line; missed → say so honestly and "
+    "re-date or adjust. Keep the whole message short and friendly, no report "
+    "formatting."
+)
+
+
 async def _compose_wakeup(email: str, entry: dict) -> Optional[str]:
     """Run the entry's note back through the engine (fresh data). Holds _RUN_LOCK
     around the agent run only (ToolHost isn't thread-safe); returns the answer."""
     note = (entry.get("note") or "").strip()
     if not note:
         return None
+    if entry.get("kind") == "daily_checkin":
+        try:
+            from core.schedule_store import _BERLIN
+            if datetime.now(_BERLIN).weekday() == 0 and _has_active_plan(email):
+                note += MONDAY_PLAN_REVIEW_NOTE
+        except Exception:  # noqa: BLE001 — never let the weave block the check-in
+            pass
     async with _RUN_LOCK:
         loop = asyncio.get_running_loop()
         answer, _ = await loop.run_in_executor(
@@ -907,6 +933,22 @@ def _has_main_race_goal(email: str) -> bool:
     except (OSError, ValueError):
         return False
     return any(r.get("priority") == "A" for r in races)
+
+
+def _has_active_plan(email: str) -> bool:
+    """Direct read of athlete.json — true if a training plan is stored (drives the
+    Monday plan-vs-actual review woven into the daily check-in)."""
+    import json
+    from pathlib import Path
+
+    from core import jsonstore
+
+    p = (Path(__file__).resolve().parent / "data" / "user_memory"
+         / jsonstore.slugify(email) / "athlete.json")
+    try:
+        return bool((json.loads(p.read_text(encoding="utf-8")) or {}).get("plan"))
+    except (OSError, ValueError):
+        return False
 
 
 def _proactive_emails() -> set:

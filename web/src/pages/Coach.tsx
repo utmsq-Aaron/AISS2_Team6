@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 import { InfoHint } from "../components/InfoHint";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
-import type { AthleteOverview, PlanWeek, RaceGoal, TimelineEvent } from "../lib/api";
+import type { AthleteOverview, PlanWeek, PlanWorkout, RaceGoal, TimelineEvent } from "../lib/api";
 import {
   addMilestone, deleteMilestone, generatePlan, getAthleteOverview, setRaceGoal,
   updateMilestoneStatus,
@@ -91,6 +91,7 @@ export function Coach() {
           {ov.plan ? (
             <>
               <ThisWeek plan={ov.plan} />
+              <UpcomingWeeks plan={ov.plan} />
               <TimelineBand ov={ov} />
               <div className="grid gap-4 lg:grid-cols-5">
                 <VolumeChart weeks={ov.plan.weeks} currentWeek={ov.plan.current_week ?? null} />
@@ -108,10 +109,16 @@ export function Coach() {
 
 // ── 1. goal capture ───────────────────────────────────────────────────────────
 
+const SPORT_META: Record<"run" | "ride", { icon: string; label: string }> = {
+  run: { icon: "🏃", label: "Run" },
+  ride: { icon: "🚴", label: "Ride" },
+};
+
 function GoalForm({ initial, weeklySessions, onSaved, onCancel }: {
   initial?: RaceGoal; weeklySessions?: number; onSaved: () => void; onCancel?: () => void;
 }) {
   const isEdit = !!initial;
+  const [sport, setSport] = useState<"run" | "ride">(initial?.sport ?? "run");
   const [form, setForm] = useState({
     race_name: initial?.name ?? "",
     race_date: initial?.date ?? "",
@@ -126,6 +133,7 @@ function GoalForm({ initial, weeklySessions, onSaved, onCancel }: {
         race_name: form.race_name,
         race_date: form.race_date,
         distance_km: parseFloat(form.distance_km),
+        sport,
         target_time: form.target_time || undefined,
         weekly_sessions: parseInt(form.weekly_sessions, 10) || 4,
       }),
@@ -142,10 +150,20 @@ function GoalForm({ initial, weeklySessions, onSaved, onCancel }: {
         <Flag size={18} className="text-secondary" />
         <h2 className="text-sm font-semibold">{isEdit ? "Edit your race goal" : "Set your race goal"}</h2>
       </div>
-      <p className="mb-5 flex items-center gap-1.5 text-xs text-text-muted">
-        Date, distance and target time — the coach builds your plan from these.
-        <InfoHint text="For a concrete race with a date. Free-form motivational goals live in your goals below." />
+      <p className="mb-4 flex items-center gap-1.5 text-xs text-text-muted">
+        Sport, date, distance and target time — the coach builds your plan from these.
+        <InfoHint text="One concrete race — running or cycling — drives the whole plan. Other sports can still appear as cross-training where they help." />
       </p>
+      {/* Sport first — the plan's volumes, key sessions and zones are built for it. */}
+      <div className="mb-4 inline-flex rounded-lg border border-border bg-bg-surface p-0.5">
+        {(["run", "ride"] as const).map((s) => (
+          <button key={s} type="button" onClick={() => setSport(s)}
+            className={`rounded-md px-4 py-1.5 text-xs font-semibold transition-colors ${
+              sport === s ? "bg-accent text-bg-app" : "text-text-muted hover:text-text-primary"}`}>
+            {SPORT_META[s].icon} {SPORT_META[s].label}
+          </button>
+        ))}
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs text-text-muted">
           Race
@@ -234,6 +252,9 @@ function Hero({ ov }: { ov: AthleteOverview }) {
             <InfoHint text="The one race that drives your training plan. Add milestones below to mark progress on the way there." />
           </div>
           <div className="mt-0.5 flex items-center gap-1.5">
+            <span className="text-xl sm:text-2xl" title={SPORT_META[race.sport ?? "run"].label}>
+              {SPORT_META[race.sport ?? "run"].icon}
+            </span>
             <h1 className="truncate text-xl font-bold text-text-primary sm:text-2xl">{race.name}</h1>
             <button type="button" onClick={() => setEditing(true)} title="Edit main goal" aria-label="Edit main goal"
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-faint hover:bg-bg-surface hover:text-text-primary">
@@ -250,7 +271,7 @@ function Hero({ ov }: { ov: AthleteOverview }) {
         <Stat big={ov.days_to_race != null ? `${ov.days_to_race}` : "—"} unit="days" label="to race day" primary />
         <Stat big={weekLabel} label={phaseLabel} />
         <Stat big={race.target_time ?? "—"} label="Target time" />
-        <Stat big={`${race.distance_km} km`} label="Distance" muted />
+        <Stat big={`${race.distance_km} km`} label={`Distance · ${SPORT_META[race.sport ?? "run"].label}`} muted />
       </div>
     </div>
   );
@@ -550,6 +571,40 @@ function TimelineBand({ ov }: { ov: AthleteOverview }) {
 
 // ── 5. this week ─────────────────────────────────────────────────────────────
 
+// Concrete calendar date of a workout inside its plan week ("Sat" + week start
+// Monday → ISO date); null when the day label is unparseable.
+function workoutDate(week: PlanWeek, day?: string): string | null {
+  const idx = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+    .indexOf((day ?? "").trim().slice(0, 3).toLowerCase());
+  if (idx < 0) return null;
+  const d = new Date(week.start_date);
+  d.setDate(d.getDate() + idx);
+  return d.toISOString().slice(0, 10);
+}
+
+// Deep-link messages for the workout-card buttons — the Chat page auto-sends
+// them (location.state.autoSend), so the button DOES the thing instead of just
+// dropping the user in an empty chat.
+function routeMessage(wo: PlanWorkout): string {
+  const sport = (wo.sport || "run").toLowerCase();
+  const size = wo.distance_km ? `${wo.distance_km} km` :
+    wo.duration_min ? `roughly ${wo.duration_min} min (pick a sensible distance)` : "";
+  const intensity = [canonZone(wo.zone), wo.pace_range && `pace ${wo.pace_range}`]
+    .filter(Boolean).join(", ");
+  return `Plan a ${size} ${sport} route from home for my training-plan workout ` +
+    `"${wo.title}"${intensity ? ` (${intensity})` : ""}.`;
+}
+
+function calendarMessage(wo: PlanWorkout, week: PlanWeek): string {
+  const date = workoutDate(week, wo.day);
+  const when = date ? `on ${date} (${wo.day})` : `on ${wo.day} of this training week`;
+  const bits = [wo.distance_km && `${wo.distance_km} km`,
+    wo.duration_min && `${wo.duration_min} min`, canonZone(wo.zone)]
+    .filter(Boolean).join(", ");
+  return `Put my training-plan workout "${wo.title}"${bits ? ` (${bits})` : ""} into my ` +
+    `calendar ${when} — check my calendar for a free slot first and confirm what you booked.`;
+}
+
 function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
   const week: PlanWeek | undefined =
     plan.weeks.find((w) => w.week === plan.current_week) ?? plan.weeks[0];
@@ -558,12 +613,20 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
   return (
     <section>
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">
-          {upcoming ? "First week" : "This week"} · {PHASE_LABEL[week.phase]} phase, week {week.week}
-          {week.cutback && <span className="ml-2 text-xs font-medium text-metric-amber">Cutback week</span>}
-        </h2>
-        <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
+        <div>
+          <h2 className="text-sm font-semibold text-text-primary">
+            {upcoming ? "First week" : "This week"} · {PHASE_LABEL[week.phase]} phase, week {week.week}
+            {week.cutback && <span className="ml-2 text-xs font-medium text-metric-amber">Cutback week</span>}
+          </h2>
+          <p className="mt-0.5 text-xs text-text-muted">
+            {week.focus || PHASE_PURPOSE[week.phase]}
+          </p>
+        </div>
+        <span className="text-right text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
           Target {week.target_km} km
+          {week.long_run_km != null && (
+            <span className="block normal-case text-secondary">Long run {week.long_run_km} km</span>
+          )}
         </span>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
@@ -571,9 +634,17 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
           <div key={`${wo.day}-${i}`} className="flex flex-col gap-2 fd-card px-4 py-3.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-text-faint">{wo.day}</span>
-              <span className="rounded-md px-2 py-0.5 text-[11px] font-bold text-bg-app"
-                style={{ background: zoneColor(wo.zone) }}>
-                {canonZone(wo.zone)}
+              <span className="flex items-center gap-1.5">
+                {wo.cross_training && (
+                  <span className="rounded-md border border-border bg-bg-surface px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted"
+                    title="Cross-training — supports the goal, doesn't count toward the week's km target">
+                    Cross · {wo.sport}
+                  </span>
+                )}
+                <span className="rounded-md px-2 py-0.5 text-[11px] font-bold text-bg-app"
+                  style={{ background: zoneColor(wo.zone) }}>
+                  {canonZone(wo.zone)}
+                </span>
               </span>
             </div>
             <h3 className="text-[14.5px] font-semibold text-text-primary">{wo.title}</h3>
@@ -587,11 +658,13 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
             )}
             {wo.source && <SourceReveal source={wo.source} />}
             <div className="mt-0.5 flex gap-2">
-              <Link to="/chat"
+              <Link to="/chat" state={{ autoSend: routeMessage(wo) }}
+                title="Asks the coach to plan a route matching this workout"
                 className="rounded-md border border-border bg-bg-app px-2.5 py-1 text-[11.5px] font-semibold text-text-muted hover:border-accent hover:text-text-primary">
                 Plan route
               </Link>
-              <Link to="/chat"
+              <Link to="/chat" state={{ autoSend: calendarMessage(wo, week) }}
+                title="Asks the coach to put this workout into your calendar"
                 className="flex items-center gap-1 rounded-md border border-border bg-bg-app px-2.5 py-1 text-[11.5px] font-semibold text-text-muted hover:border-accent hover:text-text-primary">
                 <CalendarDays size={12} /> To calendar
               </Link>
@@ -608,29 +681,135 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
   );
 }
 
+// ── 5b. upcoming weeks — the whole preparation at a glance ───────────────────
+// One row per remaining week: phase, target volume and a plain-words purpose
+// (the coach's own "focus" sentence, falling back to a short phase purpose).
+// A row expands to its workouts.
+
+const PHASE_PURPOSE: Record<string, string> = {
+  base: "Build the aerobic base — frequency first, easy running",
+  build: "Sport-specific endurance — quality sessions grow",
+  peak: "Race-pace work — the sharpest sessions of the plan",
+  taper: "Volume drops, intensity stays — arrive fresh on race day",
+};
+
+function UpcomingWeeks({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const current = plan.current_week;
+  const weeks = plan.weeks.filter((w) => (current == null ? w.week > 1 : w.week > current));
+  if (!weeks.length) return null;
+
+  return (
+    <section className="fd-card px-5 py-4">
+      <div className="mb-3 flex items-baseline justify-between">
+        <div className="flex items-center gap-1">
+          <h2 className="text-sm font-semibold text-text-primary">Coming weeks</h2>
+          <InfoHint text="Every remaining week of your plan with its purpose in the preparation. Click a week to see its workouts." />
+        </div>
+        <span className="fd-label">{weeks.length} weeks to go</span>
+      </div>
+      <div className="space-y-1.5">
+        {weeks.map((w) => {
+          const isOpen = expanded === w.week;
+          const purpose = w.focus || PHASE_PURPOSE[w.phase] || w.phase_label || "";
+          return (
+            <div key={w.week} className="rounded-lg border border-border bg-bg-surface/50">
+              <button type="button" onClick={() => setExpanded(isOpen ? null : w.week)}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left">
+                <span className="w-9 shrink-0 rounded-md px-1.5 py-0.5 text-center text-[11px] font-bold text-bg-app"
+                  style={{ background: PHASE_COLORS[w.phase] ?? "#334155" }}>
+                  W{w.week}
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-text-primary">
+                  {PHASE_LABEL[w.phase] ?? w.phase}
+                </span>
+                {w.cutback && <span className="shrink-0 text-[10px] font-semibold uppercase text-metric-amber">Cutback</span>}
+                {(w.milestones ?? []).map((m) => (
+                  <span key={m.id ?? m.name} title={m.name} className="shrink-0 text-[12px]">
+                    {m.kind === "race" ? "🚩" : "🎯"}
+                  </span>
+                ))}
+                <span className="min-w-0 flex-1 truncate text-xs text-text-muted">{purpose}</span>
+                {w.long_run_km != null && (
+                  <span className="shrink-0 text-xs tabular-nums text-secondary"
+                    title="The week's long run — the key session approaching the race distance">
+                    LR {w.long_run_km} km
+                  </span>
+                )}
+                <span className="shrink-0 text-xs font-semibold tabular-nums text-text-primary">
+                  {w.target_km} km
+                </span>
+                <span className="shrink-0 text-[10px] text-text-faint">{isOpen ? "▲" : "▼"}</span>
+              </button>
+              {isOpen && (
+                <div className="border-t border-border px-3 py-2">
+                  <div className="mb-1.5 text-[10.5px] text-text-faint">
+                    Week of {fmtDate(w.start_date)}{w.sessions ? ` · ${w.sessions} sessions planned` : ""}
+                  </div>
+                  {(w.workouts ?? []).length ? (
+                    <ul className="space-y-1">
+                      {w.workouts.map((wo, i) => (
+                        <li key={`${wo.day}-${i}`} className="flex items-center gap-2 text-xs text-text-muted">
+                          <span className="w-8 shrink-0 font-bold uppercase text-text-faint">{wo.day}</span>
+                          <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: zoneColor(wo.zone) }} />
+                          <span className="truncate text-text-primary">{wo.title}</span>
+                          <span className="ml-auto shrink-0 tabular-nums">
+                            {[wo.distance_km && `${wo.distance_km} km`, wo.duration_min && `${wo.duration_min} min`]
+                              .filter(Boolean).join(" · ")}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-text-muted">No workouts planned yet.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 // ── 6. volume chart (plan targets; Ist-Abgleich folgt) ───────────────────────
 
 function VolumeChart({ weeks, currentWeek }: { weeks: PlanWeek[]; currentWeek: number | null }) {
-  const max = Math.max(...weeks.map((w) => w.target_km), 1);
+  const max = Math.max(...weeks.map((w) => Math.max(w.target_km, w.actual?.distance_km ?? 0)), 1);
+  const reviewed = weeks.some((w) => w.actual);
   return (
     <div className="fd-card px-5 py-4 lg:col-span-3">
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-text-primary">Weekly volume · plan</h2>
-        <span className="text-[10.5px] text-text-faint">Actual vs. Strava coming soon</span>
+        <span className="text-[10.5px] text-text-faint">
+          {reviewed ? "◆ = actually done (weekly review)" : "Actuals appear after the coach's weekly review"}
+        </span>
       </div>
       <div className="flex h-40 items-end gap-1.5">
-        {weeks.map((w) => (
-          <div key={w.week} className="group relative flex-1"
-            title={`W${w.week} · ${PHASE_LABEL[w.phase]}${w.cutback ? " (cutback)" : ""} · ${w.target_km} km`}>
-            <div className={`w-full rounded-t transition-all ${w.week === currentWeek ? "ring-1 ring-text-primary" : ""}`}
-              style={{
-                height: `${(w.target_km / max) * 152}px`,
-                background: PHASE_COLORS[w.phase] ?? "#334155",
-                opacity: w.cutback ? 0.55 : 1,
-              }} />
-            <div className="mt-1 text-center text-[9.5px] text-text-faint">W{w.week}</div>
-          </div>
-        ))}
+        {weeks.map((w) => {
+          const actual = w.actual?.distance_km;
+          const tip = `W${w.week} · ${PHASE_LABEL[w.phase]}${w.cutback ? " (cutback)" : ""} · target ${w.target_km} km`
+            + (actual != null ? ` · actual ${actual} km` : "");
+          return (
+            <div key={w.week} className="group relative flex-1" title={tip}>
+              <div className={`w-full rounded-t transition-all ${w.week === currentWeek ? "ring-1 ring-text-primary" : ""}`}
+                style={{
+                  height: `${(w.target_km / max) * 152}px`,
+                  background: PHASE_COLORS[w.phase] ?? "#334155",
+                  opacity: w.cutback ? 0.55 : 1,
+                }} />
+              {/* reviewed week: a quiet marker at the ACTUAL volume height */}
+              {actual != null && (
+                <div className="absolute inset-x-0 flex justify-center"
+                  style={{ bottom: `${(actual / max) * 152 + 18}px` }}>
+                  <span className="h-1.5 w-1.5 rotate-45 bg-text-primary" />
+                </div>
+              )}
+              <div className="mt-1 text-center text-[9.5px] text-text-faint">W{w.week}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -711,12 +890,19 @@ function SourceReveal({ source }: { source: string }) {
 function prognosisShort(prog?: AthleteOverview["prognosis"]): { text: string; info?: string } {
   if (!prog)
     return { text: "Forecast open", info: "Log a reference run near the goal distance to get a forecast." };
-  if (prog.note) return { text: "Benchmark needed", info: prog.note };
-  if (prog.required_pace)
+  if (prog.benchmark_pace && prog.required_pace)
     return {
       text: prog.on_track ? "on track" : "off pace",
-      info: `Benchmark ${prog.benchmark_pace ?? "—"} · target pace ${prog.required_pace}`,
+      info: `Benchmark ${prog.benchmark_pace} · target pace ${prog.required_pace}`,
     };
+  // Required pace is pure arithmetic (target time / distance) — shown even
+  // before a benchmark exists; the comparison needs a real race.
+  if (prog.required_pace)
+    return {
+      text: `needs ${prog.required_pace}`,
+      info: prog.note ?? "Log a benchmark race near the goal distance to compare it against this target pace.",
+    };
+  if (prog.note) return { text: "Benchmark needed", info: prog.note };
   return { text: prog.basis ?? "—" };
 }
 

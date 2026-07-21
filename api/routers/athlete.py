@@ -57,6 +57,7 @@ class RaceGoalBody(BaseModel):
     race_name: str
     race_date: str                       # ISO YYYY-MM-DD
     distance_km: float
+    sport: str = "run"                   # "run" | "ride" — validated by the MCP server
     target_time: str = ""
     weekly_sessions: int = 4
     preferred_days: str = ""
@@ -158,21 +159,38 @@ def delete_event(event_id: str, user: str = Depends(current_user)) -> dict:
 
 
 _GENERATE_INSTRUCTION = (
-    "Build the complete training plan for my stored race goal now. Follow your "
-    "workflow strictly: read the overview; if zones are missing, compute them from "
-    "my AGE via athlete__compute_zones (age-based HFmax is the DEFAULT — do not use "
-    "Garmin's observed max HR unless I explicitly logged a real all-out effort) plus "
-    "resting HR from garmin. Read my current weekly volume from the last Strava weeks. "
-    "If the recent weeks are EMPTY (training break), use the weekly volume of the last "
-    "ACTIVE training weeks from Strava history instead, restart at no more than 60 % of "
-    "it and note the break in the first weeks' workout rationales — never invent a "
-    "volume that is nowhere in the data. Then call athlete__scaffold_plan with it; fill "
-    "every week with concrete workouts (my zones, day preferences, one sentence of "
-    "rationale, a literature source where sensible); save with athlete__save_plan and "
-    "fix any violations until saving succeeds. Then add 2-4 motivating milestone "
-    "checkpoints (athlete__add_milestone, source=\"coach\") spread across the plan so "
-    "the goal feels achievable, not just one distant race day. Finish with a short "
-    "summary of the plan."
+    "Build the complete training plan FOR my stored race goal now — goal first, my "
+    "history only sets the starting point. Follow your workflow strictly: read the "
+    "overview (note the goal's SPORT); if zones are missing, compute them from my AGE "
+    "via athlete__compute_zones (age-based HFmax is the DEFAULT — do not use Garmin's "
+    "observed max HR unless I explicitly logged a real all-out effort) plus resting HR "
+    "from garmin. Read my current weekly volume IN THE GOAL SPORT from the last Strava "
+    "weeks — in get_training_trends use each week's distance_by_sport_km for the goal "
+    "sport ONLY, never the mixed distance_km total (a bike week is not a run "
+    "baseline). If the recent GOAL-SPORT weeks are EMPTY (training break), use the "
+    "weekly GOAL-SPORT volume of the last ACTIVE training weeks from Strava history "
+    "instead, restart at no more than 60 % of it and note the break in the first "
+    "weeks' workout rationales — never invent a volume that is nowhere in the data. "
+    "Sanity check: current_weekly_km is ONE typical week and must not exceed the "
+    "biggest goal-sport week visible in the data. Also count the goal-sport SESSIONS "
+    "per week in those same weeks and pass them as current_weekly_sessions. Then call "
+    "athlete__scaffold_plan with both — the skeleton is RUN-BASED: each week carries "
+    "a long_run_km from a line planned backward from race day, ending at the race "
+    "demand. READ the feasibility block and LEAD your summary with it: compare the "
+    "line's entry point with my longest recent runs, name the required vs. benchmark "
+    "pace — with options if goal and data clash. Fill every week per its phase_focus: "
+    "the biggest run of each week MUST hit that week's long_run_km (race-pace "
+    "elements inside it during build/peak), supporting runs make up the rest of "
+    "target_km (my zones, day preferences, one sentence of rationale, a literature "
+    "source where sensible); use cross-training (bike/swim/aqua jogging, by duration) "
+    "only where the phase allows — unspecific endurance in the base phase, ReKom "
+    "recovery elsewhere. Save with "
+    "athlete__save_plan and fix any violations until saving succeeds. Then derive "
+    "2-4 milestone checkpoints FROM the saved plan weeks (athlete__add_milestone, "
+    "source=\"coach\" — longest long run yet, phase switches, first race-pace "
+    "session, plus one real tune-up race suggestion in the build phase) so the goal "
+    "feels achievable, not just one distant race day. Finish with a short summary of "
+    "the plan including the feasibility verdict."
 )
 
 

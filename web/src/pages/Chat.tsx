@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { AgentTrace } from "../components/chat/AgentTrace";
 import { ChatSidebar } from "../components/chat/ChatSidebar";
@@ -47,6 +48,23 @@ export function Chat() {
   useEffect(() => {
     if (user) void init(user);
   }, [user, init]);
+
+  // ── Deep-linked actions (e.g. Coach-tab "Plan route" / "To calendar") ───────
+  // Another page navigates here with { state: { autoSend } }; we send that
+  // message once and clear the state so a reload/back never re-sends it.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const autoSentRef = useRef(false);          // StrictMode double-effect guard
+  useEffect(() => {
+    const msg = (location.state as { autoSend?: string } | null)?.autoSend?.trim();
+    if (!msg || !user || autoSentRef.current) return;
+    autoSentRef.current = true;
+    navigate(location.pathname, { replace: true, state: null });
+    void (async () => {
+      await useChatStore.getState().init(user); // idempotent — wait for chats
+      await useChatStore.getState().send(msg);
+    })();
+  }, [location.state, location.pathname, navigate, user]);
 
   // ── Tool availability ──────────────────────────────────────────────────────
   const { data: health, refetch: refetchHealth } = useQuery({

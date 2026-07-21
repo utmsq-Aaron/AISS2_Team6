@@ -25,7 +25,8 @@ _SKIP_TOOLS = {
     "get_activity_streams", "get_activity_gps_track", "prepare_flythrough",
     "get_current_weather", "get_weather_forecast", "get_pollen_levels", "get_uv_index",
     "maps_search_places", "maps_place_details", "maps_geocode",
-    "maps_reverse_geocode", "maps_directions",
+    "maps_reverse_geocode", "maps_directions", "maps_search_along_route",
+    "search_fitness_literature",
 }
 
 # Plotly trace types that render a map — rejected in generate_figures (the route
@@ -75,21 +76,17 @@ def _generate_code(question: str, answer_text: str, var_lines: List[str],
     vars_block = "\n".join(var_lines)
     conclusion = answer_text[:900] if answer_text else ""
 
+    # Charts exist ONLY on explicit request: the agent layer marks chart-worthy
+    # answers with a <!--charts:--> tag; without hints this function is never
+    # reached (generate_figures gates on them).
     prompt = "You are a data-visualization expert for a personal sports analytics app.\n\n"
     prompt += f'Question: "{question}"\n\n'
-    if chart_hints:
-        prompt += ("The assistant requested these specific charts:\n"
-                   + "\n".join(f"  - {h}" for h in chart_hints)
-                   + "\n\nWrite EXACTLY those charts (1 chart per bullet). Do not add others.\n\n")
-        if conclusion:
-            prompt += (f"Context (assistant's conclusion):\n{conclusion}\n\n"
-                       "Use this context for titles and axis labels — it explains what was found.\n\n")
-    elif conclusion:
-        prompt += (f"The assistant already analysed the data and concluded:\n{conclusion}\n\n"
-                   "Write 1–3 Plotly charts that ILLUSTRATE THIS CONCLUSION visually.\n"
-                   "Focus on the specific finding — do not show all available metrics.\n\n")
-    else:
-        prompt += "Write 1–3 Plotly charts that directly answer the question.\n\n"
+    prompt += ("The assistant requested these specific charts:\n"
+               + "\n".join(f"  - {h}" for h in (chart_hints or []))
+               + "\n\nWrite EXACTLY those charts (1 chart per bullet). Do not add others.\n\n")
+    if conclusion:
+        prompt += (f"Context (assistant's conclusion):\n{conclusion}\n\n"
+                   "Use this context for titles and axis labels — it explains what was found.\n\n")
 
     prompt += (
         f"Available data (pre-loaded Python variables):\n{vars_block}\n\n"
@@ -156,6 +153,12 @@ def generate_figures(trace: Dict) -> List[dict]:
     answer = trace.get("answer", "")
     if not question or run_id in _failed:
         return []
+    # No explicit <!--charts:--> request from the agent layer → no charts. The
+    # old fallback ("invent 1-3 charts from whatever data is around") produced
+    # nonsense figures for place searches and knowledge answers.
+    hints = trace.get("chart_hints") or []
+    if not hints:
+        return []
 
     # ── Collect tool results into pre-loaded variables ────────────────────────
     data_vars: Dict[str, Any] = {}
@@ -185,7 +188,6 @@ def generate_figures(trace: Dict) -> List[dict]:
         return []
 
     # ── Generate (once per run_id) ────────────────────────────────────────────
-    hints = trace.get("chart_hints") or []
     if run_id not in _code_cache:
         raw = _generate_code(question, answer, var_lines, chart_hints=hints)
         code = _extract_code(raw) if raw else None

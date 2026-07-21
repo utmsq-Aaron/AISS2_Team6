@@ -11,7 +11,9 @@ import {
 import { ActivityMapSection } from "../components/analysis/ActivityMapSection";
 import { AnalysisOverview } from "../components/analysis/AnalysisOverview";
 import { OfficialStatsSection } from "../components/analysis/OfficialStatsSection";
+import { PlanVsActualSection } from "../components/analysis/PlanVsActualSection";
 import { TrainingVolumeSection } from "../components/analysis/TrainingVolumeSection";
+import { ExplainButton } from "../components/ExplainButton";
 import { MetricCard } from "../components/MetricCard";
 import { PageHeader } from "../components/PageHeader";
 import { PeriodSelector } from "../components/PeriodSelector";
@@ -145,30 +147,22 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
   return (
     <>
       <p className="mb-3 text-sm text-text-muted">
-        Tracks your training stress over time using the classic ATL/CTL/TSB model from
-        exercise science.
+        Three numbers: how tired you are, how fit you are, and the balance between them.
       </p>
 
-      <HowTo title="💡 How to read ATL · CTL · TSB">
+      <HowTo title="💡 How to read Fatigue · Fitness · Form">
         <p>
-          <strong>ATL — Acute Training Load</strong> <em>(7-day window)</em> — how hard
-          you have trained this week. A high ATL means your body is currently under
-          stress — you will feel tired, but you are also becoming fitter.
+          <strong>Fatigue</strong> <em>(ATL, last 7 days)</em> — how hard you've trained
+          this week. High = tired legs, but adaptation under way.
         </p>
         <p>
-          <strong>CTL — Chronic Training Load</strong> <em>(42-day window)</em> — your
-          fitness base, built up over the last six weeks. CTL rises slowly and is hard to
-          fake.
+          <strong>Fitness</strong> <em>(CTL, last 42 days)</em> — your base, built slowly.
+          It only rises through consistent weeks.
         </p>
         <p>
-          <strong>TSB — Training Stress Balance</strong> <em>(CTL − ATL)</em> — the gap
-          between your fitness and your current fatigue. Positive → rested and race-ready;
-          near zero → balanced; negative → productive fatigue; very negative (&lt; −30) →
-          risk of overtraining.
-        </p>
-        <p>
-          <strong>Weekly Load bar chart</strong> — each bar is the total training impulse
-          for that week. Larger bars with rising CTL = you are building fitness.
+          <strong>Form</strong> <em>(TSB = Fitness − Fatigue)</em> — positive: rested and
+          ready to go hard; slightly negative: productive training fatigue; below about
+          −30: back off, that's overtraining territory.
         </p>
       </HowTo>
 
@@ -198,27 +192,38 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
         return (
           <>
             <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <MetricCard label="ATL (7d)" value={atl.toFixed(0)} sub="Short-term fatigue" />
-              <MetricCard label="CTL (42d)" value={ctl.toFixed(0)} sub="Fitness base" />
+              <MetricCard label="Fatigue" value={atl.toFixed(0)} sub="last 7 days (ATL)" />
+              <MetricCard label="Fitness" value={ctl.toFixed(0)} sub="base over 42 days (CTL)" />
               <MetricCard
-                label="TSB"
+                label="Form"
                 value={`${tsbSign}${tsb.toFixed(0)}`}
                 delta={`${tsbSign}${tsb.toFixed(0)}`}
                 deltaColor={tsb >= 0 ? "green" : "red"}
-                sub="CTL − ATL"
+                sub="Fitness − Fatigue (TSB)"
               />
             </div>
 
-            <div className="mb-4 rounded-lg border border-metric-indigo/40 bg-metric-indigo/10 px-4 py-3 text-sm text-text-primary">
-              <strong>Current form:</strong> {form}
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-metric-indigo/40 bg-metric-indigo/10 px-4 py-3 text-sm text-text-primary">
+              <span><strong>Current form:</strong> {form}</span>
+              <ExplainButton
+                title="Training load — fatigue, fitness and form"
+                data={{
+                  fatigue_atl_7d: atl, fitness_ctl_42d: ctl, form_tsb: tsb,
+                  form_label: form,
+                  recent_weeks: weeksRows.slice(-8).map((w) => ({
+                    week_start: w.week_start, total_load: w.total_load,
+                    fatigue: w.avg_atl, fitness: w.avg_ctl, form: w.avg_tsb,
+                  })),
+                }}
+              />
             </div>
 
             {df.length === 0 ? null : (
               <>
                 <div className="mb-3">
                   <PeriodSelector
-                    options={["📊 Weekly Load", "📈 ATL / CTL Trend"] as const}
-                    value={view === "bar" ? "📊 Weekly Load" : "📈 ATL / CTL Trend"}
+                    options={["📊 Weekly Load", "📈 Fatigue / Fitness Trend"] as const}
+                    value={view === "bar" ? "📊 Weekly Load" : "📈 Fatigue / Fitness Trend"}
                     onChange={(v) => setView(v === "📊 Weekly Load" ? "bar" : "atl")}
                   />
                 </div>
@@ -251,7 +256,7 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
                         mode: "lines",
                         x: xs,
                         y: df.map((w) => w.avg_atl),
-                        name: "ATL (7d)",
+                        name: "Fatigue (ATL, 7d)",
                         line: { color: C_RED, width: 2 },
                       } as Data,
                       {
@@ -259,14 +264,14 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
                         mode: "lines",
                         x: xs,
                         y: df.map((w) => w.avg_ctl),
-                        name: "CTL (42d)",
+                        name: "Fitness (CTL, 42d)",
                         line: { color: C_BLUE, width: 2 },
                       } as Data,
                       {
                         type: "bar",
                         x: xs,
                         y: df.map((w) => w.avg_tsb),
-                        name: "TSB",
+                        name: "Form (TSB)",
                         marker: {
                           color: df.map((w) => (w.avg_tsb >= 0 ? C_GREEN : C_ORANGE)),
                         },
@@ -448,8 +453,15 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
               <div className="text-sm text-text-muted">
                 HR: <TrendPill direction={trends.heart_rate ?? "insufficient data"} />
               </div>
-              <div className="text-xs text-text-muted">
-                {n} activities · {dr.from ?? ""} – {dr.to ?? ""}
+              <div className="flex items-center justify-between gap-2 text-xs text-text-muted">
+                <span>{n} activities · {dr.from ?? ""} – {dr.to ?? ""}</span>
+                <ExplainButton
+                  title={`Performance trend — last ${n} ${sport} activities`}
+                  data={{
+                    sport, activity_count: n, date_range: dr,
+                    trends, averages: avgs, highlights: hi,
+                  }}
+                />
               </div>
             </div>
 
@@ -840,9 +852,19 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
 
         return (
           <div className="mt-4">
-            <div className="text-sm text-text-primary">
-              <strong>{act.name ?? ""}</strong>
-              {act.date ? ` · ${act.date}` : ""} · {headerParts.join(" · ")}
+            <div className="flex items-center justify-between gap-2 text-sm text-text-primary">
+              <span>
+                <strong>{act.name ?? ""}</strong>
+                {act.date ? ` · ${act.date}` : ""} · {headerParts.join(" · ")}
+              </span>
+              <ExplainButton
+                title={`How "${act.name ?? "this activity"}" compares to my baseline`}
+                data={{
+                  activity: act, assessment,
+                  overall_difficulty_percentile: overallPct,
+                  baseline_activity_count: nBase, comparisons,
+                }}
+              />
             </div>
 
             {overallPct != null && (
@@ -906,6 +928,7 @@ export function Analysis() {
 
   const [open, setOpen] = useState({
     overview: true,
+    plan: false,
     map: false,
     volume: false,
     stats: false,
@@ -977,6 +1000,14 @@ export function Analysis() {
         ) : (
           <AnalysisOverview activities={activities} period={period} onPeriodChange={setPeriod} />
         )}
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="🎯 Plan vs. Actual"
+        open={open.plan}
+        onToggle={() => setOpen((o) => ({ ...o, plan: !o.plan }))}
+      >
+        <PlanVsActualSection />
       </CollapsibleSection>
 
       <CollapsibleSection

@@ -7,6 +7,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { GoalCockpit } from "../components/dashboard/GoalCockpit";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
 import { callTool, getAthleteOverview } from "../lib/api";
@@ -142,6 +143,9 @@ export function Dashboard() {
           sub={`${last7} active day${last7 === 1 ? "" : "s"} this week`}
           dot={streak >= 2 ? C.green : streak === 1 ? C.amber : C.muted} />
       </section>
+
+      {/* ── Goal cockpit — training vs. goal at a glance ── */}
+      <GoalCockpit ov={zonesQ.data} acts={acts} />
 
       {/* ── Recent activity calendar ── */}
       <RecentCalendar acts={acts} loading={actsQ.isLoading} />

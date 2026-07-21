@@ -4,6 +4,7 @@
 import type { Data } from "plotly.js";
 import { useMemo } from "react";
 
+import { ExplainButton } from "../ExplainButton";
 import { PlotlyChart } from "../PlotlyChart";
 import { dayStr, sportOf, type Activity } from "../../lib/stravaTypes";
 import { ACCENT, C_AMBER, CHART_COLORS } from "../../theme/tokens";
@@ -128,7 +129,18 @@ export function TrainingVolumeSection({
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       {/* Distance per period */}
       <div>
-        <p className="fd-label mb-1">Distance per {aggLabel}</p>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <p className="fd-label">Distance per {aggLabel}</p>
+          <ExplainButton
+            title={`Training volume per ${aggLabel.toLowerCase()}`}
+            data={{
+              distance_km_per_period: distAgg,
+              hours_per_period: timeHours,
+              elevation_m_per_period: elevAgg,
+              sports: sportCounts.map(([s, n]) => ({ sport: s, activities: n })),
+            }}
+          />
+        </div>
         <PlotlyChart
           data={[
             {

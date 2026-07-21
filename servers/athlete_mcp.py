@@ -2,12 +2,15 @@
 
 The structured athlete store + the DETERMINISTIC training-math layer:
 
-  • race goal (date, distance, target time) and training preferences
+  • race goal (sport run/ride, date, distance, target time) and training preferences
   • personal timeline (injuries, illnesses, races, notes) as CRUD events
   • heart-rate and pace zones — computed from numbers the caller supplies
     (Garmin HR values, a recent Strava race), never estimated by an LLM
-  • the training plan (phases → weeks → workouts) with hard guardrails:
-    ramp-rate cap, taper check, injury-window check
+  • the GOAL-DRIVEN training plan (phases with content prescriptions → weeks →
+    workouts, plus a goal-vs-data feasibility fact block) with hard guardrails:
+    ramp-rate cap, taper check, injury-window check, cross-training rules
+  • the adaptation loop: record_week_actual (plan-vs-actual monitoring) and
+    rescaffold_plan (re-baseline remaining weeks on demonstrated volume)
 
 Design rule (see docs/mcp-architecture.md and the coach concept): everything
 computable lives HERE as plain arithmetic the user can re-check; the coach
@@ -70,6 +73,44 @@ PACE_ZONES_FACTOR = {"ReKom": (1.43, 1.33), "GA1": (1.33, 1.18),
 EVENT_TYPES = ("injury", "illness", "race", "note")
 MILESTONE_KINDS = ("race", "checkpoint")
 MILESTONE_STATUSES = ("pending", "achieved")
+GOAL_SPORTS = ("run", "ride")           # main-goal sport, chosen when the goal is set
+
+# Long-run line — the plan's backbone is the weekly KEY SESSION approaching the
+# race distance (backward-planned from race day), not a weekly aggregate. The
+# athlete runs the race demand at least once before race day. Documented
+# engineering conventions (docs/trainingsregeln.md §11), not book constants:
+LONG_RUN_FULL_DIST_MAX = 25.0   # up to here the peak long run = the FULL race distance
+LONG_RUN_CAP_FACTOR = 0.75      # beyond (marathon+): peak long run ≈ 75 % of the distance
+LONG_RUN_START_FACTOR = 0.5     # the line starts at half the anchor and builds to it
+SUPPORT_RUN_FACTOR = 0.4        # each supporting run ≈ 40 % of that week's long run
+TAPER_LONG_FACTORS = (0.5, 0.3) # taper long runs: 50 % then 30 % of the peak
+
+# Phase content per Ferrauti Tab. 7.10/7.11 (Marathon-Jahres-/Wochenplan): the plan
+# is built FOR the goal — each phase prescribes what kind of work serves it, incl.
+# where unspecific cross-training (bike/swim/aqua jogging) is appropriate.
+PHASE_FOCUS = {
+    "base": {
+        "label": "Allgemeine Vorbereitung",
+        "focus": ("Volume first: raise frequency, then duration (Ferrauti S.188). "
+                  "GA1 endurance in the goal sport; unspecific cross-training "
+                  "(bike/MTB, swimming, aqua jogging) welcome as GA1/ReKom sessions "
+                  "(Ferrauti Tab. 7.10)."),
+    },
+    "build": {
+        "label": "Spezielle Vorbereitung",
+        "focus": ("Sport-specific endurance GA1/GA2 in the goal sport (Ferrauti "
+                  "Tab. 7.10); cross-training only as ReKom recovery sessions."),
+    },
+    "peak": {
+        "label": "Unmittelbare Wettkampfvorbereitung",
+        "focus": ("Race-pace work GA2/WSA — interval protocols per Ferrauti S.58-59 "
+                  "and Tab. 7.11; cross-training only as ReKom recovery sessions."),
+    },
+    "taper": {
+        "label": "Taper",
+        "focus": "Volume sharply down, intensity kept (Ferrauti S.117).",
+    },
+}
 
 mcp = FastMCP(
     "athlete",
@@ -117,6 +158,10 @@ def _migrate_race(profile: Dict[str, Any]) -> None:
         migrated["priority"] = "A"
         profile["races"] = [migrated]
     profile.pop("race", None)  # always recomputed on read (see get_athlete_overview)
+    # Pre-sport-field main goals default to running (in-memory, persisted on next _save).
+    for r in profile.get("races") or []:
+        if r.get("priority") == "A":
+            r.setdefault("sport", "run")
 
 
 def _load(user: str) -> Dict[str, Any]:
@@ -247,30 +292,120 @@ def _phase_split(n_weeks: int) -> List[str]:
     return ["base"] * base + ["build"] * build + ["peak"] * peak + ["taper"] * taper
 
 
-def _week_targets(n_weeks: int, phases: List[str], start_km: float) -> List[float]:
-    """Weekly volume targets: +6 %/week (inside the 8 % guardrail), every 4th week
-    a cutback, taper weeks step down toward the race."""
+def _long_run_anchor(race_dist_km: float) -> float:
+    """Peak long run the line builds to: the FULL race distance for goals up to
+    ~half-marathon range (the athlete covers the distance once before race day);
+    capped at 75 % for longer races (a marathon is never run in full beforehand)."""
+    if race_dist_km <= LONG_RUN_FULL_DIST_MAX:
+        return float(race_dist_km)
+    return round(race_dist_km * LONG_RUN_CAP_FACTOR, 1)
+
+
+def _run_targets(phases: List[str], race_dist_km: float,
+                 start_sessions: int = 2,
+                 target_sessions: int = 4) -> tuple[List[float], List[float], List[int], dict]:
+    """RUN-BASED, backward-planned skeleton: the deterministic backbone is the
+    weekly LONG RUN approaching the race demand, planned backward from race day
+    (goal decides, history only informs the coach's conversation):
+
+      • anchor: last growth week's long run = _long_run_anchor(race distance);
+      • the line starts at half the anchor and grows in even steps across every
+        growth week (non-cutback, non-taper) — steady approach, no jumps;
+      • cutback weeks drop the long run to 70 % (Ferrauti S.295), taper weeks
+        to 50 %/30 % of the peak (volume down, intensity kept, S.117);
+      • frequency still rises first (+1 session/week toward the athlete's
+        target — Ferrauti S.83/S.188); each supporting run ≈ 40 % of that
+        week's long run, so the week volume DERIVES from the runs.
+
+    Returns (week_target_km, long_run_km, sessions_per_week, line_info)."""
+    anchor = _long_run_anchor(race_dist_km)
+    start_sessions = max(1, min(int(start_sessions or 2), int(target_sessions or 4)))
+    target_sessions = max(start_sessions, int(target_sessions or 4))
+    growth_idx = [i for i, ph in enumerate(phases)
+                  if ph != "taper" and not (i > 0 and (i + 1) % CUTBACK_EVERY == 0)]
+    n_growth = len(growth_idx)
+    start_long = anchor * LONG_RUN_START_FACTOR if n_growth > 1 else anchor
+    step = (anchor - start_long) / (n_growth - 1) if n_growth > 1 else 0.0
+    line = {idx: start_long + k * step for k, idx in enumerate(growth_idx)}
+
     targets: List[float] = []
-    vol = start_km
-    peak_vol = start_km
+    long_runs: List[float] = []
+    sessions_list: List[int] = []
+    sessions = start_sessions
+    prev_long = start_long
+    peak_long = anchor
+    taper_i = 0
     for i, ph in enumerate(phases):
         if ph == "taper":
-            remaining = len(phases) - i
-            vol = peak_vol * (0.60 if remaining >= 2 else 0.40)
-            targets.append(round(vol, 1))
-            continue
-        if i > 0 and (i + 1) % CUTBACK_EVERY == 0:
-            targets.append(round(vol * CUTBACK_FACTOR, 1))  # cutback, ramp continues after
-            continue
-        if i > 0:
-            vol = vol * 1.06
-        peak_vol = max(peak_vol, vol)
-        targets.append(round(vol, 1))
-    return targets
+            lr = peak_long * TAPER_LONG_FACTORS[min(taper_i, len(TAPER_LONG_FACTORS) - 1)]
+            taper_i += 1
+        elif i in line:
+            lr = line[i]
+            if i > 0 and sessions < target_sessions:
+                sessions += 1                              # frequency before duration
+            prev_long = lr
+        else:                                              # cutback week
+            lr = prev_long * CUTBACK_FACTOR
+        lr = round(lr, 1)
+        week_total = round(lr * (1 + SUPPORT_RUN_FACTOR * (sessions - 1)), 1)
+        long_runs.append(lr)
+        targets.append(week_total)
+        sessions_list.append(sessions)
+    info = {"anchor_km": round(anchor, 1), "start_long_run_km": round(start_long, 1),
+            "step_km": round(step, 2), "growth_weeks": n_growth}
+    return targets, long_runs, sessions_list, info
 
 
 def _blocked_windows(timeline: List[dict]) -> List[dict]:
     return [e for e in timeline if e.get("type") in ("injury", "illness")]
+
+
+def _feasibility(race: Dict[str, Any], targets: List[float], n_weeks: int,
+                 zones: Dict[str, Any], line_info: Optional[dict] = None,
+                 sessions: Optional[tuple] = None) -> Dict[str, Any]:
+    """Goal-vs-data FACTS, no verdict: what the backward-planned long-run line
+    demands vs. where the athlete stands. Pure arithmetic — judging
+    achievability (SMART, Ferrauti Tab. 1.2) and confronting the athlete is the
+    coach's job (compare the line's entry point with the athlete's real longest
+    recent runs from Strava)."""
+    sport = race.get("sport", "run")
+    goal_dist = float(race.get("distance_km") or 0) or None
+    out: Dict[str, Any] = {
+        "sport": sport,
+        "race_distance_km": goal_dist,
+        "n_weeks": n_weeks,
+        "start_week_km": targets[0] if targets else None,
+        "peak_week_km": max(targets) if targets else None,
+        "basis": ("backward-planned long-run line (anchor = race demand, even steps "
+                  "across the growth weeks) + frequency-first build-up (Ferrauti "
+                  "S.83/S.188) — check the line's ENTRY against the athlete's real "
+                  "longest recent runs and the required vs. benchmark pace, then "
+                  "talk to the athlete honestly"),
+    }
+    if line_info:
+        out["long_run_line"] = line_info
+        # Advisory (documented display threshold, not sport science): with fewer
+        # than 4 growth weeks the line cannot approach the distance gradually.
+        if line_info.get("growth_weeks", 99) < 4:
+            out["warning"] = (
+                f"only {line_info['growth_weeks']} growth week(s) before the race — "
+                f"the long run cannot approach the race demand gradually (line steps "
+                f"of {line_info.get('step_km')} km). Confront the athlete openly and "
+                f"discuss options (later race / adjusted goal / finish-focus strategy).")
+    if sessions:
+        out["start_sessions_per_week"], out["target_sessions_per_week"] = sessions
+    target_secs = _parse_hms(race.get("target_time", "")) if race.get("target_time") else None
+    if target_secs and goal_dist:
+        out["required_pace"] = _fmt_pace(target_secs / goal_dist)
+    ps = (zones or {}).get("pace_source") or {}
+    if ps.get("distance_km") and ps.get("time_secs") and ps.get("sport", "run") == sport:
+        bench_dist = float(ps["distance_km"])
+        out["benchmark"] = {
+            "label": ps.get("label") or f"{bench_dist} km",
+            "distance_km": bench_dist,
+            "pace": _fmt_pace(float(ps["time_secs"]) / bench_dist),
+        }
+    return out
 
 
 # ── main goal + milestones ──────────────────────────────────────────────────────
@@ -313,8 +448,14 @@ def _week_overlaps_event(week_start: date, event: dict) -> bool:
     return ev_start <= week_end and ev_end >= week_start
 
 
-def _validate_plan(plan: Dict[str, Any], timeline: List[dict]) -> List[str]:
-    """Hard guardrails. Returns human-readable violations; empty = plan is legal."""
+def _validate_plan(plan: Dict[str, Any], timeline: List[dict],
+                   main_sport: str = "run") -> List[str]:
+    """Hard guardrails. Returns human-readable violations; empty = plan is legal.
+
+    ``target_km`` counts the GOAL SPORT only; workouts in another sport are
+    cross-training (need a duration) and never enter the ramp math. The ramp
+    baseline prefers a week's recorded ``actual`` volume over its target — the
+    demonstrated load is the true baseline once a week has been reviewed."""
     violations: List[str] = []
     # Drop empty stub weeks (an LLM occasionally appends {}), then require the
     # structural minimum on every remaining week.
@@ -334,22 +475,84 @@ def _validate_plan(plan: Dict[str, Any], timeline: List[dict]) -> List[str]:
     # (volume drops by design) nor lowers the baseline (the ramp resumes from
     # the pre-cutback level, it doesn't re-ramp +8% steps from the dip).
     baseline_km: Optional[float] = None
+    baseline_sessions: Optional[int] = None
     for i, w in enumerate(weeks):
         km = float(w.get("target_km") or 0)
         phase = (w.get("phase") or "").lower()
         cutback = bool(w.get("cutback"))
+        sessions = int(w.get("sessions") or 0) or None
+        actual = w.get("actual") if isinstance(w.get("actual"), dict) else None
+        actual_km = float(actual["distance_km"]) if actual and actual.get("distance_km") else None
+        long_run = float(w.get("long_run_km") or 0) or None
         if cutback or phase == "taper":
             continue_baseline = False
         else:
             continue_baseline = True
-            if baseline_km and baseline_km > 0:
-                ramp = (km - baseline_km) / baseline_km
-                if ramp > MAX_WEEKLY_RAMP + 1e-6:
+            # Sessions rise one per week, never more (frequency before duration —
+            # Ferrauti S.83/S.188).
+            if sessions and baseline_sessions and sessions > baseline_sessions + 1:
+                violations.append(
+                    f"week {i + 1}: sessions jump {baseline_sessions} → {sessions} "
+                    f"— raise frequency one session per week (Ferrauti S.83)")
+            # LEGACY weeks without a long-run line keep the old %-cap; line-based
+            # weeks are governed by the line itself (the biggest run must match
+            # long_run_km below — the weekly sum then follows from the runs).
+            if long_run is None and baseline_km and baseline_km > 0:
+                factor = 1 + MAX_WEEKLY_RAMP
+                if sessions and baseline_sessions and sessions > baseline_sessions:
+                    factor = max(factor, min(sessions, baseline_sessions + 1) / baseline_sessions)
+                if km > baseline_km * factor + 0.10501:
+                    ramp = (km - baseline_km) / baseline_km
                     violations.append(
                         f"week {i + 1}: volume ramp +{ramp * 100:.0f}% exceeds the "
-                        f"+{MAX_WEEKLY_RAMP * 100:.0f}% cap ({baseline_km} → {km} km)")
+                        f"allowed step (+{(factor - 1) * 100:.0f}%) "
+                        f"({baseline_km} → {km} km)")
         if continue_baseline:
-            baseline_km = km
+            # A reviewed week's demonstrated volume beats its target as baseline.
+            baseline_km = actual_km if actual_km is not None else km
+            baseline_sessions = sessions or baseline_sessions
+
+        goal_sport_km = 0.0
+        goal_sport_all_have_km = True
+        n_goal_workouts = 0
+        biggest_goal_run = 0.0
+        for wo in w.get("workouts") or []:
+            wo_sport = (wo.get("sport") or main_sport).lower()
+            if wo_sport != main_sport and not (wo.get("duration_min") or wo.get("distance_km")):
+                violations.append(
+                    f"week {i + 1}: cross-training workout '{wo.get('title', '?')}' "
+                    f"({wo_sport}) needs duration_min (cross-training is planned by "
+                    f"duration, not km)")
+            if wo_sport == main_sport:
+                n_goal_workouts += 1
+                if wo.get("distance_km"):
+                    goal_sport_km += float(wo["distance_km"])
+                    biggest_goal_run = max(biggest_goal_run, float(wo["distance_km"]))
+                else:
+                    goal_sport_all_have_km = False
+
+        # Internal consistency (engineering bound, not sport science): the planned
+        # goal-sport workouts must actually add up to the week's target — a week
+        # targeting 8 km with a single 4 km run is half a plan. Only checked for
+        # current/future weeks (past weeks are judged by their recorded actuals)
+        # and only when every goal-sport workout carries a km figure.
+        ws_d = _parse_date(w.get("start_date", ""))
+        is_past = bool(ws_d and ws_d + timedelta(days=6) < date.today())
+        if (not is_past and km > 0 and n_goal_workouts > 0 and goal_sport_all_have_km
+                and not (0.9 * km <= goal_sport_km <= 1.1 * km)):
+            violations.append(
+                f"week {i + 1}: planned {main_sport} workouts sum to {goal_sport_km:.1f} km "
+                f"but the week's target is {km} km — plan the full target (±10%), "
+                f"spread over the week's sessions")
+        # The line is the plan's backbone: the week's biggest goal-sport run must
+        # BE the long run (±10 %) — the athlete trains ON the distance, the weekly
+        # sum only follows from it.
+        if (not is_past and long_run and n_goal_workouts > 0 and biggest_goal_run > 0
+                and not (0.9 * long_run <= biggest_goal_run <= 1.1 * long_run)):
+            violations.append(
+                f"week {i + 1}: biggest {main_sport} run is {biggest_goal_run:.1f} km but "
+                f"the long-run line prescribes {long_run} km (±10%) — the key session "
+                f"must approach the race demand, don't split it into small runs")
 
         ws = _parse_date(w.get("start_date", ""))
         if ws:
@@ -357,7 +560,7 @@ def _validate_plan(plan: Dict[str, Any], timeline: List[dict]) -> List[str]:
                 if _week_overlaps_event(ws, ev):
                     blocked = [s.lower() for s in (ev.get("blocked_sports") or [])]
                     for wo in w.get("workouts") or []:
-                        sport = (wo.get("sport") or "run").lower()
+                        sport = (wo.get("sport") or main_sport).lower()
                         if not blocked or sport in blocked:
                             violations.append(
                                 f"week {i + 1}: workout '{wo.get('title', '?')}' ({sport}) falls "
@@ -430,46 +633,58 @@ def get_athlete_overview() -> Dict[str, Any]:
         out["plan"] = {**plan, "current_week": cur, "n_weeks": len(weeks)}
     else:
         out["plan"] = None
-    # Prognose: NUR mit einem realen Benchmark-Wettkampf nahe der Zieldistanz — Vergleich
-    # des tatsächlichen Renntempos mit dem Zieltempo. KEINE Distanz-Extrapolation (Riegel);
-    # fehlt der Benchmark, ehrlich auf Leistungsdiagnostik verweisen (Ferrauti S.50).
-    z = (doc.get("zones") or {}).get("pace_source") or {}
-    if rd and race.get("distance_km") and z.get("distance_km") and z.get("time_secs"):
-        goal_dist = float(race["distance_km"])
-        bench_dist = float(z["distance_km"])
-        if abs(goal_dist - bench_dist) <= max(1.0, 0.15 * goal_dist):
+    # Prognose: das ZIELTEMPO ist reine Arithmetik und wird immer ausgewiesen, sobald
+    # Zielzeit + Distanz gesetzt sind. Ein "on_track"-Urteil gibt es NUR mit einem realen
+    # Benchmark-Wettkampf nahe der Zieldistanz IN der Zielsportart — Vergleich Renntempo
+    # vs. Zieltempo, KEINE Distanz-Extrapolation (Riegel); fehlt der Benchmark, ehrlich
+    # auf Leistungsdiagnostik verweisen (Ferrauti S.50).
+    goal_dist = float(race["distance_km"]) if race.get("distance_km") else None
+    if rd and goal_dist:
+        prog: Dict[str, Any] = {}
+        target_secs = _parse_hms(race.get("target_time", "")) if race.get("target_time") else None
+        req_pace = target_secs / goal_dist if target_secs else None
+        if req_pace:
+            prog["required_pace"] = _fmt_pace(req_pace)
+        sport = race.get("sport", "run")
+        z = (doc.get("zones") or {}).get("pace_source") or {}
+        if (z.get("distance_km") and z.get("time_secs") and z.get("sport", "run") == sport
+                and abs(goal_dist - float(z["distance_km"])) <= max(1.0, 0.15 * goal_dist)):
+            bench_dist = float(z["distance_km"])
             bench_pace = float(z["time_secs"]) / bench_dist       # sec/km
-            target_secs = _parse_hms(race.get("target_time", "")) if race.get("target_time") else None
-            req_pace = target_secs / goal_dist if target_secs else None
-            out["prognosis"] = {
+            prog.update({
                 "benchmark": z.get("label") or f"{bench_dist} km",
                 "benchmark_pace": _fmt_pace(bench_pace),
-                "required_pace": _fmt_pace(req_pace) if req_pace else None,
                 "on_track": (bench_pace <= req_pace) if req_pace else None,
                 "basis": "Benchmark-Renntempo vs. Zieltempo (Ferrauti S.50; keine Extrapolation)",
-            }
+            })
         else:
-            out["prognosis"] = {
-                "note": f"kein Benchmark nahe der Zieldistanz ({goal_dist} km) — für eine Prognose "
-                        f"einen Testlauf/Wettkampf ~Zieldistanz absolvieren (messen statt schätzen)",
-            }
+            prog["note"] = (
+                f"kein Benchmark nahe der Zieldistanz ({goal_dist} km, {sport}) — für eine "
+                f"Prognose einen Testlauf/Wettkampf ~Zieldistanz absolvieren (messen statt schätzen)")
+        if prog:
+            out["prognosis"] = prog
     return out
 
 
 @mcp.tool()
 def set_race_goal(race_name: str, race_date: str, distance_km: float,
-                  target_time: str = "", weekly_sessions: int = 4,
-                  preferred_days: str = "") -> Dict[str, Any]:
+                  sport: str = "run", target_time: str = "",
+                  weekly_sessions: int = 4, preferred_days: str = "") -> Dict[str, Any]:
     """Set (or replace) the athlete's MAIN GOAL — the one race that drives the
-    training plan. Replacing it clears the stored plan (it was built for the old
-    goal) — scaffold_plan + save_plan a new one. For anything that is NOT the main
-    goal (a tune-up/minor race, or a non-race training checkpoint), use
-    add_milestone instead — milestones never touch the plan.
+    training plan. The goal carries its SPORT ("run" or "ride", chosen when the
+    goal is set) — the plan's volumes, key sessions and pace zones are built for
+    that sport; other sports only appear as cross-training. Replacing the goal
+    clears the stored plan (it was built for the old goal) — scaffold_plan +
+    save_plan a new one. For anything that is NOT the main goal (a tune-up/minor
+    race, or a non-race training checkpoint), use add_milestone instead —
+    milestones never touch the plan.
 
     Args:
         race_name: e.g. "Baden-Marathon Half Marathon".
         race_date: ISO date "YYYY-MM-DD" — must be in the future.
         distance_km: race distance in km (21.1 for a half marathon).
+        sport: "run" or "ride" — the goal's sport. Ask the athlete if unclear;
+            never guess it from their activity history.
         target_time: goal finish time "H:MM:SS" or "MM:SS" (optional).
         weekly_sessions: how many training sessions per week fit the athlete's life.
         preferred_days: optional comma-separated weekdays, e.g. "Tue,Thu,Sat,Sun".
@@ -481,6 +696,9 @@ def set_race_goal(race_name: str, race_date: str, distance_km: float,
         return {"error": f"race_date {race_date} is not in the future"}
     if not distance_km or distance_km <= 0:
         return {"error": "distance_km must be > 0"}
+    sport = (sport or "run").strip().lower()
+    if sport not in GOAL_SPORTS:
+        return {"error": f"sport must be one of {GOAL_SPORTS}"}
     if target_time and _parse_hms(target_time) is None:
         return {"error": f"target_time '{target_time}' is not H:MM:SS / MM:SS"}
     user = _user()
@@ -488,7 +706,7 @@ def set_race_goal(race_name: str, race_date: str, distance_km: float,
     race = {
         "id": uuid.uuid4().hex[:12],
         "name": str(race_name).strip(), "date": rd.isoformat(),
-        "distance_km": float(distance_km),
+        "distance_km": float(distance_km), "sport": sport,
         "target_time": str(target_time).strip() or None,
         "priority": "A", "kind": "race", "source": "user", "status": "pending",
     }
@@ -665,7 +883,7 @@ def set_athlete_profile(age: int = 0) -> Dict[str, Any]:
 @mcp.tool()
 def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
                   race_distance_km: float = 0, race_time: str = "",
-                  race_label: str = "") -> Dict[str, Any]:
+                  race_label: str = "", race_sport: str = "run") -> Dict[str, Any]:
     """Compute and store HR + pace zones DETERMINISTICALLY.
 
     German training bands ReKom/GA1/GA2/WSA. HR zones as %HFmax and — with a resting
@@ -685,6 +903,8 @@ def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
         race_distance_km: distance of a recent ~10 km race for pace zones (optional).
         race_time: its finish time "H:MM:SS" / "MM:SS".
         race_label: where the race result came from.
+        race_sport: the benchmark race's sport ("run"/"ride") — pace zones and the
+            prognosis only apply to a goal of the same sport.
     """
     user = _user()
     doc = _load(user)
@@ -706,29 +926,48 @@ def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
     if pace:
         zones["pace"] = pace
         zones["pace_source"] = {"distance_km": float(race_distance_km),
-                                "time_secs": secs, "label": race_label or None}
+                                "time_secs": secs, "label": race_label or None,
+                                "sport": (race_sport or "run").strip().lower()}
     doc["zones"] = zones
     _save(user, doc)
     return {"ok": True, "zones": zones}
 
 
 @mcp.tool()
-def scaffold_plan(current_weekly_km: float) -> Dict[str, Any]:
-    """The DETERMINISTIC plan skeleton the coach fills with workouts.
+def scaffold_plan(current_weekly_km: float = 0, current_weekly_sessions: int = 0) -> Dict[str, Any]:
+    """The DETERMINISTIC, GOAL-DRIVEN plan skeleton the coach fills with workouts.
 
-    From the stored main goal and today's date it derives: number of full
-    training weeks, the base/build/peak/taper phase of each week, each week's
-    target volume (+6 %/week ramp inside the +8 % guardrail, every 4th week a
-    cutback at 70 %, taper stepping down to the race) and the athlete's
-    sessions-per-week. Each week also lists any MILESTONES that fall inside it
-    (transient — not stored; use them to avoid stacking your hardest session of
-    the week on top of a race-kind milestone, and to place your own proactive
-    checkpoint milestones sensibly). Fill each week's ``workouts`` and pass the
-    result to save_plan — do NOT invent your own week structure or volumes.
+    RUN-BASED and planned BACKWARD from race day: the backbone is each week's
+    ``long_run_km`` — a line of key sessions that approaches the race demand in
+    even steps, ending at the full race distance (goals up to ~25 km) or 75 % of
+    it (marathon+) in the last growth week before the taper. The athlete trains
+    ON the distance, not on an abstract weekly sum: the week's ``target_km``
+    DERIVES from its runs (long run + supporting runs of ~40 % its length),
+    sessions still rise first (+1/week toward the athlete's target — Ferrauti
+    S.83/S.188), every 4th week is a cutback, the taper steps down (S.117/S.295).
+    Each week carries its ``phase_focus`` content prescription (Tab. 7.10/7.11).
+
+    The ``feasibility`` block gives goal-vs-data FACTS — the long-run line
+    (entry point, step size, growth weeks), required vs. benchmark pace.
+    COMPARE the line's entry with the athlete's real longest recent runs from
+    Strava and confront them honestly when goal and data don't line up (SMART
+    "achievable", Ferrauti Tab. 1.2) — the server states facts, judging them is
+    your job. A "warning" in the block MUST lead your summary.
+
+    Each week also lists any MILESTONES that fall inside it (transient — not
+    stored; plan gently around a race-kind one). Fill each week's ``workouts``
+    (the week's biggest run must match ``long_run_km``) and pass the result to
+    save_plan — do NOT invent your own week structure or volumes.
 
     Args:
-        current_weekly_km: the athlete's CURRENT typical weekly volume in km
-            (from recent Strava weeks) — the ramp starts here, never above it.
+        current_weekly_km: the athlete's CURRENT typical weekly volume in km in
+            the GOAL SPORT (recent Strava weeks) — reported as a feasibility
+            fact for your conversation; the line itself is goal-driven.
+        current_weekly_sessions: how many goal-sport sessions per week the
+            athlete currently does (recent Strava weeks; after a break, the last
+            active weeks). Defaults to 2 — the typical Freizeitsport entry
+            frequency (Ferrauti S.83). The plan raises this by one session per
+            week toward the athlete's sessions target.
     """
     user = _user()
     doc = _load(user)
@@ -736,30 +975,44 @@ def scaffold_plan(current_weekly_km: float) -> Dict[str, Any]:
     rd = _parse_date(race.get("date", ""))
     if not rd:
         return {"error": "no main goal set — call set_race_goal first"}
-    if not current_weekly_km or current_weekly_km <= 0:
-        return {"error": "current_weekly_km must be > 0 (read it from recent Strava weeks)"}
+    goal_dist = float(race.get("distance_km") or 0)
+    if goal_dist <= 0:
+        return {"error": "main goal has no distance_km — set_race_goal first"}
 
     next_monday = date.today() + timedelta(days=(7 - date.today().weekday()) % 7 or 7)
     n_weeks = max(0, (rd - next_monday).days // 7)
     if n_weeks < 2:
         return {"error": f"only {n_weeks} full week(s) until the race — too short to plan"}
     phases = _phase_split(n_weeks)
-    targets = _week_targets(n_weeks, phases, float(current_weekly_km))
+    target_sessions = int((doc.get("profile") or {}).get("weekly_sessions", 4))
+    targets, long_runs, sessions_per_week, line_info = _run_targets(
+        phases, goal_dist,
+        start_sessions=int(current_weekly_sessions) or 2,
+        target_sessions=target_sessions)
     milestones = _milestones(doc)
     weeks = []
     for i, (ph, km) in enumerate(zip(phases, targets)):
         ws = next_monday + timedelta(weeks=i)
         weeks.append({
             "week": i + 1, "phase": ph, "start_date": ws.isoformat(),
-            "target_km": km, "cutback": (i > 0 and (i + 1) % CUTBACK_EVERY == 0 and ph not in ("taper",)),
-            "sessions": (doc.get("profile") or {}).get("weekly_sessions", 4),
+            "phase_label": PHASE_FOCUS.get(ph, {}).get("label"),
+            "phase_focus": PHASE_FOCUS.get(ph, {}).get("focus"),
+            "target_km": km, "long_run_km": long_runs[i],
+            "cutback": (i > 0 and (i + 1) % CUTBACK_EVERY == 0 and ph not in ("taper",)),
+            "sessions": sessions_per_week[i],
             "workouts": [],
             "milestones": _milestones_in_week(milestones, ws),
         })
+    feas = _feasibility(race, targets, n_weeks, doc.get("zones") or {},
+                        line_info=line_info,
+                        sessions=(sessions_per_week[0], target_sessions))
+    if current_weekly_km:
+        feas["current_weekly_km"] = float(current_weekly_km)
     return {
         "race": race, "n_weeks": n_weeks, "weeks": weeks,
-        "guardrails": {"max_weekly_ramp_pct": MAX_WEEKLY_RAMP * 100,
-                       "cutback_every": CUTBACK_EVERY},
+        "feasibility": feas,
+        "guardrails": {"long_run_line": line_info, "cutback_every": CUTBACK_EVERY,
+                       "max_new_sessions_per_week": 1},
         "timeline_constraints": _blocked_windows(doc.get("timeline") or []),
         "zones": doc.get("zones") or {},
     }
@@ -769,18 +1022,32 @@ def scaffold_plan(current_weekly_km: float) -> Dict[str, Any]:
 def save_plan(plan: dict) -> Dict[str, Any]:
     """Validate a filled plan against the hard guardrails and store it.
 
-    Pass the scaffold_plan result with each week's ``workouts`` filled in:
-    every workout needs {day, title, sport, zone, and either duration_min or
-    distance_km}; give intensity as the athlete's OWN zone bands (from the
-    stored zones), add a one-sentence ``why`` and, where it came from the
-    literature, a ``source``. Rejected plans return the exact violations —
-    fix them and call again; nothing is stored on rejection.
+    Pass the scaffold_plan (or rescaffold_plan) result with each week's
+    ``workouts`` filled in: every workout needs {day, title, sport, zone, and
+    either duration_min or distance_km}; give intensity as the athlete's OWN
+    zone bands (from the stored zones), add a one-sentence ``why`` and, where it
+    came from the literature, a ``source``. The goal-sport workouts of a week
+    must SUM to that week's target_km (±10 %) — spread over the week's sessions
+    (frequency before duration, Ferrauti S.188), never one lone session leaving
+    the rest of the target unplanned. You may also set a one-sentence ``focus``
+    per week (what this week is FOR, in plain words).
+
+    CROSS-TRAINING: workouts in a sport other than the goal sport are
+    cross-training — planned by DURATION (duration_min required), never counted
+    toward the week's target_km (which is goal-sport volume only). Use them per
+    phase_focus: unspecific endurance (GA1) in the base phase, ReKom recovery
+    sessions anywhere, substitutes during an injury window — never as the week's
+    race-specific key session (Ferrauti Tab. 7.10/7.11).
+
+    Rejected plans return the exact violations — fix them and call again;
+    nothing is stored on rejection.
     """
     user = _user()
     doc = _load(user)
     if not isinstance(plan, dict):
         return {"error": "plan must be an object"}
-    violations = _validate_plan(plan, doc.get("timeline") or [])
+    main_sport = (_a_race(doc) or {}).get("sport", "run")
+    violations = _validate_plan(plan, doc.get("timeline") or [], main_sport)
     if violations:
         return {"error": "plan violates guardrails", "violations": violations}
     # Deterministic enrichment: a workout that names a zone (ReKom/GA1/GA2/WSA) but no
@@ -793,13 +1060,19 @@ def save_plan(plan: dict) -> Dict[str, Any]:
     zones = doc.get("zones") or {}
     hr_bands = {_zkey(k): v for k, v in ((zones.get("hr") or {}).get("bands_bpm") or {}).items()}
     pace_bands = {_zkey(k): v for k, v in ((zones.get("pace") or {}).get("bands_pace") or {}).items()}
+    pace_sport = ((zones.get("pace_source") or {}).get("sport") or "run").lower()
     for w in plan.get("weeks") or []:
         for wo in w.get("workouts") or []:
+            wo_sport = (wo.get("sport") or main_sport).lower()
+            if wo_sport != main_sport:
+                wo["cross_training"] = True       # marked for the UI + the ramp math
             z = _zkey(wo.get("zone"))
             if z in hr_bands and not wo.get("hr_range"):
                 lo, hi = hr_bands[z]
                 wo["hr_range"] = f"{lo}–{hi}"
-            if z in pace_bands and not wo.get("pace_range"):
+            # Pace bands anchor on a benchmark race in ONE sport — never attach
+            # them to a workout of a different sport (a swim in run-pace is noise).
+            if z in pace_bands and not wo.get("pace_range") and wo_sport == pace_sport:
                 slow, fast = pace_bands[z]
                 wo["pace_range"] = f"{fast.replace('/km', '')}–{slow}"
 
@@ -811,6 +1084,170 @@ def save_plan(plan: dict) -> Dict[str, Any]:
     _save(user, doc)
     n_workouts = sum(len(w.get("workouts") or []) for w in plan.get("weeks") or [])
     return {"ok": True, "n_weeks": len(plan.get("weeks") or []), "n_workouts": n_workouts}
+
+
+@mcp.tool()
+def record_week_actual(week: int, distance_km: float, sessions: int = 0,
+                       note: str = "") -> Dict[str, Any]:
+    """Record what the athlete ACTUALLY did in a plan week — the monitoring half
+    of the adaptation loop (Ferrauti Tab. 1.2 Stufe 6: the short-term plan is
+    continuously adjusted to athlete monitoring; S.185).
+
+    Fetch the real numbers from Strava/Garmin first (goal-sport km + session
+    count for that calendar week) and pass them in — RAW values only, never a
+    derived "readiness score" (Ferrauti S.202). The server stores them on the
+    week and computes compliance_pct (actual/target) deterministically. Reviewed
+    weeks also become the ramp baseline in save_plan's guardrail (demonstrated
+    load beats planned load).
+
+    Args:
+        week: the plan week number (1-based, from get_plan / the overview).
+        distance_km: goal-sport km the athlete actually covered that week.
+        sessions: how many sessions they actually did (optional).
+        note: one short observation, e.g. "felt easy" / "skipped long run, sick".
+    """
+    user = _user()
+    doc = _load(user)
+    plan = doc.get("plan")
+    if not plan or not (plan.get("weeks") or []):
+        return {"error": "no plan stored — nothing to review"}
+    weeks = plan["weeks"]
+    try:
+        wk = int(week)
+    except (TypeError, ValueError):
+        return {"error": f"week '{week}' is not a number"}
+    if not 1 <= wk <= len(weeks):
+        return {"error": f"week must be 1..{len(weeks)}"}
+    if distance_km is None or float(distance_km) < 0:
+        return {"error": "distance_km must be >= 0"}
+    w = weeks[wk - 1]
+    target = float(w.get("target_km") or 0)
+    actual: Dict[str, Any] = {
+        "distance_km": round(float(distance_km), 1),
+        "sessions": int(sessions) or None,
+        "note": str(note).strip() or None,
+        "reviewed_at": datetime.utcnow().isoformat() + "Z",
+    }
+    if target > 0:
+        actual["compliance_pct"] = int(round(100 * float(distance_km) / target))
+    w["actual"] = actual
+    doc["plan"] = plan
+    _save(user, doc)
+    return {"ok": True, "week": wk, "target_km": target or None, "actual": actual}
+
+
+@mcp.tool()
+def rescaffold_plan(current_weekly_km: float = 0) -> Dict[str, Any]:
+    """Recompute the REMAINING weeks of the stored plan — the adjustment half of
+    the adaptation loop, in the run-based model.
+
+    The long-run LINE stays anchored to the race (the goal doesn't move):
+    future growth weeks are refitted in even steps from the last frozen week's
+    long run to the race anchor. What adapts is the SUPPORT volume around the
+    line: pass current_weekly_km when the athlete is OVERLOADED (a deliberately
+    reduced weekly volume — the supporting runs shrink, relief per Ferrauti
+    S.295/Reizstufenregel, while the key sessions keep approaching the race) or
+    leave it 0 to keep the standard ~40 %-support derivation. If even the line
+    itself is unsustainable, the honest move is changing the GOAL (date/
+    distance) — say so to the athlete instead of silently flattening the line.
+
+    Past and in-progress weeks (start date not after today), including recorded
+    ``actual`` data, are FROZEN; phases, cutbacks and taper structure are
+    preserved. Returns the full plan with future weeks' long_run_km/target_km
+    recomputed and their workouts CLEARED — fill them and call save_plan
+    (nothing is stored until then).
+
+    Args:
+        current_weekly_km: optional REDUCED weekly volume for relief (overload);
+            0 = derive normally. Never an invented number.
+    """
+    user = _user()
+    doc = _load(user)
+    plan = doc.get("plan")
+    if not plan or not (plan.get("weeks") or []):
+        return {"error": "no plan stored — use scaffold_plan for a fresh plan"}
+    race = _a_race(doc) or {}
+    goal_dist = float(race.get("distance_km") or 0)
+    if goal_dist <= 0:
+        return {"error": "no main goal distance — set_race_goal first"}
+    today = date.today()
+    weeks = plan["weeks"]
+    n = len(weeks)
+    future_idx = [i for i, w in enumerate(weeks)
+                  if (_parse_date(w.get("start_date", "")) or date.min) > today]
+    if not future_idx:
+        return {"error": "no future weeks left in the plan — nothing to rescaffold"}
+    future_set = set(future_idx)
+    milestones = _milestones(doc)
+    anchor = _long_run_anchor(goal_dist)
+
+    # Line refit: from the last frozen growth week's long run (fallback: the
+    # line's standard entry) to the anchor, even steps across future growth weeks.
+    last_long: Optional[float] = None
+    for i, w in enumerate(weeks):
+        if i in future_set:
+            break
+        if (w.get("phase") or "").lower() != "taper" and not w.get("cutback") and w.get("long_run_km"):
+            last_long = float(w["long_run_km"])
+    start_long = last_long if last_long else anchor * LONG_RUN_START_FACTOR
+    growth = [i for i in future_idx
+              if (weeks[i].get("phase") or "").lower() != "taper" and not weeks[i].get("cutback")]
+    step = (anchor - start_long) / len(growth) if growth else 0.0
+
+    # Optional overload relief: scale the SUPPORT volume so the first future
+    # week's total ≈ the requested reduced volume (the line itself stays).
+    support_scale = 1.0
+    relief_note = ""
+    if current_weekly_km and growth:
+        first_long = start_long + step
+        first_sessions = int(weeks[growth[0]].get("sessions") or 3)
+        full_support = first_long * SUPPORT_RUN_FACTOR * (first_sessions - 1)
+        if full_support > 0 and current_weekly_km < first_long + full_support:
+            support_scale = max(0.0, min(1.0, (float(current_weekly_km) - first_long) / full_support))
+            relief_note = (f"support volume scaled to {round(support_scale * 100)} % for relief "
+                           f"(requested {current_weekly_km} km/week); the long-run line stays "
+                           f"anchored to the race. ")
+
+    prev_long = start_long
+    peak_long = anchor
+    taper_i = 0
+    lr = start_long
+    for i in future_idx:
+        w = weeks[i]
+        ph = (w.get("phase") or "").lower()
+        sessions = int(w.get("sessions") or 3)
+        if ph == "taper":
+            lr = peak_long * TAPER_LONG_FACTORS[min(taper_i, len(TAPER_LONG_FACTORS) - 1)]
+            taper_i += 1
+        elif i in growth:
+            lr = prev_long + step
+            prev_long = lr
+        else:                                              # cutback week
+            lr = prev_long * CUTBACK_FACTOR
+        lr_r = round(lr, 1)
+        w["long_run_km"] = lr_r
+        w["target_km"] = round(lr_r * (1 + SUPPORT_RUN_FACTOR * support_scale * (sessions - 1)), 1)
+        w["workouts"] = []
+        w["phase_label"] = PHASE_FOCUS.get(ph, {}).get("label")
+        w["phase_focus"] = PHASE_FOCUS.get(ph, {}).get("focus")
+        ws = _parse_date(w.get("start_date", ""))
+        if ws:
+            w["milestones"] = _milestones_in_week(milestones, ws)
+    targets = [float(w.get("target_km") or 0) for w in weeks]
+    line_info = {"anchor_km": round(anchor, 1), "start_long_run_km": round(start_long + (step if growth else 0), 1),
+                 "step_km": round(step, 2), "growth_weeks": len(growth)}
+    return {
+        "race": race, "n_weeks": n, "weeks": weeks,
+        "rescaffolded_weeks": [i + 1 for i in future_idx],
+        "frozen_weeks": [i + 1 for i in range(n) if i not in future_idx],
+        "support_scale": support_scale,
+        "feasibility": _feasibility(race, targets, n, doc.get("zones") or {}, line_info=line_info),
+        "guardrails": {"long_run_line": line_info, "cutback_every": CUTBACK_EVERY,
+                       "max_new_sessions_per_week": 1},
+        "timeline_constraints": _blocked_windows(doc.get("timeline") or []),
+        "zones": doc.get("zones") or {},
+        "note": relief_note + "not saved yet — fill the rescaffolded weeks' workouts and call save_plan",
+    }
 
 
 @mcp.tool()
