@@ -14,9 +14,13 @@ import {
   useRefreshGoalPanel,
   useUpdateGoal,
 } from "../../lib/goalQueries";
+import { InfoHint } from "../InfoHint";
 import { ErrorBox, Spinner } from "../Spinner";
 import { AddGoalInput } from "./AddGoalInput";
 import { GoalPanel } from "./GoalPanel";
+
+const GOALS_INFO = "Open-ended personal goals — separate from your main race goal and " +
+  "milestones above. Each gets its own AI-tracked progress panel (e.g. \"swim 3x/week\").";
 
 export function GoalsSection({ readOnly = false }: { readOnly?: boolean }) {
   const goalsQ = useGoals();
@@ -33,7 +37,10 @@ export function GoalsSection({ readOnly = false }: { readOnly?: boolean }) {
   if (readOnly) {
     return (
       <section>
-        <h3 className="fd-label mb-2">Your goals</h3>
+        <div className="mb-2 flex items-center gap-1">
+          <h3 className="fd-label">Your goals</h3>
+          <InfoHint text={GOALS_INFO} />
+        </div>
         {active.length === 0 ? (
           <Link
             to="/coach"
@@ -77,7 +84,10 @@ export function GoalsSection({ readOnly = false }: { readOnly?: boolean }) {
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">Your goals</h2>
+        <div className="flex items-center gap-1">
+          <h2 className="text-sm font-semibold text-text-primary">Your goals</h2>
+          <InfoHint text={GOALS_INFO} />
+        </div>
         <button
           type="button"
           onClick={() => setShowBuilder((s) => !s)}

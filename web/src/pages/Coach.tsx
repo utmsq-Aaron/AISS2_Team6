@@ -15,7 +15,10 @@ import { InfoHint } from "../components/InfoHint";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
 import type { AthleteOverview, PlanWeek, RaceGoal, TimelineEvent } from "../lib/api";
-import { deleteRaceGoal, generatePlan, getAthleteOverview, setRaceGoal } from "../lib/api";
+import {
+  addMilestone, deleteMilestone, generatePlan, getAthleteOverview, setRaceGoal,
+  updateMilestoneStatus,
+} from "../lib/api";
 
 // Zone ramp — warm ramp on the secondary (orange) accent, light→dark = easy→hard.
 // German training bands ReKom/GA1/GA2/WSA (%HFmax; docs/trainingsregeln.md).
@@ -129,7 +132,6 @@ function GoalForm({ initial, weeklySessions, onSaved, onCancel }: {
         distance_km: parseFloat(form.distance_km),
         target_time: form.target_time || undefined,
         weekly_sessions: parseInt(form.weekly_sessions, 10) || 4,
-        priority: "A",
       }),
     onSuccess: onSaved,
     onError: (e: Error) => setError(e.message),
@@ -231,10 +233,13 @@ function Hero({ ov }: { ov: AthleteOverview }) {
     <div className="fd-card px-5 py-4 sm:px-6 sm:py-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="fd-label">Coach · Your journey</div>
+          <div className="flex items-center gap-1">
+            <span className="fd-label">Main goal</span>
+            <InfoHint text="The one race that drives your training plan. Add milestones below to mark progress on the way there." />
+          </div>
           <div className="mt-0.5 flex items-center gap-1.5">
             <h1 className="truncate text-xl font-bold text-text-primary sm:text-2xl">{race.name}</h1>
-            <button type="button" onClick={() => setEditing(true)} title="Edit race goal" aria-label="Edit race goal"
+            <button type="button" onClick={() => setEditing(true)} title="Edit main goal" aria-label="Edit main goal"
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-faint hover:bg-bg-surface hover:text-text-primary">
               <Pencil size={13} strokeWidth={2} />
             </button>
@@ -272,105 +277,137 @@ function Stat({ big, unit, label, primary, muted }: {
 }
 
 // ── 2b. milestone races — hierarchical goals (a tune-up race before the main one) ──
-// Collapsed by default; expands into a compact form on click. Priority A (the season
-// goal in the Hero) is set/replaced via GoalForm/GenerateCard's flow; this section only
-// adds/removes B/C milestones, which never touch the plan.
+// Milestones are checkpoints on the way to the main goal above — either a real
+// tune-up/minor race or a non-race training checkpoint (e.g. "first 15 km long
+// run"). They never change the plan's volumes; the coach plans gently around a
+// race-kind one. The coach also creates some of these itself while building a
+// plan, to make a distant main goal feel closer. Collapsed "+ Add milestone"
+// form, expands on click.
 
-const MILESTONE_LABEL: Record<string, string> = { B: "Tune-up race", C: "Minor race" };
+const KIND_ICON: Record<string, string> = { race: "🚩", checkpoint: "🎯" };
 
 function RaceMilestones({ ov }: { ov: AthleteOverview }) {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const milestones = (ov.profile.races ?? []).filter((r) => r.priority !== "A");
+  const milestones = (ov.profile.races ?? []).filter((r) => !r.is_main);
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["athlete-overview"] });
 
   const del = useMutation({
-    mutationFn: (id: string) => deleteRaceGoal(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["athlete-overview"] }),
+    mutationFn: (id: string) => deleteMilestone(id),
+    onSuccess: invalidate,
+  });
+  const toggleStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "pending" | "achieved" }) =>
+      updateMilestoneStatus(id, status),
+    onSuccess: invalidate,
   });
 
   return (
     <div className="fd-card px-5 py-4">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">Other races</h2>
+        <div className="flex items-center gap-1">
+          <h2 className="text-sm font-semibold text-text-primary">Milestones</h2>
+          <InfoHint text="Checkpoints on the way to your main goal — a tune-up race or a training checkpoint. They don't change your plan's volume; your coach adds some of these automatically to keep the goal feeling achievable." />
+        </div>
         <button type="button" onClick={() => setShowForm((s) => !s)}
           className="fd-btn-ghost text-xs">
-          {showForm ? "Close" : "+ Add race"}
+          {showForm ? "Close" : "+ Add milestone"}
         </button>
       </div>
 
       {milestones.length === 0 && !showForm && (
         <p className="text-xs text-text-muted">
-          No milestone races yet — e.g. a tune-up half marathon before your main goal.
+          No milestones yet — your coach will add some when it builds your plan, or add one yourself
+          (e.g. a tune-up half marathon, or "first 15 km long run").
         </p>
       )}
 
       {milestones.length > 0 && (
         <div className="mb-3 space-y-2">
-          {milestones.map((m) => (
-            <div key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg-surface px-3 py-2">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-text-primary">
-                  🚩 {m.name} <span className="text-text-faint">· {MILESTONE_LABEL[m.priority ?? "B"]}</span>
+          {milestones.map((m) => {
+            const achieved = m.status === "achieved";
+            return (
+              <div key={m.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${
+                achieved ? "border-metric-green/30 bg-metric-green/5" : "border-border bg-bg-surface"}`}>
+                <div className="min-w-0">
+                  <div className={`truncate text-sm font-medium ${achieved ? "text-text-muted line-through" : "text-text-primary"}`}>
+                    {KIND_ICON[m.kind ?? "checkpoint"]} {m.name}
+                    {m.source === "coach" && <span className="ml-1.5 text-[10px] font-semibold text-accent">COACH PICK</span>}
+                  </div>
+                  <div className="text-[11px] text-text-muted">
+                    {fmtDate(m.date)}{m.distance_km ? ` · ${m.distance_km} km` : ""}
+                    {m.days_to_race != null && ` · ${m.days_to_race >= 0 ? `${m.days_to_race} days away` : "past"}`}
+                  </div>
+                  {m.note && <p className="mt-0.5 text-[11px] text-text-faint">{m.note}</p>}
                 </div>
-                <div className="text-[11px] text-text-muted">
-                  {fmtDate(m.date)} · {m.distance_km} km
-                  {m.days_to_race != null && ` · ${m.days_to_race} days away`}
+                <div className="flex shrink-0 items-center gap-2">
+                  <button type="button"
+                    onClick={() => toggleStatus.mutate({ id: m.id!, status: achieved ? "pending" : "achieved" })}
+                    disabled={toggleStatus.isPending}
+                    className={`text-xs font-medium ${achieved ? "text-metric-green" : "text-text-faint hover:text-metric-green"}`}>
+                    {achieved ? "✓ Achieved" : "Mark achieved"}
+                  </button>
+                  <button type="button" onClick={() => del.mutate(m.id!)} disabled={del.isPending}
+                    className="text-xs font-medium text-text-faint hover:text-metric-red">
+                    Remove
+                  </button>
                 </div>
               </div>
-              <button type="button" onClick={() => del.mutate(m.id!)} disabled={del.isPending}
-                className="shrink-0 text-xs font-medium text-text-faint hover:text-metric-red">
-                Remove
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {showForm && (
-        <MilestoneForm onSaved={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ["athlete-overview"] }); }} />
+        <MilestoneForm onSaved={() => { setShowForm(false); invalidate(); }} />
       )}
     </div>
   );
 }
 
 function MilestoneForm({ onSaved }: { onSaved: () => void }) {
-  const [form, setForm] = useState({ race_name: "", race_date: "", distance_km: "", target_time: "" });
-  const [priority, setPriority] = useState<"B" | "C">("B");
+  const [form, setForm] = useState({ title: "", target_date: "", distance_km: "", target_time: "", note: "" });
+  const [kind, setKind] = useState<"race" | "checkpoint">("checkpoint");
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: () =>
-      setRaceGoal({
-        race_name: form.race_name, race_date: form.race_date,
-        distance_km: parseFloat(form.distance_km),
-        target_time: form.target_time || undefined, priority,
+      addMilestone({
+        title: form.title, target_date: form.target_date, kind,
+        distance_km: form.distance_km ? parseFloat(form.distance_km) : undefined,
+        target_time: form.target_time || undefined, note: form.note || undefined,
       }),
     onSuccess: onSaved,
     onError: (e: Error) => setError(e.message),
   });
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
-  const valid = form.race_name && form.race_date && parseFloat(form.distance_km) > 0;
+  const valid = form.title && form.target_date && (kind === "checkpoint" || parseFloat(form.distance_km) > 0);
 
   return (
     <div className="rounded-lg border border-dashed border-border bg-bg-surface/40 p-3">
       <div className="mb-2 inline-flex rounded-lg border border-border bg-bg-surface p-0.5">
-        {(["B", "C"] as const).map((p) => (
-          <button key={p} type="button" onClick={() => setPriority(p)}
+        {(["checkpoint", "race"] as const).map((k) => (
+          <button key={k} type="button" onClick={() => setKind(k)}
             className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-              priority === p ? "bg-accent text-bg-app" : "text-text-muted hover:text-text-primary"}`}>
-            {MILESTONE_LABEL[p]}
+              kind === k ? "bg-accent text-bg-app" : "text-text-muted hover:text-text-primary"}`}>
+            {k === "race" ? "Race" : "Checkpoint"}
           </button>
         ))}
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <input value={form.race_name} onChange={set("race_name")} placeholder="Race name"
-          className="fd-input text-sm" />
-        <input type="date" value={form.race_date} onChange={set("race_date")}
+        <input value={form.title} onChange={set("title")}
+          placeholder={kind === "race" ? "Race name" : "e.g. First 15 km long run"}
+          className="fd-input text-sm sm:col-span-2" />
+        <input type="date" value={form.target_date} onChange={set("target_date")}
           className="fd-input text-sm" />
         <input type="number" step="0.1" min="0.1" value={form.distance_km} onChange={set("distance_km")}
-          placeholder="Distance (km)" className="fd-input text-sm" />
-        <input value={form.target_time} onChange={set("target_time")} placeholder="Target time (optional)"
-          className="fd-input text-sm" />
+          placeholder={kind === "race" ? "Distance (km)" : "Distance (optional)"} className="fd-input text-sm" />
+        {kind === "race" && (
+          <input value={form.target_time} onChange={set("target_time")} placeholder="Target time (optional)"
+            className="fd-input text-sm" />
+        )}
+        <input value={form.note} onChange={set("note")} placeholder="Why this matters (optional)"
+          className="fd-input text-sm sm:col-span-2" />
       </div>
       {error && <p className="mt-2 text-xs text-metric-red">{error}</p>}
       <button type="button" disabled={!valid || save.isPending} onClick={() => save.mutate()}
@@ -448,7 +485,7 @@ function TimelineBand({ ov }: { ov: AthleteOverview }) {
   }
   const todayPct = span.pct(new Date().toISOString());
   const injuries = ov.timeline.filter((e) => e.type === "injury" || e.type === "illness");
-  const milestones = (ov.profile.races ?? []).filter((r) => r.priority !== "A");
+  const milestones = (ov.profile.races ?? []).filter((r) => !r.is_main);
 
   return (
     <div className="fd-card px-5 py-4">
@@ -491,14 +528,14 @@ function TimelineBand({ ov }: { ov: AthleteOverview }) {
           </div>
         )}
         <div className="absolute right-0 top-2 text-[15px]" title={race.name}>🏁</div>
-        {/* milestone (B/C) races along the way to the A-race */}
+        {/* milestones along the way to the main goal — race or checkpoint */}
         {milestones.map((m) => {
           const pct = span.pct(m.date);
           if (pct <= 0 || pct >= 100) return null;
           return (
-            <div key={m.id} title={`${m.name} · ${fmtDate(m.date)} · ${m.distance_km} km`}
+            <div key={m.id} title={`${m.name} · ${fmtDate(m.date)}${m.distance_km ? ` · ${m.distance_km} km` : ""}`}
               className="absolute top-0 -translate-x-1/2 text-[13px]" style={{ left: `${pct}%` }}>
-              🚩
+              {KIND_ICON[m.kind ?? "checkpoint"]}
             </div>
           );
         })}

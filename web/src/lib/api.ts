@@ -443,16 +443,22 @@ export const submitFeedback = (text: string, context?: Record<string, unknown>) 
 // plan GENERATION runs on the coach agent — poll the overview while
 // plan_generation === "running".
 
-// A race-goal hierarchy: one priority "A" race drives the training plan; any
-// number of "B"/"C" races are milestones along the way (e.g. a tune-up half
-// marathon before a year-end marathon) — they don't alter the plan.
+// ONE main goal drives the training plan; any number of MILESTONES mark the way
+// there — a real tune-up/minor race (kind "race") or a non-race training
+// checkpoint (kind "checkpoint", e.g. "first 15 km long run"). Milestones never
+// alter the plan; race-kind ones softly inform nearby workout choice. Separate
+// from the freeform dashboard goals (core.goal_store).
 export interface RaceGoal {
   id?: string;
   name: string;
   date: string; // ISO
   distance_km: number;
   target_time: string | null;
-  priority?: "A" | "B" | "C";
+  is_main?: boolean;
+  kind?: "race" | "checkpoint";
+  source?: "user" | "coach";
+  status?: "pending" | "achieved";
+  note?: string | null;
   days_to_race?: number;
 }
 
@@ -520,8 +526,8 @@ export interface TrainingPlan {
 export interface AthleteOverview {
   user: string;
   profile: {
-    race?: RaceGoal;            // the priority-A race (drives the plan)
-    races?: RaceGoal[];         // full hierarchy: A + any B/C milestone races
+    race?: RaceGoal;            // the main goal (drives the plan)
+    races?: RaceGoal[];         // main goal + all milestones
     weekly_sessions?: number;
     preferred_days?: string[];
     age?: number;
@@ -549,16 +555,26 @@ export const getAthleteOverview = () => http<AthleteOverview>("/athlete/overview
 export const setAthleteProfile = (age: number) =>
   http<{ ok: boolean }>("/athlete/profile", { method: "POST", body: JSON.stringify({ age }) });
 
+/** POST /athlete/goal — set (replace) the MAIN goal. Clears the stored plan. */
 export const setRaceGoal = (body: {
   race_name: string; race_date: string; distance_km: number;
   target_time?: string; weekly_sessions?: number; preferred_days?: string;
-  priority?: "A" | "B" | "C";
 }) => http<{ ok: boolean }>("/athlete/goal", { method: "POST", body: JSON.stringify(body) });
 
-/** DELETE /athlete/goal/{id} — remove a race goal (A/B/C). Deleting the A-race also
- * clears the stored plan (it was built for that race). */
-export const deleteRaceGoal = (id: string) =>
-  http<{ ok: boolean }>(`/athlete/goal/${id}`, { method: "DELETE" });
+/** POST /athlete/milestone — add a milestone (race tune-up or non-race checkpoint). */
+export const addMilestone = (body: {
+  title: string; target_date: string; kind: "race" | "checkpoint";
+  distance_km?: number; target_time?: string; note?: string;
+}) => http<{ ok: boolean }>("/athlete/milestone", { method: "POST", body: JSON.stringify({ ...body, source: "user" }) });
+
+/** PATCH /athlete/milestone/{id} — mark a milestone pending/achieved. */
+export const updateMilestoneStatus = (id: string, status: "pending" | "achieved") =>
+  http<{ ok: boolean }>(`/athlete/milestone/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+
+/** DELETE /athlete/milestone/{id} — remove the main goal or a milestone. Deleting
+ * the main goal also clears the stored plan (it was built for that goal). */
+export const deleteMilestone = (id: string) =>
+  http<{ ok: boolean }>(`/athlete/milestone/${id}`, { method: "DELETE" });
 
 export const addTimelineEvent = (body: {
   event_type: string; title: string; start_date: string;

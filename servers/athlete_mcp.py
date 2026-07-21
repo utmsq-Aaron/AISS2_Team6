@@ -68,6 +68,8 @@ PACE_ZONES_FACTOR = {"ReKom": (1.43, 1.33), "GA1": (1.33, 1.18),
                      "GA2": (1.11, 1.05), "WSA": (1.00, 0.95)}
 
 EVENT_TYPES = ("injury", "illness", "race", "note")
+MILESTONE_KINDS = ("race", "checkpoint")
+MILESTONE_STATUSES = ("pending", "achieved")
 
 mcp = FastMCP(
     "athlete",
@@ -271,15 +273,39 @@ def _blocked_windows(timeline: List[dict]) -> List[dict]:
     return [e for e in timeline if e.get("type") in ("injury", "illness")]
 
 
-# ── race-goal hierarchy (A = season goal driving the plan; B/C = milestones) ────
+# ── main goal + milestones ──────────────────────────────────────────────────────
+# ONE main goal (priority "A") drives the plan. Everything else in this same list
+# is a MILESTONE on the way there — either a real tune-up/minor race (kind="race")
+# or a non-race training checkpoint (kind="checkpoint", e.g. "first 15 km long
+# run"). Milestones never alter the plan's deterministic volumes; scaffold_plan
+# only annotates which week they fall in so the coach can plan gently around a
+# race-kind milestone. This is a SEPARATE system from the freeform dashboard
+# goals (core.goal_store) — those track open-ended personal goals unrelated to
+# the race plan (e.g. "swim 3x/week") and are never read here.
 
 def _races(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
     return list((doc.get("profile") or {}).get("races") or [])
 
 
 def _a_race(doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """The single priority-A race that drives the training plan, if any."""
+    """The single priority-A entry that drives the training plan, if any."""
     return next((r for r in _races(doc) if r.get("priority") == "A"), None)
+
+
+def _milestones(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Every non-main entry — race tune-ups and non-race checkpoints alike."""
+    return [r for r in _races(doc) if r.get("priority") != "A"]
+
+
+def _milestones_in_week(milestones: List[Dict[str, Any]], week_start: date) -> List[Dict[str, Any]]:
+    week_end = week_start + timedelta(days=6)
+    out = []
+    for m in milestones:
+        md = _parse_date(m.get("date", ""))
+        if md and week_start <= md <= week_end:
+            out.append({"id": m.get("id"), "name": m.get("name"), "date": m.get("date"),
+                        "kind": m.get("kind", "race")})
+    return out
 
 
 def _week_overlaps_event(week_start: date, event: dict) -> bool:
@@ -358,24 +384,29 @@ def _validate_plan(plan: Dict[str, Any], timeline: List[dict]) -> List[str]:
 def get_athlete_overview() -> Dict[str, Any]:
     """The athlete's full structured state in one read — ALWAYS call this first.
 
-    Returns the race-goal HIERARCHY: profile.race is the single priority-A race
-    that drives the training plan (with days_to_race and current plan week);
-    profile.races is the full list (A + any B/C milestone races, e.g. a tune-up
-    half marathon before a year-end marathon), each with its own days_to_race.
-    Also returns training preferences, the personal timeline (injuries/illnesses/
-    races/notes), the computed HR/pace zones (with the formula basis), a
-    race-time prognosis for the A-race distance, and the plan summary if one exists.
+    Returns the MAIN GOAL + MILESTONES: profile.race is the single main goal that
+    drives the training plan (with days_to_race and current plan week);
+    profile.races is the full list — the main goal plus any milestones (real
+    tune-up/minor races, kind="race", or non-race training checkpoints,
+    kind="checkpoint", e.g. "first 15 km long run") — each normalised with
+    is_main, kind, source ("user" or "coach"), status ("pending"/"achieved") and
+    its own days_to_race. Also returns training preferences, the personal
+    timeline (injuries/illnesses/races/notes), the computed HR/pace zones (with
+    the formula basis), a race-time prognosis for the main goal's distance, and
+    the plan summary if one exists. (Freeform dashboard goals are a SEPARATE
+    system — core.goal_store — not returned here.)
     """
     user = _user()
     doc = _load(user)
     profile = dict(doc.get("profile") or {})
     race = _a_race(doc) or {}
-    races = sorted(
-        _races(doc),
-        key=lambda r: ({"A": 0, "B": 1, "C": 2}.get(r.get("priority"), 3), r.get("date") or ""),
-    )
+    races = sorted(_races(doc), key=lambda r: (0 if r.get("priority") == "A" else 1, r.get("date") or ""))
     today = date.today()
     for r in races:
+        r.setdefault("kind", "race")
+        r.setdefault("source", "user")
+        r.setdefault("status", "pending")
+        r["is_main"] = r.get("priority") == "A"
         rrd = _parse_date(r.get("date", ""))
         if rrd:
             r["days_to_race"] = (rrd - today).days
@@ -431,30 +462,21 @@ def get_athlete_overview() -> Dict[str, Any]:
 @mcp.tool()
 def set_race_goal(race_name: str, race_date: str, distance_km: float,
                   target_time: str = "", weekly_sessions: int = 4,
-                  preferred_days: str = "", priority: str = "A") -> Dict[str, Any]:
-    """Add (or, for priority A, replace) a race goal. Supports a HIERARCHY of races:
-    one priority-A "season goal" that drives the training plan, plus any number of
-    B/C "milestone" races along the way (e.g. a tune-up half marathon in priority B
-    before a year-end marathon in priority A) — these do not alter the plan, they
-    are shown as milestones on the athlete's timeline.
+                  preferred_days: str = "") -> Dict[str, Any]:
+    """Set (or replace) the athlete's MAIN GOAL — the one race that drives the
+    training plan. Replacing it clears the stored plan (it was built for the old
+    goal) — scaffold_plan + save_plan a new one. For anything that is NOT the main
+    goal (a tune-up/minor race, or a non-race training checkpoint), use
+    add_milestone instead — milestones never touch the plan.
 
     Args:
         race_name: e.g. "Baden-Marathon Half Marathon".
         race_date: ISO date "YYYY-MM-DD" — must be in the future.
         distance_km: race distance in km (21.1 for a half marathon).
         target_time: goal finish time "H:MM:SS" or "MM:SS" (optional).
-        weekly_sessions: how many training sessions per week fit the athlete's life
-            (priority A only — the plan-driving cadence).
-        preferred_days: optional comma-separated weekdays, e.g. "Tue,Thu,Sat,Sun"
-            (priority A only).
-        priority: "A" (season goal — drives the plan; replaces any existing A race
-            and clears the current plan), "B" (a tune-up/milestone race), or "C"
-            (a minor race). Multiple B/C races are allowed; only one A race exists
-            at a time.
+        weekly_sessions: how many training sessions per week fit the athlete's life.
+        preferred_days: optional comma-separated weekdays, e.g. "Tue,Thu,Sat,Sun".
     """
-    priority = (priority or "A").strip().upper()
-    if priority not in ("A", "B", "C"):
-        return {"error": "priority must be one of 'A', 'B', 'C'"}
     rd = _parse_date(race_date)
     if not rd:
         return {"error": f"race_date '{race_date}' is not an ISO date (YYYY-MM-DD)"}
@@ -471,28 +493,98 @@ def set_race_goal(race_name: str, race_date: str, distance_km: float,
         "name": str(race_name).strip(), "date": rd.isoformat(),
         "distance_km": float(distance_km),
         "target_time": str(target_time).strip() or None,
-        "priority": priority,
+        "priority": "A", "kind": "race", "source": "user", "status": "pending",
     }
-    races = _races(doc)
-    if priority == "A":
-        doc["profile"]["races"] = [r for r in races if r.get("priority") != "A"] + [race]
-        doc["profile"]["weekly_sessions"] = max(1, min(int(weekly_sessions or 4), 14))
-        if preferred_days:
-            doc["profile"]["preferred_days"] = [d.strip() for d in preferred_days.split(",") if d.strip()]
-        doc["plan"] = None                                 # a new A-goal invalidates the old plan
-        note = "existing plan cleared — scaffold and save a new one"
-    else:
-        doc["profile"]["races"] = races + [race]
-        note = f"added as a priority-{priority} milestone race — the plan is unchanged"
+    doc["profile"]["races"] = _milestones(doc) + [race]
+    doc["profile"]["weekly_sessions"] = max(1, min(int(weekly_sessions or 4), 14))
+    if preferred_days:
+        doc["profile"]["preferred_days"] = [d.strip() for d in preferred_days.split(",") if d.strip()]
+    doc["plan"] = None                                     # a new main goal invalidates the old plan
     _save(user, doc)
-    return {"ok": True, "race": race, "days_to_race": (rd - date.today()).days, "note": note}
+    return {"ok": True, "race": race, "days_to_race": (rd - date.today()).days,
+            "note": "existing plan cleared — scaffold and save a new one"}
+
+
+@mcp.tool()
+def add_milestone(title: str, target_date: str, kind: str = "checkpoint",
+                  distance_km: float = 0, target_time: str = "", note: str = "",
+                  source: str = "coach") -> Dict[str, Any]:
+    """Add a MILESTONE on the way to the main goal — a checkpoint that makes a
+    far-off goal feel closer and gives the athlete something to celebrate along
+    the way. Two kinds: a real tune-up/minor RACE (kind="race", needs a real
+    distance) or a non-race training CHECKPOINT (kind="checkpoint", e.g. "first
+    15 km long run", "hit goal pace for 5 km", "4 weeks logged consistently").
+    Milestones never change the plan's deterministic volumes — scaffold_plan
+    just tells you which week each one falls in, so you can avoid stacking your
+    hardest session of the week on top of a race-kind milestone. Shown on the
+    athlete's timeline, separate from the freeform dashboard goals.
+
+    PROACTIVITY: when building a plan, create 2-4 of these yourself (source=
+    "coach") spread across the weeks — e.g. the week of the first double-digit
+    long run, a goal-pace tempo effort, entering the peak phase — so the athlete
+    has visible, motivating progress markers, not just one distant race day.
+
+    Args:
+        title: short label, e.g. "Autumn Half Marathon" or "First 15 km long run".
+        target_date: ISO date this falls on/by. Required for both kinds — for a
+            checkpoint without a natural date, use the Monday of the relevant
+            plan week (from scaffold_plan's weeks).
+        kind: "race" (needs distance_km) or "checkpoint" (distance_km/target_time
+            are optional extra detail).
+        distance_km: required if kind="race"; optional detail for a checkpoint.
+        target_time: optional target time detail "H:MM:SS"/"MM:SS".
+        note: one short, encouraging sentence — why this milestone matters.
+        source: "coach" (you created it proactively) or "user" (the athlete asked
+            for it, e.g. a real tune-up race they mentioned).
+    """
+    kind = (kind or "checkpoint").strip().lower()
+    if kind not in MILESTONE_KINDS:
+        return {"error": f"kind must be one of {MILESTONE_KINDS}"}
+    td = _parse_date(target_date)
+    if not td:
+        return {"error": f"target_date '{target_date}' is not an ISO date (YYYY-MM-DD)"}
+    if kind == "race" and (not distance_km or distance_km <= 0):
+        return {"error": "distance_km must be > 0 for a race-kind milestone"}
+    if target_time and _parse_hms(target_time) is None:
+        return {"error": f"target_time '{target_time}' is not H:MM:SS / MM:SS"}
+    source = source if source in ("user", "coach") else "coach"
+    user = _user()
+    doc = _load(user)
+    milestone = {
+        "id": uuid.uuid4().hex[:12], "name": str(title).strip(), "date": td.isoformat(),
+        "distance_km": float(distance_km) if distance_km else None,
+        "target_time": str(target_time).strip() or None,
+        "priority": "milestone", "kind": kind, "note": str(note).strip() or None,
+        "status": "pending", "source": source,
+    }
+    doc["profile"]["races"] = _races(doc) + [milestone]
+    _save(user, doc)
+    return {"ok": True, "milestone": milestone}
+
+
+@mcp.tool()
+def update_milestone_status(milestone_id: str, status: str) -> Dict[str, Any]:
+    """Mark a milestone 'achieved' — e.g. once real Strava/Garmin data confirms
+    the athlete hit it — or back to 'pending'. Never mark it achieved on a guess."""
+    if status not in MILESTONE_STATUSES:
+        return {"error": f"status must be one of {MILESTONE_STATUSES}"}
+    user = _user()
+    doc = _load(user)
+    races = _races(doc)
+    target = next((r for r in races if r.get("id") == milestone_id), None)
+    if not target:
+        return {"error": f"no milestone with id '{milestone_id}'"}
+    target["status"] = status
+    doc["profile"]["races"] = races
+    _save(user, doc)
+    return {"ok": True, "milestone": target}
 
 
 @mcp.tool()
 def delete_race_goal(race_id: str) -> Dict[str, Any]:
-    """Remove a race goal (A, B, or C) by its id (from get_athlete_overview's
-    profile.races). Deleting the current A-race also clears the stored training
-    plan, since it was built for that race."""
+    """Remove the main goal or a milestone by its id (from get_athlete_overview's
+    profile.races). Deleting the main goal also clears the stored training plan,
+    since it was built for that goal."""
     user = _user()
     doc = _load(user)
     races = _races(doc)
@@ -627,12 +719,15 @@ def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
 def scaffold_plan(current_weekly_km: float) -> Dict[str, Any]:
     """The DETERMINISTIC plan skeleton the coach fills with workouts.
 
-    From the stored race goal and today's date it derives: number of full
+    From the stored main goal and today's date it derives: number of full
     training weeks, the base/build/peak/taper phase of each week, each week's
     target volume (+6 %/week ramp inside the +8 % guardrail, every 4th week a
     cutback at 70 %, taper stepping down to the race) and the athlete's
-    sessions-per-week. Fill each week's ``workouts`` and pass the result to
-    save_plan — do NOT invent your own week structure or volumes.
+    sessions-per-week. Each week also lists any MILESTONES that fall inside it
+    (transient — not stored; use them to avoid stacking your hardest session of
+    the week on top of a race-kind milestone, and to place your own proactive
+    checkpoint milestones sensibly). Fill each week's ``workouts`` and pass the
+    result to save_plan — do NOT invent your own week structure or volumes.
 
     Args:
         current_weekly_km: the athlete's CURRENT typical weekly volume in km
@@ -643,7 +738,7 @@ def scaffold_plan(current_weekly_km: float) -> Dict[str, Any]:
     race = _a_race(doc) or {}
     rd = _parse_date(race.get("date", ""))
     if not rd:
-        return {"error": "no priority-A race goal set — call set_race_goal with priority='A' first"}
+        return {"error": "no main goal set — call set_race_goal first"}
     if not current_weekly_km or current_weekly_km <= 0:
         return {"error": "current_weekly_km must be > 0 (read it from recent Strava weeks)"}
 
@@ -653,6 +748,7 @@ def scaffold_plan(current_weekly_km: float) -> Dict[str, Any]:
         return {"error": f"only {n_weeks} full week(s) until the race — too short to plan"}
     phases = _phase_split(n_weeks)
     targets = _week_targets(n_weeks, phases, float(current_weekly_km))
+    milestones = _milestones(doc)
     weeks = []
     for i, (ph, km) in enumerate(zip(phases, targets)):
         ws = next_monday + timedelta(weeks=i)
@@ -661,6 +757,7 @@ def scaffold_plan(current_weekly_km: float) -> Dict[str, Any]:
             "target_km": km, "cutback": (i > 0 and (i + 1) % CUTBACK_EVERY == 0 and ph not in ("taper",)),
             "sessions": (doc.get("profile") or {}).get("weekly_sessions", 4),
             "workouts": [],
+            "milestones": _milestones_in_week(milestones, ws),
         })
     return {
         "race": race, "n_weeks": n_weeks, "weeks": weeks,

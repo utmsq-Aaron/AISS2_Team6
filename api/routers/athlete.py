@@ -52,13 +52,28 @@ def _call(user: str, tool: str, args: Optional[Dict[str, Any]] = None) -> Any:
 
 
 class RaceGoalBody(BaseModel):
+    """The MAIN goal only — set_race_goal always replaces it. For anything that
+    isn't the main goal (a tune-up race or a training checkpoint), see MilestoneBody."""
     race_name: str
     race_date: str                       # ISO YYYY-MM-DD
     distance_km: float
     target_time: str = ""
     weekly_sessions: int = 4
     preferred_days: str = ""
-    priority: str = "A"                  # "A" (season goal, drives the plan) | "B" | "C" (milestones)
+
+
+class MilestoneBody(BaseModel):
+    title: str
+    target_date: str                     # ISO YYYY-MM-DD
+    kind: str = "checkpoint"              # "race" | "checkpoint"
+    distance_km: float = 0
+    target_time: str = ""
+    note: str = ""
+    source: str = "user"                  # the web form always sets "user"; the coach uses "coach"
+
+
+class MilestoneStatusBody(BaseModel):
+    status: str                          # "pending" | "achieved"
 
 
 class TimelineEventBody(BaseModel):
@@ -89,8 +104,25 @@ def set_goal(body: RaceGoalBody, user: str = Depends(current_user)) -> dict:
     return out
 
 
-@router.delete("/goal/{race_id}")
+@router.post("/milestone")
+def add_milestone(body: MilestoneBody, user: str = Depends(current_user)) -> dict:
+    out = _call(user, "add_milestone", body.model_dump())
+    if isinstance(out, dict) and out.get("error"):
+        raise HTTPException(status_code=422, detail=out["error"])
+    return out
+
+
+@router.patch("/milestone/{milestone_id}")
+def update_milestone(milestone_id: str, body: MilestoneStatusBody, user: str = Depends(current_user)) -> dict:
+    out = _call(user, "update_milestone_status", {"milestone_id": milestone_id, "status": body.status})
+    if isinstance(out, dict) and out.get("error"):
+        raise HTTPException(status_code=422, detail=out["error"])
+    return out
+
+
+@router.delete("/milestone/{race_id}")
 def delete_goal(race_id: str, user: str = Depends(current_user)) -> dict:
+    """Removes the main goal or a milestone by id (same underlying store)."""
     out = _call(user, "delete_race_goal", {"race_id": race_id})
     if isinstance(out, dict) and out.get("error"):
         raise HTTPException(status_code=404, detail=out["error"])
@@ -137,7 +169,10 @@ _GENERATE_INSTRUCTION = (
     "volume that is nowhere in the data. Then call athlete__scaffold_plan with it; fill "
     "every week with concrete workouts (my zones, day preferences, one sentence of "
     "rationale, a literature source where sensible); save with athlete__save_plan and "
-    "fix any violations until saving succeeds. Finish with a short summary of the plan."
+    "fix any violations until saving succeeds. Then add 2-4 motivating milestone "
+    "checkpoints (athlete__add_milestone, source=\"coach\") spread across the plan so "
+    "the goal feels achievable, not just one distant race day. Finish with a short "
+    "summary of the plan."
 )
 
 
