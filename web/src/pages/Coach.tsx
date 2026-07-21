@@ -23,7 +23,7 @@ const ZONE_COLORS: Record<string, string> = {
   REKOM: "#FFD9B8", GA1: "#FDBA74", GA12: "#FB923C", GA2: "#FB923C", WSA: "#B45309",
 };
 const ZONE_NAME: Record<string, string> = {
-  REKOM: "Regeneration", GA1: "Grundlage 1", GA2: "Grundlage 2", WSA: "Wettkampftempo",
+  REKOM: "Recovery", GA1: "Base 1", GA2: "Base 2", WSA: "Race pace",
 };
 const ZONE_ORDER = ["ReKom", "GA1", "GA2", "WSA"];
 // Legacy Z1–Z5 plans map onto the German bands, so old and new plans read alike.
@@ -40,7 +40,7 @@ const PHASE_COLORS: Record<string, string> = {
   base: "#FDBA74", build: "#FB923C", peak: "#F97316", taper: "#FFD9B8",
 };
 const PHASE_LABEL: Record<string, string> = {
-  base: "Basis", build: "Aufbau", peak: "Peak", taper: "Taper",
+  base: "Base", build: "Build", peak: "Peak", taper: "Taper",
 };
 
 export function Coach() {
@@ -67,7 +67,7 @@ export function Coach() {
   if (q.isError || !q.data) {
     return (
       <div className="fd-card p-6 text-text-muted">
-        Athleten-Daten nicht erreichbar — läuft der athlete-Server (:8109)?
+        Athlete data unavailable — is the athlete server (:8109) running?
       </div>
     );
   }
@@ -78,7 +78,7 @@ export function Coach() {
     <div className="space-y-5">
       {!race ? (
         <>
-          <PageHeader title="Coach" subtitle="Dein strukturiertes Trainingsziel" />
+          <PageHeader title="Coach" subtitle="Your structured race goal" />
           <GoalForm onSaved={() => qc.invalidateQueries({ queryKey: ["athlete-overview"] })} />
         </>
       ) : (
@@ -133,35 +133,35 @@ function GoalForm({ onSaved }: { onSaved: () => void }) {
     <div className="max-w-xl fd-card p-6">
       <div className="mb-1 flex items-center gap-2 text-text-primary">
         <Flag size={18} className="text-secondary" />
-        <h2 className="text-sm font-semibold">Wettkampfziel festlegen</h2>
+        <h2 className="text-sm font-semibold">Set your race goal</h2>
       </div>
       <p className="mb-5 flex items-center gap-1.5 text-xs text-text-muted">
-        Datum, Distanz und Zielzeit — daraus baut der Coach deinen Plan.
-        <InfoHint text="Für einen konkreten Wettkampf mit Datum. Freie Motivations-Ziele bleiben auf dem Dashboard." />
+        Date, distance and target time — the coach builds your plan from these.
+        <InfoHint text="For a concrete race with a date. Free-form motivational goals live in your goals below." />
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs text-text-muted">
-          Wettkampf
-          <input value={form.race_name} onChange={set("race_name")} placeholder="Baden-Marathon Halbmarathon"
+          Race
+          <input value={form.race_name} onChange={set("race_name")} placeholder="Baden-Marathon Half Marathon"
             className="mt-1 w-full rounded-lg border border-border bg-bg-app px-3 py-2 text-sm text-text-primary outline-none focus:border-accent" />
         </label>
         <label className="text-xs text-text-muted">
-          Datum
+          Date
           <input type="date" value={form.race_date} onChange={set("race_date")}
             className="mt-1 w-full rounded-lg border border-border bg-bg-app px-3 py-2 text-sm text-text-primary outline-none focus:border-accent" />
         </label>
         <label className="text-xs text-text-muted">
-          Distanz (km)
+          Distance (km)
           <input type="number" step="0.1" min="1" value={form.distance_km} onChange={set("distance_km")} placeholder="21.1"
             className="mt-1 w-full rounded-lg border border-border bg-bg-app px-3 py-2 text-sm text-text-primary outline-none focus:border-accent" />
         </label>
         <label className="text-xs text-text-muted">
-          Zielzeit (optional)
+          Target time (optional)
           <input value={form.target_time} onChange={set("target_time")} placeholder="1:45:00"
             className="mt-1 w-full rounded-lg border border-border bg-bg-app px-3 py-2 text-sm text-text-primary outline-none focus:border-accent" />
         </label>
         <label className="text-xs text-text-muted">
-          Einheiten pro Woche
+          Sessions per week
           <input type="number" min="1" max="14" value={form.weekly_sessions} onChange={set("weekly_sessions")}
             className="mt-1 w-full rounded-lg border border-border bg-bg-app px-3 py-2 text-sm text-text-primary outline-none focus:border-accent" />
         </label>
@@ -169,7 +169,7 @@ function GoalForm({ onSaved }: { onSaved: () => void }) {
       {error && <p className="mt-3 text-xs text-metric-red">{error}</p>}
       <button type="button" disabled={!valid || save.isPending} onClick={() => save.mutate()}
         className="mt-5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-bg-app hover:bg-accent-hover disabled:opacity-40">
-        {save.isPending ? "Speichern…" : "Ziel speichern"}
+        {save.isPending ? "Saving…" : "Save goal"}
       </button>
     </div>
   );
@@ -184,9 +184,9 @@ function Hero({ ov }: { ov: AthleteOverview }) {
   const onTrack = ov.prognosis?.on_track;
   const thisWeek = plan?.weeks.find((w) => w.week === plan.current_week);
   const weekLabel = plan?.current_week
-    ? `Woche ${plan.current_week}/${plan.n_weeks ?? plan.weeks.length}`
-    : plan ? `${plan.n_weeks ?? plan.weeks.length} Wochen` : "kein Plan";
-  const phaseLabel = thisWeek ? `${PHASE_LABEL[thisWeek.phase]}-Phase` : fmtDate(race.date);
+    ? `Week ${plan.current_week}/${plan.n_weeks ?? plan.weeks.length}`
+    : plan ? `${plan.n_weeks ?? plan.weeks.length} weeks` : "no plan";
+  const phaseLabel = thisWeek ? `${PHASE_LABEL[thisWeek.phase]} phase` : fmtDate(race.date);
   const chipClass =
     onTrack === false ? "border-metric-amber/40 bg-metric-amber/10 text-metric-amber"
       : onTrack ? "border-metric-green/40 bg-metric-green/10 text-metric-green"
@@ -196,19 +196,19 @@ function Hero({ ov }: { ov: AthleteOverview }) {
     <div className="fd-card px-5 py-4 sm:px-6 sm:py-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="fd-label">Coach · Dein Weg</div>
+          <div className="fd-label">Coach · Your journey</div>
           <h1 className="mt-0.5 truncate text-xl font-bold text-text-primary sm:text-2xl">{race.name}</h1>
         </div>
         <span className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${chipClass}`}>
           {prog.text}
-          {prog.info && <InfoHint text={prog.info} label="Prognose-Detail" />}
+          {prog.info && <InfoHint text={prog.info} label="Forecast detail" />}
         </span>
       </div>
       <div className="mt-4 flex flex-wrap items-end gap-x-7 gap-y-3">
-        <Stat big={ov.days_to_race != null ? `${ov.days_to_race}` : "—"} unit="Tage" label="bis zum Wettkampf" primary />
+        <Stat big={ov.days_to_race != null ? `${ov.days_to_race}` : "—"} unit="days" label="to race day" primary />
         <Stat big={weekLabel} label={phaseLabel} />
-        <Stat big={race.target_time ?? "—"} label="Zielzeit" />
-        <Stat big={`${race.distance_km} km`} label="Distanz" muted />
+        <Stat big={race.target_time ?? "—"} label="Target time" />
+        <Stat big={`${race.distance_km} km`} label="Distance" muted />
       </div>
     </div>
   );
@@ -243,8 +243,8 @@ function GenerateCard({ ov, onGenerate, busy }: {
         <div className="flex items-center gap-3 text-text-muted">
           <Loader2 size={18} className="animate-spin text-accent" />
           <div>
-            <div className="text-sm font-medium text-text-primary">Der Coach erstellt deinen Plan…</div>
-            <div className="text-xs">Holt echte Werte aus Strava/Garmin, berechnet Zonen und füllt die Wochen — dauert 1–3 Minuten.</div>
+            <div className="text-sm font-medium text-text-primary">The coach is building your plan…</div>
+            <div className="text-xs">Fetching real values from Strava/Garmin, computing zones and filling the weeks — takes 1–3 minutes.</div>
           </div>
         </div>
       ) : (
@@ -252,20 +252,20 @@ function GenerateCard({ ov, onGenerate, busy }: {
           {failed && (
             <p className="mb-3 flex items-start gap-2 text-xs text-metric-amber">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              Letzter Versuch fehlgeschlagen: {ov.plan_generation?.slice(7)}
+              Last attempt failed: {ov.plan_generation?.slice(7)}
             </p>
           )}
           <div className="mb-1 flex items-center gap-2 text-text-primary">
             <Sparkles size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold">Trainingsplan erstellen</h2>
+            <h2 className="text-sm font-semibold">Generate training plan</h2>
           </div>
           <p className="mb-4 flex items-center gap-1.5 text-xs text-text-muted">
-            Periodisierter Plan aus deinen echten Werten — Basis → Aufbau → Peak → Taper.
-            <InfoHint text="Wochenvolumen und Rampe (≤ 8 %/Woche) werden deterministisch berechnet; der Coach füllt die Einheiten aus deinen Zonen und begründet jede Wahl." />
+            A periodised plan from your real data — Base → Build → Peak → Taper.
+            <InfoHint text="Weekly volume and ramp (≤ 8 %/week) are computed deterministically; the coach fills the sessions from your zones and justifies each choice." />
           </p>
           <button type="button" onClick={onGenerate}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-bg-app hover:bg-accent-hover">
-            Plan generieren
+            Generate plan
           </button>
         </>
       )}
@@ -301,9 +301,9 @@ function TimelineBand({ ov }: { ov: AthleteOverview }) {
   return (
     <div className="fd-card px-5 py-4">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">Deine Timeline</h2>
+        <h2 className="text-sm font-semibold text-text-primary">Your timeline</h2>
         <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
-          bis {fmtDate(race.date)}
+          until {fmtDate(race.date)}
         </span>
       </div>
       <div className="relative h-16">
@@ -335,7 +335,7 @@ function TimelineBand({ ov }: { ov: AthleteOverview }) {
         })}
         {todayPct > 0 && todayPct < 100 && (
           <div className="absolute bottom-1 top-3 w-0.5 rounded bg-text-primary" style={{ left: `${todayPct}%` }}>
-            <span className="absolute -top-3 -translate-x-1/2 text-[10px] font-bold text-text-primary">Heute</span>
+            <span className="absolute -top-3 -translate-x-1/2 text-[10px] font-bold text-text-primary">Today</span>
           </div>
         )}
         <div className="absolute right-0 top-2 text-[15px]" title={race.name}>🏁</div>
@@ -363,11 +363,11 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
     <section>
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-text-primary">
-          {upcoming ? "Erste Woche" : "Diese Woche"} · {PHASE_LABEL[week.phase]}-Phase, Woche {week.week}
-          {week.cutback && <span className="ml-2 text-xs font-medium text-metric-amber">Entlastungswoche</span>}
+          {upcoming ? "First week" : "This week"} · {PHASE_LABEL[week.phase]} phase, week {week.week}
+          {week.cutback && <span className="ml-2 text-xs font-medium text-metric-amber">Cutback week</span>}
         </h2>
         <span className="text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
-          Ziel {week.target_km} km
+          Target {week.target_km} km
         </span>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
@@ -393,18 +393,18 @@ function ThisWeek({ plan }: { plan: NonNullable<AthleteOverview["plan"]> }) {
             <div className="mt-0.5 flex gap-2">
               <Link to="/chat"
                 className="rounded-md border border-border bg-bg-app px-2.5 py-1 text-[11.5px] font-semibold text-text-muted hover:border-accent hover:text-text-primary">
-                Strecke planen
+                Plan route
               </Link>
               <Link to="/chat"
                 className="flex items-center gap-1 rounded-md border border-border bg-bg-app px-2.5 py-1 text-[11.5px] font-semibold text-text-muted hover:border-accent hover:text-text-primary">
-                <CalendarDays size={12} /> In Kalender
+                <CalendarDays size={12} /> To calendar
               </Link>
             </div>
           </div>
         ))}
         {!week.workouts.length && (
           <div className="fd-card p-4 text-xs text-text-muted">
-            Keine Einheiten in dieser Woche hinterlegt.
+            No workouts set for this week.
           </div>
         )}
       </div>
@@ -419,13 +419,13 @@ function VolumeChart({ weeks, currentWeek }: { weeks: PlanWeek[]; currentWeek: n
   return (
     <div className="fd-card px-5 py-4 lg:col-span-3">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">Wochenvolumen · Plan</h2>
-        <span className="text-[10.5px] text-text-faint">Ist-Abgleich mit Strava folgt</span>
+        <h2 className="text-sm font-semibold text-text-primary">Weekly volume · plan</h2>
+        <span className="text-[10.5px] text-text-faint">Actual vs. Strava coming soon</span>
       </div>
       <div className="flex h-40 items-end gap-1.5">
         {weeks.map((w) => (
           <div key={w.week} className="group relative flex-1"
-            title={`W${w.week} · ${PHASE_LABEL[w.phase]}${w.cutback ? " (Entlastung)" : ""} · ${w.target_km} km`}>
+            title={`W${w.week} · ${PHASE_LABEL[w.phase]}${w.cutback ? " (cutback)" : ""} · ${w.target_km} km`}>
             <div className={`w-full rounded-t transition-all ${w.week === currentWeek ? "ring-1 ring-text-primary" : ""}`}
               style={{
                 height: `${(w.target_km / max) * 152}px`,
@@ -449,24 +449,24 @@ function ZonesTable({ ov }: { ov: AthleteOverview }) {
     <div className="fd-card px-5 py-4 lg:col-span-2">
       <div className="mb-3 flex items-baseline justify-between">
         <span className="flex items-center gap-1.5">
-          <h2 className="text-sm font-semibold text-text-primary">Deine Zonen</h2>
+          <h2 className="text-sm font-semibold text-text-primary">Your zones</h2>
           {(ov.zones?.hr?.basis || ov.zones?.pace?.basis) && (
             <InfoHint
               label="Berechnungsbasis"
-              text={`Basis: ${[ov.zones.hr?.basis, ov.zones.pace?.basis].filter(Boolean).join(" · ")}`}
+              text={`Computed from: ${[ov.zones.hr?.basis, ov.zones.pace?.basis].filter(Boolean).join(" · ")}`}
             />
           )}
         </span>
         <span className="fd-label">
-          {hr || pace ? "berechnet, nicht geschätzt" : "noch nicht berechnet"}
+          {hr || pace ? "computed, not estimated" : "not computed yet"}
         </span>
       </div>
       {hr || pace ? (
         <table className="w-full text-xs">
           <thead>
             <tr className="fd-label text-left">
-              <th className="border-b border-border px-1.5 py-1">Bereich</th>
-              <th className="border-b border-border px-1.5 py-1">HF (%HFmax)</th>
+              <th className="border-b border-border px-1.5 py-1">Zone</th>
+              <th className="border-b border-border px-1.5 py-1">HR (%HFmax)</th>
               <th className="border-b border-border px-1.5 py-1">Pace</th>
             </tr>
           </thead>
@@ -489,7 +489,7 @@ function ZonesTable({ ov }: { ov: AthleteOverview }) {
         </table>
       ) : (
         <p className="text-xs text-text-muted">
-          Zonen werden beim Plan-Erstellen aus deinen echten Garmin-/Strava-Werten berechnet.
+          Zones are computed from your real Garmin/Strava values when the plan is built.
         </p>
       )}
     </div>
@@ -499,14 +499,14 @@ function ZonesTable({ ov }: { ov: AthleteOverview }) {
 // Source is opt-in: show a quiet toggle, reveal the literature source on request.
 function SourceReveal({ source }: { source: string }) {
   const [open, setOpen] = useState(false);
-  if (open) return <p className="text-[11px] text-text-faint">Quelle: {source}</p>;
+  if (open) return <p className="text-[11px] text-text-faint">Source: {source}</p>;
   return (
     <button
       type="button"
       onClick={() => setOpen(true)}
       className="self-start text-[11px] font-medium text-text-faint transition-colors hover:text-text-muted"
     >
-      Quelle anzeigen
+      Show source
     </button>
   );
 }
@@ -514,19 +514,19 @@ function SourceReveal({ source }: { source: string }) {
 // Prognosis: a SHORT status for the tile, with the full detail behind an ⓘ.
 function prognosisShort(prog?: AthleteOverview["prognosis"]): { text: string; info?: string } {
   if (!prog)
-    return { text: "Prognose offen", info: "Für eine Prognose einen Referenzlauf nahe der Zieldistanz aufnehmen." };
-  if (prog.note) return { text: "Benchmark nötig", info: prog.note };
+    return { text: "Forecast open", info: "Log a reference run near the goal distance to get a forecast." };
+  if (prog.note) return { text: "Benchmark needed", info: prog.note };
   if (prog.required_pace)
     return {
-      text: prog.on_track ? "auf Kurs" : "Tempo fehlt noch",
-      info: `Benchmark ${prog.benchmark_pace ?? "—"} · Zieltempo ${prog.required_pace}`,
+      text: prog.on_track ? "on track" : "off pace",
+      info: `Benchmark ${prog.benchmark_pace ?? "—"} · target pace ${prog.required_pace}`,
     };
   return { text: prog.basis ?? "—" };
 }
 
 function fmtDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   } catch {
     return iso;
   }
