@@ -6,7 +6,7 @@
 //   2. goal, no plan  → hero tiles + "Plan erstellen" (polls while generating)
 //   3. plan           → hero + timeline band + this-week cards + volume chart + zones
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarDays, Flag, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, CalendarDays, Flag, Loader2, Pencil, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -14,7 +14,7 @@ import { GoalsSection } from "../components/goal/GoalsSection";
 import { InfoHint } from "../components/InfoHint";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
-import type { AthleteOverview, PlanWeek, TimelineEvent } from "../lib/api";
+import type { AthleteOverview, PlanWeek, RaceGoal, TimelineEvent } from "../lib/api";
 import { deleteRaceGoal, generatePlan, getAthleteOverview, setRaceGoal } from "../lib/api";
 
 // Zone ramp — warm ramp on the secondary (orange) accent, light→dark = easy→hard.
@@ -109,9 +109,16 @@ export function Coach() {
 
 // ── 1. goal capture ───────────────────────────────────────────────────────────
 
-function GoalForm({ onSaved }: { onSaved: () => void }) {
+function GoalForm({ initial, weeklySessions, onSaved, onCancel }: {
+  initial?: RaceGoal; weeklySessions?: number; onSaved: () => void; onCancel?: () => void;
+}) {
+  const isEdit = !!initial;
   const [form, setForm] = useState({
-    race_name: "", race_date: "", distance_km: "", target_time: "", weekly_sessions: "4",
+    race_name: initial?.name ?? "",
+    race_date: initial?.date ?? "",
+    distance_km: initial ? String(initial.distance_km) : "",
+    target_time: initial?.target_time ?? "",
+    weekly_sessions: String(weeklySessions ?? 4),
   });
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
@@ -122,6 +129,7 @@ function GoalForm({ onSaved }: { onSaved: () => void }) {
         distance_km: parseFloat(form.distance_km),
         target_time: form.target_time || undefined,
         weekly_sessions: parseInt(form.weekly_sessions, 10) || 4,
+        priority: "A",
       }),
     onSuccess: onSaved,
     onError: (e: Error) => setError(e.message),
@@ -134,7 +142,7 @@ function GoalForm({ onSaved }: { onSaved: () => void }) {
     <div className="max-w-xl fd-card p-6">
       <div className="mb-1 flex items-center gap-2 text-text-primary">
         <Flag size={18} className="text-secondary" />
-        <h2 className="text-sm font-semibold">Set your race goal</h2>
+        <h2 className="text-sm font-semibold">{isEdit ? "Edit your race goal" : "Set your race goal"}</h2>
       </div>
       <p className="mb-5 flex items-center gap-1.5 text-xs text-text-muted">
         Date, distance and target time — the coach builds your plan from these.
@@ -167,11 +175,24 @@ function GoalForm({ onSaved }: { onSaved: () => void }) {
             className="mt-1 w-full rounded-lg border border-border bg-bg-app px-3 py-2 text-sm text-text-primary outline-none focus:border-accent" />
         </label>
       </div>
+      {isEdit && (
+        <p className="mt-3 flex items-start gap-1.5 text-xs text-metric-amber">
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+          Saving will clear your current plan — you'll need to generate a new one.
+        </p>
+      )}
       {error && <p className="mt-3 text-xs text-metric-red">{error}</p>}
-      <button type="button" disabled={!valid || save.isPending} onClick={() => save.mutate()}
-        className="mt-5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-bg-app hover:bg-accent-hover disabled:opacity-40">
-        {save.isPending ? "Saving…" : "Save goal"}
-      </button>
+      <div className="mt-5 flex gap-2">
+        <button type="button" disabled={!valid || save.isPending} onClick={() => save.mutate()}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-bg-app hover:bg-accent-hover disabled:opacity-40">
+          {save.isPending ? "Saving…" : isEdit ? "Save changes" : "Save goal"}
+        </button>
+        {onCancel && (
+          <button type="button" onClick={onCancel} className="fd-btn-secondary text-sm">
+            Cancel
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -179,6 +200,8 @@ function GoalForm({ onSaved }: { onSaved: () => void }) {
 // ── 2. hero — the thesis at a glance: which race, how far off, on track? ───────
 
 function Hero({ ov }: { ov: AthleteOverview }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const race = ov.profile.race!;
   const plan = ov.plan;
   const prog = prognosisShort(ov.prognosis);
@@ -193,12 +216,29 @@ function Hero({ ov }: { ov: AthleteOverview }) {
       : onTrack ? "border-metric-green/40 bg-metric-green/10 text-metric-green"
         : "border-border bg-bg-surface text-text-muted";
 
+  if (editing) {
+    return (
+      <GoalForm
+        initial={race}
+        weeklySessions={ov.profile.weekly_sessions}
+        onSaved={() => { setEditing(false); qc.invalidateQueries({ queryKey: ["athlete-overview"] }); }}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
+
   return (
     <div className="fd-card px-5 py-4 sm:px-6 sm:py-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="fd-label">Coach · Your journey</div>
-          <h1 className="mt-0.5 truncate text-xl font-bold text-text-primary sm:text-2xl">{race.name}</h1>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <h1 className="truncate text-xl font-bold text-text-primary sm:text-2xl">{race.name}</h1>
+            <button type="button" onClick={() => setEditing(true)} title="Edit race goal" aria-label="Edit race goal"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-faint hover:bg-bg-surface hover:text-text-primary">
+              <Pencil size={13} strokeWidth={2} />
+            </button>
+          </div>
         </div>
         <span className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${chipClass}`}>
           {prog.text}
