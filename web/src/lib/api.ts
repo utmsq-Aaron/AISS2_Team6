@@ -443,11 +443,17 @@ export const submitFeedback = (text: string, context?: Record<string, unknown>) 
 // plan GENERATION runs on the coach agent — poll the overview while
 // plan_generation === "running".
 
+// A race-goal hierarchy: one priority "A" race drives the training plan; any
+// number of "B"/"C" races are milestones along the way (e.g. a tune-up half
+// marathon before a year-end marathon) — they don't alter the plan.
 export interface RaceGoal {
+  id?: string;
   name: string;
   date: string; // ISO
   distance_km: number;
   target_time: string | null;
+  priority?: "A" | "B" | "C";
+  days_to_race?: number;
 }
 
 export interface TimelineEvent {
@@ -513,7 +519,13 @@ export interface TrainingPlan {
 
 export interface AthleteOverview {
   user: string;
-  profile: { race?: RaceGoal; weekly_sessions?: number; preferred_days?: string[]; age?: number };
+  profile: {
+    race?: RaceGoal;            // the priority-A race (drives the plan)
+    races?: RaceGoal[];         // full hierarchy: A + any B/C milestone races
+    weekly_sessions?: number;
+    preferred_days?: string[];
+    age?: number;
+  };
   timeline: TimelineEvent[];
   zones: ZoneSet;
   plan: TrainingPlan | null;
@@ -540,7 +552,13 @@ export const setAthleteProfile = (age: number) =>
 export const setRaceGoal = (body: {
   race_name: string; race_date: string; distance_km: number;
   target_time?: string; weekly_sessions?: number; preferred_days?: string;
+  priority?: "A" | "B" | "C";
 }) => http<{ ok: boolean }>("/athlete/goal", { method: "POST", body: JSON.stringify(body) });
+
+/** DELETE /athlete/goal/{id} — remove a race goal (A/B/C). Deleting the A-race also
+ * clears the stored plan (it was built for that race). */
+export const deleteRaceGoal = (id: string) =>
+  http<{ ok: boolean }>(`/athlete/goal/${id}`, { method: "DELETE" });
 
 export const addTimelineEvent = (body: {
   event_type: string; title: string; start_date: string;

@@ -299,8 +299,14 @@ WORKFLOW:
 • ALWAYS start with athlete__get_athlete_overview — it tells you what exists
   (goal? zones? plan? injuries?) and what is missing.
 • Setting up: user states a race goal → athlete__set_race_goal (ISO date,
-  distance, target time). Injuries/illnesses/races they mention →
-  athlete__add_timeline_event (these become hard constraints).
+  distance, target time, priority). Races support a HIERARCHY: priority "A" is
+  the season goal that drives the plan (only one at a time — setting a new A
+  replaces the old one and clears the plan); "B"/"C" are tune-up/minor races
+  along the way (e.g. a half marathon before a year-end marathon) — they don't
+  touch the plan, just show as milestones. Default to "A" unless the user is
+  clearly adding an additional race while a season goal already exists.
+  Injuries/illnesses/races they mention → athlete__add_timeline_event (these
+  become hard constraints).
 • Zones (default = literature, no reference run needed): call
   athlete__compute_zones with the athlete's AGE (from the profile) + resting HR
   from garmin. The age-based HFmax (208-0.7*age) is the DEFAULT — do NOT feed

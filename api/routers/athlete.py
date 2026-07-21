@@ -58,6 +58,7 @@ class RaceGoalBody(BaseModel):
     target_time: str = ""
     weekly_sessions: int = 4
     preferred_days: str = ""
+    priority: str = "A"                  # "A" (season goal, drives the plan) | "B" | "C" (milestones)
 
 
 class TimelineEventBody(BaseModel):
@@ -85,6 +86,14 @@ def set_goal(body: RaceGoalBody, user: str = Depends(current_user)) -> dict:
     out = _call(user, "set_race_goal", body.model_dump())
     if isinstance(out, dict) and out.get("error"):
         raise HTTPException(status_code=422, detail=out["error"])
+    return out
+
+
+@router.delete("/goal/{race_id}")
+def delete_goal(race_id: str, user: str = Depends(current_user)) -> dict:
+    out = _call(user, "delete_race_goal", {"race_id": race_id})
+    if isinstance(out, dict) and out.get("error"):
+        raise HTTPException(status_code=404, detail=out["error"])
     return out
 
 

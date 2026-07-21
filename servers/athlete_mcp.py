@@ -103,6 +103,20 @@ def _path(user: str) -> Path:
     return _DATA_DIR / jsonstore.slugify(user) / "athlete.json"
 
 
+def _migrate_race(profile: Dict[str, Any]) -> None:
+    """One-time, transparent migration: the pre-hierarchy schema stored a single
+    ``profile.race`` object. Fold it into ``profile.races`` (priority "A") so every
+    reader can rely on the list — in memory only; persisted the next time anything
+    calls _save (e.g. set_race_goal), never requiring an explicit migration step."""
+    old_race = profile.get("race")
+    if isinstance(old_race, dict) and old_race and not profile.get("races"):
+        migrated = dict(old_race)
+        migrated.setdefault("id", uuid.uuid4().hex[:12])
+        migrated["priority"] = "A"
+        profile["races"] = [migrated]
+    profile.pop("race", None)  # always recomputed on read (see get_athlete_overview)
+
+
 def _load(user: str) -> Dict[str, Any]:
     doc = jsonstore.read_json(_path(user))
     if not isinstance(doc, dict):
@@ -111,6 +125,7 @@ def _load(user: str) -> Dict[str, Any]:
     doc.setdefault("timeline", [])
     doc.setdefault("zones", {})
     doc.setdefault("plan", None)
+    _migrate_race(doc["profile"])
     return doc
 
 
@@ -256,6 +271,17 @@ def _blocked_windows(timeline: List[dict]) -> List[dict]:
     return [e for e in timeline if e.get("type") in ("injury", "illness")]
 
 
+# ── race-goal hierarchy (A = season goal driving the plan; B/C = milestones) ────
+
+def _races(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return list((doc.get("profile") or {}).get("races") or [])
+
+
+def _a_race(doc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The single priority-A race that drives the training plan, if any."""
+    return next((r for r in _races(doc) if r.get("priority") == "A"), None)
+
+
 def _week_overlaps_event(week_start: date, event: dict) -> bool:
     ev_start = _parse_date(event.get("start_date", "")) or date.min
     ev_end = _parse_date(event.get("end_date", "")) or ev_start
@@ -332,16 +358,29 @@ def _validate_plan(plan: Dict[str, Any], timeline: List[dict]) -> List[str]:
 def get_athlete_overview() -> Dict[str, Any]:
     """The athlete's full structured state in one read — ALWAYS call this first.
 
-    Returns the race goal (with days_to_race and current plan week), training
-    preferences, the personal timeline (injuries/illnesses/races/notes), the
-    computed HR/pace zones (with the formula basis), a race-time prognosis for
-    the goal distance (Riegel, from the race result zones were computed from),
-    and the training plan summary if one exists.
+    Returns the race-goal HIERARCHY: profile.race is the single priority-A race
+    that drives the training plan (with days_to_race and current plan week);
+    profile.races is the full list (A + any B/C milestone races, e.g. a tune-up
+    half marathon before a year-end marathon), each with its own days_to_race.
+    Also returns training preferences, the personal timeline (injuries/illnesses/
+    races/notes), the computed HR/pace zones (with the formula basis), a
+    race-time prognosis for the A-race distance, and the plan summary if one exists.
     """
     user = _user()
     doc = _load(user)
-    profile = doc.get("profile") or {}
-    race = profile.get("race") or {}
+    profile = dict(doc.get("profile") or {})
+    race = _a_race(doc) or {}
+    races = sorted(
+        _races(doc),
+        key=lambda r: ({"A": 0, "B": 1, "C": 2}.get(r.get("priority"), 3), r.get("date") or ""),
+    )
+    today = date.today()
+    for r in races:
+        rrd = _parse_date(r.get("date", ""))
+        if rrd:
+            r["days_to_race"] = (rrd - today).days
+    profile["race"] = race or None
+    profile["races"] = races
     out: Dict[str, Any] = {
         "user": user,
         "profile": profile,
@@ -392,17 +431,30 @@ def get_athlete_overview() -> Dict[str, Any]:
 @mcp.tool()
 def set_race_goal(race_name: str, race_date: str, distance_km: float,
                   target_time: str = "", weekly_sessions: int = 4,
-                  preferred_days: str = "") -> Dict[str, Any]:
-    """Set (or replace) the athlete's structured race goal.
+                  preferred_days: str = "", priority: str = "A") -> Dict[str, Any]:
+    """Add (or, for priority A, replace) a race goal. Supports a HIERARCHY of races:
+    one priority-A "season goal" that drives the training plan, plus any number of
+    B/C "milestone" races along the way (e.g. a tune-up half marathon in priority B
+    before a year-end marathon in priority A) — these do not alter the plan, they
+    are shown as milestones on the athlete's timeline.
 
     Args:
-        race_name: e.g. "Baden-Marathon Halbmarathon".
+        race_name: e.g. "Baden-Marathon Half Marathon".
         race_date: ISO date "YYYY-MM-DD" — must be in the future.
         distance_km: race distance in km (21.1 for a half marathon).
         target_time: goal finish time "H:MM:SS" or "MM:SS" (optional).
-        weekly_sessions: how many training sessions per week fit the athlete's life.
-        preferred_days: optional comma-separated weekdays, e.g. "Tue,Thu,Sat,Sun".
+        weekly_sessions: how many training sessions per week fit the athlete's life
+            (priority A only — the plan-driving cadence).
+        preferred_days: optional comma-separated weekdays, e.g. "Tue,Thu,Sat,Sun"
+            (priority A only).
+        priority: "A" (season goal — drives the plan; replaces any existing A race
+            and clears the current plan), "B" (a tune-up/milestone race), or "C"
+            (a minor race). Multiple B/C races are allowed; only one A race exists
+            at a time.
     """
+    priority = (priority or "A").strip().upper()
+    if priority not in ("A", "B", "C"):
+        return {"error": "priority must be one of 'A', 'B', 'C'"}
     rd = _parse_date(race_date)
     if not rd:
         return {"error": f"race_date '{race_date}' is not an ISO date (YYYY-MM-DD)"}
@@ -414,19 +466,44 @@ def set_race_goal(race_name: str, race_date: str, distance_km: float,
         return {"error": f"target_time '{target_time}' is not H:MM:SS / MM:SS"}
     user = _user()
     doc = _load(user)
-    doc["profile"]["race"] = {
+    race = {
+        "id": uuid.uuid4().hex[:12],
         "name": str(race_name).strip(), "date": rd.isoformat(),
         "distance_km": float(distance_km),
         "target_time": str(target_time).strip() or None,
+        "priority": priority,
     }
-    doc["profile"]["weekly_sessions"] = max(1, min(int(weekly_sessions or 4), 14))
-    if preferred_days:
-        doc["profile"]["preferred_days"] = [d.strip() for d in preferred_days.split(",") if d.strip()]
-    doc["plan"] = None                                     # a new goal invalidates the old plan
+    races = _races(doc)
+    if priority == "A":
+        doc["profile"]["races"] = [r for r in races if r.get("priority") != "A"] + [race]
+        doc["profile"]["weekly_sessions"] = max(1, min(int(weekly_sessions or 4), 14))
+        if preferred_days:
+            doc["profile"]["preferred_days"] = [d.strip() for d in preferred_days.split(",") if d.strip()]
+        doc["plan"] = None                                 # a new A-goal invalidates the old plan
+        note = "existing plan cleared — scaffold and save a new one"
+    else:
+        doc["profile"]["races"] = races + [race]
+        note = f"added as a priority-{priority} milestone race — the plan is unchanged"
     _save(user, doc)
-    return {"ok": True, "race": doc["profile"]["race"],
-            "days_to_race": (rd - date.today()).days,
-            "note": "existing plan cleared — scaffold and save a new one"}
+    return {"ok": True, "race": race, "days_to_race": (rd - date.today()).days, "note": note}
+
+
+@mcp.tool()
+def delete_race_goal(race_id: str) -> Dict[str, Any]:
+    """Remove a race goal (A, B, or C) by its id (from get_athlete_overview's
+    profile.races). Deleting the current A-race also clears the stored training
+    plan, since it was built for that race."""
+    user = _user()
+    doc = _load(user)
+    races = _races(doc)
+    target = next((r for r in races if r.get("id") == race_id), None)
+    if not target:
+        return {"error": f"no race goal with id '{race_id}'"}
+    doc["profile"]["races"] = [r for r in races if r.get("id") != race_id]
+    if target.get("priority") == "A":
+        doc["plan"] = None
+    _save(user, doc)
+    return {"ok": True, "deleted": race_id}
 
 
 @mcp.tool()
@@ -563,10 +640,10 @@ def scaffold_plan(current_weekly_km: float) -> Dict[str, Any]:
     """
     user = _user()
     doc = _load(user)
-    race = (doc.get("profile") or {}).get("race") or {}
+    race = _a_race(doc) or {}
     rd = _parse_date(race.get("date", ""))
     if not rd:
-        return {"error": "no race goal set — call set_race_goal first"}
+        return {"error": "no priority-A race goal set — call set_race_goal with priority='A' first"}
     if not current_weekly_km or current_weekly_km <= 0:
         return {"error": "current_weekly_km must be > 0 (read it from recent Strava weeks)"}
 
