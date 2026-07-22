@@ -1,0 +1,38 @@
+\markboth{MARKET ANALYSIS}{MARKET ANALYSIS}
+\section{Market Analysis}\label{sec:market}
+
+This section looks at the sports-analytics and fitness-technology market, the platforms athletes use today and the gap filled by the Training Copilot. It closes with a personal note on what motivated the work.
+
+\subsection{Market Size and Growth}\label{sec:market:size}
+
+The global sports-analytics market is growing as wearable adoption, cloud computing, and consumer LLMs come together. Grand View Research estimates it at USD\,5.7~billion in 2025, projecting USD\,23.1~billion by 2033 (18.5\,\% CAGR)~\citep{grandview_sports_2024}, alongside a large and growing wearable-device market~\citep{idc_wearables_2024}. Demand is pronounced in Germany, where fitness-app downloads rose from 41~million in 2017 to a projected 135~million in 2025~\citep{statista_fitness_apps_2025}. Strava's 2025 trend report finds that 46\,\% of respondents would use AI as a smart coach for sport~\citep{strava_trends_2025}. This aligns with the broader generative-AI boom, with McKinsey estimating USD~2.6-4.4~trillion in annual cross-industry value, concentrated in knowledge work where the main task is combining information from many sources~\citep{mckinsey_genai_2023}. This is particularly relevant to sports coaching, where athletes must combine physiological data, weather conditions, and scheduling constraints.
+
+\subsection{Competitive Landscape}\label{sec:market:landscape}
+
+Table~\ref{tab:competitors} in Appendix~\ref{sec:appendix:comparisons} compares eleven platforms athletes currently use to manage training data. It includes activity trackers (Strava, Garmin Connect),  conversational AI coaches (WHOOP Coach, Oura Advisor), planning engines (TrainingPeaks, Athletica.ai, Runna, TriDot) and general-purpose LLMs as possible solutions. Its key finding: no existing platform simultaneously provides multi-source integration, cross-domain reasoning, and conversational interaction. Most of the time, each solution only covers one of the three.
+
+WHOOP launched WHOOP Coach~\citep{whoop_coach_2024}, an OpenAI-powered conversational assistant that answers questions about the user's biometrics only using WHOOP data (no Strava load, weather, or calendar). Athletica.ai~\citep{athletica_ai_2024} adjusts endurance plans to an athlete's fitness, fatigue, and schedule, but offers no conversational interface. Each stays inside its own ecosystem and offers either conversation \textit{or} adaptive planning, but not both based on integrated multi-source data.
+
+A wave of AI features launched in 2025 narrows this gap without closing it. Garmin~Connect+~\citep{garmin_connectplus_2025} surfaces AI-generated ``Active Intelligence'' insights, and Oura~Advisor~\citep{oura_advisor_2025} is a conversational LLM health coach with per-user memory, but both reason only over their own device's data, the exact walled-garden limitation Training Copilot targets. On the planning side, Strava acquired the running-plan app Runna~\citep{runna_2025}, and engines such as TriDot~\citep{tridot_2025}, which deliver AI-driven, data-optimised triathlon plans. Although these systems adapt training effectively, they rely on fixed optimisers rather than conversational interfaces that incorporate live weather, calendar, and recovery data. This pattern persists across the 2025 cohort, as conversational products remain limited to a single data source, adaptive planners lack conversational interfaces, and general-purpose assistants such as ChatGPT, Gemini, and Claude cannot directly access the athletes data. However, this boundary is beginning to blur. Strava has announced an official MCP server~\citep{strava_api_update_2026}, still rolling out, that would let an MCP-native assistant query a user's Strava data directly. This is a first step, but it is still single-source, and it confirms the protocol-first integration Training Copilot already offers across all its sources (Section~\ref{sec:data:strava}).
+
+The landscape can also be read along two axes: breadth of data integration and depth of AI-driven analysis (Figure~\ref{fig:solution_landscape}).
+
+\input{1_Figures/fig_solution_landscape}
+
+Point solutions (Garmin, Strava, weather apps) each cover a single domain; aggregation dashboards (Intervals.icu, TrainingPeaks) combine sources but apply no agentic reasoning; AI-based training apps typically lack access to the user's actual wearable data. Training Copilot targets the upper-right quadrant aiming a broad integration combined with deep, agentic reasoning. No platform integrates all five dimensions that matter for training decisions (activity history, wellness, weather, calendar, and routes). The platforms with analytical depth (TrainingPeaks, Intervals.icu) work purely as dashboards that visualise without reasoning across sources. General-purpose LLMs such as ChatGPT can converse but have no access to the athlete's actual data, so they give generic advice that ignores individual context~\citep{puce_harnessing_2025}.
+
+\subsection{The Market Gap}\label{sec:market:gap}
+
+We identify a gap at the intersection of three capabilities that no existing consumer product offers at once (Figure~\ref{fig:market_gap}). \textit{Multi-source data integration} brings together wearables (Garmin), activity platforms (Strava), weather services, Google Calendar and geographic services (OpenRouteService) behind a single interface. \textit{Contextual cross-domain reasoning} combines recovery status, load trends, weather, and schedule into one recommendation rather than isolated metrics~\citep{bourdon_monitoring_2017}, while \textit{conversational interaction} enables complex questions to be answered through a natural-language interface using the athletes own live data.
+
+\input{1_Figures/fig_market_gap}
+
+\subsection{Target Users}\label{sec:market:users}
+
+Two user profiles emerge from this analysis and also inform our evaluation design (Section~\ref{sec:evaluation}). The \textit{ambitious endurance athlete} trains in structured blocks, tracks Training Stress Balance closely, wears a Garmin watch for HRV and recovery, and wants precise, data-driven go/no-go decisions for key sessions. This currently requires manually cross-referencing Strava, Garmin, weather and calendar data. The \textit{recreational cyclist} rides for enjoyment and social motivation, cares about scenic routes and weather comfort, finds traditional dashboards overwhelming, and wants plain-language answers (``Is tomorrow good for a ride?'', ``Find me a nice 40\,km loop'') without jargon. These two archetypes sit at opposite ends of the analytical-depth spectrum, so Training Copilot has to serve both data-hungry power users and casual athletes who prefer plain language.
+
+\subsection{Personal Motivation}\label{sec:market:motivation}
+
+\textit{The following reflects the author's personal perspective rather than an objective market assessment.}
+
+The motivation for Training Copilot came from direct frustration as an endurance athlete. Answering ``Should I do my long run today or push it to Thursday?'' meant checking five apps (Garmin for HRV and sleep, Strava for load trends, a weather service, Google Calendar, and sometimes a route planner) and combining conflicting signals mentally. The platforms with the data offered no reasoning; the tools that could reason (ChatGPT, Gemini) had no data access. MCP and A2A made it feasible to build the system we wished existed, one that treats this as a single question rather than five separate lookups.

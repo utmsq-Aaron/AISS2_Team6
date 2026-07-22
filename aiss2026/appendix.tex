@@ -1,0 +1,104 @@
+\markboth{APPENDICES}{APPENDICES}
+\section{Appendix}
+\label{sec:appendix}
+
+\FloatBarrier
+\subsection{Code Listings}\label{sec:appendix:code}
+
+\begin{lstlisting}[caption={Server registry (simplified). Each URL is environment-overridable.}, label=lst:registry]
+MCP_SERVERS = {
+    "weather":  _url("weather",  8101),
+    "routes":   _url("routes",   8102),
+    "strava":   _url("strava",   8103),
+    "garmin":   _url("garmin",   8104),
+    "calendar": _url("calendar", 8105),
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Server implementation pattern (simplified).}, label=lst:server_pattern]
+mcp = FastMCP("weather", host="127.0.0.1",
+              port=8101, stateless_http=True)
+
+@mcp.tool()
+def get_weather_forecast(lat: float, lon: float,
+                         days: int = 7) -> dict:
+    """Multi-day weather forecast for the given
+    coordinates. Returns temperature, precipitation,
+    wind, and UV index per day."""
+    return _call_openmeteo(lat, lon, days)
+\end{lstlisting}
+
+\FloatBarrier
+\subsection{Market and State-of-the-Art Comparison Tables}\label{sec:appendix:comparisons}
+
+Table~\ref{tab:competitors} details the competitive landscape summarised in Section~\ref{sec:market:landscape}; Table~\ref{tab:sota_comparison} scores the most directly comparable prior systems against the research-gap dimensions of Section~\ref{sec:sota:summary}.
+
+\input{2_Tables/tab_competitors}
+
+\input{2_Tables/tab_sota_comparison}
+
+\FloatBarrier
+\subsection{MCP Server Tool Inventory}\label{sec:appendix:tools}
+
+Tables~\ref{tab:full_tools}, \ref{tab:full_tools_b} and~\ref{tab:full_tools_c} provide the complete tool inventory across all native MCP servers deployed in Training Copilot.
+
+\input{2_Tables/tab_full_tools}
+
+\FloatBarrier
+\subsection{Evaluation Tables}\label{sec:appendix:evaltables}
+
+Tables~\ref{tab:scorers}--\ref{tab:usability} give the reporting structures of the two evaluation studies of Section~\ref{sec:evaluation}: the usage study's scoring dimensions and aggregate results (conversation quality plus the trace-derived operational reliability metrics), and the usability study. Result cells are placeholders (\textbf{TBD}) pending the final runs.
+
+\input{2_Tables/tab_scorers}
+
+\input{2_Tables/tab_results}
+
+\input{2_Tables/tab_usability}
+
+\FloatBarrier
+\subsection{Usability Questionnaire and Aggregated Participant Statistics}\label{sec:appendix:ux}
+
+The usability sessions (Section~\ref{sec:evaluation:usability}) are framed by a structured questionnaire administered as an online form. Its pre-task blocks capture the participant profile: \textit{demographics} (age, gender, occupation or field of study); \textit{sporting background} (weekly training frequency, sports practised, ambition, social training context, competition experience, training-plan use and source, motivation); \textit{fitness-app and wearable usage} (apps used, purposes, satisfaction, wearable ownership, data-analysis habits); and \textit{prior AI exposure} (usage frequency, self-rated familiarity, trust, usage contexts, willingness to pay). After the three tasks follow the ten-item System Usability Scale and closing questions (overall experience rating, likes, dislikes, suggested improvements, missing features). Figures~\ref{fig:ux_participants}--\ref{fig:corpus_usage} are placeholders for the aggregated results.
+
+\input{1_Figures/fig_ux_participants}
+
+\input{1_Figures/fig_ux_tech}
+
+\input{1_Figures/fig_ux_sus}
+
+\input{1_Figures/fig_corpus_usage}
+
+\FloatBarrier
+\subsection{Environment Configuration}\label{sec:appendix:env}
+
+Table~\ref{tab:env} lists the key environment variables used by Training Copilot.
+
+\input{2_Tables/tab_env}
+
+\FloatBarrier
+\subsection{External API Overview}\label{sec:appendix:apis}
+
+Table~\ref{tab:api_overview} lists every external service Training Copilot talks to over the network (including one-time/offline scripts, not just runtime agent tools), sorted alphabetically by service: what it provides, what access it requires, whether a vendor-native MCP server exists for it, and how we integrate it. Exact environment-variable names for each credential are listed in Table~\ref{tab:env}. Purely local, keyless components (the fitness RAG's embedding model in Section~\ref{sec:data:rag}, local Whisper transcription of Telegram voice memos in Section~\ref{sec:architecture:supporting}, and the self-hosted MLflow tracking server in Section~\ref{sec:agents:observability}) need no external account and are omitted here. The map-tile rows are a deliberate exception to the MCP-mediated pattern: they are fetched directly by the browser (or, for the Telegram bridge's static image, directly by the server), never through \texttt{ToolHost} or an agent.
+
+\input{2_Tables/tab_api_overview}
+
+\FloatBarrier
+\subsection{UI Screenshots}\label{sec:appendix:screenshots}
+
+Figure~\ref{fig:ui_grid} in Section~\ref{sec:architecture:llm} gives a thumbnail overview of all five Training Copilot tabs, plus the 3D flythrough modal and the Telegram delivery channel. Figures~\ref{fig:screenshot_chat}--\ref{fig:screenshot_settings} below show the same views at full size, each with a detailed description of what it renders and which part of the architecture it draws on.
+
+\input{1_Figures/fig_screenshot_chat}
+
+\input{1_Figures/fig_screenshot_health}
+
+\input{1_Figures/fig_screenshot_activity}
+
+\input{1_Figures/fig_screenshot_coach}
+
+\input{1_Figures/fig_screenshot_flythrough}
+
+\input{1_Figures/fig_screenshot_telegram}
+
+\input{1_Figures/fig_screenshot_sync}
+
+\input{1_Figures/fig_screenshot_settings}

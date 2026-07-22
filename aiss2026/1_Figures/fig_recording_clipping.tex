@@ -1,0 +1,34 @@
+\begin{figure}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=0.4cm and 0.5cm,
+    every node/.style={font=\small},
+    block/.style={draw, thick, rounded corners=3pt, minimum height=0.8cm, minimum width=2.2cm, align=center},
+    data/.style={draw, thick, rounded corners=1pt, minimum height=0.55cm, align=center, font=\scriptsize},
+    arr/.style={-{Stealth[length=5pt]}, thick},
+]
+    \node[block, draw=tcgrey!60, fill=tcgrey!5] (mcp) {MCP Server};
+    \node[block, draw=tcgreen, fill=tcgreen!6, right=1.8cm of mcp] (bridge) {MCP-LangChain\\Bridge};
+
+    \node[data, draw=tcgreen, fill=tcgreen!8, above right=0.7cm and 1.5cm of bridge] (full) {\textbf{Full result}\\(847 GPS points)};
+    \node[data, draw=tcyellow!80!black, fill=tcyellow!8, below right=0.7cm and 1.5cm of bridge] (clipped) {\textbf{Clipped copy}\\(\texttt{[847 items]})};
+
+    \node[block, draw=tcgreen!80, fill=tcgreen!6, right=1.2cm of full] (trace) {Trace /\\DataPart};
+    \node[block, draw=tcyellow!80!black, fill=tcyellow!6, right=1.2cm of clipped] (llm) {LLM\\Context};
+
+    \node[block, draw=tcblue, fill=tcblue!8, right=0.8cm of trace] (ui) {UI Renderer\\(maps, charts)};
+    \node[block, draw=tcred!80, fill=tcred!6, right=0.8cm of llm] (answer) {Agent\\Reasoning};
+
+    \draw[arr, color=tcgrey] (mcp) -- node[above, font=\scriptsize]{JSON} (bridge);
+    \draw[arr, color=tcgreen] (bridge) -- node[left, font=\scriptsize, rotate=30]{record} (full);
+    \draw[arr, color=tcyellow!80!black] (bridge) -- node[left, font=\scriptsize, rotate=-30]{clip} (clipped);
+    \draw[arr, color=tcgreen] (full) -- (trace);
+    \draw[arr, color=tcyellow!80!black] (clipped) -- (llm);
+    \draw[arr, color=tcblue] (trace) -- (ui);
+    \draw[arr, color=tcred!70] (llm) -- (answer);
+
+\end{tikzpicture}%
+}% end resizebox
+\caption[Recording and clipping pattern]{The recording and clipping pattern. Full tool results are recorded into the trace artifact for UI rendering, while a clipped copy (large arrays replaced with placeholders, capped at 6\,000 characters) is returned to the LLM's context for reasoning. This decoupling preserves data fidelity for rendering without wasting LLM context tokens.}\label{fig:recording_clipping}
+\end{figure}
