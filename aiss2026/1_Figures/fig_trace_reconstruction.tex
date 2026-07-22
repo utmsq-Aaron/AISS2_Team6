@@ -30,5 +30,5 @@
 
 \end{tikzpicture}%
 }% end resizebox
-\caption[Reconstructed span tree in the evaluation trace]{Reconstructed span tree in the evaluation trace. Agent and tool spans are rebuilt from the Copilot's \texttt{trace} dict and nested under the root evaluation span. Each tool span carries four custom attributes: \texttt{fitdash.tool} (name), \texttt{fitdash.tool\_ok} (success), \texttt{fitdash.tool\_error} (message), and \texttt{fitdash.duration\_ms} (latency).}\label{fig:trace_reconstruction}
+\caption[Reconstructed span tree in a per-user trace]{Reconstructed span tree in a per-user conversation trace. Agent and tool spans are rebuilt from the Copilot's \texttt{trace} dict and nested under the turn's root span. Each tool span carries four custom attributes: \texttt{fitdash.tool} (name), \texttt{fitdash.tool\_ok} (success), \texttt{fitdash.tool\_error} (message), and \texttt{fitdash.duration\_ms} (latency).}\label{fig:trace_reconstruction}
 \end{figure}

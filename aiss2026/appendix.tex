@@ -29,6 +29,15 @@ def get_weather_forecast(lat: float, lon: float,
 \end{lstlisting}
 
 \FloatBarrier
+\subsection{Market and State-of-the-Art Comparison Tables}\label{sec:appendix:comparisons}
+
+Table~\ref{tab:competitors} details the competitive landscape summarised in Section~\ref{sec:market:landscape}; Table~\ref{tab:sota_comparison} scores the most directly comparable prior systems against the research-gap dimensions of Section~\ref{sec:sota:summary}.
+
+\input{2_Tables/tab_competitors}
+
+\input{2_Tables/tab_sota_comparison}
+
+\FloatBarrier
 \subsection{MCP Server Tool Inventory}\label{sec:appendix:tools}
 
 Tables~\ref{tab:full_tools}, \ref{tab:full_tools_b} and~\ref{tab:full_tools_c} provide the complete tool inventory across all native MCP servers deployed in Training Copilot.
@@ -36,11 +45,32 @@ Tables~\ref{tab:full_tools}, \ref{tab:full_tools_b} and~\ref{tab:full_tools_c} p
 \input{2_Tables/tab_full_tools}
 
 \FloatBarrier
-\subsection{Evaluation Persona Details}\label{sec:appendix:personas}
+\subsection{Evaluation Tables}\label{sec:appendix:evaltables}
 
-Table~\ref{tab:personas} lists all ten evaluation personas with their types, goals, and expected focus areas.
+Tables~\ref{tab:stability}--\ref{tab:usability} give the reporting structures of the four evaluation levels of Section~\ref{sec:evaluation}: component and API stability, robustness scenarios, the conversation-quality scoring dimensions and aggregate results, and the usability study. Result cells are placeholders (\textbf{TBD}) pending the final runs.
 
-\input{2_Tables/tab_personas}
+\input{2_Tables/tab_stability}
+
+\input{2_Tables/tab_robustness}
+
+\input{2_Tables/tab_scorers}
+
+\input{2_Tables/tab_results}
+
+\input{2_Tables/tab_usability}
+
+\FloatBarrier
+\subsection{Usability Questionnaire and Aggregated Participant Statistics}\label{sec:appendix:ux}
+
+The usability sessions (Section~\ref{sec:evaluation:usability}) are framed by a structured questionnaire administered as an online form. Its pre-task blocks capture the participant profile: \textit{demographics} (age, gender, occupation or field of study); \textit{sporting background} (weekly training frequency, sports practised, ambition, social training context, competition experience, training-plan use and source, motivation); \textit{fitness-app and wearable usage} (apps used, purposes, satisfaction, wearable ownership, data-analysis habits); and \textit{prior AI exposure} (usage frequency, self-rated familiarity, trust, usage contexts, willingness to pay). After the three tasks follow the ten-item System Usability Scale and closing questions (overall experience rating, likes, dislikes, suggested improvements, missing features). Figures~\ref{fig:ux_participants}--\ref{fig:corpus_usage} are placeholders for the aggregated results.
+
+\input{1_Figures/fig_ux_participants}
+
+\input{1_Figures/fig_ux_tech}
+
+\input{1_Figures/fig_ux_sus}
+
+\input{1_Figures/fig_corpus_usage}
 
 \FloatBarrier
 \subsection{Environment Configuration}\label{sec:appendix:env}

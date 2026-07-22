@@ -16,7 +16,7 @@ This paper presents \textit{Training Copilot}, an open-source sports analytics p
 \item A multi-agent system with six domain-scoped specialists coordinated via A2A; scoping each specialist to at most three MCP servers counters the tool-selection degradation observed with large tool sets~\citep{qu_tool_2024}.
 \item A RAG-based fitness knowledge agent that grounds exercise-science advice in a local vector database of sports-science literature, with explicit citation preservation.
 \item A goal-driven coaching layer: a structured race goal with milestones, deterministically computed training zones, and a guardrail-validated multi-week training plan, in which all training arithmetic is plain, user-checkable code and the LLM only selects and explains workouts.
-\item An automated evaluation framework built on MLflow conversation simulation~\citep{mlflow_multiturn_2025}, using ten persona-driven test cases and five scoring dimensions, including a deterministic trace-based grounding scorer.
+\item An automated evaluation framework built on MLflow's multi-turn evaluation tooling~\citep{mlflow_multiturn_2025} that scores the logged conversations of real users on five dimensions, including a deterministic trace-based grounding scorer.
 \end{itemize}
 
 \subsection{Structure of This Paper}\label{sec:intro:structure}
