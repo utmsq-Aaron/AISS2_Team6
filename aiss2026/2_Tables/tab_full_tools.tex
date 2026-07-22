@@ -1,0 +1,89 @@
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption[Complete MCP tool inventory (1/2)]{Complete MCP tool inventory (part 1 of 2): weather, routes, and Strava.}\label{tab:full_tools}
+\begin{tabularx}{\textwidth}{lllX}
+\toprule
+\textbf{Server} & \textbf{Port} & \textbf{Tool Name} & \textbf{Description} \\
+\midrule
+\multirow{4}{*}{Weather} & \multirow{4}{*}{8101}
+  & \texttt{get\_current\_weather} & Current conditions \\
+  & & \texttt{get\_weather\_forecast} & Multi-day forecast \\
+  & & \texttt{get\_pollen\_levels} & Pollen concentrations \\
+  & & \texttt{get\_uv\_index} & UV index with category \\
+\addlinespace
+\multirow{7}{*}{Routes} & \multirow{7}{*}{8102}
+  & \texttt{geocode} & Place name to coordinates \\
+  & & \texttt{plan\_route} & A-to-B route \\
+  & & \texttt{plan\_circular\_route} & Loop from start point \\
+  & & \texttt{plan\_park\_loop} & Loop inside named area \\
+  & & \texttt{explore\_trails} & Trail search nearby \\
+  & & \texttt{get\_elevation\_profile} & Elevation analysis \\
+  & & \texttt{get\_isochrone} & Reachability polygon \\
+\addlinespace
+\multirow{13}{*}{Strava} & \multirow{13}{*}{8103}
+  & \texttt{get\_activities} & Recent activities \\
+  & & \texttt{get\_activity\_stats} & Aggregate totals \\
+  & & \texttt{get\_athlete\_profile} & Athlete profile + stats \\
+  & & \texttt{get\_training\_trends} & Weekly volume trends \\
+  & & \texttt{get\_personal\_bests} & Top performances \\
+  & & \texttt{get\_yearly\_breakdown} & Year-over-year totals \\
+  & & \texttt{get\_gear\_info} & Bike/shoe mileage \\
+  & & \texttt{get\_activity\_detail} & Lap splits, HR, power \\
+  & & \texttt{get\_activity\_streams} & Raw GPS streams \\
+  & & \texttt{get\_training\_load} & CTL/ATL/TSB \\
+  & & \texttt{delete\_activity} & Remove an activity \\
+  & & \texttt{analyze\_performance\_trends} & Multi-metric trend analysis \\
+  & & \texttt{compare\_activity\_to\_baseline} & Activity vs.\ personal baseline \\
+\botrule
+\end{tabularx}
+\end{minipage}
+\end{center}
+\end{table}
+
+\begin{table}[ht]
+\begin{center}
+\begin{minipage}{\textwidth}
+\caption[Complete MCP tool inventory (2/2)]{Complete MCP tool inventory (part 2 of 2): Garmin, calendar, flythrough, and Google Maps.}\label{tab:full_tools_b}
+\begin{tabularx}{\textwidth}{lllX}
+\toprule
+\textbf{Server} & \textbf{Port} & \textbf{Tool Name} & \textbf{Description} \\
+\midrule
+\multirow{13}{*}{Garmin} & \multirow{13}{*}{8104}
+  & \texttt{get\_garmin\_activities} & Activity list \\
+  & & \texttt{get\_garmin\_activity\_detail} & Per-lap splits \\
+  & & \texttt{get\_garmin\_daily\_health} & Daily wellness summary \\
+  & & \texttt{get\_garmin\_heart\_rate\_timeline} & Intraday HR timeline \\
+  & & \texttt{get\_garmin\_sleep} & Sleep stages + score \\
+  & & \texttt{get\_garmin\_body\_battery} & Energy metric timeline \\
+  & & \texttt{get\_garmin\_hrv\_status} & HRV + readiness \\
+  & & \texttt{get\_garmin\_training\_metrics} & VO\textsubscript{2}max, load, status \\
+  & & \texttt{get\_garmin\_wellness\_trends} & Multi-day wellness trends \\
+  & & \texttt{get\_garmin\_steps\_timeline} & Intraday step counts \\
+  & & \texttt{get\_garmin\_stress\_timeline} & Intraday stress levels \\
+  & & \texttt{get\_garmin\_body\_composition} & Weight, BMI, body fat \\
+  & & \texttt{get\_activity\_gps\_track} & GPS track from activity \\
+\addlinespace
+\multirow{6}{*}{Calendar} & \multirow{6}{*}{8105}
+  & \texttt{list\_calendars} & Available calendars \\
+  & & \texttt{list\_events} & Events in range \\
+  & & \texttt{get\_event} & Single event detail \\
+  & & \texttt{create\_event} & Create event \\
+  & & \texttt{update\_event} & Update event \\
+  & & \texttt{delete\_event} & Delete event \\
+\addlinespace
+Flythrough & 8107
+  & \texttt{prepare\_flythrough} & Package a 3D activity-flythrough render request \\
+\addlinespace
+\multirow{6}{*}{Google Maps} & \multirow{6}{*}{8108}
+  & \texttt{maps\_search\_places} & Find places/POIs by text \\
+  & & \texttt{maps\_search\_along\_route} & Places on a planned route \\
+  & & \texttt{maps\_place\_details} & Hours, phone, website \\
+  & & \texttt{maps\_geocode} & Address/name to coordinates \\
+  & & \texttt{maps\_reverse\_geocode} & Coordinates to address \\
+  & & \texttt{maps\_directions} & Directions and ETA (A$\to$B) \\
+\botrule
+\end{tabularx}
+\end{minipage}
+\end{center}
+\end{table}

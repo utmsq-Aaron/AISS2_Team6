@@ -1,0 +1,54 @@
+\markboth{EVALUATION}{EVALUATION}
+\section{Evaluation Framework}\label{sec:evaluation}
+
+Evaluating a multi-agent conversational system requires assessing several dimensions at once: does it call the right tools, ground answers in fetched data, maintain a supportive tone, and let the user achieve their goal across multiple turns? This section describes the evaluation framework: conversation simulation, persona design, and scoring methodology.
+
+\subsection{Simulation Pipeline}\label{sec:evaluation:framework}
+
+We adopt MLflow's end-to-end conversation simulation framework~\citep{mlflow_multiturn_2025} for automated, reproducible evaluation of multi-turn agent systems. The four LLM-judge scorers rest on the finding of \cite{zheng_judging_2023} that a strong model grading open-ended dialogue agrees with human preferences about as often as humans agree with each other, making LLM-as-a-judge a scalable proxy for human evaluation; their catalogue of judge biases (position, verbosity, self-enhancement) also motivates our model-separation safeguard (Section~\ref{sec:evaluation:models}). The design further draws on \cite{shankar_validates_2024}, who show LLM evaluators must be aligned with human preferences to be reliable, and our deterministic grounding scorer follows the $\tau$-bench approach of \cite{yao_taubench_2024}, which judges tool-agent interaction by comparing system state against annotated goals rather than chat text alone. The framework has three components: a \textbf{conversation simulator} that role-plays a user persona across a multi-turn conversation; a set of \textbf{scorers} (LLM judges and deterministic code checkers); and an \textbf{experiment tracker} (MLflow) recording every conversation, trace, verdict, and metric. The pipeline is fully automated: a single command (\texttt{python -m evaluation.run\_e2e}) drives all persona conversations against the live Training Copilot, scores them, and generates an HTML report.
+
+\subsection{Persona Design}\label{sec:evaluation:personas}
+
+We define ten synthetic personas across two user archetypes, directly informed by the market analysis in Section~\ref{sec:market:users}, designed to exercise both user sophistication levels and all five specialist domains. \textbf{Type A: ambitious triathletes} (5 personas) are structured, metrics-driven endurance athletes who train by plan, wear Garmin watches, and expect precise, data-driven decisions. Each pursues a different multi-turn goal: Julian (recovery readiness for a key brick session), Priya (training-load trend analysis and taper planning), Marco (post-workout execution review with HR zones and splits), Lena (calendar-and-weather scheduling, with calendar writes), and Tom (evidence-based exercise-science guidance with citations). \textbf{Type B: hobby cyclists} (5 personas) are recreational riders who train by feel and prefer plain-language guidance: Sophie (scenic loop with a caf\'e stop), Ben (weather go/no-go for a casual ride), Mara (gravel-trail discovery with elevation context), Carlos (year-over-year progress in plain language), and Jana (group-ride loop planning). Running is also exercised through the triathlete personas (Marco reviews a hard interval run, Julian a bike-run brick); dedicated recreational-runner and hiker personas are a natural extension of the same two-archetype design. Table~\ref{tab:personas} in Appendix~\ref{sec:appendix:personas} lists all ten personas with their type, goal, and expected focus area.
+
+Each persona combines four elements consumed by the \texttt{ConversationSimulator}: a \textit{goal}, a \textit{persona identity} (background, fitness level, communication style), \textit{simulation guidelines} (e.g.\ ``push for concrete specifics'', ``stay in character''), and \textit{expectations} (the expected focus area, used for scorer calibration). Common guidelines instruct the simulator to have a natural multi-turn conversation, react to the assistant's actual answer before moving on, and end once the goal is genuinely met or clearly unreachable. The simulator LLM (GPT-5.4-mini) role-plays each persona for up to five turns.
+
+\subsection{Scoring Dimensions}\label{sec:evaluation:scorers}
+
+Each conversation is scored along five dimensions, combining LLM-based judges with a deterministic code scorer (Table~\ref{tab:scorers}).
+
+\input{2_Tables/tab_scorers}
+
+The fifth scorer, \texttt{grounded\_in\_real\_data}, inspects the tool-call \textit{spans} reconstructed in each turn's MLflow trace rather than asking an LLM to guess whether tools were used: it counts tool calls, identifies which were invoked and whether they succeeded, and produces a per-turn breakdown. The verdict is binary (``yes'' if at least one tool was called across the conversation), but the rationale gives granular visibility into grounding quality; a factual ``did it call tools or not?'' question is far more reliably answered from the trace than guessed from chat text. The \texttt{supportive\_coaching\_tone} scorer implements a \texttt{ConversationalGuidelines} assertion that the assistant stay supportive even when the user is impatient, sceptical, or pushing for specifics, never dismissive or robotic. This tests resilience under the adversarial behaviour \cite{barger_artificial_2025} identified as important for AI-coaching acceptance.
+
+One capability these five scorers do not yet isolate is \textit{citation faithfulness}: whether the fitness specialist's evidence-based claims are actually supported by the passages it retrieved, rather than fluently invented. The Tom persona exercises this qualitatively (he demands and scrutinises sources), but a dedicated deterministic scorer, checking that every citation in the answer matches a passage present in that turn's RAG-tool span (the way \texttt{grounded\_in\_real\_data} reads MCP spans), is a planned sixth dimension we report as future work. Alongside the automated scorers, the one-click \textit{report button} (Section~\ref{sec:agents:observability}) lets users flag a response and captures its trace references; turning these flags into a labelled good/bad validation set, against which the LLM judges themselves can be checked for the alignment \cite{shankar_validates_2024} argue is needed before trusting them, is future work.
+
+\subsection{Trace Reconstruction}\label{sec:evaluation:trace}
+
+A technical challenge in evaluating the multi-agent system is that the deep tool-call spans produced by the agent server processes live in a separate MLflow experiment from the evaluation's conversation traces. The evaluation process addresses this by reconstructing the Copilot's specialist and tool-call structure from the \texttt{trace} dict returned by \texttt{orchestrator.run()} and emitting them as real child spans within the evaluation trace (Figure~\ref{fig:trace_reconstruction}).
+
+\input{1_Figures/fig_trace_reconstruction}
+
+Each reconstructed tool span carries four custom attributes: \texttt{fitdash.tool} (the namespaced tool name), \texttt{fitdash.tool\_ok} (boolean success), \texttt{fitdash.tool\_error} (error message if any), and \texttt{fitdash.duration\_ms} (tool-call latency). The grounding scorer reads only these, never the chat text, so its verdict is deterministic and model-independent.
+
+\subsection{Model Separation}\label{sec:evaluation:models}
+
+A critical design decision is separating the models used for evaluation from the model under test. The evaluation harness uses official OpenAI models: GPT-5.4-mini for persona simulation and report generation, and GPT-5.4-nano for the four LLM judges. Training Copilot itself also runs on official OpenAI; we tried the KIT-hosted gateways (the KI Toolbox and the DSI Experimente gateway) but found them too slow for interactive use. So the judges and the system under test share a provider but not a model: the judges use a small, dedicated model (GPT-5.4-nano) that differs from the one driving the system under test. The \texttt{apply\_openai\_routing()} function points the evaluation process at the official OpenAI key and base URL.
+
+\subsection{Metrics and Reporting}\label{sec:evaluation:metrics}
+
+Each LLM judge returns a per-conversation verdict, which we aggregate as a \textit{pass rate} (the fraction of the ten conversations the judge marks acceptable), reported overall and split by persona type; the deterministic \texttt{grounded\_in\_real\_data} scorer aggregates the same way over its binary per-conversation verdict. Alongside the five quality scorers we log two operational measures per conversation (the number of turns taken to reach the goal, and end-to-end latency) so conversational quality can be read against cost. MLflow rolls these into experiment-level metrics, and the generated HTML report renders them next to every transcript and trace for inspection. Table~\ref{tab:results} gives the reporting structure; its cells are placeholders pending the final run. We stress that ten personas of at most five turns is a \textit{formative} sample: it is sized to exercise every specialist domain and surface failure modes, not to establish statistical significance, and we report it as a characterisation of system behaviour rather than a confirmatory benchmark.
+
+\input{2_Tables/tab_results}
+\FloatBarrier
+
+\subsection{Planned Ablation: Multi-Agent vs.\ Single-Agent}\label{sec:evaluation:ablation}
+
+The design's central hypothesis, that scoping specialists to narrow tool sets improves tool selection over one agent holding all $\sim$50 tools, was observed only informally during early prototyping (Section~\ref{sec:architecture:rationale}). To substantiate it, the same ten persona conversations will be run against a single-agent baseline exposing every server's tools to one ReAct agent, with the model, servers, and personas held fixed so only the agent topology varies. We compare correct-tool-selection rate, conversation completeness, grounding, and mean latency (Table~\ref{tab:ablation}), testing whether the multi-agent design's coordination overhead (Section~\ref{sec:discussion:tradeoffs}) is repaid in answer quality.
+
+\input{2_Tables/tab_ablation}
+\FloatBarrier
+
+\subsection{Expected Outcomes}\label{sec:evaluation:expected}
+
+We expect high grounding (the orchestrator has no MCP access of its own, so specialists must call tools), full specialist coverage across the five domains, and coaching-tone resilience under the deliberately demanding triathlete personas; in the ablation, we expect the scoped multi-agent configuration to select tools more accurately than the single-agent baseline. The likely weak spots are multi-step sequential queries (latency, occasional context loss) and the historical fitness corpus. Quantitative results follow in the final submission and will guide further tuning of the prompts and specialist scoping.
