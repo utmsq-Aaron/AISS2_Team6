@@ -1,0 +1,16 @@
+Citation: brooke_sus_1996
+Cited 1 time(s)
+============================================================
+
+Chapter: 7_evaluation, Section: Usability Study (sec:evaluation:usability)
+Claim: Afterwards, they fill in the System Usability Scale [CITE] and a short questionnaire with open-ended questions on perceived usefulness, trust, and points of friction. (Also grounds the tab_usability row "Perceived usability | System Usability Scale (0--100)".)
+Source quote: "This chapter describes the System Usability Scale (SUS) a reliable, low-cost usability scale that can be used for global assessments of systems usability." (p. 1, Abstract)
+Source quote: "The System Usability Scale (SUS) is a simple, ten-item scale giving a global view of subjective assessments of usability. SUS is a Likert scale." (p. 3, System Usability Scale section)
+Source quote: "Multiply the sum of the scores by 2.5 to obtain the overall value of SU. SUS scores have a range of 0 to 100." (p. 5, Scoring SUS section)
+Source quote: "SUS has proved to be a valuable evaluation tool, being robust and reliable." (p. 6, Conclusion; also "quick and dirty" low-cost framing throughout)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: The PDF is John Brooke's original book chapter "SUS - A quick and dirty usability scale" (in: Jordan, Thomas, Weerdmeester, McClelland (eds.), Usability Evaluation in Industry, Taylor & Francis, 1996). It defines the SUS as a ten-item Likert questionnaire yielding a single composite score in the range 0-100, intended as a reliable, low-cost instrument for global usability assessment after a user has worked with a system. This is exactly how our usability-study section uses it: administered after the three predefined tasks, reported as a 0-100 score in Table tab:usability.
+PDF: aiss2026/sources/brooke_sus_1996.pdf (7 pages, mirror hell.meiert.org/core/pdf/sus.pdf)
+Verified: 2026-07-22

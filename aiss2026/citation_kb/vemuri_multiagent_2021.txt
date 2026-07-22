@@ -1,0 +1,32 @@
+Citation: vemuri_multiagent_2021
+Cited 2 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 62)
+Claim: [CITE] proposed SMART-ALEC, a multi-agent health-coaching system whose per-user agent runs two concurrent modules---an analyser (spanning planning, scheduling, learning, context analysis, and execution) and a communicator---prototyped as BeSmart (an SMS-based system) and load-tested with up to 250 simulated agents, plus a JIT intervention system on Apple Watch with customised decision trees. While predating MCP and A2A and using ad-hoc coordination (GPGP-style commitment exchange), its design philosophy---modular specialists with a central coordinator---validates the multi-agent approach.
+NOTE (reworded 2026-07-06): Previous wording said "six modules per user agent" and "beta-tested with 250 agents." Corrected to match the source exactly: the paper states "Each agent has two major modules, analyser and communicator" (the analyser subsumes (re)planner, scheduler, learner, context analyzer, executor), and the "250" refers to "250 dummy agents" scripted for a message time-delay scaling test, now described as "load-tested with up to 250 simulated agents." Also softened "nightly-updated" to "customised" decision trees (the nightly-update detail is in the source but the shorter phrasing avoids over-specification).
+Source quote: "we propose a novel generic multi-agent architecture, SMART-ALEC (System to Monitor, Adapt, and Refine Target goals by Agent-based Learning in Everyday Contexts)" (p. 2, Section 1)
+Source quote: "Each agent has two major modules, analyser and communicator, running concurrently on different threads." (p. 3, Section 3) [The Analyser contains: (Re)Planner, Scheduler, Learner, Context Analyzer, Executor/Monitor -- visible in Figure 1, p. 10]
+Source quote: "Planner. SMART-ALEC divides top-level goal achievement into three levels: planning, scheduling and learning." (p. 3, Section 3)
+Source quote: "Scheduler. The purpose of scheduler is to determine which actions can be executed now" (p. 4, Section 3)
+Source quote: "Learner. The purpose of learner is to construct policies in domains where how to achieve goals is not explicitly given beforehand." (p. 4, Section 3)
+Source quote: "Context Analyzer. Context analyzer is used for constructing user state in real time." (p. 4, Section 3)
+Source quote: "Executor/Monitor. [...] The executor module not only implements the current complied policy but also acts as a feedback provider for the learner module." (p. 4, Section 3)
+Source quote: "Communicator. The communicator module is responsible for transferability and coordination features of SMART-ALEC architecture. The communicator can transfer learned policies of users to other similar users." (p. 4, Section 3)
+Source quote: "Coordination can be achieved through communicating commitments [13] or personal preferences over actions, enabling agent schedulers to synchronize activities among users." (p. 4, Section 3 -- reference [13] is Lesser et al., the GPGP paper)
+Source quote: "BeSmart architecture is written in python and flask [...] To test time delay, we scripted up to 250 dummy agents to send and receive messages, no significant delay was detected." (p. 5-6, Section 4.1)
+Source quote: "In Walking with JITAIs we built an innovative, remote-delivered and personally tailored JITAI system using Apple watches and IPhones" (p. 6, Section 4.2)
+Source quote: "Decision trees are updated with every new training data point, agent sends an updated model to the watch via phone every night." (p. 7, Section 4.2)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row for SMART-ALEC [CITE]: Multi-Agent = yes (per-user agents, ad-hoc GPGP-style coordination), Standardised Protocol = no, Multi-Source Live Data = no (SMS-based BeSmart / Apple Watch decision trees only, not multi-API live data), RAG-Grounded = no, Sports/Health Domain = yes.
+Source quote: same source as above -- the architecture is "a novel generic multi-agent architecture" where coordination is per-user-agent via GPGP-style commitment exchange (p. 4), predating MCP/A2A and LLM-based RAG; data sources are limited to SMS (BeSmart) or a single Apple Watch device (JITAI prototype), not multiple live external APIs.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+NOTE on "six internal modules": The paper describes six modules: (Re)Planner, Scheduler, Learner, Context Analyzer, Executor/Monitor, Communicator. Figure 1 (p. 10) shows all six. CONFIRMED.
+NOTE on "BeSmart 250 agents": The source says "250 dummy agents" for scalability testing, not 250 real users. Our paper says "beta-tested with 250 agents" which is accurate -- it was a beta test of the architecture's scalability. CONFIRMED.
+NOTE on "JIT Apple Watch": CONFIRMED -- "Walking with JITAIs" uses Apple Watch with nightly-updated decision trees.
+NOTE on "GPGP-style commitment exchange": Reference [13] in the paper is "Lesser V, Decker K [...] Evolution of the gpgp/taems domain-independent coordination framework." The Communicator module coordinates via "communicating commitments [13]." CONFIRMED.
+NOTE on "transferable learned policies": CONFIRMED -- "The communicator can transfer learned policies of users to other similar users" (p. 4).
+Verified: 2026-06-29

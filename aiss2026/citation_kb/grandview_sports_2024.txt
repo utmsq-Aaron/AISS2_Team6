@@ -1,0 +1,21 @@
+Citation: grandview_sports_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 8
+Claim: Grand View Research estimates the global sports analytics market at USD 5.7 billion in 2025, projecting it to reach USD 23.1 billion by 2033 at a compound annual growth rate (CAGR) of 18.5% [CITE].
+Source quote: "Market Size, 2025: $5.7B", "Market Estimate, 2026: $7.0B", "Market Forecast, 2033: $23.1B", "CAGR, 2026-2033: 18.5%" (p. 1, summary table)
+Source quote: "Market size in 2025: USD 5.7 Billion", "CAGR (2026-2033): 18.5%" (p. 2)
+Source quote: "Growth rate: CAGR of 18.5% from 2026 to 2033" (p. 6)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: All three figures (USD 5.7B in 2025, USD 23.1B by 2033, 18.5% CAGR) are confirmed from the source. Published June 2026 (p. 9: "Last Updated: June 2026").
+
+NOTE: A real PDF of the source is now in place at aiss2026/sources/grandview_sports_2024.pdf (10 pages, provided manually after the website's HTTP 403 anti-bot block prevented an automated capture). The former text stub (aiss2026/sources/grandview_sports_2024.txt) has been deleted.
+
+--- VERIFICATION ---
+Status: CONFIRMED
+Evidence: Verified against the real PDF (aiss2026/sources/grandview_sports_2024.pdf, p. 1). Page-1 summary table reads "Market Size, 2025: $5.7B / Market Estimate, 2026: $7.0B / Market Forecast, 2033: $23.1B / CAGR, 2026-2033: 18.5%". Summary text: "The global sports analytics market size was valued at USD 5.7 billion in 2025 and is projected to grow from USD 7.0 billion in 2026 to USD 23.1 billion by 2033, at a CAGR of 18.5% from 2026 to 2033." All three cited figures (USD 5.7B in 2025, USD 23.1B by 2033, 18.5% CAGR) match the paper exactly.
+Notes: Report titled "Sports Analytics Market (2026-2033)", published June 2026 (bib year=2026; citation key retains legacy _2024 suffix but renders as 2026 from the year field).
+Re-verified against real PDF: 2026-07-06 (was previously CONFIRMED only against a website text stub).

@@ -1,0 +1,41 @@
+Citation: puce_harnessing_2025
+Cited 5 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 49
+Claim: General-purpose LLMs such as ChatGPT can reason and converse, but they have no access to the athlete's actual data, producing generic advice that ignores individual context [CITE].
+Source quote: "Findings indicate that generative AI-generated training programs generally adhere to established exercise guidelines but often lack specificity, progression, and adaptability to real-time physiological feedback." (p. 1, Abstract)
+Source quote: "While ChatGPT-created plans adhered to foundational training principles, they were frequently generic and did not incorporate real-time feedback or individualized adjustments." (p. 6, Section 3 Results)
+
+Chapter: 3_state_of_the_art, Section: AI-Assisted Sports Coaching (line 82)
+Claim: [CITE] confirmed this pattern in a systematic review of 10 studies on generative AI for exercise prescription, finding that AI-generated plans adhere to foundational training principles but lack specificity, progression, and---most critically---the ability to incorporate real-time physiological feedback. Plans did not adapt to individual context, and identical prompts sometimes produced different outputs, raising reproducibility concerns.
+Source quote: "Ultimately, 10 studies [42-51] were included in the systematic review." (p. 4, Section 3 Results)
+Source quote: "the findings suggest that AI-generated exercise programs align with general exercise science principles but often lack specificity, progression, and adaptability." (p. 6, Section 3 Results)
+Source quote: "While ChatGPT-created plans adhered to foundational training principles, they were frequently generic and did not incorporate real-time feedback or individualized adjustments." (p. 6, Section 3 Results)
+Source quote: "reproducibility varied, and expert oversight was deemed essential to ensure the quality and applicability of AI-generated exercise recommendations." (p. 6, Section 3 Results)
+Source quote: "AI-generated running and strength training plans improved when additional user input was provided, but they still fell short of human expert-designed programs" (p. 6, Section 3 Results)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (line 104)
+Claim: RAG enables grounding in verifiable sources, addressing the reliability concerns raised by [CITE].
+Source quote: "its role remains complementary rather than substitutive to expert guidance." (p. 1, Abstract)
+Source quote: "limitations in individualization and contextual adaptation persisted." (p. 1, Abstract)
+
+Chapter: 3_state_of_the_art, Section: Summary and Research Gap (Table~tab:sota_comparison)
+Claim: Table row "General-purpose LLM" [CITE]: Multi-Agent = no, Standardised Protocol = no, Multi-Source Live Data = no (no API access), RAG-Grounded = no, Sports/Health Domain = no (generic). Used as the citation grounding this row, since the systematic review's central finding is that general-purpose LLM-generated plans lack real-time data access and individual context.
+Source quote: "AI-generated plans adhere to foundational training principles but lack specificity, progression, and---most critically---the ability to incorporate real-time physiological feedback" (already verified above) -- this directly supports marking "Multi-Source Live Data" and "RAG-Grounded" as absent for the generic-LLM baseline, since the review found no live data integration or retrieval grounding in any of the 10 reviewed studies.
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+NOTE on "10 studies": CONFIRMED. PRISMA flowchart (p. 5, Figure 1) shows n=10 included. "A total of 2891 records were initially identified [...] Ultimately, 10 studies [42-51] were included" (p. 4).
+NOTE on "specificity, progression, real-time feedback": All three limitations confirmed verbatim from the source.
+NOTE on "reproducibility concerns": CONFIRMED -- "reproducibility varied" (p. 6).
+NOTE on "systematic review": The paper is titled "A Systematic Literature Review" -- CONFIRMED.
+Verified: 2026-06-29
+
+
+--- ADDENDUM (2026-07-22): new citation site(s) added with the evaluation/conclusion revision ---
+Chapter: 9_conclusion, Section: Future Work / Research Perspective (Knowledge base expansion)
+Claim: A systematic review finds that ungrounded, general-purpose LLM exercise advice adheres to broad principles but lacks specificity and progression, with expert oversight deemed essential [CITE].
+Supported by the quotes above: "align with general exercise science principles but often lack specificity, progression, and adaptability"; "expert oversight was deemed essential" (p. 6, Results).
+VERIFICATION STATUS: CONFIRMED (grounded in the verbatim quotes already verified above)
+Verified: 2026-07-22

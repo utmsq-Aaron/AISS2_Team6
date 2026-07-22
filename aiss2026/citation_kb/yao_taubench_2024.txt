@@ -1,0 +1,13 @@
+Citation: yao_taubench_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 7_evaluation, Line: 8
+Claim: Our deterministic grounding scorer follows the tau-bench approach by [CITE], which evaluates tool-agent-user interaction by comparing system state against annotated goals rather than relying on chat-text judgement alone.
+Source quote: "We propose tau-bench, a benchmark emulating dynamic conversations between a user (simulated by language models) and a language agent provided with domain-specific API tools and policy guidelines. We employ an efficient and faithful evaluation process that compares the database state at the end of a conversation with the annotated goal state." (p. 1, Abstract)
+Source quote: "The reward r = r_action x r_output is based on (1) whether the final database is identical to the unique ground truth outcome database (r_action), and (2) whether the agent's responses to the user contain all necessary information (r_output)." (p. 4, Section 3, Reward)
+Source quote: "Our evaluation scheme compares the database state at the end of each episode with the ground truth expected state. This allows for objective measurement of the agent's decision making" (p. 2, Section 1)
+Source quote: "all these works only contain a single-step user interaction, where the human interacting with the agent provides an initial instruction containing all the required information" (p. 1, Introduction -- contrasting tau-bench with prior benchmarks)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED

@@ -1,0 +1,15 @@
+Citation: idc_wearables_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 2_market_analysis, Line: 8
+Claim: ...alongside a large and steadily growing wearable-device market [CITE].
+Source quote: "Global wearable device shipments grew 9.1% year over year in 2025, reaching 611.5 million units" (p. 1)
+Source quote: Forecast table -- 2026: 625,215,127 units (+2.2% YoY); 2030: 689,721,598 units (steady low-single-digit annual growth through 2030).
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+SOURCE CONFIRMS: IDC reports the market is large (611.5M units in 2025, forecast 625M in 2026 rising to ~690M by 2030) and growing (9.1% YoY in 2025; +2.0-2.8% forecast annually thereafter). This supports "large and steadily growing wearable-device market."
+Note (fixed 2026-07-06): The claim was reworded from "rapidly expanding wearable fitness-technology market" (with an earlier draft naming Garmin/Apple/Fitbit/Polar) to "large and steadily growing wearable-device market." This (a) drops the vendor list not sourced from IDC, and (b) replaces "rapidly" (defensible only for the 2025 +9.1% figure; forecast growth is +2-3%/yr) with "steadily growing," which the source supports across the full 2025-2030 horizon.
+Notes: Source is IDC "Wearable Devices Market Insights" (idc.com/promo/wearablevendor).
+Fixed: 2026-07-06

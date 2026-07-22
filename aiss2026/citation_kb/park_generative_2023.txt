@@ -1,0 +1,12 @@
+Citation: park_generative_2023
+Cited 1 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 18
+Claim: [CITE] demonstrated that LLM-powered agents exhibit believable behaviour when equipped with three components: a memory stream recording experiences, a reflection mechanism synthesising abstractions, and a planning module translating reflections into action sequences.
+Source quote: "To enable generative agents, we describe an architecture that stores, synthesizes, and applies relevant memories to generate believable behavior using a large language model. Our architecture comprises three main components. The first is the memory stream, a long-term memory module that records, in natural language, a comprehensive list of the agent's experiences. A memory retrieval model combines relevance, recency, and importance to surface the records needed to inform the agent's moment-to-moment behavior. The second is reflection, which synthesizes memories into higher-level inferences over time, enabling the agent to draw conclusions about itself and others to better guide its behavior. The third is planning, which translates those conclusions and the current environment into high-level action plans and then recursively into detailed behaviors for action and reaction." (p. 2, Section 1)
+Source quote: "We demonstrate through ablation that the components of our agent architecture---observation, planning, and reflection---each contribute critically to the believability of agent behavior." (p. 2)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+NOTES: The KB originally listed a second citation in chapter 9 (conclusion, line 37) for episodic memory. The current conclusion text does not contain \cite{park_generative_2023}. Only the chapter 3 citation is active. Updated count to 1.

@@ -1,0 +1,16 @@
+Citation: shinn_reflexion_2023
+Cited 2 time(s)
+============================================================
+
+Chapter: 3_state_of_the_art, Line: 14
+Claim: [CITE] extended this loop across episodes with Reflexion, where agents store linguistic self-reflections after failed attempts in an episodic memory buffer, informing subsequent trials without weight updates.
+Source quote: "We propose Reflexion, a novel framework to reinforce language agents not by updating weights, but instead through linguistic feedback. Concretely, Reflexion agents verbally reflect on task feedback signals, then maintain their own reflective text in an episodic memory buffer to induce better decision-making in subsequent trials." (p. 1, Abstract)
+Source quote: "In this paper, we propose an alternative approach called Reflexion that uses verbal reinforcement to help agents learn from prior failings. Reflexion converts binary or scalar feedback from the environment into verbal feedback in the form of a textual summary, which is then added as additional context for the LLM agent in the next episode." (p. 2, Section 1)
+
+Chapter: 4_architecture, Line: 81
+Claim: If execution fails, a single Reflexion-style retry [CITE] is attempted; still-failing charts are dropped.
+Source quote: "Reflexion agents verbally reflect on task feedback signals, then maintain their own reflective text in an episodic memory buffer to induce better decision-making in subsequent trials." (p. 1, Abstract -- the retry-with-feedback pattern)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+NOTES: The conclusion chapter (9_conclusion.tex) no longer contains \cite{shinn_reflexion_2023}. The KB originally listed 3 citations including chapter 9; only the two in chapters 3 and 4 remain active. Both are fully confirmed.

@@ -1,0 +1,25 @@
+Citation: shankar_validates_2024
+Cited 3 time(s)
+============================================================
+
+Chapter: 7_evaluation, Line: 8
+Claim: The scorer design draws on [CITE], who showed that LLM-based evaluators must be aligned with human preferences to produce reliable judgements.
+Source quote: "We present a mixed-initiative approach to 'validate the validators'---aligning LLM-generated evaluation functions (be it prompts or code) with human requirements." (p. 1, Abstract)
+Source quote: "Yet LLM-generated evaluators simply inherit all the problems of the LLMs they evaluate, requiring further human validation." (p. 1, Abstract)
+Source quote: "We dub this phenomenon criteria drift, implying that it is impossible to completely determine evaluation criteria prior to human judging of LLM outputs." (p. 1, Abstract)
+Source quote: "Over-trust and Over-generalization of LLM Behavior. That tools provide little assistance to validate evaluator quality is alarming, considering that other research shows people tend to over-rely and over-trust AI systems [4, 29, 32, 53]." (p. 2, Section 2)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+
+
+--- ADDENDUM (2026-07-22): new citation site(s) added with the evaluation/conclusion revision ---
+Chapter: 7_evaluation, Section: Scoring Dimensions (judge-precision paragraph)
+Claim: Judges are anchored to explicit criteria rather than their own latent preferences [CITE with zheng_judging_2023].
+Supported by the quotes above: "aligning LLM-generated evaluation functions ... with human requirements"; "LLM-generated evaluators simply inherit all the problems of the LLMs they evaluate" (p. 1, Abstract).
+
+Chapter: 9_conclusion, Section: Future Work / Research Perspective (Hallucination mitigation and answer verification)
+Claim: LLM judges inherit the weaknesses of the models they assess, and human evaluation criteria drift as outputs are graded [CITE].
+Supported by the quotes above: "LLM-generated evaluators simply inherit all the problems of the LLMs they evaluate"; "criteria drift, implying that it is impossible to completely determine evaluation criteria prior to human judging of LLM outputs" (p. 1, Abstract).
+VERIFICATION STATUS: CONFIRMED (grounded in the verbatim quotes already verified above)
+Verified: 2026-07-22

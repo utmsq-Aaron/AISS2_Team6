@@ -1,0 +1,18 @@
+Citation: sahoo_prompt_2024
+Cited 1 time(s)
+============================================================
+
+Chapter: 6_agent_interaction, Section: Prompt Architecture (line 24)
+Claim: This layered approach follows the principle of task-specific instruction design identified by prompt engineering research [CITE] as critical for eliciting reliable behaviour from LLMs without modifying model parameters.
+
+Source quote: "Prompt engineering has emerged as an indispensable technique for extending the capabilities of large language models (LLMs) and vision-language models (VLMs). This approach leverages task-specific instructions, known as prompts, to enhance model efficacy without modifying the core model parameters." (p. 1, Abstract)
+Source quote: "This survey paper addresses the gap by providing a structured overview of recent advancements in prompt engineering, categorized by application area." (p. 1, Abstract)
+Source quote: "The landscape of contemporary prompt engineering spans a spectrum of techniques, encompassing foundational methods like zero-shot and few-shot prompting to more intricate approaches such as 'chain of code' prompting." (p. 1, Introduction)
+Source quote: "This survey dives deep into the ever-evolving landscape of prompt engineering, analyzing over 41 distinct techniques categorized by their diverse applications." (p. 1, Introduction)
+
+============================================================
+VERIFICATION STATUS: CONFIRMED
+NOTE: The survey covers 41 techniques organized into 12 application categories (Figure 2, p. 3): New Tasks Without Training, Reasoning and Logic, Reduce Hallucination, User Interaction, Fine-Tuning/Optimization, Knowledge-Based Reasoning, Consistency/Coherence, Emotions/Tone, Code Generation, Optimization/Efficiency, Understanding User Intent, Metacognition/Self-Reflection. Our 3-layer prompt architecture (base/specialist/orchestrator) falls under task-specific instruction design.
+NO PLAGIARISM RISK: Our paper cites the survey for the general principle; no text is borrowed.
+PDF: aiss2026/sources/sahoo_prompt_2024.pdf (freely available from arxiv.org/abs/2402.07927)
+Verified: 2026-06-29
