@@ -1,0 +1,41 @@
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+    every node/.style={font=\small},
+    scale=0.85, transform shape,
+]
+    % Axes
+    \draw[-{Stealth[length=6pt]}, thick, tcgrey] (0,0) -- (9.5,0) node[below, font=\small, text=tcgrey] {Data Integration Breadth};
+    \draw[-{Stealth[length=6pt]}, thick, tcgrey] (0,0) -- (0,6.5) node[above, rotate=90, anchor=south, font=\small, text=tcgrey] {AI Reasoning Depth};
+
+    % Quadrant labels
+    \node[font=\scriptsize, text=tcgrey!50, align=center] at (2.5, 0.6) {Point Solutions};
+    \node[font=\scriptsize, text=tcgrey!50, align=center] at (7, 0.6) {Aggregation\\Dashboards};
+    \node[font=\scriptsize, text=tcgrey!50, align=center] at (2.5, 5.8) {AI Training\\Apps};
+    \node[font=\scriptsize\bfseries, text=tcgrey, align=center] at (7.5, 5.8) {Agentic\\Analytics};
+
+    % Dashed quadrant lines
+    \draw[tclightgrey, dashed, thin] (4.7, 0) -- (4.7, 6.2);
+    \draw[tclightgrey, dashed, thin] (0, 3.2) -- (9.2, 3.2);
+
+    % Point solutions (light grey)
+    \node[draw=tcgrey!40, rounded corners=2pt, fill=tclightgrey!50, inner sep=3pt, font=\scriptsize] at (1.5, 1.5) {Garmin Connect};
+    \node[draw=tcgrey!40, rounded corners=2pt, fill=tclightgrey!50, inner sep=3pt, font=\scriptsize] at (1.5, 2.3) {Strava};
+    \node[draw=tcgrey!40, rounded corners=2pt, fill=tclightgrey!50, inner sep=3pt, font=\scriptsize] at (3.5, 1.8) {WHOOP};
+
+    % Aggregation dashboards (blue tones)
+    \node[draw=tcblue!50, rounded corners=2pt, fill=tcblue!8, inner sep=3pt, font=\scriptsize] at (6.0, 2.0) {Intervals.icu};
+    \node[draw=tcblue!50, rounded corners=2pt, fill=tcblue!8, inner sep=3pt, font=\scriptsize] at (7.5, 2.5) {TrainingPeaks};
+
+    % AI apps (yellow/warm tones)
+    \node[draw=tcyellow!70, rounded corners=2pt, fill=tcyellow!10, inner sep=3pt, font=\scriptsize] at (2.0, 4.0) {Freeletics};
+    \node[draw=tcyellow!70, rounded corners=2pt, fill=tcyellow!10, inner sep=3pt, font=\scriptsize] at (1.5, 4.8) {ChatGPT};
+    \node[draw=tcred!50, rounded corners=2pt, fill=tcred!8, inner sep=3pt, font=\scriptsize] at (4.0, 4.5) {WHOOP Coach};
+    \node[draw=tcred!50, rounded corners=2pt, fill=tcred!8, inner sep=3pt, font=\scriptsize] at (6.5, 3.8) {Athletica.ai};
+
+    % Training Copilot (KIT green, prominent, positioned below label)
+    \node[draw=tcgreen, line width=1.2pt, rounded corners=3pt, fill=tcgreen!12, inner sep=5pt, font=\small\bfseries, text=tcgrey] at (7.2, 4.8) {Training Copilot};
+
+\end{tikzpicture}
+\caption[Solution landscape of sports analytics platforms]{Solution landscape. Point solutions cover single data domains; aggregation dashboards combine data but lack reasoning; AI training apps reason but lack data access. Training Copilot combines broad integration with deep agentic reasoning.}\label{fig:solution_landscape}
+\end{figure}
