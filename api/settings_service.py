@@ -18,7 +18,6 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -85,63 +84,79 @@ def save_env(key: str, value: str) -> None:
     load_dotenv(override=True)
 
 
+def public_base_url() -> str:
+    """Public origin the browser reaches this app on — the single knob for OAuth
+    redirect URIs. Behind the Tailscale funnel set ``PUBLIC_BASE_URL`` to e.g.
+    ``https://training-copilot.taildb0702.ts.net``; defaults to local dev."""
+    return (os.getenv("PUBLIC_BASE_URL") or "http://localhost:8000").rstrip("/")
+
+
 # ── Strava OAuth ──────────────────────────────────────────────────────────────
 
+_STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize"
+_STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
+_STRAVA_SCOPE = "read,activity:read_all,activity:write"
+
+# CSRF state → issued-at, validated in the callback. Module-level so it survives
+# between the connect request and Strava's redirect (two separate HTTP requests).
+_strava_states: Dict[str, float] = {}
+_STRAVA_STATE_TTL = 600  # seconds a pending auth attempt stays valid
+
+
+def strava_redirect_uri() -> str:
+    return os.getenv("STRAVA_OAUTH_REDIRECT") or f"{public_base_url()}/api/settings/strava/callback"
+
+
 def strava_start_flow() -> str:
-    """Start a one-shot local callback server on :8080, return the authorize URL."""
+    """Build the Strava authorize URL and remember the CSRF state.
+
+    No local listener — Strava redirects the browser to ``strava_redirect_uri()``
+    (the FastAPI ``/settings/strava/callback`` route), which calls
+    :func:`strava_handle_callback` to finish the exchange. This is the always-running
+    public-callback pattern (like Google), so it works behind the Tailscale funnel.
+    """
     cid = os.getenv("CLIENT_ID")
     csec = os.getenv("CLIENT_SECRET")
     if not cid or not csec:
         raise RuntimeError("CLIENT_ID / CLIENT_SECRET not set")
 
-    AUTH_URL = "https://www.strava.com/oauth/authorize"
-    TOKEN_URL = "https://www.strava.com/oauth/token"
-    REDIRECT_URI = "http://localhost:8080/callback"
-    SCOPE = "read,activity:read_all,activity:write"
     state = secrets.token_urlsafe(16)
+    now = time.time()
+    # Opportunistically drop expired states so the dict can't grow unbounded.
+    for s, ts in list(_strava_states.items()):
+        if now - ts > _STRAVA_STATE_TTL:
+            _strava_states.pop(s, None)
+    _strava_states[state] = now
 
     params = {
-        "client_id": cid, "response_type": "code", "redirect_uri": REDIRECT_URI,
-        "approval_prompt": "force", "scope": SCOPE, "state": state,
+        "client_id": cid, "response_type": "code", "redirect_uri": strava_redirect_uri(),
+        "approval_prompt": "force", "scope": _STRAVA_SCOPE, "state": state,
     }
-    auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(params)}"
+    return f"{_STRAVA_AUTH_URL}?{urllib.parse.urlencode(params)}"
 
+
+def strava_handle_callback(code: str, state: str) -> None:
+    """Exchange the auth ``code`` for tokens and persist them. Raises on failure."""
     import requests
 
-    class _Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            if "code" in q and q.get("state", [""])[0] == state:
-                try:
-                    resp = requests.post(TOKEN_URL, data={
-                        "client_id": cid, "client_secret": csec,
-                        "code": q["code"][0], "grant_type": "authorization_code",
-                    }, timeout=15)
-                    TOKENS.mkdir(exist_ok=True)
-                    (TOKENS / "strava.json").write_text(json.dumps(resp.json(), indent=2))
-                    self.send_response(200)
-                    self.send_header("Content-type", "text/html; charset=utf-8")
-                    self.end_headers()
-                    self.wfile.write(b"<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h1 style='color:#FC4C02'>Strava connected!</h1><p>Return to Training Copilot.</p><script>setTimeout(window.close,3000)</script></body></html>")
-                except Exception as exc:  # noqa: BLE001
-                    self.send_error(500, str(exc))
-            else:
-                self.send_error(400, "Invalid callback")
+    ts = _strava_states.pop(state or "", None)
+    if ts is None:
+        raise RuntimeError("Unknown or expired OAuth state — start the connect flow again.")
+    if time.time() - ts > _STRAVA_STATE_TTL:
+        raise RuntimeError("OAuth attempt expired — start the connect flow again.")
+    if not code:
+        raise RuntimeError("No authorization code in callback.")
 
-        def log_message(self, *a):
-            pass
-
-    def _serve():
-        try:
-            srv = HTTPServer(("localhost", 8080), _Handler)
-            srv.allow_reuse_address = True
-            srv.timeout = 300
-            srv.handle_request()
-        except Exception:
-            pass
-
-    threading.Thread(target=_serve, daemon=True).start()
-    return auth_url
+    cid = os.getenv("CLIENT_ID", "")
+    csec = os.getenv("CLIENT_SECRET", "")
+    resp = requests.post(_STRAVA_TOKEN_URL, data={
+        "client_id": cid, "client_secret": csec, "code": code,
+        "grant_type": "authorization_code",
+    }, timeout=15)
+    if resp.status_code != 200:
+        raise RuntimeError(f"Token exchange failed: {resp.status_code} {resp.text}")
+    TOKENS.mkdir(exist_ok=True)
+    (TOKENS / "strava.json").write_text(json.dumps(resp.json(), indent=2))
 
 
 def revoke(service: str) -> None:
@@ -200,9 +215,9 @@ _GOOGLE_SCOPE = ("https://www.googleapis.com/auth/calendar.readonly "
 
 # The redirect must point at an *always-running* endpoint and be registered in the
 # Google Cloud Console. We use the FastAPI server's own public callback route
-# (no fragile single-shot localhost listener). Override with GOOGLE_OAUTH_REDIRECT
-# (e.g. behind a different host/port or the Node BFF).
-_GOOGLE_REDIRECT_DEFAULT = "http://localhost:8000/api/settings/google/callback"
+# (no fragile single-shot localhost listener). Its host defaults to PUBLIC_BASE_URL
+# (the single knob shared with Strava); override the whole URI with
+# GOOGLE_OAUTH_REDIRECT (e.g. behind a different host/port or the Node BFF).
 
 # CSRF state → issued-at, validated in the callback. Module-level so it survives
 # between the connect request and Google's redirect (two separate HTTP requests).
@@ -211,7 +226,7 @@ _GOOGLE_STATE_TTL = 600  # seconds a pending auth attempt stays valid
 
 
 def google_redirect_uri() -> str:
-    return os.getenv("GOOGLE_OAUTH_REDIRECT", _GOOGLE_REDIRECT_DEFAULT)
+    return os.getenv("GOOGLE_OAUTH_REDIRECT") or f"{public_base_url()}/api/settings/google/callback"
 
 
 def google_start_flow() -> str:
@@ -263,6 +278,10 @@ def google_handle_callback(code: str, state: str) -> None:
         raise RuntimeError(f"Token exchange failed: {resp.status_code} {resp.text}")
     tok = resp.json()
     tok["expires_at"] = time.time() + int(tok.get("expires_in", 3600))
+    if not tok.get("refresh_token"):
+        print("[settings] Google returned no refresh_token — the OAuth consent screen "
+              "is probably in 'Testing' (7-day expiry) or prompt=consent didn't apply; "
+              "calendar will expire and require reconnect.", flush=True)
     TOKENS.mkdir(exist_ok=True)
     (TOKENS / "google.json").write_text(json.dumps(tok, indent=2))
 
