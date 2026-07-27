@@ -177,7 +177,7 @@ function StreamCharts({ rows }: { rows: StreamRow[] }) {
     );
   }
 
-  // 2-up grid, matching the Streamlit pairing.
+  // 2-up grid.
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {charts.map((c) => (

@@ -61,7 +61,7 @@ search in numpy is instant. Runtime code is in `core/fitness_rag.py`.
 
 ## Build / run
 
-The launch scripts (`./dev_stack.sh`, `./start.sh`) build the index automatically on
+The launcher (`./run.sh`) builds the index automatically on
 first run and then start the agent on :9005. They call
 `build_fitness_index --if-missing`, which is **corpus-aware**: it skips instantly
 when an index already exists *and* its stored `corpus_fingerprint` matches the

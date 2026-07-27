@@ -64,7 +64,7 @@ class FitDashOrchestrator:
         user: Optional[str] = None,
     ) -> Tuple[str, Dict]:
         # Per-user memory (only when an authenticated user is known — the React
-        # path passes it; Telegram/Streamlit single-user paths leave it None).
+        # path passes it; the single-user Telegram path leaves it None).
         mem = _get_memory(user)
         prompt = _flatten_history(history, user_input)
         if mem is not None:

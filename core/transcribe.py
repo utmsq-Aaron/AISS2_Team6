@@ -8,7 +8,7 @@ Picks a backend lazily on first use and falls back so it still runs on any OS:
                        audio via PyAV, so no system ffmpeg is required.
   3. openai-whisper  — reference PyTorch implementation (last resort).
 
-Streamlit-free and import-light: the heavy deps are imported lazily and the model
+Import-light: the heavy deps are imported lazily and the model
 is loaded once and cached. The model auto-downloads on first use.
 
 Env:

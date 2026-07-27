@@ -1,0 +1,65 @@
+# Keep the build context small and free of secrets.
+#
+# Without this file the context is ~3 GB (the venv, node_modules, the MLflow
+# store and the model caches all get shipped to the daemon on every build).
+#
+# NOTE: .tokens/, data/ and .secrets/ are excluded from the IMAGE on purpose —
+# credentials and per-deployment state must never be baked into a layer. They
+# are bind-mounted at runtime instead (see docker-compose.yml `volumes:`).
+
+# Environments and dependencies — reinstalled inside the image
+.venv/
+venv/
+env/
+node_modules/
+**/node_modules/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Build output — rebuilt in the image
+web/dist/
+server/dist/
+.vite/
+*.tsbuildinfo
+
+# Secrets and per-deployment state — mounted, never copied
+.env
+.env.local
+.env.production
+.tokens/
+.secrets/
+data/
+.streamlit/secrets.toml
+
+# Derived / large runtime artifacts
+*.db
+mlruns/
+mlartifacts/
+.cache/
+.logs/
+logs/
+data/fitness_library/index/
+evaluation/reports/
+tests/logs/
+
+# Vendored external MCP server — runs via `uv` on the host, not in this image
+external/
+
+# Repo and tooling metadata
+.git/
+.github/
+.claude/
+.playwright-mcp/
+.idea/
+.vscode/
+*.swp
+
+# Docs and build artifacts that no container needs
+docs/
+*.md
+!requirements.txt
+
+# OS noise
+.DS_Store
+Thumbs.db

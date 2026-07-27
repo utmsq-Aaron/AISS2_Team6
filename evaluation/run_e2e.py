@@ -6,7 +6,7 @@ conversation with gpt-5.4-nano judges, and finally has gpt-5.4-mini write a
 structured HTML report of the run.
 
 Prerequisites: the full A2A stack and the MLflow tracking server must be running
-(``./dev_stack.sh`` from the repo root). Run from the repo root:
+(``./run.sh`` from the repo root). Run from the repo root:
 
     python -m evaluation.run_e2e                 # all 10 personas, 5 turns each
     python -m evaluation.run_e2e --smoke         # 1 persona, 2 turns (plumbing check)
@@ -43,7 +43,7 @@ def _preflight(orch) -> None:
     except Exception as e:  # pragma: no cover - environment guard
         sys.exit(
             f"✗ Cannot reach the MLflow tracking server at {tracking}: {e}\n"
-            f"  Start the stack first:  ./dev_stack.sh"
+            f"  Start the stack first:  ./run.sh"
         )
 
     from .agent_under_test import orchestrator_reachable
@@ -52,7 +52,7 @@ def _preflight(orch) -> None:
     if n_tools <= 0:
         sys.exit(
             "✗ The Training Copilot (A2A orchestrator on :9000) is not reachable.\n"
-            "  Start the stack first:  ./dev_stack.sh"
+            "  Start the stack first:  ./run.sh"
         )
     print(f"✓ MLflow at {tracking} | Copilot up ({n_tools} tools visible)")
 

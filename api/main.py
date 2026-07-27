@@ -1,4 +1,4 @@
-"""FitDash API — FastAPI app exposing the core to the React + Node frontend.
+"""Training Copilot API — FastAPI app exposing the core to the React frontend.
 
 Run from the project root (so `core`, `servers`, `.env`, `.tokens` resolve):
     uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
@@ -13,13 +13,13 @@ load_dotenv()
 from api.auth import current_user  # noqa: E402
 from api.routers import (  # noqa: E402
     athlete, auth, chat, chats, charts, feedback, flythrough, health, memory,
-    profile, schedules, settings, sync, tools,
+    profile, schedules, settings, tools,
 )
 from core.tracing import setup_tracing  # noqa: E402
 
 setup_tracing("api")  # MLflow autologging for the chart-service LLM calls
 
-app = FastAPI(title="FitDash API", version="0.1.0")
+app = FastAPI(title="Training Copilot API", version="0.1.0")
 
 # In production the Node BFF serves the SPA same-origin and proxies /api, so CORS
 # is not strictly needed; allow localhost dev origins (Vite :5173, BFF :3000).
@@ -41,7 +41,7 @@ app.include_router(settings.public_router, prefix="/api")
 
 _PROTECTED = [Depends(current_user)]
 for r in (health.router, tools.router, chat.router, chats.router, charts.router,
-          sync.router, memory.router, settings.router, flythrough.router,
+          memory.router, settings.router, flythrough.router,
           schedules.router, profile.router, feedback.router, athlete.router):
     app.include_router(r, prefix="/api", dependencies=_PROTECTED)
 
@@ -53,4 +53,4 @@ for r in (health.router, tools.router, chat.router, chats.router, charts.router,
 
 @app.get("/api/ping")
 def ping():
-    return {"ok": True, "service": "fitdash-api"}
+    return {"ok": True, "service": "training-copilot-api"}

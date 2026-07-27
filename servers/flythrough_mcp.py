@@ -2,7 +2,7 @@
 
 Returns a show_flythrough action payload that tells the UI which activity to
 render and with which parameters. Rendering (Playwright + MapLibre) happens
-at the output layer — Streamlit for the web UI, Telegram bridge for chat.
+at the output layer — an <iframe> in the web UI, an MP4 in the Telegram bridge.
 This server handles only parameter validation and packaging.
 
 Run locally:   python -m servers.flythrough_mcp

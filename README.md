@@ -1,173 +1,359 @@
-# FitDash
+# Training Copilot
 
-FitDash is a Streamlit sports analytics dashboard that unifies Strava activities and Garmin health data behind an agentic chat interface. Every answer comes from live API data — no cached summaries, no hallucinated numbers.
+An AI training coach that unifies **Strava**, **Garmin**, weather, your calendar, maps and a
+sports-science library behind one conversation. Every answer comes from live API data — no
+cached summaries, no invented numbers.
 
-📖 **Architecture:** [`docs/mcp-architecture.md`](docs/mcp-architecture.md) — MCP-standard design, how to add a new server, and how to extend with external MCP servers.
+Under the hood it is a **multi-agent system over the Model Context Protocol**: an orchestrator
+delegates each request to six specialist agents, each of which reaches its own independent MCP
+servers. Tools are *discovered, never hardcoded* — adding a data source is one new file plus one
+config line.
 
-## Highlights
+📖 **Architecture:** [`docs/mcp-architecture.md`](docs/mcp-architecture.md) (German) — the design,
+how to add a server, how to plug in external MCP servers.
 
-- **Dashboard** — activity map, summary metrics, training charts, live weather widget (temperature, wind, UV, pollen).
-- **Activity Analysis** — stream-based charts (HR, pace, elevation, cadence, power) with colourised route overlays selectable by metric.
-- **Health** — Garmin wellness trends: Body Battery, sleep stages, stress, HR, steps, training metrics, HRV.
-- **Chat** — AI sports analyst backed by a LangGraph + A2A multi-agent system: an orchestrator delegates to recovery / training-load / context / route specialists (each scoped to its own MCP tools) and synthesises a data-driven answer from live data only. **Persistent per-user chat sessions** — a chat list on the left, "New chat", and history that survives server restarts; answers keep streaming even when you switch chats or panels.
-- **Routes** — route planning powered by OpenRouteService: circular routes, A→B routes, trail search, isochrone maps.
-- **Sync** — export Garmin activities to Strava as FIT files with preview and selection controls.
-- **Settings** — configure all API connections (LLM key, Strava OAuth, Garmin, ORS) directly in the app.
-- **PIN barrier** — optional access PIN stored in `.streamlit/secrets.toml` blocks the entire app until authenticated.
+---
 
-> **Note:** Strava's API became a paid service in May 2025. The app is fully functional without Strava — Garmin, Weather, and Routes work out of the box.
+## Quick start
+
+```bash
+git clone <repo-url> && cd AISS2_Team6
+./run.sh setup      # venv, dependencies, .env, account connections
+./run.sh            # start everything → http://localhost:5173
+```
+
+`./run.sh setup` walks you through it and tells you exactly what is still missing. If you would
+rather do it by hand, the full path is in [Setup from scratch](#setup-from-scratch) below.
+
+**One launcher, five verbs:**
+
+| Command | What it does |
+|---|---|
+| `./run.sh` | Development: the whole stack + Vite with hot reload → **:5173** |
+| `./run.sh prod` | Production: builds the SPA, serves it behind the Node BFF → **:3000** |
+| `./run.sh setup` | First-time setup — dependencies, `.env`, account connections |
+| `./run.sh status` | What is currently running |
+| `./run.sh stop` | Stop everything |
+| `./run.sh logs <service>` | Tail one service (`api`, `orchestrator`, `mcp-strava`, …) |
+
+Everything is idempotent: a service already on its port is left alone, so re-running is safe.
+Logs live in `/tmp/training-copilot/`.
+
+Prefer containers? `./docker-up.sh up --build` runs the **entire** stack in Docker → **:3000**.
+See [Docker](#docker).
+
+---
+
+## What it can do
+
+- **Coach.** One structured A-race goal plus milestones drives a real training plan — phases,
+  weeks, workouts — with hard guardrails (ramp-rate cap, taper check, injury windows). All the
+  math is deterministic arithmetic you can re-check; the LLM only chooses and explains workouts.
+- **Chat.** Ask anything about your training. The orchestrator decides which specialists to
+  involve and answers from live data, with charts and route maps inline.
+- **Proactive check-ins.** The coach schedules its own follow-ups — a daily check-in that skips
+  itself if you already talked, calendar-aware nudges before and after events, and long-running
+  deep analyses that report back when finished.
+- **Health.** Sleep, HRV, Body Battery, stress and training load from Garmin.
+- **3D flythrough.** A cinematic camera flight over any activity's GPS track, exportable as MP4
+  from the browser.
+- **Telegram.** Optionally talk to the same coach over Telegram, voice memos included.
+
+---
+
+## Setup from scratch
+
+Everything below is also automated by `./run.sh setup` — this is what it does, in case you want
+to do it manually or something goes wrong.
+
+### 1. Prerequisites
+
+| | Version | Check |
+|---|---|---|
+| Python | 3.11+ | `python3 --version` |
+| Node.js | 18+ | `node --version` — macOS: `brew install node` |
+| Docker | optional | only for the container route |
+
+### 2. Dependencies
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+( cd web && npm install )
+```
+
+The first install pulls `sentence-transformers` (and with it torch) for the local fitness-library
+embeddings — expect a few minutes and ~2 GB.
+
+### 3. Configuration
+
+```bash
+cp .env.example .env
+```
+
+Open `.env`. The **only** thing required to boot is an LLM key:
+
+```ini
+LLM_PROVIDER=openai                                     # openai | openai_official | gemini
+OPENAI_API_KEY=...
+OPENAI_BASE_URL=https://ai-gateway.dsi-experimente.de/v1
+AGENT_MODEL=kit.gpt-4.1
+AGENT_LLM_MODEL=kit.gpt-4.1                             # the agent layer needs a stable model
+```
+
+Three providers are supported and switchable at runtime from **Settings → OpenAI / LLM**:
+
+| `LLM_PROVIDER` | Keys | Notes |
+|---|---|---|
+| `openai` *(default)* | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `AGENT_MODEL` | Any OpenAI-compatible endpoint (the KIT gateway) |
+| `openai_official` | `OPENAI_OFFICIAL_API_KEY`, `OPENAI_MODEL` | api.openai.com |
+| `gemini` | `GEMINI_API_KEY`, `GEMINI_MODEL` | A free flash model like `gemini-2.0-flash` works |
+
+Everything else is optional — each integration simply stays dark until you configure it.
+
+### 4. Connect your accounts
+
+Each of these is independent; skip any you do not need. All tokens land in `.tokens/`, which is
+git-ignored and never leaves your machine.
+
+#### Strava — activities
+
+1. Create an API application at <https://www.strava.com/settings/api>.
+   Set **Authorization Callback Domain** to `localhost`.
+2. Put the credentials in `.env`:
+   ```ini
+   CLIENT_ID=12345
+   CLIENT_SECRET=...
+   ```
+3. Nothing else to run — the OAuth flow opens your browser automatically the first time a Strava
+   tool is called. To trigger it deliberately: `.venv/bin/python auth/strava_oauth.py`.
+   Token: `.tokens/strava.json`, refreshed automatically.
+
+#### Garmin — sleep, HRV, Body Battery, stress
+
+Garmin has no public API, so this logs in as you (via the `garminconnect` library) and caches the
+session. **A one-time interactive login is required** because of MFA:
+
+```bash
+# 1. Credentials in .env
+GARMIN_EMAIL=you@example.com
+GARMIN_PASSWORD=...
+
+# 2. Run the one-time login — enter the MFA code when prompted
+.venv/bin/python auth/garmin_setup.py
+```
+
+Token: `.tokens/garmin_tokens.json`. It refreshes itself; re-run the script if Garmin invalidates
+the session (you will see auth errors on the Health page).
+
+*No Garmin account?* Set `GARMIN_MOCK_HEALTH=true` to serve realistic synthetic health data from
+`scripts/garmin_health_mock.py` — useful for demos and development.
+
+#### Google — calendar, and the login emails
+
+One script covers both the calendar integration and the mailbox that sends one-time login codes.
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/): create a project, enable the
+   **Google Calendar API** and the **Gmail API**, and create an **OAuth client ID** of type
+   *Desktop app*.
+2. Put it in `.env`:
+   ```ini
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   ADMIN_EMAIL=you@example.com     # the account that sends login codes; also the only admin
+   ```
+3. Run it, signed in as that account:
+   ```bash
+   .venv/bin/python auth/google_oauth.py
+   ```
+
+Two token files, deliberately separate: `.tokens/google_mail.json` (sending, admin-only) and
+`.tokens/google.json` (calendar, user-connectable) — so a user reconnecting their calendar can
+never clobber the mail credential.
+
+#### Maps and routes — optional
+
+```ini
+ORS_API_KEY=...            # openrouteservice.org — free tier, for route planning
+GOOGLE_MAPS_API_KEY=...    # a billing-free Maps Demo Key is enough
+```
+
+Get a [Maps Demo Key](https://mapsplatform.google.com/maps-demo-key/) — no credit card. Demo keys
+serve no user-generated content (reviews, photos); the server degrades gracefully.
+
+#### Telegram — optional
+
+Lets you chat with the coach from Telegram, and is what keeps proactive check-ins running.
+
+1. Get `api_id` / `api_hash` from <https://my.telegram.org/apps>, put them in `.env`.
+2. Generate a session string once (interactive — headless login is disabled):
+   ```bash
+   .venv/bin/python telegram_bridge.py --login
+   ```
+   Copy the printed string into `.env` as `TELEGRAM_BRIDGE_SESSION_STRING`.
+3. Start it with the stack: `TELEGRAM=1 ./run.sh`
+
+> The bridge also hosts the **proactive scheduler**, so it runs by default even without Telegram
+> configured — it just degrades to a headless worker and mirrors check-ins into the web Coach chat.
+
+### 5. Run it
+
+```bash
+./run.sh
+```
+
+Open <http://localhost:5173>. First launch builds the fitness-library vector index (a one-time
+~90 MB model download). Agent traces are at <http://localhost:5001>.
+
+---
 
 ## Architecture
 
 ```
-┌──────────────── UI (Streamlit) ─────────────────┐
-│  app.py  ·  ui/dashboard.py  ·  ui/health.py    │
-│  ui/chat.py  ·  ui/routes_explorer.py  · …      │
-│     └── call_tool("server__tool", args)          │
-└────────────────────┬────────────────────────────┘
-                     │
-        core/host.py · ToolHost  (single MCP client)
-                     │  Streamable HTTP
-     ┌───────────────┼───────────────┐
-     ▼               ▼               ▼
- :8101 weather   :8103 strava    :8104 garmin     :8107 flythrough
- :8102 routes    :8105 calendar  :8106 telegram*  :8108 google_maps
- (native FastMCP servers — each an independent process)
- (* telegram = Streamable-HTTP proxy to an external stdio MCP server; needs extra setup)
+   React SPA (web/)  ·  Telegram bridge
+                  │
+            FastAPI (api/)                      :8000
+                  │
+        Orchestrator agent                      :9000    ← no tools of its own
+                  │  A2A
+   ┌──────┬───────┼───────┬─────────┬────────┐
+recovery load  context  route   fitness   coach          :9001–:9006
+   │      │       │       │        │         │
+   │      │       │       │     RAG index    │
+   └──────┴───────┴───────┴─────────────────┘
+                  │  MCP (Streamable HTTP)
+   weather · routes · strava · garmin · calendar ·        :8101–:8109
+   flythrough · google_maps · athlete · (telegram)
 ```
 
-All data flows through the MCP servers — the UI never calls Strava or Garmin APIs directly. Each server handles auth, retries, and data formatting; the UI receives clean, ready-to-display JSON.
+Each box is its own process. The orchestrator has **no** MCP access — it only delegates over the
+A2A protocol. Each specialist sees only the servers in its scope (`core/config.AGENT_MCP_SCOPE`)
+and discovers their tools at runtime.
 
-The **Chat** tab is powered by a **LangGraph + A2A multi-agent** system. An **Orchestrator Agent** (`core/orchestrator_agent.py`, A2A server :9000) decomposes each request and delegates over the **Agent-to-Agent (A2A) protocol** to four specialist agents — **Recovery** :9001, **Training-Load** :9002, **Context** :9003, **Route** :9004 — each a LangGraph ReAct agent scoped to just its MCP servers (recovery→Garmin, load→Strava+Garmin, context→Weather+Calendar, route→Routes+Google Maps). Tools are still discovered via `ToolHost`, never hardcoded — only narrowed per agent. `core/orchestrator.py` is now a thin A2A client adapter, so the Chat tab, the FastAPI layer and the Telegram bridge keep the same interface.
+| Agent | Port | Reaches | Owns |
+|---|---|---|---|
+| Orchestrator | 9000 | the six specialists (A2A) | Request triage, delegation, trace assembly |
+| Recovery | 9001 | garmin | Sleep, HRV, Body Battery, readiness |
+| Load | 9002 | strava, garmin, flythrough | Volume, intensity, training load, trends |
+| Context | 9003 | weather, calendar | Conditions and schedule around a session |
+| Route | 9004 | routes, google_maps | Route planning, trails, places |
+| Fitness | 9005 | *(none — local RAG)* | Training theory from a sports-science library |
+| Coach | 9006 | athlete, strava, garmin | Goal, plan, zones, the adaptation loop |
 
-## Project Layout
+---
 
-```
-fitdash/
-├── app.py                       # Streamlit entry point + PIN gate
-├── requirements.txt
-├── .env                         # API credentials (never committed)
-├── .env.example                 # template — copy to .env and fill in
-├── docker-compose.yml           # one service per MCP server
-├── .streamlit/
-│   ├── config.toml              # Streamlit theme + server config
-│   └── secrets.toml             # APP_PIN (never committed)
-│
-├── auth/
-│   ├── strava_oauth.py          # OAuth2 manager: token cache and auto-refresh
-│   └── garmin_setup.py          # One-time Garmin MFA login
-│
-├── core/                        # MCP-standard engine — Streamlit-free, vendor-neutral
-│   ├── config.py                # Declarative registry: server name → MCP URL
-│   ├── host.py                  # ToolHost — the single MCP client (list_tools / call_tool)
-│   ├── llm.py                   # Vendor-neutral LLM seam (provider/model from config)
-│   ├── orchestrator.py          # Thin A2A client adapter → orchestrator agent (:9000)
-│   ├── orchestrator_agent.py    # Orchestrator A2A server (:9000) — LangGraph coordinator
-│   ├── a2a_client.py            # A2A client helper (status + artifacts)
-│   ├── mcp_langchain.py         # ToolHost → LangChain tools, scoped per agent
-│   └── agent_trace.py           # Trace assembly (route_data, charts, agents)
-│
-├── servers/
-│   ├── weather_mcp.py           # FastMCP server — weather via Open-Meteo (port 8101)
-│   ├── routes_mcp.py            # FastMCP server — routes via OpenRouteService (port 8102)
-│   ├── strava_mcp.py            # FastMCP server — Strava v3 API, OAuth2 (port 8103)
-│   ├── garmin_mcp.py            # FastMCP server — Garmin Connect (port 8104)
-│   ├── calendar_mcp.py          # FastMCP server — Google Calendar, read-only (port 8105)
-│   ├── telegram_mcp.py          # Proxy → external stdio telegram-mcp (port 8106, optional)
-│   └── google_maps_mcp.py       # FastMCP server — Places (New), Geocoding v4, Routes API (port 8108)
-│
-└── ui/
-    ├── shared.py                # ToolHost singleton, call_tool(), connection checks
-    ├── styles.py                # CSS variables, chart theme, colour constants
-    ├── dashboard.py             # Dashboard tab
-    ├── activity_analysis.py     # Stream charts + coloured route overlay
-    ├── health.py                # Health tab
-    ├── chat.py                  # Chat tab
-    ├── routes_explorer.py       # Routes tab
-    ├── settings.py              # Settings tab (API key management, OAuth flows)
-    └── sync.py                  # Garmin → Strava export tab
-```
+## MCP servers and tools
 
-## MCP Servers and Tools
+Every tool is called uniformly as `call_tool("server__tool_name", args)` — namespaced, no
+special-casing per server anywhere in the codebase.
 
-Each server is a self-contained FastMCP service. The UI calls every tool via `call_tool("server__tool_name", args)` — namespaced, uniform, no special-casing per server.
+### Athlete (8109) — 14 tools · the coach's backbone
 
-### Weather (port 8101) — 4 tools
+The structured athlete store **and** the deterministic training math. This server calls no
+upstream API — the coach agent feeds it numbers it fetched from Strava/Garmin. Everything
+computable lives here as plain arithmetic the athlete can re-check; the LLM never estimates it.
+The rules it implements are documented in [`docs/trainingsregeln.md`](docs/trainingsregeln.md).
+
+| Tool | What it does |
+|---|---|
+| `athlete__get_athlete_overview` | Full structured state in one read — goal, milestones, zones, plan, timeline |
+| `athlete__set_race_goal` | Set/replace the main goal (sport, date, distance, target time) |
+| `athlete__add_milestone` · `update_milestone_status` · `delete_race_goal` | Milestones on the way to it |
+| `athlete__set_athlete_profile` | Stable attributes (age, …) used for zone defaults |
+| `athlete__compute_zones` | HR + pace zones, computed deterministically from supplied data |
+| `athlete__scaffold_plan` | The goal-driven plan skeleton (phases → weeks) with a feasibility fact block |
+| `athlete__save_plan` | Validates a filled plan against the guardrails, then stores it |
+| `athlete__get_plan` | The stored plan |
+| `athlete__record_week_actual` | Plan-vs-actual monitoring for one week |
+| `athlete__rescaffold_plan` | Re-baselines the remaining weeks on demonstrated volume |
+| `athlete__add_timeline_event` · `delete_timeline_event` | Injuries, illnesses, races, notes |
+
+### Strava (8103) — 14 tools
 
 | Tool | What it returns |
 |---|---|
-| `weather__get_current_weather` | Current conditions: temperature, wind, weather code |
-| `weather__get_weather_forecast` | Multi-day forecast |
-| `weather__get_pollen_levels` | Pollen load (grasses, birch, alder, mugwort) — scale 0–5 |
-| `weather__get_uv_index` | UV index with WHO category |
-
-### Routes (port 8102) — 5 tools
-
-| Tool | What it returns |
-|---|---|
-| `routes__plan_route` | A→B route with waypoints, distance, duration, elevation profile |
-| `routes__plan_circular_route` | Loop route from a start point for a target distance |
-| `routes__get_elevation_profile` | Elevation profile for a given route |
-| `routes__explore_trails` | Paginated trail search (hiking/cycling/running/MTB) within a radius |
-| `routes__get_isochrone` | Reachability polygon for a time or distance budget |
-
-### Strava (port 8103) — 10 tools
-
-| Tool | What it returns |
-|---|---|
-| `strava__get_activities` | Recent activities with distance, pace, HR, elevation, kudos, map polyline |
+| `strava__get_activities` | Recent activities: distance, pace, HR, elevation, kudos, map polyline |
+| `strava__search_activities` | Activity search by name, sport or date range |
 | `strava__get_activity_stats` | Aggregate totals and per-sport breakdown |
-| `strava__get_athlete_profile` | Athlete profile + official YTD / last-4-weeks / all-time stats |
+| `strava__get_athlete_profile` | Profile + official YTD / last-4-weeks / all-time stats |
 | `strava__get_training_trends` | Per-week training load (distance, time, elevation, sport mix) |
+| `strava__get_training_load` | ATL / CTL / TSB — acute and chronic load, form |
+| `strava__analyze_performance_trends` | Trend analysis over a metric across time |
+| `strava__compare_activity_to_baseline` | One activity against the athlete's own history |
 | `strava__get_personal_bests` | Top 5 by distance, duration, elevation, speed; biggest week; longest streak |
-| `strava__get_yearly_breakdown` | Year-over-year totals with per-sport breakdown |
-| `strava__get_gear_info` | Registered bikes and shoes with accumulated mileage |
-| `strava__get_activity_detail` | Deep single-activity detail: laps, HR, power, cadence, PRs, gear |
+| `strava__get_yearly_breakdown` | Year-over-year totals per sport |
+| `strava__get_gear_info` | Bikes and shoes with accumulated mileage |
+| `strava__get_activity_detail` | Single activity in depth: laps, HR, power, cadence, PRs, gear |
 | `strava__get_activity_streams` | Raw GPS streams (lat/lon, altitude, HR, cadence, velocity, power) |
+| `strava__delete_activity` | Delete an activity (write access) |
 
-### Flythrough (port 8107) — 1 tool
-
-| Tool | What it returns |
-|---|---|
-| `flythrough__prepare_flythrough` | Validates render params and returns a `show_flythrough` action payload for the UI |
-
-### Garmin (port 8104) — 13 tools
+### Garmin (8104) — 13 tools
 
 | Tool | What it returns |
 |---|---|
-| `garmin__get_garmin_activities` | Garmin activity list with distance, pace, HR, calories, training effect |
-| `garmin__get_garmin_activity_detail` | Per-lap splits, HR zone breakdown for one activity |
+| `garmin__get_garmin_activities` | Activity list with distance, pace, HR, calories, training effect |
+| `garmin__get_garmin_activity_detail` | Per-lap splits and HR-zone breakdown for one activity |
 | `garmin__get_garmin_daily_health` | Steps, calories, resting HR, stress, Body Battery for one day |
 | `garmin__get_garmin_heart_rate_timeline` | Full-day HR in ~15-minute intervals |
-| `garmin__get_garmin_sleep` | Sleep stages (deep/REM/light/awake), sleep score, SpO₂, HRV for one night |
-| `garmin__get_garmin_body_battery` | Daily Body Battery highs, lows, intraday timeline over a date range |
-| `garmin__get_garmin_hrv_status` | Last-night HRV, personal baseline range, readiness status |
-| `garmin__get_garmin_training_metrics` | VO₂max, training load (7 d / 28 d), training status, race predictions |
-| `garmin__get_garmin_wellness_trends` | Multi-day rollup of HR, steps, stress, sleep score, Body Battery |
-| `garmin__get_garmin_steps_timeline` | 15-minute step buckets with activity level for one day |
-| `garmin__get_garmin_stress_timeline` | Intraday stress levels (~3-min intervals) with avg, peak, category |
-| `garmin__get_garmin_body_composition` | Weight, BMI, body fat %, muscle mass over a date range |
-| `garmin__get_activity_gps_track` | Full GPS track (lat/lon/ele/time) for one Garmin activity |
+| `garmin__get_garmin_sleep` | Sleep stages, sleep score, SpO₂, HRV for one night |
+| `garmin__get_garmin_body_battery` | Daily highs/lows plus intraday timeline over a range |
+| `garmin__get_garmin_hrv_status` | Last-night HRV, personal baseline range, readiness |
+| `garmin__get_garmin_training_metrics` | VO₂max, training load (7 d / 28 d), status, race predictions |
+| `garmin__get_garmin_wellness_trends` | Multi-day rollup of HR, steps, stress, sleep, Body Battery |
+| `garmin__get_garmin_steps_timeline` | 15-minute step buckets with activity level |
+| `garmin__get_garmin_stress_timeline` | Intraday stress (~3-min intervals) with avg, peak, category |
+| `garmin__get_garmin_body_composition` | Weight, BMI, body fat %, muscle mass over a range |
+| `garmin__get_activity_gps_track` | Full GPS track (lat/lon/ele/time) for one activity |
 
-### Telegram (port 8106) — optional, 116 tools
+### Weather (8101) — 4 tools
 
-Unlike the others, this is **not** a native FastMCP server. [`servers/telegram_mcp.py`](servers/telegram_mcp.py) is a thin proxy that runs the external [chigwell/telegram-mcp](https://github.com/chigwell/telegram-mcp) (stdio-only) unmodified in its own `uv` environment and re-exposes its tools over Streamable HTTP, so `ToolHost` reaches them like any other server. Tools are discovered live (`telegram__send_message`, `telegram__list_chats`, `telegram__search_messages`, …) — send/edit/delete/forward/pin messages, manage chats, contacts, media and drafts. Set `TELEGRAM_EXPOSED_TOOLS=read-only` to expose only read tools. See [Telegram Setup](#telegram-setup).
+`weather__get_current_weather` · `get_weather_forecast` · `get_pollen_levels` (grasses, birch,
+alder, mugwort — scale 0–5) · `get_uv_index` (with WHO category). Backed by Open-Meteo, no key needed.
 
-### Google Maps (port 8108) — optional, 5 tools
+### Routes (8102) — 7 tools
 
-A native FastMCP server against Google's **current** APIs — Places API (New), Geocoding API v4 and the Routes API. All three work with a billing-free [Maps Demo Key](https://mapsplatform.google.com/maps-demo-key/), so no credit card is needed for development (demo keys serve no user-generated content like reviews/photos; the server degrades gracefully). Tools: `google_maps__maps_search_places` (POI/business search), `maps_place_details` (hours, phone, website, rating), `maps_geocode`, `maps_reverse_geocode`, `maps_directions` (walking/driving/cycling/transit ETA via Routes API). Scoped to the **Route** agent. Needs only **`GOOGLE_MAPS_API_KEY`**. (It replaces the archived `@modelcontextprotocol/server-google-maps` npx proxy, which called the billing-only legacy APIs; tool names were kept, `maps_distance_matrix`/`maps_elevation` dropped — elevation is covered by `routes__get_elevation_profile`.)
+`routes__plan_route` (A→B with waypoints, distance, duration, elevation) · `plan_circular_route`
+(a loop of a target distance) · `plan_park_loop` (a loop through green space) · `geocode` ·
+`get_elevation_profile` · `explore_trails` (paginated, by sport, within a radius) ·
+`get_isochrone` (reachability polygon). Needs `ORS_API_KEY`.
 
-## Adding a New Server
+### Calendar (8105) — 6 tools
 
-One file + one line — see [`docs/mcp-architecture.md`](docs/mcp-architecture.md) §3 for the full walkthrough.
+`calendar__list_calendars` · `list_events` · `get_event` · `create_event` · `update_event` ·
+`delete_event` — so the coach can see your week and place sessions in it.
+
+### Flythrough (8107) — 1 tool
+
+`flythrough__prepare_flythrough` validates render parameters and returns the action payload the
+UI turns into a 3D flight over the activity's GPS track.
+
+### Google Maps (8108) — 6 tools, optional
+
+`google_maps__maps_search_places` (POIs) · `maps_search_along_route` · `maps_place_details` ·
+`maps_geocode` · `maps_reverse_geocode` · `maps_directions` (walking/driving/cycling/transit
+ETA). Native server
+against Google's current APIs — Places (New), Geocoding v4, Routes — all of which work with a
+billing-free demo key.
+
+### Telegram (8106) — 116 tools, optional
+
+The one server that is **not** native. [`servers/telegram_mcp.py`](servers/telegram_mcp.py) is a
+proxy that runs the external [chigwell/telegram-mcp](https://github.com/chigwell/telegram-mcp)
+(stdio-only, pinned to Python 3.13) unmodified in its own `uv` environment and re-exposes its
+tools over Streamable HTTP — so `ToolHost` sees it as just another server. Tools are discovered
+live. Set `TELEGRAM_EXPOSED_TOOLS=read-only` to expose only the read tools.
+
+---
+
+## Adding a new server
+
+The whole point of the design: **one new file, one config line.** No change to the host, the
+agents, or the UI.
 
 ```python
 # servers/example_mcp.py
-import os
-from mcp.server.fastmcp import FastMCP
-
 mcp = FastMCP("example", host="127.0.0.1",
-              port=int(os.getenv("EXAMPLE_MCP_PORT", "8109")), stateless_http=True)
+              port=int(os.getenv("EXAMPLE_MCP_PORT", "8110")), stateless_http=True)
 
 @mcp.tool()
 def my_tool(param: str) -> dict:
@@ -178,250 +364,112 @@ if __name__ == "__main__":
     mcp.run(transport="streamable-http")
 ```
 
-Then one line in `core/config.py`:
-```python
-"example": _url("example", 8109),
-```
+Then add `"example": 8110` to `MCP_PORTS` in [`core/config.py`](core/config.py) (8110 is the next
+free port), grant it to an agent in `AGENT_MCP_SCOPE`, and restart. `MCP_PORTS` is the **single
+source of truth for every port** — `ports.sh`, `web/vite.config.ts` and `docker-compose.yml` all
+read it live via `scripts/export_ports.py`, so never hardcode a port anywhere else.
 
-Start with `python -m servers.example_mcp`. `ToolHost` discovers the new tools automatically; the Chat agent can call them immediately — no other file needs to change.
+---
 
-## Setup
+## Docker
 
-### Prerequisites
-
-- Python 3.11 or later
-- An LLM provider — either a KIT Gateway / OpenAI-compatible key (default), **or** a Google [Gemini](https://aistudio.google.com/apikey) key: set `LLM_PROVIDER=gemini` + `GEMINI_API_KEY` + `GEMINI_MODEL` (a free flash model, e.g. `gemini-2.0-flash`)
-- *(Optional)* A Garmin Connect account for the Health tab and activity data in Chat
-- *(Optional)* An [OpenRouteService](https://openrouteservice.org/dev/#/signup) key for route planning (free, no credit card)
-- *(Optional)* A Strava API application — note: Strava requires a paid subscription since May 2025
-- *(Optional, for Telegram)* [`uv`](https://docs.astral.sh/uv/) and Telegram API credentials from [my.telegram.org/apps](https://my.telegram.org/apps). The [telegram-mcp](https://github.com/chigwell/telegram-mcp) upstream is vendored in `./external/`.
-
-### Installation
+The full stack — 17 services — runs in containers:
 
 ```bash
-# Clone and enter the project
-git clone <repo-url>
-cd fitdash
-
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up credentials
-cp .env.example .env
-# Edit .env — see Environment Variables below
+./docker-up.sh up --build      # → http://localhost:3000
+./docker-up.sh ps
+./docker-up.sh logs -f coach-agent
+./docker-up.sh down
 ```
 
-### Environment Variables
+**Always** go through `./docker-up.sh` rather than `docker compose` directly. It does three
+things Compose cannot do for itself: regenerate the port variables from `core/config.py`, create
+the bind-mount directories before the daemon creates them root-owned, and persist a stable
+`AUTH_SECRET`.
 
-| Variable | Required | Description |
-|---|---|---|
-| `OPENAI_API_KEY` | Yes | KIT Gateway key or any OpenAI-compatible key |
-| `OPENAI_BASE_URL` | Yes | `https://ai-gateway.dsi-experimente.de/v1` for KIT |
-| `AGENT_MODEL` | Yes | `kit.gpt-4.1` (recommended) |
-| `GARMIN_EMAIL` | No | Garmin Connect email — enables Health tab and Chat |
-| `GARMIN_PASSWORD` | No | Garmin Connect password |
-| `ORS_API_KEY` | No | OpenRouteService key — enables Routes tab |
-| `CLIENT_ID` | No | Strava app client ID (paid API since May 2025) |
-| `CLIENT_SECRET` | No | Strava app client secret |
-| `TELEGRAM_API_ID` | No | Telegram API ID — enables the Telegram server |
-| `TELEGRAM_API_HASH` | No | Telegram API hash |
-| `TELEGRAM_SESSION_STRING` | No | Telegram session string (see Telegram Setup) |
+You still need a filled-in `.env`, and the OAuth tokens have to be created once on the host
+(`./run.sh setup`) — the containers mount `.tokens/` rather than carrying credentials in an
+image. `.tokens/`, `data/`, `.cache/`, `.logs/` and `.secrets/` are all mounted, so state
+survives `down`.
 
-All settings can also be configured at runtime in the **⚙️ Settings** tab.
+One exception: the Telegram MCP proxy is not containerised — it needs `uv` and Python 3.13. Run
+it on the host if you want it.
 
-### Access PIN (optional)
+---
 
-To restrict access when running on a local network, add to `.streamlit/secrets.toml`:
-```toml
-APP_PIN = "your-pin-here"
-```
-If `APP_PIN` is not set, the gate is bypassed (open access).
-
-## Authentication
-
-### Strava OAuth
-
-Strava OAuth runs automatically on first use — the app opens a browser window to authorise access. Tokens are saved to `.tokens/strava.json` and refreshed automatically.
-
-### Garmin Setup
+## Serving it publicly
 
 ```bash
-python auth/garmin_setup.py
+DO_LOCK=true APP_PIN='a-long-passphrase' FUNNEL=1 ./run.sh prod
 ```
 
-Run once after filling in `GARMIN_EMAIL` and `GARMIN_PASSWORD`. Tokens persist in `.tokens/` until they expire; re-run if login fails.
+- `DO_LOCK=true` + `APP_PIN` put a shared passphrase in front of everything. The gate is
+  rate-limited with per-IP lockout, the PIN is compared in constant time, and the session cookie
+  is HMAC-signed.
+- `AUTH_SECRET` signs the login tokens. `run.sh` generates and persists one in `.secrets/` on
+  first use. **Without it, tokens are signed with a public dev fallback and can be forged.**
+- `ADMIN_EMAIL` names the one account with full Settings access. **Unset means nobody is admin** —
+  that is deliberate, so a fresh deployment does not inherit someone else's admin.
+- `FUNNEL=1` publishes it over HTTPS via Tailscale Funnel (needs `tailscale` installed and
+  `tailscale up` done once).
 
-### Telegram Setup
+Users log in with email + a one-time code, sent from the mailbox you connected with
+`auth/google_oauth.py`. The first valid code for a new address creates that account.
 
-Optional. The Telegram tools come from the external [telegram-mcp](https://github.com/chigwell/telegram-mcp), which runs unmodified in its own `uv` environment behind `servers/telegram_mcp.py`.
+For a permanent install (launchd on macOS), see [`docs/deploy-macmini.md`](docs/deploy-macmini.md)
+and the template in [`deploy/`](deploy/).
 
-**Easiest:** open **⚙️ Settings → Telegram** in the running app — enter your API ID & hash, then sign in with your phone number to generate and save the session string automatically (2FA supported). Afterwards (re)start the server: `python -m servers.telegram_mcp`. The manual / CLI route does the same thing:
+---
+
+## Project layout
+
+```
+run.sh                  the one launcher
+docker-up.sh            the Docker wrapper
+core/                   MCP host, LLM seam, orchestrator adapter, agent trace — no UI, no vendor lock-in
+  config.py             the registry: name → MCP/A2A URL, and every port
+  host.py               ToolHost — the single tool surface
+  orchestrator_agent.py the LangGraph orchestrator (:9000)
+agents/                 the six specialists + their prompts
+servers/                one FastMCP server per data source
+api/                    FastAPI seam — auth, chat SSE, charts, settings
+web/                    React + Vite SPA
+server/                 Node BFF — serves the SPA, proxies /api, hosts the PIN gate
+auth/                   one-time OAuth setup scripts
+scripts/                index builder, port exporter, Garmin mock
+tests/                  tests (+ tests/tools/ for debug utilities)
+evaluation/             the quality evaluation harness — personas, scorers, reports
+docs/                   architecture, training rules, RAG, deployment
+external/               vendored third-party MCP server (not our code)
+```
+
+---
+
+## Testing and evaluation
 
 ```bash
-# 1. The upstream server is vendored in this repo at external/telegram-mcp
-#    (if missing: git clone https://github.com/chigwell/telegram-mcp external/telegram-mcp)
-
-# 2. Put TELEGRAM_API_ID / TELEGRAM_API_HASH in .env (from my.telegram.org/apps)
-
-# 3. Generate a session string ONCE — interactive (QR scan or phone code),
-#    because login is disabled when the server runs headless:
-uv run --directory external/telegram-mcp session_string_generator.py
-#    Copy the printed string into .env as:  TELEGRAM_SESSION_STRING=...
-#    (answer "N" to its auto-update prompt — it would write to the wrong .env)
+.venv/bin/python tests/test_agent_layer.py     # offline, deterministic — run this after touching agents/
+( cd web && npm run typecheck && npm run build )
 ```
 
-The session string grants full access to your Telegram account — treat it like a password; it lives only in `.env` (gitignored). The first `python -m servers.telegram_mcp` will have `uv` install the upstream's dependencies (one-time).
+`tests/` holds the tests, `tests/tools/` the debug utilities — see
+[`tests/README.md`](tests/README.md) for what is what. The **quality** evaluation (personas,
+scorers, generated reports) is a separate harness in [`evaluation/`](evaluation/README.md).
 
-### Telegram chat — talk to the agent *from* Telegram (optional)
-
-Separate from the Telegram *tools* above (which let the agent act on your account), the **agent bridge** ([`telegram_bridge.py`](telegram_bridge.py)) lets you chat *with* the agent from Telegram: every message you receive is forwarded to the same engine as the **💬 Chat** tab, and the answer is sent back. You can also send **voice memos** — they're transcribed locally with Whisper (German/English, auto-detected) and handled like a typed message. A planned route arrives three ways: a **static map image**, a tappable **Google Maps** link in the caption (opens the Maps app — approximate, since Google re-routes between points), and a **GPX** file with the exact track (open in OsmAnd, Komoot, Organic Maps, Garmin, Strava, …). Per-chat history replaces the web UI's interactive widgets (the agent lists options as text; you pick one by replying).
-
-It runs as a **userbot** (it replies *as you*) in its own long-running process:
-
-```bash
-# Reuses TELEGRAM_API_ID/HASH + TELEGRAM_SESSION_STRING from .env
-python telegram_bridge.py
-```
-
-**Login (email + OTP).** A Telegram user must sign in with the **same email account as the web app** before the agent responds: send **`/login`** → reply with your email → reply with the emailed code. The Telegram id is then **permanently linked** to that account (`core/telegram_link.py`, persisted in `data/telegram_links.json`), so the agent runs **as that email** — same Strava/Garmin connections and the **same per-user memory** as on the web — and you never log in again until you send **`/logout`**. Until logged in, any message gets an automated "please /login" reply. (The OTP email is sent by the admin Gmail, same as the web login.)
-
-By default it answers **DMs only**; restrict who can even reach the login with `TELEGRAM_ALLOWED_USERS`, allow groups with `TELEGRAM_BRIDGE_ALLOW_GROUPS=true` (see `.env.example`). ⚠️ Once logged in, the agent keeps **all** its tools — including the ones that read/send messages on the linked Telegram account.
-
-Reusing your existing session string is fine. Only if you run the bridge **and** the `telegram_mcp` proxy at the same time, give the bridge its own login so Telegram doesn't revoke the shared key:
-
-```bash
-python telegram_bridge.py --login   # prints a TELEGRAM_BRIDGE_SESSION_STRING for .env
-```
-
-**Voice memos** need a local Whisper engine. `faster-whisper` (in `requirements.txt`) runs everywhere with no system `ffmpeg`. On **Apple Silicon** you can opt into the faster GPU engine with `pip install mlx-whisper` **and** `brew install ffmpeg` — the bridge auto-detects it; otherwise it uses faster-whisper. The model (`small` ≈ 0.5 GB) downloads on first use; pick another with `WHISPER_MODEL` (bigger = better German, slower).
-
-## Running
-
-The easiest path is a launcher that starts the MCP servers, the five A2A agents and the API/UI for you: **`./dev_stack.sh`** (React/Vite stack) or **`./start.sh`** (Terminal windows). Manually:
-
-```bash
-# Terminal 1 — MCP servers (each in its own process)
-source .venv/bin/activate
-python -m servers.weather_mcp &
-python -m servers.routes_mcp &
-python -m servers.strava_mcp &
-python -m servers.garmin_mcp &
-python -m servers.calendar_mcp &
-python -m servers.telegram_mcp &
-
-# Terminal 1b — A2A agent layer (the Chat engine). Specialists first, orchestrator last.
-python -m agents.recovery_agent &      # :9001
-python -m agents.load_agent &          # :9002
-python -m agents.context_agent &       # :9003
-python -m agents.route_agent &         # :9004
-python -m core.orchestrator_agent &    # :9000
-
-# Terminal 2 — the UI
-streamlit run app.py
-
-# Terminal 3 (optional) — talk to the agent FROM Telegram (userbot bridge)
-python telegram_bridge.py
-```
-
-> The agent layer needs `OPENAI_*` / `AGENT_MODEL` set; for the multi-call agent loops a stable model is recommended — set `AGENT_LLM_MODEL=kit.gpt-4.1` (the agent layer uses it in preference to `AGENT_MODEL`).
-
-Or with Docker Compose (via the wrapper, which feeds the current ports from `core/config.py` into the compose file — see `docker-up.sh`):
-```bash
-./docker-up.sh up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
-streamlit run app.py
-```
-(The Telegram proxy shells out to `uv` and isn't part of the shared image — run it on the host as above.)
-
-Open [http://localhost:8501](http://localhost:8501).
-
-## Serving it publicly (single host, e.g. a Mac mini)
-
-To host the **React app** for others over the internet there's a one-command launcher:
-
-```bash
-./server-start.sh             # everything in one terminal (logs to /tmp) — headless/launchd-safe
-./server-start.sh --windows   # open separate macOS Terminal windows: App + Telegram bridge
-```
-
-It builds the SPA and starts everything (MLflow + MCP servers + agents + FastAPI + the
-Node BFF + the **Telegram bridge** if configured), puts the app behind a shared **PIN
-gate** (PIN **`230626`**), and publishes it over HTTPS via **Tailscale Funnel** — using a
-stable signing key persisted in `.secrets/auth_secret` so logins survive restarts. Only
-the BFF (`127.0.0.1:3000`) is fronted; FastAPI, the agents and the MCP servers stay on
-localhost. (`./serve.sh` is the underlying launcher if you want to pass your own
-`APP_PIN` / `AUTH_SECRET` / `FUNNEL` / `TELEGRAM_BRIDGE` / `TELEGRAM_MCP`.)
-
-> The Telegram bridge starts when `.env` has the `TELEGRAM_*` config. If both the bridge
-> and the `telegram_mcp` proxy are requested but share one session string, the launcher
-> starts only the bridge (running both on one login risks Telegram revoking it) — set a
-> dedicated `TELEGRAM_BRIDGE_SESSION_STRING` (`python telegram_bridge.py --login`) to run both.
-
-**Auth model:** login is **email + OTP** — a visitor enters their email, gets a 6-digit
-code (emailed *from* the admin Gmail), and enters it; the first time registers the account
-(`data/accounts.json`). The shared PIN gates *reaching* the login screen. **Settings** is open
-to every logged-in user, but only for connecting their own data sources — **Strava, Garmin,
-Google Calendar**. The privileged cards (LLM keys, Telegram, server restart, env editing) and
-the email Google connection are **admin-only** (`kit.aiss2026@gmail.com`).
-
-> **Two separate Google tokens, on purpose.** The user-connectable **calendar** token
-> (`.tokens/google.json`, calendar scopes only) is kept apart from the admin's **email
-> sender** token (`.tokens/google_mail.json`, `gmail.send`). So a user (re)connecting Google
-> Calendar in Settings can never clobber or downgrade the credential that sends login emails.
-
-**Two one-time setup steps** the launcher can't do for you (it preflight-warns if they're
-missing):
-
-1. **Connect the admin email sender** (powers OTP login emails). On the host, sign in as
-   `kit.aiss2026@gmail.com`:
-   ```bash
-   python auth/google_oauth.py     # writes .tokens/google_mail.json (gmail.send)
-   ```
-   …and enable the **Gmail API** (and **Calendar API**) for the project in the
-   [Google Cloud console](https://console.cloud.google.com/apis/library). Register the
-   redirect URI `http://localhost:8000/api/settings/google/callback`.
-   *(Calendar itself is connected in-app from Settings — by the admin or any user. The OTP
-   sender stays in its own token so that can't break it.)*
-   *(Chicken-and-egg note: OTP email needs this connected before the first login — do the CLI
-   step above, or start once with `OTP_DEV_ECHO=1` to read codes from `/tmp/fitdash_api.log`.)*
-2. **Install Tailscale** for the public URL:
-   ```bash
-   brew install tailscale && sudo tailscale up   # then enable Funnel + HTTPS in the admin console
-   ```
-   Without it, the app still runs but **local-only** (no public URL).
-
-Then: open the public `https://<host>.<tailnet>.ts.net` URL → enter PIN **230626** → log in
-by email. Full detail (autostart on boot via `launchd`, custom domains, security notes) is in
-[`docs/deploy-macmini.md`](docs/deploy-macmini.md).
-
-**Required env for a public deploy** (in `.env`): the usual `OPENAI_*` / `AGENT_MODEL`, the
-`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, and optionally `ADMIN_EMAIL` (defaults to
-`kit.aiss2026@gmail.com`). `AUTH_SECRET` is generated for you on first run.
+---
 
 ## Troubleshooting
 
-| Symptom | Fix |
+| Symptom | Cause / fix |
 |---|---|
-| `LLM call failed: 400 AuthenticationError` | Check `OPENAI_API_KEY` in Settings. Ensure you are connected to the KIT network or VPN. |
-| `LLM call failed: 400 invalid subscription key` | Wrong model name — use `kit.gpt-4.1`. |
-| Chat response takes 30–60 s | Normal under gateway load. |
-| Strava shows 0 activities | Account has no activities, or token expired — delete `.tokens/strava.json` and re-authorise. |
-| Garmin tokens expired | Re-run `python auth/garmin_setup.py` |
-| Port already in use | Kill the existing process or change the port via `STRAVA_MCP_PORT` / `GARMIN_MCP_PORT` env vars. |
-| No route visible on map | Activity has no GPS stream (indoor workout or Strava privacy zone). |
-| Chat returns "Garmin not connected" | Run `auth/garmin_setup.py` and confirm `.tokens/garmin_tokens.json` exists. |
-| MCP server not reachable | Confirm the server process is running: `curl http://127.0.0.1:8103/mcp` should return 200. |
-| Telegram tools missing / server exits | Check `external/telegram-mcp` exists, `uv` is installed, and `TELEGRAM_SESSION_STRING` is valid (regenerate with `session_string_generator.py`). Watch its stderr for `[telegram] N tool(s) ready`. |
-| Telegram bridge: `AuthKeyDuplicatedError` | The bridge and the `telegram_mcp` proxy are on the same session at once. Give the bridge its own login: `python telegram_bridge.py --login` → `TELEGRAM_BRIDGE_SESSION_STRING`. |
-| Telegram bridge silent / no reply | Confirm the MCP servers are up (it logs `Agent ready — N tools`), the message is a **DM** (groups are off unless `TELEGRAM_BRIDGE_ALLOW_GROUPS=true`), and the sender is allowed (`TELEGRAM_ALLOWED_USERS`). |
-| Voice memo not transcribed | First memo downloads the Whisper model (wait a bit); the bridge logs `🎤 transcribed via … (lang=…)`. Ensure `faster-whisper` is installed. The mlx engine additionally needs `brew install ffmpeg`. |
-| New activities not visible | Use **🔄 Refresh data** in the sidebar to clear the cache. |
-| Login OTP request stuck on "Sending…" / `(pending)` | The PIN gate must scope `express.json()` to `/bff/login` only (global parsing hangs proxied POSTs). Restart the BFF (`server-start.sh`) so it picks up `server/index.js`. |
-| OTP email never arrives / `502` on request-otp | Google/Gmail not connected or missing the `gmail.send` scope. Run `python auth/google_oauth.py` (as `kit.aiss2026@gmail.com`) and enable the **Gmail API** in the Cloud console. Check Spam. For local testing without email, start with `OTP_DEV_ECHO=1` and read the code from `/tmp/fitdash_api.log`. |
-| "Invalid or expired code" | Codes expire in 10 min and burn after 5 wrong tries — request a fresh one. |
-| Settings only shows Strava/Garmin/Calendar | Expected for non-admins — LLM/Telegram/restart cards are admin-only. Log in as `kit.aiss2026@gmail.com` (the `ADMIN_EMAIL`) for the full Settings. |
-| User's Google Calendar connect broke OTP email | Shouldn't happen — email uses a separate `.tokens/google_mail.json`. If it does, re-run `python auth/google_oauth.py` (as the admin) to refresh that token; calendar connects only touch `.tokens/google.json`. |
-| Everyone logged out after a restart | `AUTH_SECRET` changed. `server-start.sh` persists a stable one in `.secrets/auth_secret`; don't pass a different `AUTH_SECRET` over it. |
+| Chat says no agents are available | The orchestrator (:9000) is down. `./run.sh status`, then `./run.sh logs orchestrator` |
+| Chat answers but never uses your data | A specialist is up but its MCP server is not. `./run.sh status` shows which |
+| Garmin tools return auth errors | The session expired — re-run `.venv/bin/python auth/garmin_setup.py` |
+| Strava returns 401 | Delete `.tokens/strava.json` and let the OAuth flow run again |
+| Login code never arrives | Google/Gmail not connected, or the Gmail API is not enabled in the Cloud project. Run `auth/google_oauth.py`. Check spam. For local testing, `OTP_DEV_ECHO=1` prints the code to the API log |
+| Settings only shows Strava/Garmin/Calendar | Expected for non-admins. Log in as `ADMIN_EMAIL` for the full page |
+| Everyone logged out after a restart | `AUTH_SECRET` changed. `run.sh` persists one in `.secrets/auth_secret` — don't pass a different one over it |
+| Agents behave erratically, loop, or drop tool calls | The model is too weak for multi-call loops. Set `AGENT_LLM_MODEL=kit.gpt-4.1` |
+| Port already in use on startup | `./run.sh stop`, then start again |
+| The fitness agent has no sources | The vector index is missing. `.venv/bin/python -m scripts.build_fitness_index` |
+| MLflow unreachable warnings | Harmless — tracing is best-effort and the agents run untraced. `MLFLOW=0 ./run.sh` silences it |

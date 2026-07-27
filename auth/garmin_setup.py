@@ -5,8 +5,8 @@ Garmin Connect one-time authentication setup.
 Run once from the project root:
     python auth/garmin_setup.py
 
-After a successful run, garmin_server.py loads tokens automatically.
-Tokens are cached in .garmin_tokens/ — never commit this directory.
+After a successful run, servers/garmin_mcp.py loads the tokens automatically.
+They are cached in .tokens/ (git-ignored) — never commit that directory.
 """
 
 import os

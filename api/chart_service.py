@@ -1,9 +1,15 @@
-"""LLM-generated chart service — Streamlit-free port of ui/chart_gen.py.
+"""LLM-generated chart service — the single chart pipeline for every surface.
 
-Same generate → exec → Reflexion-fix loop, but it returns Plotly figure JSON
-specs (fig.to_dict()) instead of calling st.plotly_chart(). react-plotly.js on the
-frontend renders the identical figure. The exec() sandbox runs ONLY here (server
-side) — generated code is never sent to the browser. Cached per run_id.
+A completed orchestrator turn goes through generate → exec → Reflexion-fix and
+comes out as Plotly figures. The exec() sandbox runs ONLY here (server side);
+generated code is never sent to a client. Results are cached per run_id.
+
+Two entry points share that one pipeline (``build_figures``), so the web app and
+the Telegram bridge can never drift apart:
+
+* ``generate_figures``  → figure JSON specs for react-plotly.js in the browser.
+* ``build_figures``     → live ``go.Figure`` objects, for callers that render
+  server-side (``telegram_bridge`` exports them as PNG via kaleido).
 """
 
 import json
@@ -146,10 +152,16 @@ def _try_execute(code: str, data_vars: Dict[str, Any]) -> Tuple[List[go.Figure],
         return [], f"{type(exc).__name__}: {exc}"
 
 
-def generate_figures(trace: Dict) -> List[dict]:
-    """Return a list of Plotly figure JSON specs for a completed orchestrator turn."""
+def build_figures(trace: Dict) -> List[go.Figure]:
+    """Run the full chart pipeline for a completed turn → executed Plotly figures.
+
+    The shared core behind both ``generate_figures`` (web) and the Telegram
+    bridge's PNG export. Returns figures with NO layout applied — each caller
+    sizes them for its own medium. Map-shaped figures are dropped: the route map
+    is the single map surface, so a Plotly map here would only duplicate it.
+    """
     run_id = trace.get("run_id") or ""
-    question = trace.get("question", "")
+    question = trace.get("question") or trace.get("user_input", "")
     answer = trace.get("answer", "")
     if not question or run_id in _failed:
         return []
@@ -202,15 +214,8 @@ def generate_figures(trace: Dict) -> List[dict]:
     for attempt in range(2):
         figures, error = _try_execute(code, data_vars)
         if figures:
-            out = []
-            for fig in figures:
-                # Map-shaped figures never belong here — the route map (RouteResult)
-                # is the single map surface. Drop them even if the model builds one.
-                if any(getattr(tr, "type", "") in _MAP_TRACE_TYPES for tr in fig.data):
-                    continue
-                fig.update_layout(height=320)
-                out.append(json.loads(fig.to_json()))
-            return out
+            return [f for f in figures
+                    if not any(getattr(tr, "type", "") in _MAP_TRACE_TYPES for tr in f.data)]
         last_error = error or last_error
         if error and attempt == 0:
             fixed = _fix_code(code, error, list(data_vars.keys()))
@@ -222,3 +227,12 @@ def generate_figures(trace: Dict) -> List[dict]:
           flush=True)
     _failed.add(run_id)
     return []
+
+
+def generate_figures(trace: Dict) -> List[dict]:
+    """Plotly figure JSON specs for a completed turn — what the browser renders."""
+    out = []
+    for fig in build_figures(trace):
+        fig.update_layout(height=320)
+        out.append(json.loads(fig.to_json()))
+    return out

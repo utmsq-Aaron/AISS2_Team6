@@ -1,4 +1,4 @@
-"""Turn a route-tool result into *openable* artifacts — no Streamlit, no network.
+"""Turn a route-tool result into *openable* artifacts — pure stdlib, no network.
 
 The static PNG (core/route_render.py) lets a Telegram user *see* a route; this
 module lets them *open* it:

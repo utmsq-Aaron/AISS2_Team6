@@ -2,8 +2,8 @@
 import sys, json
 sys.path.insert(0, '.')
 
-# Just check that the import of the relevant function works (no Streamlit context needed)
-# We can't run the full Streamlit renderer, but we can test the logic
+# Check that the relevant function imports and its logic holds — no rendering
+# surface needed, just the data transformation.
 
 # Test the Strava cache filter (already passing), and check the new viz structure
 from servers.strava_mcp import StravaAPI

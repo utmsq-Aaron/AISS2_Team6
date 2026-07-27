@@ -1,10 +1,11 @@
-"""Flythrough HTML engine — Streamlit-free, shared by the Streamlit UI and FastAPI.
+"""Flythrough HTML engine — the single source of the 3D GPS flythrough page.
 
-This module holds the *pure* parts of the 3D GPS flythrough: the self-contained
-MapLibre GL + WebCodecs HTML page and the track-preparation helpers. It imports
-no Streamlit and no `ui.*`, so the FastAPI seam (api/routers/flythrough.py) can
-build the same page the Streamlit app renders. The Streamlit-specific data
-loading + render flow stays in ui/flythrough_3d.py, which imports from here.
+This module holds the *pure* parts: the self-contained MapLibre GL + WebCodecs
+HTML page and the track-preparation helpers. It has no UI-framework dependency,
+so both consumers build the identical page — the FastAPI seam
+(api/routers/flythrough.py), which serves it into an <iframe srcdoc> for the
+browser, and core/video_renderer.py, which loads it in headless Chromium to
+capture an MP4 server-side.
 """
 
 import json
@@ -1170,6 +1171,6 @@ def _build_html(
     )
 
 
-# Public, Streamlit-free aliases (the names the FastAPI route imports).
+# Public aliases — the names the FastAPI route and the video renderer import.
 prepare_track = _prepare_track
 build_flythrough_html = _build_html

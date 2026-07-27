@@ -1,6 +1,7 @@
-// Dark Plotly theme — mirror of styles.chart_style() so React charts match the
-// Streamlit ones exactly. Apply by merging applyChartTheme(title) into a figure's
-// layout, and using CHART_COLORS as the colorway.
+// Dark Plotly theme — the single chart look for the whole app. Apply by merging
+// applyChartTheme(title) into a figure's layout, and using CHART_COLORS as the
+// colorway. Kept in step with core/viz_telegram.py so a chart looks the same in
+// the browser and in Telegram.
 
 import type { Layout } from "plotly.js";
 import { BORDER, CHART_COLORS, TEXT_MUTED, TEXT_PRIMARY } from "./tokens";

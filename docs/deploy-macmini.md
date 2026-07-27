@@ -19,7 +19,7 @@ Only **one** local port (the BFF, `127.0.0.1:3000`) is fronted. Everything else 
 on localhost. The tunnel makes an **outbound** connection to Cloudflare, so there is
 nothing to forward and no inbound firewall rule to add.
 
-`serve.sh` builds the SPA and starts the whole backend + BFF in one command.
+`./run.sh prod` builds the SPA and starts the whole backend + BFF in one command.
 
 ---
 
@@ -32,7 +32,7 @@ nothing to forward and no inbound firewall rule to add.
   public deployment also set:
   - `AUTH_SECRET=<random string>` — signs the login Bearer tokens **and** the PIN-gate
     cookie. **Set this** (`openssl rand -hex 32`) so they don't use the dev default.
-  - `ADMIN_EMAIL=kit.aiss2026@gmail.com` — the account with full Settings + the email
+  - `ADMIN_EMAIL=you@example.com` — the account with full Settings + the email
     sender (this is the default; override if needed).
 - **Login is email + OTP.** There are no preset accounts. A visitor enters their email,
   receives a 6-digit code (emailed from the admin Gmail), and enters it; the first time
@@ -40,7 +40,7 @@ nothing to forward and no inbound firewall rule to add.
   is open to everyone for connecting their own **Strava / Garmin / Google Calendar**; the
   rest (LLM keys, Telegram, restart, the email Google token) is **admin-only** (`ADMIN_EMAIL`).
 - **Connect the admin email sender once, on the mini** (powers OTP login email). Run the
-  CLI signed in as **kit.aiss2026@gmail.com**:
+  CLI signed in as the **`ADMIN_EMAIL`** account:
   ```bash
   python auth/google_oauth.py        # writes .tokens/google_mail.json (gmail.send)
   ```
@@ -67,17 +67,17 @@ nothing to forward and no inbound firewall rule to add.
 
 ```bash
 cd /path/to/AISS2_Team6
-./serve.sh                       # builds web/dist, starts everything, BFF on 127.0.0.1:3000
+./run.sh prod                    # builds web/dist, starts everything, BFF on 127.0.0.1:3000
 ```
 
 Verify locally on the mini: open `http://localhost:3000`, log in with a name
 (Marvin/Max/Lorenz/Aaron/Simon), ask a question.
 
 Useful flags:
-- `SKIP_BUILD=1 ./serve.sh` — reuse an existing `web/dist` (fast restarts).
-- `HOST=0.0.0.0 ./serve.sh` — also reachable directly on the LAN at
+- `SKIP_BUILD=1 ./run.sh prod` — reuse an existing `web/dist` (fast restarts).
+- `HOST=0.0.0.0 ./run.sh prod` — also reachable directly on the LAN at
   `http://<mac-ip>:3000` (only do this on a trusted network).
-- `DO_LOCK=true APP_PIN='a-long-passphrase' AUTH_SECRET=<random> ./serve.sh` — enable the
+- `DO_LOCK=true APP_PIN='a-long-passphrase' ./run.sh prod` — enable the
   shared PIN gate in front of the whole app (see Security). Use a long passphrase, not a
   4-digit PIN, and set `AUTH_SECRET` so sessions survive restarts.
 
@@ -104,11 +104,11 @@ One-time admin-console setup (https://login.tailscale.com/admin):
 
 Then publish the BFF — either as part of the launcher or standalone:
 ```bash
-FUNNEL=1 ./serve.sh      # serve.sh starts the app AND the Funnel in one go
+FUNNEL=1 ./run.sh prod   # starts the app AND the Funnel in one go
 # …or, if the app is already running:
 tailscale funnel 3000
 ```
-With `FUNNEL=1`, `serve.sh` runs `tailscale funnel --bg 3000` for you (and tears it
+With `FUNNEL=1`, `run.sh` runs `tailscale funnel --bg 3000` for you (and tears it
 down on Ctrl-C). It **pre-provisions** the HTTPS cert, **verifies** the public URL
 serves a trusted cert (a real `curl` handshake), and prints your public URL — a
 **stable** hostname like `https://macmini.<your-tailnet>.ts.net` that does **not**
@@ -152,17 +152,17 @@ sudo pmset -a sleep 0 disksleep 0      # never sleep the machine/disk
 ```
 
 **Autostart on boot/crash** via the included launchd job:
-1. Build once: `./serve.sh` (or `SKIP_BUILD=0` once) so `web/dist` exists.
-2. Edit `deploy/com.fitdash.serve.plist`, replacing:
+1. Build once: `./run.sh prod` so `web/dist` exists.
+2. Edit `deploy/com.trainingcopilot.serve.plist`, replacing:
    - `__REPO__` → absolute repo path (e.g. `/Users/you/.../AISS2_Team6`)
    - `__PY__` → your conda python (e.g. `/opt/miniconda3/envs/aiss/bin/python3`)
    - `__CONDA_BIN__` → its directory (e.g. `/opt/miniconda3/envs/aiss/bin`)
 3. Install it:
    ```bash
-   cp deploy/com.fitdash.serve.plist ~/Library/LaunchAgents/
-   launchctl load -w ~/Library/LaunchAgents/com.fitdash.serve.plist
+   cp deploy/com.trainingcopilot.serve.plist ~/Library/LaunchAgents/
+   launchctl load -w ~/Library/LaunchAgents/com.trainingcopilot.serve.plist
    ```
-   Logs: `/tmp/fitdash.serve.out` / `.err`. Stop: `launchctl unload -w ~/Library/LaunchAgents/com.fitdash.serve.plist`.
+   Logs: `/tmp/training-copilot.serve.out` / `.err`. Stop: `launchctl unload -w ~/Library/LaunchAgents/com.trainingcopilot.serve.plist`.
 
 Run the tunnel as a service too so the public URL survives reboots:
 `sudo tailscale funnel --bg 3000` (Tailscale), or `sudo cloudflared service install`
@@ -179,9 +179,9 @@ limits who can even reach the login screen). The gate is hardened and safe to ex
 
 **Turn it on** (the only secure way to run a public URL):
 ```bash
-DO_LOCK=true APP_PIN='choose-a-long-passphrase' AUTH_SECRET="$(openssl rand -hex 32)" ./serve.sh
+DO_LOCK=true APP_PIN='choose-a-long-passphrase' AUTH_SECRET="$(openssl rand -hex 32)" ./run.sh prod
 ```
-(or set those three in `deploy/com.fitdash.serve.plist` for the autostart service).
+(or set those three in `deploy/com.trainingcopilot.serve.plist` for the autostart service).
 
 What the gate does:
 - A visitor must enter the PIN before the SPA loads any data or `/api` responds. After
@@ -200,12 +200,12 @@ Other notes:
 - **Even stronger: keep it private.** If only your teammates need it, skip Funnel and use
   plain Tailscale — no public login surface at all. The PIN gate is for when you genuinely
   want a public URL.
-- Don't expose MLflow (`:5001`), FastAPI (`:8000`), or the agent/MCP ports — `serve.sh`
+- Don't expose MLflow (`:5001`), FastAPI (`:8000`), or the agent/MCP ports — `run.sh prod`
   keeps them on localhost; only the BFF is fronted.
 
 ## Troubleshooting
 
-- **Blank page / "SPA not built":** run `./serve.sh` without `SKIP_BUILD`, or
+- **Blank page / "SPA not built":** run `./run.sh prod` without `SKIP_BUILD`, or
   `cd web && npm run build`.
 - **Chat hangs:** the orchestrator (`:9000`) or a specialist isn't up — check
   `/tmp/agent_*.log`. The BFF proxies SSE with no timeout, so a hang is upstream.

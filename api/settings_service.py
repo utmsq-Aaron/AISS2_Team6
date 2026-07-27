@@ -1,8 +1,8 @@
-"""Settings backend — Streamlit-free port of ui/settings.py's flows.
+"""Settings backend — the connection and configuration flows behind the Settings page.
 
 Handles the stateful interactive flows (Strava/Google OAuth via a local callback
 server, Garmin credential login with MFA over a background thread, Telegram phone
-login, the agent bridge, and MCP-server restart). State that outlived a Streamlit
+login, the agent bridge, and MCP-server restart). State that outlived a
 rerun (module-level dicts) is preserved here as module-level state.
 """
 

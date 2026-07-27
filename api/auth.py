@@ -10,7 +10,7 @@ admin may open Settings).
 Tokens are HMAC-signed ``payload.signature`` over ``{email, exp}`` (key =
 ``AUTH_SECRET``), so there's no server-side session table and they expire on their
 own. OTPs live in memory with an expiry plus attempt/resend rate limits. The admin
-is ``ADMIN_EMAIL`` (default ``kit.aiss2026@gmail.com``).
+is whoever ``ADMIN_EMAIL`` names; unset means nobody is admin.
 """
 
 from __future__ import annotations
@@ -55,11 +55,15 @@ _acct_lock = threading.Lock()
 # ── config ────────────────────────────────────────────────────────────────────
 
 def admin_email() -> str:
-    return os.getenv("ADMIN_EMAIL", "kit.aiss2026@gmail.com").strip().lower()
+    """The one account with full Settings access. Deployment config, no default —
+    an unset ADMIN_EMAIL means *nobody* is admin (fail closed), never a leftover
+    address from whoever last deployed this."""
+    return os.getenv("ADMIN_EMAIL", "").strip().lower()
 
 
 def is_admin(email: str) -> bool:
-    return (email or "").strip().lower() == admin_email()
+    admin = admin_email()
+    return bool(admin) and (email or "").strip().lower() == admin
 
 
 def normalize_email(raw: str) -> str | None:
@@ -108,7 +112,7 @@ def _secret() -> bytes:
 # Warn once at import time if AUTH_SECRET is unset: the token secret then falls
 # back to a hardcoded dev string, so anyone who knows it can FORGE tokens (incl.
 # admin ones). This mirrors the Node BFF's PIN-secret warning (server/index.js).
-# We warn rather than refuse to start so ./dev_stack.sh stays friction-free —
+# We warn rather than refuse to start so ./run.sh stays friction-free —
 # AUTH_SECRET MUST be set in any real/production deployment (residual risk (e)).
 if "AUTH_SECRET" not in os.environ:
     warnings.warn(

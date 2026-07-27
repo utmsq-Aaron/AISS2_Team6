@@ -21,7 +21,7 @@ an automated "please /login" reply.
 
 This runs as a **userbot**: it logs in as *your* Telegram account and replies
 *as you* to whoever messages you. It is a long-running process, separate from
-Streamlit and from the MCP servers.
+the web frontend and from the MCP servers.
 
 Run (after the MCP servers are up, inside the app's Python env):
 
@@ -300,9 +300,9 @@ async def _send_flythrough(event, action: Dict) -> None:
         return
 
     try:
-        from ui.video_renderer import render_flythrough
+        from core.video_renderer import render_flythrough
     except ImportError:
-        log.warning("ui.video_renderer not available (playwright not installed) — skipping flythrough")
+        log.warning("core.video_renderer not available (playwright not installed) — skipping flythrough")
         return
 
     await _send_text(
@@ -403,7 +403,7 @@ def _chart_caption(bare_tool: str, result_json: str) -> str:
 async def _send_viz_charts(event, trace: Dict) -> int:
     """Render chart images for tool results and send them as Telegram photos.
 
-    Uses core.viz_telegram (matplotlib, headless, no Streamlit). Each renderable
+    Uses core.viz_telegram (matplotlib, headless). Each renderable
     tool result becomes one photo message. Returns the number of charts sent.
     """
     loop = asyncio.get_running_loop()
@@ -454,103 +454,30 @@ async def _send_viz_charts(event, trace: Dict) -> int:
 
 
 async def _send_plotly_charts(event, trace: Dict) -> int:
-    """Generate LLM Plotly charts (identical to the chat UI) and send as PNG photos.
+    """Render this turn's charts and send them as PNG photos.
 
-    Uses the same _generate_code / _fix_code / _try_execute pipeline from
-    ui.chart_gen, but provides the client from core.llm so that @st.cache_resource
-    (in ui.shared.get_openai_client) is never touched from this headless context.
-    Requires kaleido for fig.to_image() PNG export (pip install kaleido).
+    Delegates to ``api.chart_service.build_figures`` — the SAME pipeline the web
+    app uses, so a chart looks identical in Telegram and in the browser. Only the
+    rendering differs: the browser gets figure JSON, here kaleido exports a PNG
+    (``fig.to_image``), which is why kaleido is a hard requirement for this path.
+
+    The pipeline makes synchronous LLM calls, so it runs in a worker thread.
     """
     loop = asyncio.get_running_loop()
-
-    try:
-        from ui.chart_gen import (
-            _generate_code, _fix_code, _try_execute, _extract_code,
-            _compact, _STRAVA_DOMAIN_HINT, _SKIP_TOOLS,
-        )
-        import plotly.graph_objects as _go  # just to verify plotly import
-        del _go
-    except ImportError as _e:
-        log.debug("plotly chart delivery skipped: %s", _e)
-        return 0
-
-    import json as _json
-
-    run_id   = trace.get("run_id", "")
+    run_id = trace.get("run_id", "")
     question = trace.get("question") or trace.get("user_input", "")
-    answer   = trace.get("answer", "")
-    hints    = trace.get("chart_hints") or []
 
-    # No explicit <!--charts:--> request from the agent layer → no charts
-    # (same gating as the web chart service).
-    if not question or not hints:
-        return 0
-
-    # Build data_vars — same logic as chart_gen.generate_and_render
-    data_vars: Dict = {}
-    var_lines: List[str] = []
-    seen_vars: set = set()
-    for tc in (trace.get("tool_calls") or []):
-        if tc.get("error"):
-            continue
-        bare = tc["tool"].split("__", 1)[-1] if "__" in tc["tool"] else tc["tool"]
-        if bare in _SKIP_TOOLS:
-            continue
-        try:
-            data = _json.loads(tc["result"]) if isinstance(tc["result"], str) else tc["result"]
-        except Exception:
-            continue
-        if not data or (isinstance(data, dict) and data.get("error")):
-            continue
-        var_name = f"data_{bare}"
-        if var_name in seen_vars:
-            var_lines = [ln for ln in var_lines if not ln.startswith(f"{var_name} =")]
-        seen_vars.add(var_name)
-        data_vars[var_name] = data
-        var_lines.append(f"{var_name} = {_compact(data)}")
-
-    if not data_vars:
-        return 0
-
-    # Use core.llm — safe for headless use (no st.cache_resource)
-    from core.llm import get_llm_client
-    llm_client, model_name = get_llm_client()
-
-    # Generate code (run in thread — synchronous network call)
     try:
-        raw = await loop.run_in_executor(
-            None,
-            lambda: _generate_code(
-                question, answer, var_lines, chart_hints=hints,
-                _client=llm_client, _model=model_name,
-            ),
-        )
+        from api.chart_service import build_figures
+    except ImportError as exc:          # plotly/pandas missing → charts are optional
+        log.debug("plotly chart delivery skipped: %s", exc)
+        return 0
+
+    try:
+        figures = await loop.run_in_executor(None, lambda: build_figures(trace))
     except Exception:
-        log.exception("plotly chart code generation failed (run=%s)", run_id)
+        log.exception("chart generation failed (run=%s)", run_id)
         return 0
-
-    if not raw:
-        return 0
-
-    code = _extract_code(raw)
-    if not code:
-        return 0
-
-    # Execute; one reflexion fix attempt on error
-    figures, error = _try_execute(code, data_vars)
-    if error and not figures:
-        try:
-            fixed = await loop.run_in_executor(
-                None,
-                lambda: _fix_code(
-                    code, error, list(data_vars.keys()),
-                    _client=llm_client, _model=model_name,
-                ),
-            )
-            if fixed:
-                figures, _ = _try_execute(fixed, data_vars)
-        except Exception:
-            pass
 
     if not figures:
         return 0

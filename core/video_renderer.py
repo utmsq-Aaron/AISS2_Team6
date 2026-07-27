@@ -57,7 +57,7 @@ async def render_flythrough_async(
     )
     t0 = time.time()
 
-    from ui.flythrough_3d import _build_html
+    from core.flythrough_html import build_flythrough_html as _build_html
 
     html = _build_html(
         track, name,
@@ -184,7 +184,7 @@ def render_flythrough(
 ) -> bytes:
     """Synchronous wrapper — safe to call from any thread or coroutine.
 
-    From a plain thread (Streamlit, Telegram handler):
+    From a plain thread (e.g. the Telegram handler):
         video = render_flythrough(track, name, ...)
 
     From an async context (aiogram, FastAPI):

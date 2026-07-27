@@ -49,9 +49,8 @@ export const C_SLEEP_LIGHT = C_BLUE_LIGHT;
 export const C_SLEEP_AWAKE = "#ED79D5";
 
 // ── Map / route group ───────────────────────────────────────────────────────────
-// Mirrors core/route_render.py and the legacy folium renderings (ui/chat.py,
-// ui/activity_analysis.py) so the web map, the Telegram static map and the legacy
-// Streamlit surfaces stay in visual parity.
+// Mirrors core/route_render.py so the web map and the Telegram static map stay
+// in visual parity — the same route rendered in either place looks identical.
 export const ISO_BLUE = "#1E96FF"; // isochrone fill / route accent
 export const ISO_BLUE_DARK = "#0050AA"; // isochrone outline
 export const MAP_START = "#2ECC71"; // start marker (folium green)

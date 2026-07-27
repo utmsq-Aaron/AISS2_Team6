@@ -1,6 +1,6 @@
 """Trace assembly + result-compaction helpers shared by the agent layer.
 
-The UI (Streamlit debug panel + React ``AgentTrace``/``RouteResult``) and the
+The UI (React ``AgentTrace``/``RouteResult``) and the
 chart service consume a specific ``trace`` dict shape. In the multi-agent build
 each specialist returns its raw MCP ``tool_calls`` as an A2A DataPart artifact;
 the orchestrator aggregates those artifacts and calls :func:`build_trace` here to
@@ -317,7 +317,7 @@ def build_trace(
     ``specialist_artifacts`` is a list of dicts shaped
     ``{"agent": str, "duration_ms": int, "tool_calls": [{tool, args, label,
     result(JSON str), duration_ms, error}, ...]}`` — exactly what each specialist
-    attaches. The returned trace matches what ``ui/chat.py``, the React
+    attaches. The returned trace matches what the React
     ``AgentTrace``/``RouteResult`` components, and ``api/chart_service.py`` expect.
     """
     results: List[Dict[str, Any]] = []

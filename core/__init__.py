@@ -1,4 +1,4 @@
-"""FitDash core — vendor-neutral, Streamlit-free agent runtime.
+"""Training Copilot core — vendor-neutral, UI-framework-free agent runtime.
 
 Layers:
   - core.config : declarative registry of MCP server connections

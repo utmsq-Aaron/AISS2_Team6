@@ -1,6 +1,6 @@
-"""Render route-tool results to a static PNG — no browser, no Streamlit.
+"""Render route-tool results to a static PNG — no browser needed.
 
-The Chat tab draws route results as *interactive* folium maps (ui/chat.py
+The web chat draws route results as *interactive* maps (web/src/components/RouteMap.tsx
 ``_render_route_map``). That needs a browser, so it can't be sent over Telegram.
 This module produces a flat PNG of the same geometry via the ``staticmap``
 package (OSM tiles + Pillow) so the Telegram bridge can ship a route as a photo.
@@ -16,7 +16,7 @@ from __future__ import annotations
 import io
 from typing import Dict, List, Optional, Tuple
 
-# Keep colours in sync with ui/chat.py so web and Telegram look alike.
+# Keep colours in sync with web/src/theme/tokens.ts so web and Telegram look alike.
 _LINE = "#FF6400"
 _START = "#16A34A"   # green
 _END = "#EF4444"     # red

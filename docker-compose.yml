@@ -1,148 +1,277 @@
-# One-host deployment of the FitDash MCP servers.
+# ==============================================================================
+# Training Copilot — the complete stack in containers.
 #
-# Each own server runs as its own standalone FastMCP service (Streamable HTTP) —
-# exactly the "everything as independent, distributable MCP services" model. Today
-# they all live on one host; moving any of them to another machine later is just a
-# changed *_MCP_URL in the app's config — no code change.
+#   ./docker-up.sh up --build            start everything  → http://localhost:3000
+#   ./docker-up.sh down                  stop everything
+#   ./docker-up.sh logs -f coach-agent   tail one service
 #
-# The app (ToolHost) runs on the host and reaches the servers via the published
-# localhost ports below (Host header 127.0.0.1 → passes FastMCP's DNS-rebinding
-# protection without any server-side change). To run the app *inside* compose too,
-# point *_MCP_URL at the service names and widen each server's allowed_hosts.
+# ALWAYS launch through ./docker-up.sh, never `docker compose` directly: the
+# ports below are ${VAR:-default} placeholders, and that wrapper regenerates them
+# from core/config.py (the single source of truth) before handing off. Compose
+# resolves ${VAR} at parse time and cannot execute Python, so without the wrapper
+# you silently get the hardcoded defaults instead of the current registry.
 #
-# Ports below are ${VAR:-default} — the defaults match core/config.py (the single
-# source of truth for every port), and the ${VAR} lets docker-up.sh (which
-# regenerates them from core/config.py via scripts/export_ports.py on every run)
-# override them without editing this file. Always launch via ./docker-up.sh, not
-# `docker compose` directly, so those variables are actually populated — see that
-# script's header for why (Compose can't run Python at parse time).
+# Layout — every process is its own service, exactly as it is on the host:
+#   mlflow                  :5001   tracing UI
+#   *-mcp             :8101–:8109   the nine MCP servers (one process each)
+#   *-agent           :9000–:9006   orchestrator + six specialists
+#   api                     :8000   FastAPI seam (internal only)
+#   web                     :3000   Node BFF — serves the SPA, proxies /api
+#   bridge                     —    Telegram bridge + the proactive scheduler
 #
-#   ./docker-up.sh up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp
+# Only `web` is meant to be reachable from outside. The rest publish ports for
+# convenience while developing; drop their `ports:` lines to close them off.
+#
+# Inside the network services address each other by NAME (recovery-agent, …),
+# which is why every service binds 0.0.0.0 and every *_MCP_URL / *_A2A_URL is
+# overridden here. On the host the same config resolves to 127.0.0.1 — that is
+# exactly what the URL-based registry in core/config.py is for.
+#
+# Prerequisites: a filled-in .env, and the OAuth tokens in .tokens/ (run
+# `./run.sh setup` on the host once — the containers mount that directory).
+# ==============================================================================
+
+# ── Anchors: every Python service shares one image and one set of mounts ──────
+x-py: &py
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  env_file: .env
+  volumes:
+    # Credentials and per-deployment state must OUTLIVE the containers.
+    - ./.tokens:/app/.tokens     # Strava / Garmin / Google OAuth tokens
+    - ./data:/app/data           # user memory, chats, goals, schedules, mlflow.db
+    - ./.cache:/app/.cache       # Strava activity cache
+    - ./.logs:/app/.logs         # agent interaction log
+    - ./.secrets:/app/.secrets   # stable AUTH_SECRET
+
+# Where every agent finds the MCP servers — by service name, not localhost.
+x-mcp-urls: &mcp-urls
+  WEATHER_MCP_URL:     "http://weather-mcp:${WEATHER_MCP_PORT:-8101}/mcp"
+  ROUTES_MCP_URL:      "http://routes-mcp:${ROUTES_MCP_PORT:-8102}/mcp"
+  STRAVA_MCP_URL:      "http://strava-mcp:${STRAVA_MCP_PORT:-8103}/mcp"
+  GARMIN_MCP_URL:      "http://garmin-mcp:${GARMIN_MCP_PORT:-8104}/mcp"
+  CALENDAR_MCP_URL:    "http://calendar-mcp:${CALENDAR_MCP_PORT:-8105}/mcp"
+  FLYTHROUGH_MCP_URL:  "http://flythrough-mcp:${FLYTHROUGH_MCP_PORT:-8107}/mcp"
+  GOOGLE_MAPS_MCP_URL: "http://google-maps-mcp:${GOOGLE_MAPS_MCP_PORT:-8108}/mcp"
+  ATHLETE_MCP_URL:     "http://athlete-mcp:${ATHLETE_MCP_PORT:-8109}/mcp"
+
+# Where the orchestrator finds the specialists, and they find each other.
+x-a2a-urls: &a2a-urls
+  ORCHESTRATOR_A2A_URL: "http://orchestrator-agent:${ORCHESTRATOR_A2A_PORT:-9000}/"
+  RECOVERY_A2A_URL:     "http://recovery-agent:${RECOVERY_A2A_PORT:-9001}/"
+  LOAD_A2A_URL:         "http://load-agent:${LOAD_A2A_PORT:-9002}/"
+  CONTEXT_A2A_URL:      "http://context-agent:${CONTEXT_A2A_PORT:-9003}/"
+  ROUTE_A2A_URL:        "http://route-agent:${ROUTE_A2A_PORT:-9004}/"
+  FITNESS_A2A_URL:      "http://fitness-agent:${FITNESS_A2A_PORT:-9005}/"
+  COACH_A2A_URL:        "http://coach-agent:${COACH_A2A_PORT:-9006}/"
+
+x-tracing: &tracing
+  MLFLOW_TRACKING_URI: "http://mlflow:5001"
 
 services:
+
+  # ── Tracing ─────────────────────────────────────────────────────────────────
+  # Store lives under data/ so it survives `down` like every other stateful bit.
+  mlflow:
+    <<: *py
+    command: >
+      sh -c "python -m mlflow server --host 0.0.0.0 --port 5001
+             --backend-store-uri sqlite:////app/data/mlflow.db"
+    ports: ["5001:5001"]
+
+  # ── MCP servers (SERVER picks the module out of the shared image) ───────────
   weather-mcp:
-    build: .
+    <<: *py
     environment:
       SERVER: servers.weather_mcp
       WEATHER_MCP_HOST: 0.0.0.0
       WEATHER_MCP_PORT: "${WEATHER_MCP_PORT:-8101}"
     ports: ["${WEATHER_MCP_PORT:-8101}:${WEATHER_MCP_PORT:-8101}"]
-    restart: unless-stopped
 
   routes-mcp:
-    build: .
-    env_file: .env            # ORS_API_KEY
+    <<: *py
     environment:
       SERVER: servers.routes_mcp
       ROUTES_MCP_HOST: 0.0.0.0
       ROUTES_MCP_PORT: "${ROUTES_MCP_PORT:-8102}"
     ports: ["${ROUTES_MCP_PORT:-8102}:${ROUTES_MCP_PORT:-8102}"]
-    restart: unless-stopped
-
-  calendar-mcp:
-    build: .
-    env_file: .env            # GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET (read-only)
-    environment:
-      SERVER: servers.calendar_mcp
-      CALENDAR_MCP_HOST: 0.0.0.0
-      CALENDAR_MCP_PORT: "${CALENDAR_MCP_PORT:-8105}"
-    ports: ["${CALENDAR_MCP_PORT:-8105}:${CALENDAR_MCP_PORT:-8105}"]
-    restart: unless-stopped
 
   strava-mcp:
-    build: .
-    env_file: .env            # CLIENT_ID / CLIENT_SECRET + .tokens/strava.json
+    <<: *py
     environment:
       SERVER: servers.strava_mcp
       STRAVA_MCP_HOST: 0.0.0.0
       STRAVA_MCP_PORT: "${STRAVA_MCP_PORT:-8103}"
     ports: ["${STRAVA_MCP_PORT:-8103}:${STRAVA_MCP_PORT:-8103}"]
-    restart: unless-stopped
 
   garmin-mcp:
-    build: .
-    env_file: .env
+    <<: *py
     environment:
       SERVER: servers.garmin_mcp
       GARMIN_MCP_HOST: 0.0.0.0
       GARMIN_MCP_PORT: "${GARMIN_MCP_PORT:-8104}"
     ports: ["${GARMIN_MCP_PORT:-8104}:${GARMIN_MCP_PORT:-8104}"]
-    restart: unless-stopped
 
-  # ── A2A agent layer (LangGraph specialists + orchestrator) ──────────────────
-  # Each agent reuses the same image but overrides the command (it runs an agent
-  # module, not servers.*_mcp). Inside the compose network agents reach each other
-  # and the MCP servers by service name; the host app reaches the orchestrator via
-  # the published :9000. Each agent needs the LLM env (OPENAI_* / AGENT_MODEL /
-  # AGENT_LLM_MODEL) supplied through .env.
+  calendar-mcp:
+    <<: *py
+    environment:
+      SERVER: servers.calendar_mcp
+      CALENDAR_MCP_HOST: 0.0.0.0
+      CALENDAR_MCP_PORT: "${CALENDAR_MCP_PORT:-8105}"
+    ports: ["${CALENDAR_MCP_PORT:-8105}:${CALENDAR_MCP_PORT:-8105}"]
+
+  flythrough-mcp:
+    <<: *py
+    environment:
+      SERVER: servers.flythrough_mcp
+      FLYTHROUGH_MCP_HOST: 0.0.0.0
+      FLYTHROUGH_MCP_PORT: "${FLYTHROUGH_MCP_PORT:-8107}"
+    ports: ["${FLYTHROUGH_MCP_PORT:-8107}:${FLYTHROUGH_MCP_PORT:-8107}"]
+
+  google-maps-mcp:
+    <<: *py
+    environment:
+      SERVER: servers.google_maps_mcp
+      GOOGLE_MAPS_MCP_HOST: 0.0.0.0
+      GOOGLE_MAPS_MCP_PORT: "${GOOGLE_MAPS_MCP_PORT:-8108}"
+    ports: ["${GOOGLE_MAPS_MCP_PORT:-8108}:${GOOGLE_MAPS_MCP_PORT:-8108}"]
+
+  athlete-mcp:
+    <<: *py
+    environment:
+      SERVER: servers.athlete_mcp
+      ATHLETE_MCP_HOST: 0.0.0.0
+      ATHLETE_MCP_PORT: "${ATHLETE_MCP_PORT:-8109}"
+    ports: ["${ATHLETE_MCP_PORT:-8109}:${ATHLETE_MCP_PORT:-8109}"]
+
+  # ── Fitness RAG index ───────────────────────────────────────────────────────
+  # A one-shot job, not a server: it embeds the committed corpus into the vector
+  # index the fitness agent reads, then exits. `--if-missing` makes it a no-op on
+  # every later start, so `service_completed_successfully` only really waits once
+  # (the first run downloads a ~90 MB embedding model — expect a few minutes).
+  fitness-index:
+    <<: *py
+    restart: "no"
+    command: ["python", "-m", "scripts.build_fitness_index", "--if-missing"]
+
+  # ── Agents ──────────────────────────────────────────────────────────────────
   recovery-agent:
-    build: .
-    env_file: .env
+    <<: *py
     command: ["python", "-m", "agents.recovery_agent"]
     environment:
+      <<: [*mcp-urls, *a2a-urls, *tracing]
       A2A_BIND_HOST: 0.0.0.0
-      RECOVERY_A2A_URL: "http://recovery-agent:${RECOVERY_A2A_PORT:-9001}/"
-      GARMIN_MCP_URL: "http://garmin-mcp:${GARMIN_MCP_PORT:-8104}/mcp"
     ports: ["${RECOVERY_A2A_PORT:-9001}:${RECOVERY_A2A_PORT:-9001}"]
     depends_on: [garmin-mcp]
-    restart: unless-stopped
 
   load-agent:
-    build: .
-    env_file: .env
+    <<: *py
     command: ["python", "-m", "agents.load_agent"]
     environment:
+      <<: [*mcp-urls, *a2a-urls, *tracing]
       A2A_BIND_HOST: 0.0.0.0
-      LOAD_A2A_URL: "http://load-agent:${LOAD_A2A_PORT:-9002}/"
-      STRAVA_MCP_URL: "http://strava-mcp:${STRAVA_MCP_PORT:-8103}/mcp"
-      GARMIN_MCP_URL: "http://garmin-mcp:${GARMIN_MCP_PORT:-8104}/mcp"
     ports: ["${LOAD_A2A_PORT:-9002}:${LOAD_A2A_PORT:-9002}"]
-    depends_on: [strava-mcp, garmin-mcp]
-    restart: unless-stopped
+    depends_on: [strava-mcp, garmin-mcp, flythrough-mcp]
 
   context-agent:
-    build: .
-    env_file: .env
+    <<: *py
     command: ["python", "-m", "agents.context_agent"]
     environment:
+      <<: [*mcp-urls, *a2a-urls, *tracing]
       A2A_BIND_HOST: 0.0.0.0
-      CONTEXT_A2A_URL: "http://context-agent:${CONTEXT_A2A_PORT:-9003}/"
-      WEATHER_MCP_URL: "http://weather-mcp:${WEATHER_MCP_PORT:-8101}/mcp"
-      CALENDAR_MCP_URL: "http://calendar-mcp:${CALENDAR_MCP_PORT:-8105}/mcp"
     ports: ["${CONTEXT_A2A_PORT:-9003}:${CONTEXT_A2A_PORT:-9003}"]
     depends_on: [weather-mcp, calendar-mcp]
-    restart: unless-stopped
 
   route-agent:
-    build: .
-    env_file: .env
+    <<: *py
     command: ["python", "-m", "agents.route_agent"]
     environment:
+      <<: [*mcp-urls, *a2a-urls, *tracing]
       A2A_BIND_HOST: 0.0.0.0
-      ROUTE_A2A_URL: "http://route-agent:${ROUTE_A2A_PORT:-9004}/"
-      ROUTES_MCP_URL: "http://routes-mcp:${ROUTES_MCP_PORT:-8102}/mcp"
     ports: ["${ROUTE_A2A_PORT:-9004}:${ROUTE_A2A_PORT:-9004}"]
-    depends_on: [routes-mcp]
-    restart: unless-stopped
+    depends_on: [routes-mcp, google-maps-mcp]
 
+  # The one specialist with no MCP scope — it answers from the local vector
+  # index, so it waits on the index job rather than on a server.
+  fitness-agent:
+    <<: *py
+    command: ["python", "-m", "agents.fitness_agent"]
+    environment:
+      <<: [*a2a-urls, *tracing]
+      A2A_BIND_HOST: 0.0.0.0
+    ports: ["${FITNESS_A2A_PORT:-9005}:${FITNESS_A2A_PORT:-9005}"]
+    depends_on:
+      fitness-index:
+        condition: service_completed_successfully
+
+  coach-agent:
+    <<: *py
+    command: ["python", "-m", "agents.coach_agent"]
+    environment:
+      <<: [*mcp-urls, *a2a-urls, *tracing]
+      A2A_BIND_HOST: 0.0.0.0
+    ports: ["${COACH_A2A_PORT:-9006}:${COACH_A2A_PORT:-9006}"]
+    depends_on:
+      athlete-mcp:   {condition: service_started}
+      strava-mcp:    {condition: service_started}
+      garmin-mcp:    {condition: service_started}
+      fitness-index: {condition: service_completed_successfully}
+
+  # No MCP scope at all — it only talks to the six specialists over A2A.
   orchestrator-agent:
-    build: .
-    env_file: .env            # OPENAI_* / AGENT_MODEL / AGENT_LLM_MODEL
+    <<: *py
     command: ["python", "-m", "core.orchestrator_agent"]
     environment:
+      <<: [*a2a-urls, *tracing]
       A2A_BIND_HOST: 0.0.0.0
-      ORCHESTRATOR_A2A_URL: "http://orchestrator-agent:${ORCHESTRATOR_A2A_PORT:-9000}/"
-      RECOVERY_A2A_URL: "http://recovery-agent:${RECOVERY_A2A_PORT:-9001}/"
-      LOAD_A2A_URL: "http://load-agent:${LOAD_A2A_PORT:-9002}/"
-      CONTEXT_A2A_URL: "http://context-agent:${CONTEXT_A2A_PORT:-9003}/"
-      ROUTE_A2A_URL: "http://route-agent:${ROUTE_A2A_PORT:-9004}/"
     ports: ["${ORCHESTRATOR_A2A_PORT:-9000}:${ORCHESTRATOR_A2A_PORT:-9000}"]
-    depends_on: [recovery-agent, load-agent, context-agent, route-agent]
-    restart: unless-stopped
+    depends_on:
+      [recovery-agent, load-agent, context-agent, route-agent, fitness-agent, coach-agent]
 
-  # telegram-mcp is NOT a native FastMCP server: servers/telegram_mcp.py is a proxy
-  # that shells out to `uv run` against the external github.com/chigwell/telegram-mcp
-  # checkout. That needs `uv` + the cloned repo, which the shared python:3.11-slim
-  # image above does not provide — so run it on the HOST instead:
-  #     TELEGRAM_MCP_HOST=0.0.0.0 python -m servers.telegram_mcp   # :8106
-  # (or build a dedicated image that installs uv and clones external/telegram-mcp).
+  # ── API + web ───────────────────────────────────────────────────────────────
+  # Internal only: `expose` (not `ports`) — the BFF is the single front door.
+  api:
+    <<: *py
+    command: >
+      sh -c "python -m uvicorn api.main:app --host 0.0.0.0 --port ${FASTAPI_PORT:-8000}"
+    environment:
+      <<: [*mcp-urls, *a2a-urls, *tracing]
+    expose: ["${FASTAPI_PORT:-8000}"]
+    depends_on: [orchestrator-agent]
+
+  # The only service meant to be reachable from outside. Serves the built SPA and
+  # proxies /api to the api container. Set DO_LOCK=true + APP_PIN in .env to put
+  # the shared passphrase gate in front of it before exposing it anywhere.
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    restart: unless-stopped
+    environment:
+      API_TARGET: "http://api:${FASTAPI_PORT:-8000}"
+      HOST: 0.0.0.0
+      PORT: "3000"
+      DO_LOCK: "${DO_LOCK:-false}"
+      APP_PIN: "${APP_PIN:-}"
+      AUTH_SECRET: "${AUTH_SECRET:-}"
+    ports: ["${WEB_PORT:-3000}:3000"]
+    depends_on: [api]
+
+  # ── Telegram bridge + the proactive scheduler ───────────────────────────────
+  # Also the durable home of the coach's self-scheduled check-ins: without this
+  # service the coach never reaches out on its own. It degrades to a headless
+  # scheduler when Telegram isn't configured, so it is always worth running.
+  bridge:
+    <<: *py
+    command: ["python", "telegram_bridge.py"]
+    environment:
+      <<: [*mcp-urls, *a2a-urls, *tracing]
+    depends_on: [orchestrator-agent]
+
+  # NOTE — telegram-mcp (:8106) is deliberately absent. servers/telegram_mcp.py is
+  # a proxy that shells out to `uv run` against the vendored external/telegram-mcp
+  # checkout, which pins Python 3.13 and needs `uv` — neither is in the shared
+  # image. Run it on the host if you want the agent to have Telegram tools:
+  #     TELEGRAM_MCP_HOST=0.0.0.0 python -m servers.telegram_mcp

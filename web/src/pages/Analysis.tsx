@@ -23,7 +23,6 @@ import { callTool } from "../lib/api";
 import {
   PERIOD_DAYS,
   dayStr,
-  sportOf,
   type AthleteResult,
   type ActivitiesResult as StravaActivitiesResult,
   type Period,
@@ -919,7 +918,6 @@ function ComparisonSection({ refreshVersion }: { refreshVersion: number }) {
 // ════════════════════════════════════════════════════════════════════════════════
 
 export function Analysis() {
-  const sportFilter = useUiStore((s) => s.sportFilter);
   const refreshVersion = useUiStore((s) => s.refreshVersion);
 
   // Shared period + activities/athlete queries feed overview, volume, map & stats.
@@ -962,18 +960,12 @@ export function Analysis() {
   const allActivities = activitiesQ.data?.activities ?? [];
   const actError = activitiesQ.data?.error;
 
-  // Sport filter → period cutoff (search lived on Dashboard; not relocated).
+  // Period cutoff (search lived on Dashboard; not relocated).
   const activities = useMemo(() => {
-    let list = allActivities;
-    if (sportFilter && sportFilter !== "All") {
-      list = list.filter((a) => sportOf(a) === sportFilter);
-    }
-    if (loadDays > 0) {
-      const cutoff = new Date(Date.now() - loadDays * 86400000).toISOString().slice(0, 10);
-      list = list.filter((a) => dayStr(a) >= cutoff);
-    }
-    return list;
-  }, [allActivities, sportFilter, loadDays]);
+    if (loadDays <= 0) return allActivities;
+    const cutoff = new Date(Date.now() - loadDays * 86400000).toISOString().slice(0, 10);
+    return allActivities.filter((a) => dayStr(a) >= cutoff);
+  }, [allActivities, loadDays]);
 
   const stats = athleteQ.data?.official_stats ?? {};
 

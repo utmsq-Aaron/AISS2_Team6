@@ -66,7 +66,7 @@ def servers():
 
 @router.get("/health/config")
 def config():
-    """Startup warnings, mirroring ui.shared.validate_config()."""
+    """Startup warnings — which config is missing and what degrades because of it."""
     issues = []
     if not conn.strava_connected():
         issues.append("Strava not connected — open the ⚙️ Settings tab to connect")

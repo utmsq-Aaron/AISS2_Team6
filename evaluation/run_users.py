@@ -58,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
         mlflow.search_experiments(max_results=1)
     except Exception as e:  # pragma: no cover
         sys.exit(f"✗ Cannot reach the MLflow tracking server at {tracking}: {e}\n"
-                 f"  Start the stack first:  ./server-start.sh  (or ./dev_stack.sh)")
+                 f"  Start the stack first:  ./run.sh")
 
     exps = ur.list_user_experiments()
     if args.user:

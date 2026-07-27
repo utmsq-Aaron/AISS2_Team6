@@ -267,7 +267,7 @@ function AssistantBubble({
 }) {
   const routeData = turn.trace.route_data as RouteData | null | undefined;
   const charts = turn.charts ?? [];
-  // First "flythrough" action (mirrors the Streamlit renderer). Rendered as a
+  // First "flythrough" action. Rendered as a
   // card the user clicks to open the modal — NOT auto-opened, since the action is
   // persisted and would re-trigger on every chat reload.
   const ft = (turn.trace.actions ?? []).find((a) => a?.type === "flythrough") as

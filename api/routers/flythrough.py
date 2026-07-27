@@ -2,7 +2,7 @@
 
 `GET /flythrough/{activity_id}` loads the activity's GPS stream via the Strava
 MCP tool, prepares the track, and returns the full MapLibre + WebCodecs HTML page
-(the same engine the Streamlit app renders, via `core.flythrough_html`). The React
+(the engine in `core.flythrough_html`). The React
 app fetches this **authenticated** and renders it in an `<iframe srcdoc>`; the
 in-page Export button encodes an MP4 client-side, so there is no server-side
 (Playwright) render to run here.

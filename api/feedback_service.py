@@ -266,10 +266,12 @@ def notify_admin(bundle_id: str, user: str, text: str) -> None:
         import os
         if not email_ready():
             return
-        admin = os.getenv("ADMIN_EMAIL", "kit.aiss2026@gmail.com").strip()
+        admin = os.getenv("ADMIN_EMAIL", "").strip()
+        if not admin:
+            return
         body = f"From: {user}\n\n{(text or '').strip()}\n\nBundle: {bundle_id}"
         try:
-            send_email(to=admin, subject=f"[FitDash feedback] {bundle_id}", body_text=body)
+            send_email(to=admin, subject=f"[Training Copilot feedback] {bundle_id}", body_text=body)
         except EmailError as exc:
             print(f"[feedback_service] admin notification failed: {exc}", flush=True)
     except Exception as exc:  # noqa: BLE001 — notification must never break feedback

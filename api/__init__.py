@@ -1,4 +1,4 @@
-"""FitDash HTTP API — a thin FastAPI seam over the Streamlit-free core.
+"""Training Copilot HTTP API — a thin FastAPI seam over the UI-framework-free core.
 
 Exposes ToolHost (list_tools / call_tool), the FitDashOrchestrator (chat, SSE),
 LLM-generated charts, settings, and the Garmin→Strava sync to the React + Node

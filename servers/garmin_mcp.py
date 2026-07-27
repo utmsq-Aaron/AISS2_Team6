@@ -74,7 +74,7 @@ class GarminAPI:
                 _repo = str(Path(__file__).parent.parent)
                 if _repo not in sys.path:
                     sys.path.insert(0, _repo)
-                from dummy_data_creation.garmin_health_mock import MockGarminClient
+                from scripts.garmin_health_mock import MockGarminClient
                 self._mock_client = MockGarminClient()
             return self._mock_client
 

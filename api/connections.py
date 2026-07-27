@@ -1,4 +1,4 @@
-"""Service-connection checks — Streamlit-free ports of the helpers in ui/shared.py.
+"""Service-connection checks — which upstream accounts are actually usable.
 
 These reflect *configuration presence* (token files / env), not a live ping, and
 are read fresh each call so they pick up edits made via the Settings tab. Paths are

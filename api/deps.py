@@ -1,6 +1,6 @@
 """Process-wide singletons for the API layer.
 
-Mirrors the Streamlit `@st.cache_resource` singletons: one ToolHost (MCP client)
+Process-wide singletons: one ToolHost (MCP client)
 and one orchestrator for the whole process. The orchestrator's tool-use loop and
 ToolHost are not assumed thread-safe, so chat/sync runs are serialized with a lock
 — the same precaution telegram_bridge.py takes.

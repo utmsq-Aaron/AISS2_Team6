@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Google OAuth2 — one-time authorization for the ADMIN email sender.
 
-Run once on the host, signed in as the admin Google account (kit.aiss2026@gmail.com):
+Run once on the host, signed in as the admin Google account (the one in ADMIN_EMAIL):
     python auth/google_oauth.py
 
 Saves the token to .tokens/google_mail.json with the gmail.send scope (plus calendar),

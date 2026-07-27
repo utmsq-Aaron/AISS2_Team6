@@ -51,7 +51,7 @@ The Copilot's own agents run in separate processes and are unaffected.
 
 ## Running
 
-From the **repo root**, with the stack up (`./dev_stack.sh`):
+From the **repo root**, with the stack up (`./run.sh`):
 
 ```bash
 python -m evaluation.run_e2e                 # all 10 personas, ≤5 turns

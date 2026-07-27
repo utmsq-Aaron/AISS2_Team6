@@ -46,8 +46,6 @@ tests/logs/tmp_*.txt
 # OAuth2 tokens - NEVER commit these!
 .tokens/
 
-# Streamlit secrets (config.toml is safe to commit, secrets.toml is not)
-.streamlit/secrets.toml
 
 # IDE and editor files
 .vscode/

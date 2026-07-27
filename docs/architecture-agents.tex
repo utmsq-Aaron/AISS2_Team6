@@ -1,0 +1,98 @@
+% Training Copilot — agent / MCP-server radial architecture (standalone, crops to
+% the figure). Orchestrator at the centre, SIX specialist agents around it, each
+% wired out to the MCP server(s) its scope allows (server name big, its tools
+% small). Fitness has no MCP server — it retrieves from a local RAG vector store.
+% Inner ring = Agent Layer, outer ring = Tool Layer.
+%
+% The wiring here mirrors core/config.py AGENT_MCP_SCOPE exactly. If you change
+% that map, change this figure in the same commit.
+%
+% Build:  latexmk -pdf architecture-agents.tex
+\documentclass[border=12pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage[sfdefault]{FiraSans}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{backgrounds,arrows.meta}
+
+\definecolor{fdNavy}{HTML}{0B1219}
+\definecolor{fdSlate}{HTML}{16212B}
+\definecolor{fdBorder}{HTML}{1E293B}
+\definecolor{fdTeal}{HTML}{2DD4BF}
+\definecolor{fdTealDark}{HTML}{14B8A6}
+\definecolor{fdMuted}{HTML}{64748B}
+
+% Never hyphenate tool names mid-word (e.g. "cre-ate_event"); wrap only at commas.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\tolerance=9999
+\emergencystretch=3em
+
+% Server box: big bold name on top, small muted tool list below.
+\newcommand{\srv}[2]{{\large\bfseries #1}\\[2pt]{\scriptsize\textcolor{fdMuted}{#2}}}
+
+\begin{document}
+\begin{tikzpicture}[
+  font=\sffamily,
+  orch/.style={circle, draw=fdTealDark, line width=1.2pt, fill=fdTeal, text=fdNavy,
+               font=\footnotesize\bfseries, align=center, minimum size=2.5cm},
+  agent/.style={rounded corners=6pt, draw=fdTealDark, line width=0.9pt, fill=fdTeal!16,
+                text=fdNavy, font=\small\bfseries, align=center, text width=1.9cm, minimum height=0.85cm},
+  server/.style={rounded corners=6pt, draw=fdBorder, line width=0.8pt, fill=white, text=fdNavy,
+                 align=center, text width=3.25cm, inner sep=5pt},
+  ltitle/.style={font=\bfseries, text=fdNavy, fill=white, inner sep=3pt},
+  a2a/.style={{Stealth[length=1.8mm]}-{Stealth[length=1.8mm]}, line width=1.0pt, draw=fdTealDark},
+  uses/.style={-{Stealth[length=1.8mm]}, line width=0.7pt, draw=fdMuted},
+]
+
+% ── Centre + agents (inner ring), six at 60 degree spacing ───────────────────
+\node[orch] (orch) at (0,0) {Orchestrator};
+\node[agent] (arec)  at ( 90:2.85) {Recovery};
+\node[agent] (aload) at (150:2.85) {Load};
+\node[agent] (actx)  at (210:2.85) {Context};
+\node[agent] (arou)  at (270:2.85) {Route};
+\node[agent] (acoa)  at (330:2.85) {Coach};
+\node[agent] (afit)  at ( 30:2.85) {Fitness};
+
+% ── MCP servers (outer ring): big name + small tool list ─────────────────────
+\node[server] (sgarmin)  at ( 84:6.6) {\srv{garmin}{get\_garmin\_sleep, get\_garmin\_hrv\_status, get\_garmin\_body\_battery}};
+\node[server] (sstrava)  at (132:6.6) {\srv{strava}{get\_activities, get\_training\_trends, get\_personal\_bests}};
+\node[server] (sfly)     at (168:6.6) {\srv{flythrough}{prepare\_flythrough}};
+\node[server] (sweather) at (200:6.6) {\srv{weather}{get\_weather\_forecast, get\_uv\_index, get\_pollen\_levels}};
+\node[server] (scal)     at (232:6.6) {\srv{calendar}{list\_events, create\_event, update\_event}};
+\node[server] (sroutes)  at (264:6.6) {\srv{routes}{plan\_route, geocode, get\_elevation\_profile}};
+\node[server] (smaps)    at (296:6.6) {\srv{google\_maps}{maps\_search\_places, maps\_directions, maps\_geocode}};
+\node[server] (sath)     at (336:6.6) {\srv{athlete}{get\_athlete\_overview, set\_race\_goal, compute\_zones, scaffold\_plan}};
+\node[server] (srag)     at ( 30:6.6) {\srv{RAG}{search\_fitness\_literature \textit{(local vector DB)}}};
+
+% ── Layer titles (on the ring outlines, in a clear gap at 111 degrees) ───────
+\node[ltitle] at (111:4.3) {Agent Layer};
+\node[ltitle] at (111:8.9) {Tool Layer};
+
+% ── Background: tinted disks, ring outlines, connectors ──────────────────────
+\begin{scope}[on background layer]
+  \fill[fdTeal!4] (0,0) circle (8.9);
+  \fill[fdTeal!11] (0,0) circle (4.3);
+  \draw[fdTealDark, line width=1.1pt] (0,0) circle (4.3);
+  \draw[fdTealDark, line width=1.1pt] (0,0) circle (8.9);
+
+  % Orchestrator <-> agents (A2A). The orchestrator has NO MCP access of its own.
+  \foreach \a in {arec,aload,actx,arou,acoa,afit}{ \draw[a2a] (orch) -- (\a); }
+
+  % Agent -> the MCP server(s) in its scope (core/config.py AGENT_MCP_SCOPE)
+  \draw[uses] (arec)  -- (sgarmin);
+  \draw[uses] (aload) -- (sstrava);
+  \draw[uses] (aload) -- (sgarmin);
+  \draw[uses] (aload) -- (sfly);
+  \draw[uses] (actx)  -- (sweather);
+  \draw[uses] (actx)  -- (scal);
+  \draw[uses] (arou)  -- (sroutes);
+  \draw[uses] (arou)  -- (smaps);
+  \draw[uses] (acoa)  -- (sath);
+  \draw[uses] (acoa)  -- (sstrava);
+  \draw[uses] (acoa)  -- (sgarmin);
+  \draw[uses] (afit)  -- (srag);
+\end{scope}
+
+\end{tikzpicture}
+\end{document}

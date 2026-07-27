@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Single source of truth for FitDash's ports, sourced by dev_stack.sh, start.sh,
-# serve.sh and server-start.sh so a new server/agent only needs adding in ONE
-# place. As of this file, that place is genuinely singular: FASTAPI_PORT,
+# Single source of truth for the app's ports in shell, sourced by run.sh so a new
+# server/agent only needs adding in ONE place. As of this file, that place is
+# genuinely singular: FASTAPI_PORT,
 # TELEGRAM_MCP_PORT, MCP_SERVERS and AGENT_PORTS below are generated LIVE from
 # core/config.py (via scripts/export_ports.py) — not copied by hand — so this
 # file cannot drift from the Python registry, or from docker-compose.yml /
@@ -32,9 +32,9 @@ unset _export_ports_py _export_ports_script _ports_generated
 # launchers start/kill the server, so the literal lives here.
 MLFLOW_PORT=5001
 
-# Every port the app can claim, flattened — used by server-start.sh to free
-# them all on a clean restart. The BFF port (default 3000, see serve.sh PORT=)
-# is NOT included here since it's caller-configurable, not fixed.
+# Every port the app can claim, flattened — used by `./run.sh stop` to free them
+# all. The BFF port (default 3000, see run.sh PORT=) is NOT included here since
+# it's caller-configurable, not fixed; run.sh appends it separately.
 ALL_PORTS=("$MLFLOW_PORT" "$FASTAPI_PORT" "$TELEGRAM_MCP_PORT")
 for _s in "${MCP_SERVERS[@]}"; do ALL_PORTS+=("${_s##*:}"); done
 for _a in "${AGENT_PORTS[@]}"; do ALL_PORTS+=("${_a##*:}"); done

@@ -21,7 +21,7 @@ though the agents run as separate long-lived processes. (We intentionally do NOT
 cache the client; construction is cheap and makes no network call.) Values set
 only in the shell environment (not in ``.env``) are still honoured as a fallback.
 
-Deliberately imports NO Streamlit, so the core runs standalone.
+Deliberately imports NO UI framework, so the core runs standalone.
 """
 
 from __future__ import annotations
@@ -136,7 +136,7 @@ def completion_params(model_name: str, max_tokens: int,
     ``max_completion_tokens`` and only accept the default temperature, so passing
     the classic kwargs makes every call 400. (The LangChain agent path is spared
     because ``langchain-openai`` strips these for gpt-5; the raw-SDK callers here —
-    chart service, viz_telegram, the legacy ui/chart_gen — have no such seam, which
+    chart service, viz_telegram — have no such seam, which
     is exactly the bug that silently killed LLM-generated charts.) This is the one
     place that per-model choice lives.
 

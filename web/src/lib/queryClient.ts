@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 
-// Mirrors the Streamlit @st.cache_data behaviour: cache server data, refetch on
+// Cache server data and refetch on
 // explicit refresh rather than on every focus.
 export const queryClient = new QueryClient({
   defaultOptions: {

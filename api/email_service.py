@@ -6,7 +6,7 @@ The email sender uses its OWN token, ``.tokens/google_mail.json`` (scope
 *Calendar* in Settings can never overwrite or downgrade the admin's email-sending
 credential. The admin connects this token via ``python auth/google_oauth.py``
 (writes ``google_mail.json``); the **Gmail API** must be enabled in the Cloud
-project. The "From" is always the connected admin mailbox (``kit.aiss2026@gmail.com``).
+project. The "From" is always the connected admin mailbox (``ADMIN_EMAIL``).
 
 For convenience on an existing deployment, if ``google_mail.json`` is missing but
 the legacy ``google.json`` still carries ``gmail.send``, it's copied over once.
@@ -95,7 +95,7 @@ def send_email(to: str, subject: str, body_text: str, *, from_addr: str | None =
 
     msg = MIMEText(body_text, "plain", "utf-8")
     msg["To"] = to
-    msg["From"] = from_addr or os.getenv("ADMIN_EMAIL", "kit.aiss2026@gmail.com").strip().lower()
+    msg["From"] = from_addr or os.getenv("ADMIN_EMAIL", "").strip().lower()
     msg["Subject"] = subject
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 

@@ -1,6 +1,6 @@
 """Settings — integration status, .env editing, and the interactive connect flows
 (Strava/Google OAuth, Garmin MFA login, Telegram phone login, bridge, MCP restart).
-Faithful port of ui/settings.py onto HTTP endpoints.
+The Settings page's backend: connection flows, env editing, service restart.
 """
 
 import os

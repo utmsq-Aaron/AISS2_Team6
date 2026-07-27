@@ -4,15 +4,15 @@ import { NavLink } from "react-router-dom";
 
 import { NAV } from "../nav";
 import { useChatStore } from "../store/chatStore";
-import { SPORT_TYPES, useUiStore } from "../store/uiStore";
+import { useUiStore } from "../store/uiStore";
 
 // Sidebar — focused on global navigation + real-time service status (design IA),
-// with the sport filter and data refresh as secondary controls below. Below `md`
-// it is an off-canvas drawer (toggled from the header hamburger); at `md+` it is
-// the usual always-visible rail.
+// with data refresh as a secondary control below. Below `md` it is an off-canvas
+// drawer (toggled from the header hamburger); at `md+` it is the usual
+// always-visible rail.
 export function Sidebar() {
   const qc = useQueryClient();
-  const { sportFilter, setSportFilter, bumpRefresh, sidebarOpen, setSidebarOpen } = useUiStore();
+  const { bumpRefresh, sidebarOpen, setSidebarOpen } = useUiStore();
   const coachUnread = useChatStore((s) => s.coachUnread);
 
   const refresh = () => {
@@ -88,22 +88,7 @@ export function Sidebar() {
 
         {/* Secondary controls */}
         <div className="px-1">
-          <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
-            Sport filter
-          </h3>
-          <select
-            value={sportFilter}
-            onChange={(e) => setSportFilter(e.target.value)}
-            aria-label="Sport filter"
-            className="fd-input w-full text-sm"
-          >
-            {SPORT_TYPES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <button onClick={refresh} className="fd-btn-secondary mt-3 flex w-full items-center justify-center gap-2 text-sm">
+          <button onClick={refresh} className="fd-btn-secondary flex w-full items-center justify-center gap-2 text-sm">
             <RefreshCw size={15} strokeWidth={2} />
             Refresh data
           </button>

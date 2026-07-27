@@ -1,6 +1,6 @@
 """Generate chart PNG images from MCP tool results for Telegram delivery.
 
-Streamlit-free — uses only matplotlib (headless Agg backend) so charts can be
+Uses only matplotlib (headless Agg backend) so charts can be
 sent as Telegram photos without a browser. Called by telegram_bridge.py.
 
 Interface:
@@ -20,7 +20,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-# ── Dark theme consistent with the Streamlit dashboard ───────────────────────
+# ── Dark theme consistent with the web dashboard ─────────────────────────────
 _BG  = "#0f1117"
 _AX  = "#1c2031"
 _FG  = "#e0e3ea"
