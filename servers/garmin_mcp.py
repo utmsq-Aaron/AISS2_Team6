@@ -70,7 +70,7 @@ class GarminAPI:
     def client(self):
         if self._is_mock():
             if self._mock_client is None:
-                import sys, os as _os
+                import sys
                 _repo = str(Path(__file__).parent.parent)
                 if _repo not in sys.path:
                     sys.path.insert(0, _repo)

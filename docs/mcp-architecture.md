@@ -215,4 +215,4 @@ keine Codeänderung.
 **Noch offen:**
 - **Token-Vault:** Identität ist pro Nutzer, die Upstream-Tokens (`.tokens/`) sind es noch nicht — Strava/Garmin sind heute *ein* geteiltes Konto pro Deployment.
 - **Sandboxing/Allowlist/Egress-Kontrolle** für nutzer-hinzugefügte MCP-Server; Tool-Output konsequent als untrusted behandeln.
-- Einheitliches Logging (heute teils `print`, teils `logging`); Contract-Tests an den Nähten über `tests/test_agent_layer.py` hinaus.
+- Einheitliches Logging (heute teils `print`, teils `logging`); Contract-Tests an den Nähten über `tests/unit/` hinaus — dort liegen heute die Agent-Trace-Kontrakte, die deterministische Trainingsmathematik und der Routen-Export, alle offline lauffähig via `pytest`.

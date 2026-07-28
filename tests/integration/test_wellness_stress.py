@@ -1,6 +1,7 @@
 """Verify wellness trends stress subplot."""
 import json, sys
-sys.path.insert(0, '.')
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from core.viz_telegram import render_chart_png
 
 data_with_stress = {

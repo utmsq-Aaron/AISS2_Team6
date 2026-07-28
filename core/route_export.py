@@ -50,7 +50,7 @@ def google_maps_url(route_data: Optional[Dict]) -> Optional[str]:
 
 # ── GPX export ───────────────────────────────────────────────────────────────────
 
-def route_gpx(route_data: Optional[Dict], name: str = "FitDash route") -> Optional[bytes]:
+def route_gpx(route_data: Optional[Dict], name: str = "Training Copilot route") -> Optional[bytes]:
     """Exact route as GPX 1.1 track bytes (point-to-point, circular, or trails)."""
     tool = (route_data or {}).get("tool", "")
     data = (route_data or {}).get("data") or {}
@@ -74,7 +74,8 @@ def route_gpx(route_data: Optional[Dict], name: str = "FitDash route") -> Option
 
     out: List[str] = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<gpx version="1.1" creator="FitDash" xmlns="http://www.topografix.com/GPX/1/1">',
+        '<gpx version="1.1" creator="Training Copilot" '
+        'xmlns="http://www.topografix.com/GPX/1/1">',
         f"<trk><name>{_su.escape(name)}</name>",
     ]
     for seg in segments:

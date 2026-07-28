@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from collections import Counter
 from typing import Callable, Dict, List, Optional
 
@@ -103,6 +104,20 @@ def _xticks(ax, labels: List[str], step: Optional[int] = None) -> None:
     idxs = list(range(0, n, step))
     ax.set_xticks(idxs)
     ax.set_xticklabels([labels[i] for i in idxs], rotation=30, ha="right")
+
+
+_FENCE_RE = re.compile(r"^```[a-zA-Z]*\s*(.*?)\s*```$", re.S)
+
+
+def _strip_fence(text: str) -> str:
+    """Unwrap a ```json … ``` block. Models wrap JSON in one despite being asked not to.
+
+    Matches the whole fence rather than stripping characters: `.lstrip("```json")`
+    removes any of the characters ` j s o n from the front, which silently eats
+    leading content of an unfenced reply.
+    """
+    m = _FENCE_RE.match(text.strip())
+    return m.group(1).strip() if m else text.strip()
 
 
 # ── Sleep ──────────────────────────────────────────────────────────────────────
@@ -316,9 +331,7 @@ Rules (apply in order, stop at first match):
             **completion_params(model, 150),
         )
         raw = resp.choices[0].message.content or ""
-        # Strip possible markdown fences
-        raw = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
-        return _json.loads(raw)
+        return _json.loads(_strip_fence(raw))
     except Exception:
         pass
 
@@ -621,7 +634,6 @@ def _activity_streams(data: dict) -> Optional[bytes]:
     if len(points) < 2:
         return None
 
-    act    = data.get("activity") or {}
     has_hr = any(p.get("hr") for p in points)
 
     # ── Attempt staticmap-based colored route ─────────────────────────────────
@@ -1164,7 +1176,7 @@ def _steps_timeline(data: dict) -> Optional[bytes]:
 
     fig, ax = plt.subplots(figsize=(12, 4))
     xs = list(range(len(times)))
-    bars = ax.bar(xs, steps, color=colors, alpha=0.85, width=0.85)
+    ax.bar(xs, steps, color=colors, alpha=0.85, width=0.85)
 
     total = sum(steps)
     ax.axhline(total / max(len(times), 1), color=_MUT, linestyle="--",
@@ -1213,8 +1225,6 @@ def _stress_timeline(data: dict) -> Optional[bytes]:
         "high":      _RED,
         "very_high": _ROSE,
     }
-    colors = [_ZONE_COLOR.get(t.get("category", "low"), _GREEN) for t in timeline]
-
     fig, ax = plt.subplots(figsize=(12, 4))
     xs = list(range(len(times)))
     ax.fill_between(xs, stresses, alpha=0.15, color=_RED)

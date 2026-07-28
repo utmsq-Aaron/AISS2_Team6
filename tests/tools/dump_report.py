@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 out = ROOT / "tests" / "logs" / "viz_hint_summary.txt"
 
 with open(ROOT / "tests" / "logs" / "run_20260611_report.json", encoding="utf-8") as f:

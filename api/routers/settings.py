@@ -4,7 +4,7 @@ The Settings page's backend: connection flows, env editing, service restart.
 """
 
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 from dotenv import dotenv_values
 from fastapi import APIRouter, Depends, HTTPException
@@ -110,7 +110,7 @@ def strava_connect():
     try:
         return {"auth_url": svc.strava_start_flow()}
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/settings/strava/disconnect")
@@ -128,7 +128,7 @@ def strava_token(body: TokenUpload):
     try:
         return svc.strava_save_token(body.token)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 # ── Google ──────────────────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ def google_connect():
     try:
         return {"auth_url": svc.google_start_flow()}
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/settings/google/disconnect")
@@ -216,7 +216,7 @@ def tg_send_code(body: Phone, _admin: str = Depends(require_admin)):
     try:
         return svc.tg_send_code(body.phone)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 class TgSignIn(BaseModel):
@@ -234,7 +234,7 @@ def tg_sign_in(body: TgSignIn, _admin: str = Depends(require_admin)):
             svc.save_env("TELEGRAM_SESSION_STRING", res["session"])
         return res
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 class TgPassword(BaseModel):
@@ -249,7 +249,7 @@ def tg_password(body: TgPassword, _admin: str = Depends(require_admin)):
         svc.save_env("TELEGRAM_SESSION_STRING", res["session"])
         return {"status": "ok"}
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 class SessionString(BaseModel):

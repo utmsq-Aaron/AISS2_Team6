@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.orchestrator import FitDashOrchestrator
 from core.host import ToolHost
@@ -239,12 +239,12 @@ def _write_markdown_summary(path: Path, results: list, all_issues: list, ts: str
     from collections import Counter
     lines = [
         f"# FitDash Integration Test — {ts}",
-        f"",
+        "",
         f"**{len(results)} queries tested · {len(all_issues)} issues found · "
         f"{sum(1 for r in results if r['issues'])} queries with problems**",
-        f"",
-        f"## Issue Type Frequency",
-        f"",
+        "",
+        "## Issue Type Frequency",
+        "",
     ]
     issue_types = Counter(iss["issue"].split(":")[0] for iss in all_issues)
     for itype, count in issue_types.most_common():
@@ -255,18 +255,18 @@ def _write_markdown_summary(path: Path, results: list, all_issues: list, ts: str
         tools_str = ", ".join(f"`{t}`" for t in r["tools"]) or "_(none)_"
         lines.append(f"### [{status}] `{r['id']}` ({r['elapsed_s']}s)")
         lines.append(f"> {r['query']}")
-        lines.append(f"")
+        lines.append("")
         lines.append(f"**Tools called:** {tools_str}")
         if r.get("viz_hints"):
             lines.append(f"**Viz hints:** `{r['viz_hints']}`")
         if r.get("has_route_data"):
-            lines.append(f"**Route map:** ✓ will be rendered")
+            lines.append("**Route map:** ✓ will be rendered")
         if r["issues"]:
-            lines.append(f"")
-            lines.append(f"**Issues:**")
+            lines.append("")
+            lines.append("**Issues:**")
             for iss in r["issues"]:
                 lines.append(f"- ⚠ {iss}")
-        lines.append(f"")
+        lines.append("")
         lines.append(f"**Answer preview:** {r['answer'][:300]}")
         lines += ["", "---", ""]
 

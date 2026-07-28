@@ -7,7 +7,7 @@
 // API-key services (OpenAI, ORS) get a simple form that saves to .env.
 
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { LogOut } from "lucide-react";
@@ -38,7 +38,7 @@ import {
   type EnvVar,
   type GarminState,
 } from "../lib/settingsApi";
-import { ACCENT, BORDER, C_GREEN, C_AMBER, C_RED, TEXT_PRIMARY, TEXT_MUTED, WHITE } from "../theme/tokens";
+import { BORDER, C_GREEN, C_RED, TEXT_PRIMARY, TEXT_MUTED } from "../theme/tokens";
 
 // ── Integration metadata (drives the card layout) — mirrors INTEGRATION_META ─────
 interface Meta {
@@ -92,16 +92,6 @@ function EnvRow({ name, env, hint }: { name: string; env: Record<string, EnvVar>
   );
 }
 
-function StatusBadge({ connected, none }: { connected: boolean; none?: boolean }) {
-  if (none) {
-    return <span style={{ color: C_GREEN, fontWeight: 600 }}>✅ Active</span>;
-  }
-  if (connected) {
-    return <span style={{ color: C_GREEN, fontWeight: 600 }}>✅ Connected</span>;
-  }
-  return <span style={{ color: C_AMBER, fontWeight: 600 }}>⚠️ Not configured</span>;
-}
-
 function Toast({ message }: { message: string }) {
   return (
     <div className="mt-2 rounded-lg border border-metric-green/40 bg-metric-green/10 px-3 py-2 text-sm text-metric-green">
@@ -110,88 +100,6 @@ function Toast({ message }: { message: string }) {
   );
 }
 
-// ── Connection-progress indicator (top of page) ──────────────────────────────────
-function ProgressBar({ integ }: { integ: Integrations }) {
-  const steps: Array<[string, boolean]> = [
-    ["Strava", integ.strava],
-    ["Garmin", integ.garmin],
-    ["Google", integ.google],
-    ["OpenAI", integ.openai],
-  ];
-  const n = steps.length;
-  const done = steps.filter(([, ok]) => ok).length;
-
-  return (
-    <div>
-      <div className="flex items-start py-2" aria-hidden="true">
-        {steps.map(([label, ok], i) => {
-          const color = ok ? C_GREEN : i === done ? ACCENT : BORDER;
-          const bg = ok ? color : "transparent";
-          const icon = ok ? "✓" : String(i + 1);
-          const textC = ok || i === done ? TEXT_PRIMARY : TEXT_MUTED;
-          const fw = ok || i === done ? 600 : 400;
-          return (
-            <div key={label} className="contents">
-              <div className="flex flex-1 flex-col items-center gap-1.5">
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    background: bg,
-                    border: `2px solid ${color}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: ok ? WHITE : color,
-                  }}
-                >
-                  {icon}
-                </div>
-                <span style={{ fontSize: 11, color: textC, fontWeight: fw, textAlign: "center", whiteSpace: "nowrap" }}>
-                  {label}
-                </span>
-              </div>
-              {i < n - 1 && (
-                <div
-                  style={{
-                    flex: 2,
-                    height: 2,
-                    background: ok ? C_GREEN : BORDER,
-                    marginTop: 15,
-                    borderRadius: 2,
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <p className="text-xs text-text-muted">{done} of {n} services connected</p>
-    </div>
-  );
-}
-
-// ── Generic card shell (info column + action column) ──────────────────────────────
-function CardShell({ meta, connected, children }: { meta: Meta; connected: boolean; children: ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 gap-4 py-5 lg:grid-cols-[3fr_2fr]">
-      <div>
-        <h3 className="text-lg font-semibold text-text-primary">{meta.icon} {meta.label}</h3>
-        <p className="mt-0.5 text-sm text-text-muted">{meta.description}</p>
-        <div className="mt-1 text-sm">
-          <StatusBadge connected={connected} none={meta.type === "none"} />
-        </div>
-        <a className="mt-1 inline-block text-sm text-accent hover:underline" href={meta.docsUrl} target="_blank" rel="noreferrer">
-          Documentation ↗
-        </a>
-      </div>
-      <div className="flex flex-col gap-2">{children}</div>
-    </div>
-  );
-}
 
 // ── Hook: poll getSettings every 2s while a connect flow is pending ──────────────
 function usePollSettings(active: boolean) {
@@ -927,7 +835,9 @@ function ConnectionRow({ meta, connected, children }: { meta: Meta; connected: b
 export function Settings() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: getSettings });
   const qc = useQueryClient();
-  const refetch = useRef(() => qc.invalidateQueries({ queryKey: ["settings"] })).current;
+  // useCallback, not useRef(...).current — a ref read during render is exactly
+  // what React tells you not to do, and this only ever needed a stable identity.
+  const refetch = useCallback(() => { qc.invalidateQueries({ queryKey: ["settings"] }); }, [qc]);
 
   if (settingsQ.isLoading) {
     return (

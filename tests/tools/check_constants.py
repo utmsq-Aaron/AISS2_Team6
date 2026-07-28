@@ -1,7 +1,7 @@
 import sys
 import io
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 import core.orchestrator as o
 print('refresh_tools:', hasattr(o.FitDashOrchestrator, 'refresh_tools'))

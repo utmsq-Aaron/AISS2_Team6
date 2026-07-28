@@ -1,58 +1,55 @@
 # Tests
 
-Two different things live here, and the split matters:
+Three different things live here, and the split matters:
 
-| | `tests/*.py` | `tests/tools/*.py` |
-|---|---|---|
-| **What** | Tests — they assert, grade, and can fail | Debug/inspection utilities — they only print or dump |
-| **Exit code** | Meaningful (non-zero on failure) | Always 0; there is nothing to fail |
-| **Needs the stack** | Mostly yes (one exception, below) | Yes, to have anything to look at |
-| **Purpose** | Prove the system behaves | Look at what the system just did |
+| | `tests/unit/` | `tests/integration/` | `tests/tools/` |
+|---|---|---|---|
+| **What** | Real tests — assert, pass or fail | End-to-end scripts against the live system | Debug/inspection utilities |
+| **Run with** | `pytest` | `python tests/integration/<script>.py` | `python tests/tools/<script>.py` |
+| **Needs** | nothing | the full stack, an LLM gateway, real Strava/Garmin accounts | the stack, to have anything to look at |
+| **Exit code** | meaningful | meaningful | always 0 — there is nothing to fail |
+| **Costs** | nothing | LLM tokens | nothing |
 
-If you are evaluating this project, `tests/` is what you want. `tests/tools/` is
-scaffolding we used while building, kept because it is still handy.
-
----
-
-## Running
-
-From the repo root, with the project's virtualenv:
-
-```bash
-.venv/bin/python tests/<script>.py
-```
-
-Most tests need the **live stack** (MCP servers + agents + an LLM gateway) — start it
-with `./run.sh` and wait until it reports ready. The one exception is
-`test_agent_layer.py`, which is fully deterministic and needs nothing at all.
+If you are evaluating this project, run `pytest` — it works on a fresh checkout
+with no accounts and no keys. `tests/integration/` is what we used while
+building against real data; `tests/tools/` is scaffolding, kept because it is
+still handy.
 
 ---
 
-## Tests
-
-### `test_agent_layer.py` — the primary regression test ★
-
-**Runs offline.** No LLM gateway, no MCP servers, no network: it substitutes a fake
-chat model and a fake MCP host, then asserts the contracts the rest of the app
-depends on:
-
-1. `core/agent_trace.build_trace()` emits the exact trace shape the frontend, the
-   chart service and the route map read.
-2. Peer `sub_artifacts` (agent-to-agent mesh calls) are flattened into `agents` and
-   `tool_calls` rather than being lost.
-3. `_peers_for()` honours the depth limit and the env toggle.
-
-Run this after touching `core/agent_trace.py`, `core/orchestrator*.py` or `agents/`.
-Fast, deterministic, and it catches the breakages that actually hurt.
+## The offline suite
 
 ```bash
-.venv/bin/python tests/test_agent_layer.py
+.venv/bin/python -m pytest        # or just: pytest
 ```
 
-### End-to-end query tests
+Collects `tests/unit/` only. No MCP servers, no LLM gateway, no network, no user
+data — everything is either pure arithmetic or runs against fakes. Under four
+seconds.
 
-These fire real chat queries at the orchestrator and grade the answers. They need the
-full stack up and they consume LLM tokens.
+| File | What it proves |
+|---|---|
+| `test_training_math.py` | The training plan is **computed, not generated**: HF/pace zones, the base→build→peak→taper split, the long-run line, cutback and taper weeks, and that weekly volume derives from the runs. These are the rules of [`docs/trainingsregeln.md`](../docs/trainingsregeln.md) asserted against the code that implements them. |
+| `test_agent_layer.py` | The LangGraph + A2A layer: `build_trace()` emits the exact contract the frontend, chart service and route map read; peer `sub_artifacts` are flattened rather than lost; `_peers_for()` honours the depth limit; a full in-process A2A two-hop and a peer-to-peer mesh round-trip (fake chat model, fake MCP host, uvicorn on test ports 9100/9101/9103). |
+| `test_route_export.py` | A planned route survives export: the GPX is valid XML carrying every point (lat/lon the right way round, elevation kept), and the Google Maps link keeps start and finish while thinning only the middle. |
+
+Run `pytest` after touching `core/agent_trace.py`, `core/orchestrator*.py`,
+`agents/`, `servers/athlete_mcp.py` or `core/route_export.py`.
+
+`tests/integration/` is **not** collected, deliberately: most of those scripts
+build a live orchestrator at import time, so merely collecting them would call
+Strava and spend tokens. `tests/integration/conftest.py` enforces that.
+
+---
+
+## Integration scripts (`tests/integration/`)
+
+Fire real chat queries at the orchestrator and grade the answers. Start the
+stack with `./run.sh` first, then run one directly:
+
+```bash
+.venv/bin/python tests/integration/test_orchestrator.py
+```
 
 | Script | What it covers |
 |---|---|

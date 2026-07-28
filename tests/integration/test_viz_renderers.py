@@ -1,7 +1,10 @@
 """Quick test of all viz_telegram renderers with real API data."""
-import sys, json, os
-sys.path.insert(0, '.')
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+import sys, os, json
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_ROOT))
+os.chdir(_ROOT)  # ToolHost resolves .tokens/ and .cache/ relative to the repo root
 
 from core.host import ToolHost
 from core import viz_telegram as vt
@@ -83,7 +86,7 @@ try:
             print(f"  CHART: {len(png)//1024} KB PNG")
         else:
             print("  CHART: None (failed)")
-except Exception as e:
+except Exception:
     import traceback; traceback.print_exc()
 
 print("\n=== GPS Track (activity_gps_track) ===")
@@ -103,7 +106,7 @@ try:
             fn = vt._REGISTRY.get("get_activity_gps_track")
             png = fn(data2)
             print(f"  CHART: {len(png)//1024 if png else 0} KB PNG")
-except Exception as e:
+except Exception:
     import traceback; traceback.print_exc()
 
 print("\nDone.")

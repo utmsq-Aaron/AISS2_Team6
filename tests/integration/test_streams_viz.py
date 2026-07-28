@@ -1,6 +1,7 @@
 """Test: activity streams viz import and logic."""
-import sys, json
-sys.path.insert(0, '.')
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 # Check that the relevant function imports and its logic holds — no rendering
 # surface needed, just the data transformation.

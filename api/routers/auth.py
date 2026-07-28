@@ -61,7 +61,7 @@ def request_otp(req: EmailRequest) -> dict:
         if _dev_echo():
             print(f"[auth] OTP for {email}: {code}  (email send failed: {exc})", flush=True)
             return {"ok": True, "new_account": new_account, "dev_echo": True}
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     if _dev_echo():
         print(f"[auth] OTP for {email}: {code}", flush=True)

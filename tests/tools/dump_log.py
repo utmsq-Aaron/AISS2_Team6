@@ -1,5 +1,5 @@
 """Dump recent log entries to a file, bypassing stdout encoding issues."""
-import json, sys, os
+import json, sys
 
 log_path = ".logs/agent_interactions.jsonl"
 out_path = "tests/logs/tmp_log_dump.txt"

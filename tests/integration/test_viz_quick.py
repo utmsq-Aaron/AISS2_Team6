@@ -1,6 +1,7 @@
 """Quick test: verify all viz_telegram renderers load and handle basic data."""
 import sys, json
-sys.path.insert(0, '.')
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.viz_telegram import can_render, render_chart_png
 

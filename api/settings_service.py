@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from dotenv import load_dotenv, set_key
 

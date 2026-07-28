@@ -1,6 +1,7 @@
 """Test: training load query with Garmin fallback."""
-import sys, json, time, traceback
-sys.path.insert(0, '.')
+import sys, time, traceback
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.orchestrator import FitDashOrchestrator
 from core.viz_telegram import can_render, render_chart_png
@@ -23,7 +24,7 @@ try:
         if r.get("error"):
             print(f"    -> {r['error'][:120]}")
 
-    print(f"\nCharts:")
+    print("\nCharts:")
     for r in tool_calls:
         if r.get("error"):
             continue

@@ -1,0 +1,8 @@
+# Development-only tooling. Not needed to run the app — see requirements.txt for that.
+#
+#   pip install -r requirements-dev.txt
+#   ruff check .     # lint          (config: pyproject.toml)
+#   pytest           # offline tests (config: pyproject.toml, collects tests/unit)
+
+ruff>=0.16                # linter
+pytest>=8                 # test runner for tests/unit

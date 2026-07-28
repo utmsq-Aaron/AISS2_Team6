@@ -1,0 +1,62 @@
+# Tooling configuration for the Python side of Training Copilot.
+#
+# This file configures tools only — the project is run from a checkout
+# (`./run.sh`), not installed as a package, so there is deliberately no
+# [project] or [build-system] table.
+#
+#   ruff check .        # lint
+#   pytest              # the offline test suite (tests/unit)
+
+# ── ruff (linting) ───────────────────────────────────────────────────────────
+# Lint only; we do NOT run `ruff format`. The code base predates the tool and a
+# repo-wide reformat would bury real changes under whitespace churn.
+[tool.ruff]
+target-version = "py311"
+line-length = 110
+extend-exclude = [
+    "external",      # vendored third-party MCP server, not our code
+    "web",
+    ".venv",
+    "mlartifacts",
+]
+
+[tool.ruff.lint]
+# Deliberately narrow: rules that flag likely *defects*, not rules that enforce
+# a house style.
+#   E9  — syntax/IO errors        F  — pyflakes: undefined names, dead imports
+#   B   — flake8-bugbear: mutable defaults, misleading strip(), lost tracebacks
+#
+# Three of ruff's defaults are left out on purpose, because here they would flag
+# working code rather than defects:
+#   E402 (import not at top)  — the entry-point scripts must set sys.path and
+#                               os.environ *before* importing the app.
+#   E701/E702 (one-line if)   — a consistent lookup-table style in the MCP
+#                               servers, e.g. `if uv < 3: return "low"`.
+#   I    (import sorting)     — reordering would break exactly those bootstraps.
+select = ["E9", "F", "B"]
+
+# B905 (`zip()` without `strict=`) is a style requirement, not a defect signal.
+# Blanket-adding `strict=False` to ~20 chart calls would document nothing;
+# `strict=True` would newly raise at runtime. Left for a deliberate pass over
+# core/viz_telegram.py rather than a mechanical rewrite.
+ignore = ["B905"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI's own idiom: `file: UploadFile = File(...)`, `Depends(...)` and friends
+# are function calls in argument defaults *by design* — B008 cannot tell them apart.
+"api/routers/*" = ["B008"]
+# Debug utilities print and probe; they are not held to library standards.
+"tests/tools/*" = ["F841"]
+
+# ── pytest ───────────────────────────────────────────────────────────────────
+# `pytest` with no arguments runs the offline suite and nothing else: no MCP
+# servers, no LLM gateway, no Strava/Garmin account. tests/integration/ is a
+# separate opt-in (see tests/README.md) and is NOT collected here — several of
+# those scripts hit live APIs at import time.
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+markers = [
+    "integration: needs the live stack (MCP servers, agents, an LLM gateway)",
+]

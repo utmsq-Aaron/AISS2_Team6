@@ -4,11 +4,11 @@ Usage:
     conda run -n aiss2026 python test_orchestrator.py
 """
 
-import json
 import sys
 import time
 
-sys.path.insert(0, ".")
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.orchestrator import FitDashOrchestrator
 from core.viz_telegram import can_render, render_chart_png
@@ -50,7 +50,6 @@ def _run_query(orch: FitDashOrchestrator, label: str, query: str) -> None:
     elapsed = time.perf_counter() - t0
 
     tool_calls = trace.get("tool_calls") or []
-    errors = [r for r in tool_calls if r.get("error")]
 
     # ── Tool calls ──────────────────────────────────────────────────────────
     if tool_calls:
@@ -104,7 +103,7 @@ def _run_query(orch: FitDashOrchestrator, label: str, query: str) -> None:
 
 def main() -> None:
     print(f"{_BOLD}FitDash Orchestrator — End-to-End Test{_RESET}")
-    print(f"Starting orchestrator (discovers tools from running MCP servers)…")
+    print("Starting orchestrator (discovers tools from running MCP servers)…")
     orch = FitDashOrchestrator()
     tools = orch._discover()
     tool_names = [t["function"]["name"] for t in tools]

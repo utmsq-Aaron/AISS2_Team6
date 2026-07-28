@@ -23,7 +23,7 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -198,7 +198,7 @@ def _iso(value: Optional[str]) -> Optional[str]:
         tail = value[11:]  # the part after "YYYY-MM-DDT"
         has_tz = value.endswith("Z") or "+" in tail or "-" in tail
         return value if has_tz else value + "Z"
-    from datetime import datetime, timezone
+    from datetime import datetime
     return datetime.fromisoformat(value).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
 
 
@@ -337,7 +337,7 @@ def list_events(
         max_results: Max events to return (default 20, max 100).
         query: Optional free-text search.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
     params: Dict[str, Any] = {
         "singleEvents": "true",
         "orderBy": "startTime",

@@ -7,7 +7,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ActivityAnalysis } from "../dashboard/ActivityAnalysis";
 import FlythroughModal from "../FlythroughModal";
-import { MetricCard } from "../MetricCard";
 import { RouteMap, type MarkerSpec, type PolyLineSpec } from "../RouteMap";
 import { EmptyState } from "../Spinner";
 import { callTool } from "../../lib/api";

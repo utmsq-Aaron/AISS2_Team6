@@ -116,7 +116,9 @@ export function Dashboard() {
   });
   const zonesQ = useQuery({ queryKey: ["athlete-overview"], queryFn: getAthleteOverview });
 
-  const acts = actsQ.data?.activities ?? [];
+  // Memoised so the `?? []` fallback keeps its identity — a fresh [] on every
+  // render would defeat the useMemo below.
+  const acts = useMemo(() => actsQ.data?.activities ?? [], [actsQ.data]);
   const last = acts[0];
   const bands = zonesQ.data?.zones?.hr?.bands_bpm as ZoneBands | undefined;
   const { streak, last7 } = useMemo(() => streakOf(acts), [acts]);

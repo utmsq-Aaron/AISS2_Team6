@@ -8,7 +8,7 @@ Deterministic checks (fake chat model + fake MCP host, no gateway, no live MCP):
   5. Peer-to-peer mesh: orchestrator -> recovery -> (consults) context, and the
      context peer's MCP call surfaces in the final trace.
 
-Run:  python tests/test_agent_layer.py
+Run:  pytest  (or directly: python tests/unit/test_agent_layer.py)
 Uses test ports 9100/9101/9103 (overridden via *_A2A_URL env) to avoid a running stack.
 """
 
@@ -22,7 +22,7 @@ os.environ.setdefault("ORCHESTRATOR_A2A_URL", "http://127.0.0.1:9100/")
 os.environ.setdefault("RECOVERY_A2A_URL", "http://127.0.0.1:9101/")
 os.environ.setdefault("CONTEXT_A2A_URL", "http://127.0.0.1:9103/")
 os.environ.setdefault("ORCHESTRATOR_SPECIALISTS", "recovery")
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import uvicorn
 from pydantic import PrivateAttr

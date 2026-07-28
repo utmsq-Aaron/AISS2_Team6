@@ -1,6 +1,7 @@
 """Multi-tool synthesis + planning query tests."""
-import sys, json, time, traceback
-sys.path.insert(0, '.')
+import sys, time, traceback
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.orchestrator import FitDashOrchestrator
 from core.viz_telegram import can_render, render_chart_png

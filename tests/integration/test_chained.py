@@ -1,6 +1,7 @@
 """Test chained multi-step queries and edge cases."""
-import sys, json, time, traceback
-sys.path.insert(0, '.')
+import sys, time, traceback
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.orchestrator import FitDashOrchestrator
 from core.viz_telegram import can_render, render_chart_png
@@ -39,7 +40,7 @@ for label, query in QUERIES:
                 try:
                     png = render_chart_png(r["tool"], r.get("result","{}"))
                     charts.append(f"{bare}:{len(png)//1024 if png else 0}KB")
-                except Exception as e:
+                except Exception:
                     charts.append(f"{bare}:ERR")
         if charts:
             print(f"  Charts: {', '.join(charts)}")

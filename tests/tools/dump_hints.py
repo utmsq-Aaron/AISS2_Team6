@@ -2,7 +2,7 @@
 import json, sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 8
 out_path = ROOT / "tests" / "logs" / "tmp_hints.txt"
 

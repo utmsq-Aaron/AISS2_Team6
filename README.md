@@ -437,7 +437,7 @@ web/                    React + Vite SPA
 server/                 Node BFF — serves the SPA, proxies /api, hosts the PIN gate
 auth/                   one-time OAuth setup scripts
 scripts/                index builder, port exporter, Garmin mock
-tests/                  tests (+ tests/tools/ for debug utilities)
+tests/                  unit/ (offline, what pytest runs), integration/ (live stack), tools/ (debug)
 evaluation/             the quality evaluation harness — personas, scorers, reports
 docs/                   architecture, training rules, RAG, deployment
 external/               vendored third-party MCP server (not our code)
@@ -445,16 +445,35 @@ external/               vendored third-party MCP server (not our code)
 
 ---
 
-## Testing and evaluation
+## Testing, linting and evaluation
+
+Everything below runs on a fresh checkout — no accounts, no API keys, no running
+stack:
 
 ```bash
-.venv/bin/python tests/test_agent_layer.py     # offline, deterministic — run this after touching agents/
-( cd web && npm run typecheck && npm run build )
+pip install -r requirements-dev.txt   # ruff + pytest
+
+pytest                                # the offline test suite (tests/unit)
+ruff check .                          # lint the Python side
+
+( cd web && npm run typecheck )       # types
+( cd web && npm run lint )            # React/TS patterns — hooks, dead code
+( cd web && npm run build )
 ```
 
-`tests/` holds the tests, `tests/tools/` the debug utilities — see
-[`tests/README.md`](tests/README.md) for what is what. The **quality** evaluation (personas,
-scorers, generated reports) is a separate harness in [`evaluation/`](evaluation/README.md).
+`tests/unit/` are real tests and are what `pytest` collects; `tests/integration/`
+holds the end-to-end scripts that need the live stack, an LLM gateway and real
+Strava/Garmin accounts; `tests/tools/` are debug utilities. See
+[`tests/README.md`](tests/README.md) for what is what.
+
+Lint configuration lives in [`pyproject.toml`](pyproject.toml) and
+[`web/eslint.config.js`](web/eslint.config.js) — both are narrow on purpose and
+say in comments which rules are off and why. `ruff check .` and `pytest` are
+clean; `npm run lint` reports no errors and 22 warnings, all of them the React
+Compiler's `set-state-in-effect` and `only-export-components` advisories.
+
+The **quality** evaluation (personas, scorers, generated reports) is a separate
+harness in [`evaluation/`](evaluation/README.md).
 
 ---
 

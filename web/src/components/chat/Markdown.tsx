@@ -4,11 +4,10 @@ import type { ReactNode } from "react";
 // orchestrator emits: headings (#…), bullet lists (-, *, •), bold **x**, italic
 // *x*, inline `code`, links [t](u), and line breaks. Anything unrecognised falls
 // back to plain text, so it never throws on unexpected input.
-
-let _key = 0;
-function nextKey(): number {
-  return _key++;
-}
+//
+// Element keys are the position in the array being built. Keys only have to be
+// unique among siblings, and a shared module-level counter would be reset by
+// whichever <Markdown> rendered last — wrong as soon as React interleaves two.
 
 // ── Inline spans: bold, italic, code, links ──────────────────────────────────
 function renderInline(text: string): ReactNode[] {
@@ -25,7 +24,7 @@ function renderInline(text: string): ReactNode[] {
     if (tok.startsWith("`")) {
       out.push(
         <code
-          key={nextKey()}
+          key={out.length}
           className="rounded bg-bg-surface px-1 py-0.5 font-mono text-[0.85em] text-text-primary"
         >
           {tok.slice(1, -1)}
@@ -36,7 +35,7 @@ function renderInline(text: string): ReactNode[] {
       if (lm) {
         out.push(
           <a
-            key={nextKey()}
+            key={out.length}
             href={lm[2]}
             target="_blank"
             rel="noreferrer noopener"
@@ -50,14 +49,14 @@ function renderInline(text: string): ReactNode[] {
       }
     } else if (tok.startsWith("**") || tok.startsWith("__")) {
       out.push(
-        <strong key={nextKey()} className="font-semibold text-text-primary">
+        <strong key={out.length} className="font-semibold text-text-primary">
           {tok.slice(2, -2)}
         </strong>,
       );
     } else {
       // single * or _ → italic
       out.push(
-        <em key={nextKey()} className="italic">
+        <em key={out.length} className="italic">
           {tok.slice(1, -1)}
         </em>,
       );
@@ -70,7 +69,6 @@ function renderInline(text: string): ReactNode[] {
 
 // ── Block-level: headings, lists, paragraphs ──────────────────────────────────
 export function Markdown({ children }: { children: string }) {
-  _key = 0; // deterministic keys per render
   const src = children ?? "";
   const lines = src.split("\n");
   const blocks: ReactNode[] = [];
@@ -97,7 +95,7 @@ export function Markdown({ children }: { children: string }) {
             ? "text-sm font-semibold text-text-primary"
             : "text-sm font-medium text-text-primary";
       blocks.push(
-        <div key={nextKey()} className={`mt-2 ${cls}`}>
+        <div key={blocks.length} className={`mt-2 ${cls}`}>
           {renderInline(h[2])}
         </div>,
       );
@@ -115,7 +113,7 @@ export function Markdown({ children }: { children: string }) {
         if (!bm) break;
         const content = bm[bm.length - 1];
         items.push(
-          <li key={nextKey()} className="ml-1">
+          <li key={items.length} className="ml-1">
             {renderInline(content)}
           </li>,
         );
@@ -123,11 +121,11 @@ export function Markdown({ children }: { children: string }) {
       }
       blocks.push(
         ordered ? (
-          <ol key={nextKey()} className="ml-5 list-decimal space-y-0.5">
+          <ol key={blocks.length} className="ml-5 list-decimal space-y-0.5">
             {items}
           </ol>
         ) : (
-          <ul key={nextKey()} className="ml-5 list-disc space-y-0.5">
+          <ul key={blocks.length} className="ml-5 list-disc space-y-0.5">
             {items}
           </ul>
         ),
@@ -150,7 +148,7 @@ export function Markdown({ children }: { children: string }) {
       i += 1;
     }
     blocks.push(
-      <p key={nextKey()} className="leading-relaxed">
+      <p key={blocks.length} className="leading-relaxed">
         {para.map((p, idx) => (
           <span key={idx}>
             {renderInline(p)}

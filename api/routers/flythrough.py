@@ -39,8 +39,9 @@ def flythrough_page(
     raw = get_host().call_tool("strava__get_activity_streams", {"activity_id": activity_id})
     try:
         data = json.loads(raw) if isinstance(raw, str) else (raw or {})
-    except (json.JSONDecodeError, TypeError):
-        raise HTTPException(status_code=502, detail="Could not read activity streams.")
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise HTTPException(status_code=502,
+                            detail="Could not read activity streams.") from exc
     if isinstance(data, dict) and data.get("error"):
         raise HTTPException(status_code=404, detail=str(data["error"]))
 

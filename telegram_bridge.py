@@ -55,7 +55,6 @@ import os
 import shutil
 import sys
 import tempfile
-import threading
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from typing import Deque, Dict, List, Optional
@@ -134,7 +133,7 @@ def _api_id() -> int:
     try:
         return int(API_ID_RAW)
     except (TypeError, ValueError):
-        raise SystemExit("TELEGRAM_API_ID is missing or not an integer — set it in .env")
+        raise SystemExit("TELEGRAM_API_ID is missing or not an integer — set it in .env") from None
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────────

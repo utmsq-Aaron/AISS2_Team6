@@ -1,6 +1,7 @@
 """Test: verify the Strava file cache filter logic works correctly."""
-import sys, json, time
-sys.path.insert(0, '.')
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 # Test the _filter_activities method directly
 from servers.strava_mcp import StravaAPI

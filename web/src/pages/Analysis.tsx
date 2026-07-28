@@ -957,12 +957,18 @@ export function Analysis() {
     queryFn: () => callTool<AthleteResult>("strava__get_athlete_profile", {}),
   });
 
-  const allActivities = activitiesQ.data?.activities ?? [];
+  // Memoised so the `?? []` fallback keeps its identity across renders.
+  const allActivities = useMemo(() => activitiesQ.data?.activities ?? [], [activitiesQ.data]);
   const actError = activitiesQ.data?.error;
 
-  // Period cutoff (search lived on Dashboard; not relocated).
+  // Period cutoff (search lived on Dashboard; not relocated). The cutoff is
+  // relative to "now" on purpose — a period filter that froze at mount would
+  // drift over a long-lived tab.
   const activities = useMemo(() => {
     if (loadDays <= 0) return allActivities;
+    // Reading the clock here is the point: "last 30 days" has to mean 30 days
+    // from now, not from whenever the tab happened to be opened.
+    // eslint-disable-next-line react-hooks/purity
     const cutoff = new Date(Date.now() - loadDays * 86400000).toISOString().slice(0, 10);
     return allActivities.filter((a) => dayStr(a) >= cutoff);
   }, [allActivities, loadDays]);

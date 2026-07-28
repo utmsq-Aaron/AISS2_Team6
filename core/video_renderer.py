@@ -158,10 +158,10 @@ async def render_flythrough_async(
                 await asyncio.wait_for(done.wait(), timeout=timeout_s)
             except asyncio.TimeoutError:
                 elapsed = time.time() - t0
-                raise TimeoutError(
-                    f"Render timed out after {timeout_s}s  "
+                raise TimeoutError(                     # `from None`: the asyncio
+                    f"Render timed out after {timeout_s}s  "   # timeout adds nothing
                     f"(video duration={duration_sec}s, elapsed={elapsed:.1f}s)"
-                )
+                ) from None
             finally:
                 await browser.close()
 
