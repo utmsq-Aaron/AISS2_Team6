@@ -12,7 +12,7 @@
 #   DO_LOCK=true APP_PIN=1234 ./serve.sh   # add a shared PIN gate in front
 #
 # Env:
-#   PY         python to use      (default /opt/miniconda3/envs/aiss/bin/python3)
+#   PY         python to use      (defaults to python3/python on PATH)
 #   HOST       BFF bind host       (default 127.0.0.1)
 #   PORT       BFF port            (default 3000)
 #   MLFLOW     "0" to skip MLflow  (default on)
@@ -23,8 +23,11 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 source ./ports.sh || exit 1
-
-PY="${PY:-/opt/miniconda3/envs/aiss/bin/python3}"
+source ./scripts/stack_common.sh
+PY="${PY:-$(fitdash_resolve_python || true)}"
+if [ -z "${PY:-}" ]; then
+  echo "✗ python not found (activate a conda env or set PY=…)"; exit 1
+fi
 BFF_HOST="${HOST:-127.0.0.1}"
 BFF_PORT="${PORT:-3000}"
 
@@ -37,7 +40,6 @@ cleanup() {
   [ "${FUNNEL:-0}" = "1" ] && command -v tailscale >/dev/null 2>&1 && tailscale funnel reset >/dev/null 2>&1
 }
 trap cleanup EXIT INT TERM
-port_busy() { lsof -ti "tcp:$1" -sTCP:LISTEN >/dev/null 2>&1; }
 
 echo "=== FitDash · production serve ==="
 command -v "$PY" >/dev/null 2>&1 || { echo "✗ python not found at $PY (set PY=…)"; exit 1; }
@@ -83,26 +85,14 @@ fi
 
 # 1. MLflow tracking (best-effort; agents degrade gracefully if it's down)
 if [ "${MLFLOW:-1}" = "1" ]; then
-  if port_busy "$MLFLOW_PORT"; then echo "✓ MLflow already on :$MLFLOW_PORT"; else
-    echo "→ MLflow on :$MLFLOW_PORT"
-    "$PY" -m mlflow server --host 127.0.0.1 --port "$MLFLOW_PORT" \
-      --backend-store-uri "sqlite:///mlflow.db" >/tmp/mlflow.log 2>&1 &
-    pids+=($!)
-  fi
+  fitdash_start_mlflow >/dev/null
 fi
 
 # 2. MCP servers
-for s in "${MCP_SERVERS[@]}"; do
-  name="${s%%:*}"; port="${s##*:}"
-  if port_busy "$port"; then echo "✓ $name already on :$port"; else
-    echo "→ $name on :$port"
-    "$PY" -m "servers.${name}_mcp" >"/tmp/mcp_${name}.log" 2>&1 &
-    pids+=($!)
-  fi
-done
+fitdash_start_mcp_servers ""
 # Telegram MCP proxy (:8106) — opt-in; gives the agent Telegram tools.
 if $TG_MCP_ON; then
-  if port_busy "$TELEGRAM_MCP_PORT"; then echo "✓ telegram already on :$TELEGRAM_MCP_PORT"; else
+  if fitdash_port_busy "$TELEGRAM_MCP_PORT"; then echo "✓ telegram already on :$TELEGRAM_MCP_PORT"; else
     echo "→ telegram MCP on :$TELEGRAM_MCP_PORT"
     "$PY" -m servers.telegram_mcp >/tmp/mcp_telegram.log 2>&1 &
     pids+=($!)
@@ -111,27 +101,14 @@ fi
 sleep 2
 
 # 2a. Fitness RAG index (built once; instant skip if present)
-"$PY" -m scripts.build_fitness_index --if-missing \
-  || echo "⚠ fitness index unavailable — the fitness agent will degrade gracefully"
+fitdash_build_fitness_index
 
 # 3. A2A agents (specialists first, orchestrator last)
-for a in "${AGENT_PORTS[@]}"; do
-  name="${a%%:*}"; port="${a##*:}"
-  [ "$name" = "orchestrator" ] && mod="core.orchestrator_agent" || mod="agents.${name}_agent"
-  if port_busy "$port"; then echo "✓ agent $name already on :$port"; else
-    echo "→ agent $name on :$port ($mod)"
-    "$PY" -m "$mod" >"/tmp/agent_${name}.log" 2>&1 &
-    pids+=($!)
-  fi
-done
+fitdash_start_agents
 sleep 2
 
 # 4. FastAPI (internal only — the BFF proxies to it; no --reload in production)
-if port_busy "$FASTAPI_PORT"; then echo "✓ FastAPI already on :$FASTAPI_PORT"; else
-  echo "→ FastAPI on 127.0.0.1:$FASTAPI_PORT"
-  "$PY" -m uvicorn api.main:app --host 127.0.0.1 --port "$FASTAPI_PORT" >/tmp/fitdash_api.log 2>&1 &
-  pids+=($!)
-fi
+fitdash_start_fastapi
 sleep 2
 
 # 5. BFF — serves the SPA + proxies /api. This is the only externally-fronted port.

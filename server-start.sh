@@ -15,16 +15,17 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
 source ./ports.sh || exit 1
 
-# Pick a python: explicit $PY wins; else the currently-activated conda env; else the
-# deploy-server path; else whatever python3 is on PATH.
+# Pick a python: explicit $PY wins; else the currently-activated conda env; else
+# whatever python3/python is on PATH.
 if [ -z "${PY:-}" ]; then
   if [ -n "${CONDA_PREFIX:-}" ] && [ -x "$CONDA_PREFIX/bin/python3" ]; then
     PY="$CONDA_PREFIX/bin/python3"
-  elif [ -x /opt/miniconda3/envs/aiss/bin/python3 ]; then
-    PY="/opt/miniconda3/envs/aiss/bin/python3"
   else
-    PY="$(command -v python3 || true)"
+    PY="$(command -v python3 || command -v python || true)"
   fi
+fi
+if [ -z "${PY:-}" ]; then
+  echo "✗ python not found (activate a conda env or set PY=…)"; exit 1
 fi
 # ALL_PORTS (from ports.sh) plus the BFF port (default 3000, see serve.sh PORT=).
 APP_PORTS=("${ALL_PORTS[@]}" "${PORT:-3000}")

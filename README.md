@@ -215,6 +215,16 @@ cp .env.example .env
 # Edit .env — see Environment Variables below
 ```
 
+On Windows PowerShell with the `aiss2026` conda env, use:
+
+```powershell
+conda activate aiss2026
+.\dev_stack.ps1
+```
+
+The stack starts MLflow, the A2A agents, the MCP servers, the FastAPI seam, and the native React/Vite web app on :5173. If you only want the legacy Streamlit UI, run `streamlit run app.py` after activating the same Python environment.
+If the browser shows `ECONNREFUSED 127.0.0.1:8000`, the selected Python is missing project dependencies; install them with `pip install -r requirements.txt` in the same activated env before launching again.
+
 ### Environment Variables
 
 | Variable | Required | Description |
@@ -327,8 +337,16 @@ streamlit run app.py
 python telegram_bridge.py
 ```
 
-> The agent layer needs `OPENAI_*` / `AGENT_MODEL` set; for the multi-call agent loops a stable model is recommended — set `AGENT_LLM_MODEL=kit.gpt-4.1` (the agent layer uses it in preference to `AGENT_MODEL`).
+On Windows PowerShell, the equivalent is:
 
+```powershell
+conda activate aiss2026
+.\dev_stack.ps1
+```
+
+If you only need the native web app, `.\dev_stack.ps1` is the right entrypoint. The old Streamlit app still exists, but the Windows launcher no longer starts it. For chat, make sure the orchestrator (`:9000`) and at least one specialist agent are running.
+
+> The agent layer needs `OPENAI_*` / `AGENT_MODEL` set; for the multi-call agent loops a stable model is recommended — set `AGENT_LLM_MODEL=kit.gpt-4.1` (the agent layer uses it in preference to `AGENT_MODEL`).
 Or with Docker Compose (via the wrapper, which feeds the current ports from `core/config.py` into the compose file — see `docker-up.sh`):
 ```bash
 ./docker-up.sh up --build weather-mcp routes-mcp strava-mcp garmin-mcp calendar-mcp

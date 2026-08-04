@@ -9,73 +9,24 @@
 #   PY=/path/to/python ./dev_stack.sh
 set -uo pipefail
 cd "$(dirname "$0")"
-PY="${PY:-/opt/miniconda3/envs/aiss/bin/python3}"
 source ./ports.sh || exit 1
+source ./scripts/stack_common.sh
+PY="${PY:-$(fitdash_resolve_python || true)}"
+if [ -z "${PY:-}" ]; then
+  echo "✗ python not found (activate a conda env or set PY=…)"; exit 1
+fi
 
 pids=()
 cleanup() { echo; echo "stopping…"; for p in "${pids[@]}"; do kill "$p" 2>/dev/null; done; }
 trap cleanup EXIT INT TERM
 
-port_busy() { lsof -ti "tcp:$1" -sTCP:LISTEN >/dev/null 2>&1; }
-
-# 0. MLflow tracking server — agent + LLM tracing UI at http://localhost:5001.
-#    Started before the agents so they can register the experiment on boot.
-#    Port 5001, not 5000 — macOS Control Center/AirPlay Receiver squats on :5000.
-if port_busy "$MLFLOW_PORT"; then
-  echo "✓ MLflow already on :$MLFLOW_PORT"
-else
-  echo "→ starting MLflow on :$MLFLOW_PORT"
-  "$PY" -m mlflow server --host 127.0.0.1 --port "$MLFLOW_PORT" \
-    --backend-store-uri "sqlite:///mlflow.db" >/tmp/mlflow.log 2>&1 &
-  pids+=($!)
-  for _ in $(seq 1 40); do
-    curl -sf "http://127.0.0.1:${MLFLOW_PORT}/health" >/dev/null 2>&1 && { echo "  MLflow ready"; break; }
-    sleep 0.5
-  done
-fi
-
-# 1. MCP servers (telegram is optional / manual)
-for s in "${MCP_SERVERS[@]}"; do
-  name="${s%%:*}"; port="${s##*:}"
-  if port_busy "$port"; then
-    echo "✓ $name already on :$port"
-  else
-    echo "→ starting $name on :$port"
-    "$PY" -m "servers.${name}_mcp" >"/tmp/mcp_${name}.log" 2>&1 &
-    pids+=($!)
-  fi
-done
+fitdash_start_mlflow >/dev/null
+fitdash_start_mcp_servers "telegram"
 sleep 2
-
-# 1a. Fitness RAG vector index — build once (skipped instantly if it already
-#     exists). First run downloads the local embedding model (~90 MB) and embeds
-#     the public-domain corpus; the fitness agent (:9005) reads this index.
-echo "→ ensuring fitness RAG index"
-"$PY" -m scripts.build_fitness_index --if-missing \
-  || echo "⚠ fitness index unavailable — the fitness agent will degrade gracefully"
-
-# 1b. A2A agent layer — LangGraph specialists + orchestrator (each its own server).
-#     Specialists first, orchestrator (:9000) last. The orchestrator resolves the
-#     specialists lazily per request, so startup order isn't load-bearing.
-for a in "${AGENT_PORTS[@]}"; do
-  name="${a%%:*}"; port="${a##*:}"
-  if [ "$name" = "orchestrator" ]; then mod="core.orchestrator_agent"; else mod="agents.${name}_agent"; fi
-  if port_busy "$port"; then
-    echo "✓ agent $name already on :$port"
-  else
-    echo "→ starting agent $name on :$port  ($mod)"
-    "$PY" -m "$mod" >"/tmp/agent_${name}.log" 2>&1 &
-    pids+=($!)
-  fi
-done
+fitdash_build_fitness_index
+fitdash_start_agents
 sleep 2
-
-# 2. FastAPI seam
-if port_busy "$FASTAPI_PORT"; then echo "✓ FastAPI already on :$FASTAPI_PORT"; else
-  echo "→ starting FastAPI on :$FASTAPI_PORT"
-  "$PY" -m uvicorn api.main:app --host 127.0.0.1 --port "$FASTAPI_PORT" --reload >/tmp/fitdash_api.log 2>&1 &
-  pids+=($!)
-fi
+fitdash_start_fastapi
 
 # 2b. Telegram bridge — hosts the durable, cross-chat PROACTIVE SCHEDULER (self-
 #     scheduled wake-ups, calendar auto-schedule, deep-report delivery). It also

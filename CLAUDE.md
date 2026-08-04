@@ -36,7 +36,7 @@ python -m core.orchestrator_agent &    # :9000  (coordinates the five via A2A)
 streamlit run app.py              # http://localhost:8501
 ```
 
-In practice use the launchers, which start the MLflow tracking server (:5001) + MCP servers + the five agents + FastAPI (+ UI) for you: **`./dev_stack.sh`** (React/Vite stack on :5173) or **`./start.sh`** (opens Terminal windows; React UI + Telegram bridge). The chat will not work until the orchestrator (:9000) and at least one specialist are up. Agent/LLM traces are browsable at http://localhost:5001 (see *Agent layer → Tracing*).
+In practice use the launchers, which start the MLflow tracking server (:5001) + MCP servers + the five agents + FastAPI (+ UI) for you: **`./dev_stack.sh`** (React/Vite stack on :5173) or **`./start.sh`** (opens Terminal windows; React UI + Telegram bridge). On Windows, use [dev_stack.ps1](dev_stack.ps1) from a PowerShell session with the active Python environment; it brings up MLflow, the agents, the MCP servers, the FastAPI seam, and the native React/Vite web app. The chat will not work until the orchestrator (:9000) and at least one specialist are up. Agent/LLM traces are browsable at http://localhost:5001 (see *Agent layer → Tracing*).
 
 Or via Docker: `./docker-up.sh up --build` (a thin `docker compose` wrapper that first regenerates the port variables from `core/config.py` — see the script header; one container per MCP server **and** per agent; the single `Dockerfile` is reused — MCP services select their module via the `SERVER` env var, agent services override `command:`). The Streamlit/React app still runs on the host, reaching the containers over published localhost ports.
 
