@@ -91,6 +91,8 @@ def _peers_for(name: str, depth: int) -> List[str]:
     """
     if not _mesh_enabled() or depth >= _max_peer_depth():
         return []
+    if name == "recovery":
+        return []
     return [s for s in AGENT_MCP_SCOPE if s != name]
 
 
@@ -239,7 +241,7 @@ def run_agent_server(name: str, executor: AgentExecutor, *, description: str,
     )
     handler = DefaultRequestHandler(agent_executor=executor, task_store=InMemoryTaskStore())
     app = A2AStarletteApplication(agent_card=card, http_handler=handler)
-    print(f"[{name}] A2A server → {url}  (bind {bind_host}:{port})", flush=True)
+    print(f"[{name}] A2A server -> {url}  (bind {bind_host}:{port})", flush=True)
     uvicorn.run(app.build(), host=bind_host, port=port, log_level="info")
 
 

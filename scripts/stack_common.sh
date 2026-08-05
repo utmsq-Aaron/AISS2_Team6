@@ -42,6 +42,19 @@ fitdash_env_has() {
   grep -qE "^$1=[\"']?[A-Za-z0-9]" "$REPO_ROOT/.env" 2>/dev/null
 }
 
+fitdash_env_value() {
+  local key="$1" line value
+  line="$(grep -E "^${key}=" "$REPO_ROOT/.env" 2>/dev/null | tail -n 1 || true)"
+  value="${line#*=}"
+  value="${value%%#*}"
+  value="${value%$'\r'}"
+  value="${value#\"}"
+  value="${value%\"}"
+  value="${value#\'}"
+  value="${value%\'}"
+  printf '%s' "$value"
+}
+
 fitdash_start_mlflow() {
   local port="${MLFLOW_PORT:-5001}"
   if fitdash_port_busy "$port"; then

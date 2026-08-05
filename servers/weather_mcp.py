@@ -1,7 +1,7 @@
 """Weather — native FastMCP server (Streamable HTTP).
 
 Self-contained MCP server for current conditions AND forecasts, backed by
-Open-Meteo (free, no API key). No BaseMCPServer, no dispatch indirection — the
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
 tools call the API directly. The app reaches it as a plain MCP client via
 ``core.host.ToolHost``.
 
@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer as FastMCP
 
 load_dotenv()
 
@@ -33,9 +33,6 @@ PORT = int(os.getenv("WEATHER_MCP_PORT", "8101"))
 mcp = FastMCP(
     "weather",
     instructions="Current weather plus multi-day forecast, pollen and UV for the configured city.",
-    host=HOST,
-    port=PORT,
-    stateless_http=True,
 )
 
 
@@ -182,4 +179,4 @@ def get_uv_index() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)

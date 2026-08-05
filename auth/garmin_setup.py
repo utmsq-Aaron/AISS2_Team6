@@ -6,7 +6,7 @@ Run once from the project root:
     python auth/garmin_setup.py
 
 After a successful run, garmin_server.py loads tokens automatically.
-Tokens are cached in .garmin_tokens/ — never commit this directory.
+Tokens are cached in .tokens/garmin_tokens.json — never commit this file.
 """
 
 import os

@@ -21,7 +21,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp.client.session import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 
 from core.config import MCP_SERVERS, SEP
 
@@ -53,7 +53,8 @@ class ToolHost:
         """
         async def _fetch(name: str, url: str) -> List[Dict[str, Any]]:
             async def _do():
-                async with streamablehttp_client(url, headers=self.headers.get(name)) as (read, write, _):
+                http_client = create_mcp_http_client(headers=self.headers.get(name) or None)
+                async with streamable_http_client(url, http_client=http_client) as (read, write):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
                         result = await session.list_tools()
@@ -62,7 +63,7 @@ class ToolHost:
                             "function": {
                                 "name":        f"{name}{SEP}{t.name}",
                                 "description": t.description or "",
-                                "parameters":  t.inputSchema or {
+                                "parameters":  getattr(t, "input_schema", None) or {
                                     "type": "object", "properties": {}, "required": []
                                 },
                             },
@@ -88,7 +89,8 @@ class ToolHost:
             return json.dumps({"error": f"No server '{server}' for tool '{name}'"})
 
         async def _do() -> str:
-            async with streamablehttp_client(url, headers=self.headers.get(server)) as (read, write, _):
+            http_client = create_mcp_http_client(headers=self.headers.get(server) or None)
+            async with streamable_http_client(url, http_client=http_client) as (read, write):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     result = await session.call_tool(tool, arguments=args or {})
@@ -97,7 +99,7 @@ class ToolHost:
                         for c in result.content
                         if getattr(c, "type", "") == "text"
                     ]
-                    if result.isError:
+                    if result.is_error:
                         return json.dumps({"error": "\n".join(texts) or "tool error"})
                     return "\n".join(texts) if texts else json.dumps({"result": "ok"})
 
@@ -124,18 +126,7 @@ def _run(coro):
 
     A fresh event loop per call keeps it safe outside any running loop.
     """
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        try:
-            pending = asyncio.all_tasks(loop)
-            for task in pending:
-                task.cancel()
-            if pending:
-                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-        finally:
-            loop.close()
+    return asyncio.run(coro)
 
 
 # Process-wide default host (own servers). Per-user hosts are constructed explicitly.

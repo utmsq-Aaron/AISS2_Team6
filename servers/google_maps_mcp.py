@@ -1,7 +1,7 @@
 """Google Maps — native FastMCP server (Streamable HTTP).
 
 Self-contained MCP server for place search, place details, geocoding and
-directions, backed by the CURRENT Google Maps Platform APIs — Places API (New),
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
 Geocoding API v4 and the Routes API. These all work with a billing-free Maps
 Demo Key (unlike the legacy APIs the archived ``@modelcontextprotocol/
 server-google-maps`` npm proxy called, which this server replaces — same tool
@@ -28,7 +28,7 @@ from urllib.parse import quote
 
 import requests
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer as FastMCP
 
 load_dotenv()
 
@@ -152,9 +152,6 @@ mcp = FastMCP(
     instructions=("Find businesses and points of interest, get place details, convert "
                   "addresses to coordinates (and back), and compute directions/ETA "
                   "between two named places."),
-    host=HOST,
-    port=PORT,
-    stateless_http=True,
 )
 
 
@@ -432,4 +429,4 @@ def maps_directions(origin: str, destination: str, mode: str = "walking") -> Dic
 
 if __name__ == "__main__":
     _check_prereqs()
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)

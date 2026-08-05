@@ -47,6 +47,18 @@ def _dev_echo() -> bool:
     return os.getenv("OTP_DEV_ECHO", "0").strip().lower() in ("1", "true", "yes")
 
 
+def _set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        A.SESSION_COOKIE,
+        token,
+        max_age=A.TOKEN_TTL,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_secure(),
+        path="/",
+    )
+
+
 @router.post("/request-otp")
 def request_otp(req: EmailRequest) -> dict:
     email = A.normalize_email(req.email)
@@ -85,19 +97,35 @@ def verify_otp(req: VerifyRequest, response: Response) -> TokenResponse:
     # COOKIE_SECURE (default off — the app sits behind the BFF over plain http in
     # dev). We STILL return the token in the JSON body below for non-browser
     # clients and as an instant frontend-only rollback path.
-    response.set_cookie(
-        A.SESSION_COOKIE,
-        token,
-        max_age=A.TOKEN_TTL,
-        httponly=True,
-        samesite="lax",
-        secure=_cookie_secure(),
-        path="/",
-    )
+    _set_session_cookie(response, token)
     return TokenResponse(
         token=token,
         user=email,
         is_admin=A.is_admin(email),
+        new_account=new_account,
+    )
+
+
+@router.post("/dev-login", response_model=TokenResponse)
+def dev_login(response: Response) -> TokenResponse:
+    """Dev-only automatic login for local stacks.
+
+    When `VITE_DEV_AUTO_LOGIN_EMAIL` is set, the frontend can call this endpoint
+    once on boot to receive a real signed session cookie and skip the email OTP
+    page. Keep it off in any public deployment.
+    """
+    email = os.getenv("VITE_DEV_AUTO_LOGIN_EMAIL", "").strip().lower()
+    normalized = A.normalize_email(email)
+    if normalized is None:
+        raise HTTPException(status_code=400, detail="VITE_DEV_AUTO_LOGIN_EMAIL must be set to a valid email address.")
+
+    new_account = A.register_or_touch(normalized)
+    token = A.issue_token(normalized)
+    _set_session_cookie(response, token)
+    return TokenResponse(
+        token=token,
+        user=normalized,
+        is_admin=A.is_admin(normalized),
         new_account=new_account,
     )
 

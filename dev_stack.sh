@@ -20,6 +20,13 @@ pids=()
 cleanup() { echo; echo "stopping…"; for p in "${pids[@]}"; do kill "$p" 2>/dev/null; done; }
 trap cleanup EXIT INT TERM
 
+if [ -n "$(fitdash_env_value VITE_SHOW_GMAIL_REGISTRATION_PAGE 2>/dev/null || true)" ]; then
+  export VITE_SHOW_GMAIL_REGISTRATION_PAGE="$(fitdash_env_value VITE_SHOW_GMAIL_REGISTRATION_PAGE)"
+fi
+if [ -n "$(fitdash_env_value VITE_DEV_AUTO_LOGIN_EMAIL 2>/dev/null || true)" ]; then
+  export VITE_DEV_AUTO_LOGIN_EMAIL="$(fitdash_env_value VITE_DEV_AUTO_LOGIN_EMAIL)"
+fi
+
 fitdash_start_mlflow >/dev/null
 fitdash_start_mcp_servers "telegram"
 sleep 2

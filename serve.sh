@@ -45,6 +45,13 @@ echo "=== FitDash · production serve ==="
 command -v "$PY" >/dev/null 2>&1 || { echo "✗ python not found at $PY (set PY=…)"; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "✗ node not found (install Node 18+)"; exit 1; }
 
+if [ -z "${VITE_SHOW_GMAIL_REGISTRATION_PAGE:-}" ]; then
+  export VITE_SHOW_GMAIL_REGISTRATION_PAGE="$(fitdash_env_value VITE_SHOW_GMAIL_REGISTRATION_PAGE)"
+fi
+if [ -z "${VITE_DEV_AUTO_LOGIN_EMAIL:-}" ]; then
+  export VITE_DEV_AUTO_LOGIN_EMAIL="$(fitdash_env_value VITE_DEV_AUTO_LOGIN_EMAIL)"
+fi
+
 # ── Telegram decisions (opt-in) ───────────────────────────────────────────────
 # env_has KEY → true if .env sets KEY to a real (alphanumeric-leading) value.
 env_has() { grep -qE "^$1=[\"']?[A-Za-z0-9]" .env 2>/dev/null; }

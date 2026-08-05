@@ -1,7 +1,7 @@
 """Flythrough — native FastMCP server for 3D GPS flythrough render requests.
 
 Returns a show_flythrough action payload that tells the UI which activity to
-render and with which parameters. Rendering (Playwright + MapLibre) happens
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
 at the output layer — Streamlit for the web UI, Telegram bridge for chat.
 This server handles only parameter validation and packaging.
 
@@ -14,7 +14,7 @@ import sys
 from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer as FastMCP
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 load_dotenv()
@@ -29,9 +29,6 @@ mcp = FastMCP(
         "Use prepare_flythrough ONLY after the user has confirmed orientation, map style, "
         "and duration — and you have a concrete activity_id from a Strava tool call."
     ),
-    host=HOST,
-    port=PORT,
-    stateless_http=True,
 )
 
 _VALID_ORIENTATIONS = {"landscape", "portrait"}
@@ -91,4 +88,4 @@ def prepare_flythrough(
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)

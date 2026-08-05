@@ -1,7 +1,7 @@
 """Routes — native FastMCP server (Streamable HTTP).
 
 Route planning and trail discovery via OpenRouteService (ORS) + OpenStreetMap
-(Overpass). Self-contained native MCP server — no BaseMCPServer, no dispatch
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
 indirection. The app reaches it as a plain MCP client via core.host.ToolHost.
 
 Run locally:   python -m servers.routes_mcp
@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer as FastMCP
 
 load_dotenv()
 
@@ -35,9 +35,6 @@ PORT = int(os.getenv("ROUTES_MCP_PORT", "8102"))
 mcp = FastMCP(
     "routes",
     instructions="Plan point-to-point and loop routes, elevation profiles, isochrones, and discover trails.",
-    host=HOST,
-    port=PORT,
-    stateless_http=True,
 )
 
 VALID_PROFILES = {"cycling-regular", "cycling-mountain", "foot-hiking", "foot-walking"}
@@ -630,4 +627,4 @@ def get_isochrone(lat: float, lon: float, range_value: float,
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)

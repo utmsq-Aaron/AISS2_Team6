@@ -1,7 +1,7 @@
 """Garmin Connect — native FastMCP server (Streamable HTTP).
 
 Self-contained MCP server for Garmin health and activity data. No BaseMCPServer,
-no dispatch indirection — the tools call the garminconnect library directly using
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
 cached OAuth tokens from the ``.tokens`` directory.
 The app reaches it as a plain MCP client via ``core.host.ToolHost``.
 
@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer as FastMCP
 
 load_dotenv()
 
@@ -41,9 +41,6 @@ mcp = FastMCP(
         "training metrics (VO2max, race predictions), wellness trends, "
         "steps and stress timelines, body composition, and GPS track download."
     ),
-    host=HOST,
-    port=PORT,
-    stateless_http=True,
 )
 
 
@@ -932,4 +929,4 @@ def get_activity_gps_track(
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)

@@ -42,7 +42,7 @@ nothing to forward and no inbound firewall rule to add.
 - **Connect the admin email sender once, on the mini** (powers OTP login email). Run the
   CLI signed in as **kit.aiss2026@gmail.com**:
   ```bash
-  python auth/google_oauth.py        # writes .tokens/google_mail.json (gmail.send)
+  python -m auth gmail               # writes .tokens/google_mail.json (gmail.send)
   ```
   **Enable the Gmail API** (and Calendar API) in the Cloud project (console → APIs &
   Services → Library), and keep the redirect URI
@@ -57,7 +57,7 @@ nothing to forward and no inbound firewall rule to add.
     the mini.
 - **First-run bootstrap (chicken-and-egg).** OTP email needs `google_mail.json` present, but
   the in-app connect needs you logged in (which needs an email). Break the loop: run
-  `python auth/google_oauth.py` **before** first login (recommended), or start once with
+  `python -m auth gmail` **before** first login (recommended), or start once with
   `OTP_DEV_ECHO=1` so codes print to the server log (`/tmp/fitdash_api.log`) — log in as the
   admin, then restart **without** `OTP_DEV_ECHO`. Never leave it on for a public URL.
 - **Strava / Garmin / Calendar**: any logged-in user can connect these from Settings; tokens

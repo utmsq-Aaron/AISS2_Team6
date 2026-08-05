@@ -64,6 +64,14 @@ export const verifyOtp = (email: string, code: string) =>
     { email, code },
   );
 
+/** Dev-only automatic login for local stacks configured with
+ *  `VITE_DEV_AUTO_LOGIN_EMAIL`. Returns the same shape as `verifyOtp`. */
+export const devLogin = () =>
+  authPost<{ token: string; user: string; is_admin: boolean; new_account: boolean }>(
+    "/auth/dev-login",
+    {},
+  );
+
 // ── Chat sessions (persistent, per-user) ──────────────────────────────────────
 
 export interface ChatSummary {

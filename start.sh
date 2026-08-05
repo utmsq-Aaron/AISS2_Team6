@@ -15,6 +15,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
 source ./ports.sh || exit 1
+source ./scripts/stack_common.sh
 
 CONDA_SH="${CONDA_SH:-/opt/miniconda3/etc/profile.d/conda.sh}"
 CONDA_ENV="${CONDA_ENV:-aiss}"
@@ -38,6 +39,12 @@ free_port() { local p="$1"; while port_busy "$p"; do p=$((p+1)); done; echo "$p"
 # =============================================================================
 run_mcps() {
   activate_env
+  if [ -z "${VITE_SHOW_GMAIL_REGISTRATION_PAGE:-}" ]; then
+    export VITE_SHOW_GMAIL_REGISTRATION_PAGE="$(fitdash_env_value VITE_SHOW_GMAIL_REGISTRATION_PAGE)"
+  fi
+  if [ -z "${VITE_DEV_AUTO_LOGIN_EMAIL:-}" ]; then
+    export VITE_DEV_AUTO_LOGIN_EMAIL="$(fitdash_env_value VITE_DEV_AUTO_LOGIN_EMAIL)"
+  fi
   pids=()
   cleanup() { echo; echo "stopping backend…"; for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null; done; }
   trap cleanup EXIT INT TERM

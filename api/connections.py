@@ -31,14 +31,7 @@ def garmin_mock_mode() -> bool:
 def garmin_connected() -> bool:
     if garmin_mock_mode():
         return True
-    token_dir = Path(".tokens")
-    if not token_dir.is_dir():
-        return False
-    excluded = {"strava.json", "google.json"}
-    return any(
-        f.is_file() and f.suffix in (".json", ".txt", "") and f.name not in excluded
-        for f in token_dir.iterdir()
-    )
+    return Path(".tokens/garmin_tokens.json").is_file()
 
 
 def google_connected() -> bool:

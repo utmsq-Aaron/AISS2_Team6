@@ -1,7 +1,7 @@
 import { Dumbbell, Mail } from "lucide-react";
 import { useState } from "react";
 
-import { requestOtp, verifyOtp } from "../lib/api";
+import { devLogin, requestOtp, verifyOtp } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 
 // Email + OTP login/registration. Step 1: enter email → a code is emailed. Step 2:

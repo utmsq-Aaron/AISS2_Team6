@@ -240,6 +240,8 @@ If the browser shows `ECONNREFUSED 127.0.0.1:8000`, the selected Python is missi
 | `TELEGRAM_API_ID` | No | Telegram API ID — enables the Telegram server |
 | `TELEGRAM_API_HASH` | No | Telegram API hash |
 | `TELEGRAM_SESSION_STRING` | No | Telegram session string (see Telegram Setup) |
+| `VITE_SHOW_GMAIL_REGISTRATION_PAGE` | No | Set to `false` to skip the Google/Gmail onboarding page and open the normal app shell immediately |
+| `ADMIN_EMAIL` | No | Admin Gmail address used for OTP emails and feedback notifications |
 
 All settings can also be configured at runtime in the **⚙️ Settings** tab.
 
@@ -253,17 +255,41 @@ If `APP_PIN` is not set, the gate is bypassed (open access).
 
 ## Authentication
 
+The email OTP screen is the real app login. If you want to skip it in local development and land directly in the shell, set `VITE_DEV_AUTO_LOGIN_EMAIL` in `.env` (the dev launchers forward it into the web app). That is a dev-only convenience; do not use it for a public deployment.
+
 ### Strava OAuth
 
 Strava OAuth runs automatically on first use — the app opens a browser window to authorise access. Tokens are saved to `.tokens/strava.json` and refreshed automatically.
 
+```bash
+python -m auth strava
+```
+
+Run this once during setup if you want to initialise the Strava OAuth flow manually. `python -m auth all` runs the one-off setup flows in one go.
+
 ### Garmin Setup
 
 ```bash
-python auth/garmin_setup.py
+python -m auth garmin
 ```
 
 Run once after filling in `GARMIN_EMAIL` and `GARMIN_PASSWORD`. Tokens persist in `.tokens/` until they expire; re-run if login fails.
+
+### Google / Gmail setup
+
+The Google Calendar connect flow stays available in **Settings**, but the first-run Google/Gmail onboarding page can be disabled with `VITE_SHOW_GMAIL_REGISTRATION_PAGE=false` so you land on the regular app shell immediately.
+
+For Gmail/Google, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and optionally `ADMIN_EMAIL` if your admin account is not the default `kit.aiss2026@gmail.com`.
+
+Then enable the **Gmail API** and **Calendar API** in the Google Cloud console, register the callback URI `http://localhost:8000/api/settings/google/callback` for local development, and run:
+
+```bash
+python -m auth gmail
+```
+
+That writes the admin mail sender token to `.tokens/google_mail.json` with the `gmail.send` scope. There is no Gmail password stored in `.env`; the app uses OAuth tokens under `.tokens/`.
+
+The regular Google Calendar connect flow is separate: open **Settings** in the app, set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, and connect there. That flow stores `.tokens/google.json` for calendar access.
 
 ### Telegram Setup
 
@@ -396,7 +422,7 @@ missing):
 1. **Connect the admin email sender** (powers OTP login emails). On the host, sign in as
    `kit.aiss2026@gmail.com`:
    ```bash
-   python auth/google_oauth.py     # writes .tokens/google_mail.json (gmail.send)
+    python -m auth gmail            # writes .tokens/google_mail.json (gmail.send)
    ```
    …and enable the **Gmail API** (and **Calendar API**) for the project in the
    [Google Cloud console](https://console.cloud.google.com/apis/library). Register the
@@ -427,10 +453,10 @@ by email. Full detail (autostart on boot via `launchd`, custom domains, security
 | `LLM call failed: 400 invalid subscription key` | Wrong model name — use `kit.gpt-4.1`. |
 | Chat response takes 30–60 s | Normal under gateway load. |
 | Strava shows 0 activities | Account has no activities, or token expired — delete `.tokens/strava.json` and re-authorise. |
-| Garmin tokens expired | Re-run `python auth/garmin_setup.py` |
+| Garmin tokens expired | Re-run `python -m auth garmin` |
 | Port already in use | Kill the existing process or change the port via `STRAVA_MCP_PORT` / `GARMIN_MCP_PORT` env vars. |
 | No route visible on map | Activity has no GPS stream (indoor workout or Strava privacy zone). |
-| Chat returns "Garmin not connected" | Run `auth/garmin_setup.py` and confirm `.tokens/garmin_tokens.json` exists. |
+| Chat returns "Garmin not connected" | Run `python -m auth garmin` and confirm `.tokens/garmin_tokens.json` exists. |
 | MCP server not reachable | Confirm the server process is running: `curl http://127.0.0.1:8103/mcp` should return 200. |
 | Telegram tools missing / server exits | Check `external/telegram-mcp` exists, `uv` is installed, and `TELEGRAM_SESSION_STRING` is valid (regenerate with `session_string_generator.py`). Watch its stderr for `[telegram] N tool(s) ready`. |
 | Telegram bridge: `AuthKeyDuplicatedError` | The bridge and the `telegram_mcp` proxy are on the same session at once. Give the bridge its own login: `python telegram_bridge.py --login` → `TELEGRAM_BRIDGE_SESSION_STRING`. |
@@ -438,8 +464,8 @@ by email. Full detail (autostart on boot via `launchd`, custom domains, security
 | Voice memo not transcribed | First memo downloads the Whisper model (wait a bit); the bridge logs `🎤 transcribed via … (lang=…)`. Ensure `faster-whisper` is installed. The mlx engine additionally needs `brew install ffmpeg`. |
 | New activities not visible | Use **🔄 Refresh data** in the sidebar to clear the cache. |
 | Login OTP request stuck on "Sending…" / `(pending)` | The PIN gate must scope `express.json()` to `/bff/login` only (global parsing hangs proxied POSTs). Restart the BFF (`server-start.sh`) so it picks up `server/index.js`. |
-| OTP email never arrives / `502` on request-otp | Google/Gmail not connected or missing the `gmail.send` scope. Run `python auth/google_oauth.py` (as `kit.aiss2026@gmail.com`) and enable the **Gmail API** in the Cloud console. Check Spam. For local testing without email, start with `OTP_DEV_ECHO=1` and read the code from `/tmp/fitdash_api.log`. |
+| OTP email never arrives / `502` on request-otp | Google/Gmail not connected or missing the `gmail.send` scope. Run `python -m auth gmail` (as `kit.aiss2026@gmail.com`) and enable the **Gmail API** in the Cloud console. Check Spam. For local testing without email, start with `OTP_DEV_ECHO=1` and read the code from `/tmp/fitdash_api.log`. |
 | "Invalid or expired code" | Codes expire in 10 min and burn after 5 wrong tries — request a fresh one. |
 | Settings only shows Strava/Garmin/Calendar | Expected for non-admins — LLM/Telegram/restart cards are admin-only. Log in as `kit.aiss2026@gmail.com` (the `ADMIN_EMAIL`) for the full Settings. |
-| User's Google Calendar connect broke OTP email | Shouldn't happen — email uses a separate `.tokens/google_mail.json`. If it does, re-run `python auth/google_oauth.py` (as the admin) to refresh that token; calendar connects only touch `.tokens/google.json`. |
+| User's Google Calendar connect broke OTP email | Shouldn't happen — email uses a separate `.tokens/google_mail.json`. If it does, re-run `python -m auth gmail` (as the admin) to refresh that token; calendar connects only touch `.tokens/google.json`. |
 | Everyone logged out after a restart | `AUTH_SECRET` changed. `server-start.sh` persists a stable one in `.secrets/auth_secret`; don't pass a different `AUTH_SECRET` over it. |

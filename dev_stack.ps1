@@ -10,6 +10,11 @@ $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $RepoRoot
 
 function Get-PythonPath {
+    $localVenv = Join-Path $RepoRoot '.venv\Scripts\python.exe'
+    if (Test-Path $localVenv) {
+        return $localVenv
+    }
+
     if ($env:PY -and (Test-Path $env:PY)) {
         return $env:PY
     }
@@ -58,6 +63,50 @@ function Test-PortBusy {
         return [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop)
     } catch {
         return [bool](netstat -ano | Select-String -Pattern ":$Port\s+.*LISTENING")
+    }
+}
+
+function Get-PortListenerPids {
+    param([int]$Port)
+
+    $pids = @()
+    foreach ($line in (netstat -ano)) {
+        if ($line -match "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)\s*$") {
+            $pids += [int]$Matches[1]
+        }
+    }
+
+    return @($pids | Sort-Object -Unique)
+}
+
+function Stop-PortListeners {
+    param(
+        [int]$Port,
+        [string]$Name
+    )
+
+    $pids = Get-PortListenerPids -Port $Port
+    if (@($pids).Count -eq 0) {
+        return
+    }
+
+    foreach ($pid in $pids) {
+        try {
+            Stop-Process -Id $pid -Force -ErrorAction Stop
+            Write-Host "Stopped $Name listener on :$Port (pid $pid)"
+        } catch {
+            Write-Host "WARNING Could not stop $Name listener on :$Port (pid $pid): $($_.Exception.Message)"
+        }
+    }
+}
+
+function Reset-StackPorts {
+    param([pscustomobject[]]$PortsToReset)
+
+    foreach ($entry in $PortsToReset) {
+        if (Test-PortBusy -Port $entry.Port) {
+            Stop-PortListeners -Port $entry.Port -Name $entry.Name
+        }
     }
 }
 
@@ -111,6 +160,28 @@ function Start-PythonService {
     return $proc
 }
 
+function Wait-HttpReady {
+    param(
+        [string]$Url,
+        [int]$TimeoutSeconds = 60
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+                return
+            }
+        } catch {
+            # Keep waiting until the service is actually reachable.
+        }
+        [System.Threading.Thread]::Sleep(500)
+    }
+
+    throw "Timed out waiting for $Url"
+}
+
 $Python = Get-PythonPath
 $Ports = Get-PortConfig -PythonPath $Python
 $FASTAPI_PORT = [int]$Ports.FASTAPI_PORT
@@ -145,9 +216,39 @@ if ($Python) {
     $env:PY = $Python
 }
 
+$viteFlag = Get-EnvValue 'VITE_SHOW_GMAIL_REGISTRATION_PAGE'
+if ($viteFlag) {
+    $env:VITE_SHOW_GMAIL_REGISTRATION_PAGE = $viteFlag
+}
+$devAutoLoginEmail = Get-EnvValue 'VITE_DEV_AUTO_LOGIN_EMAIL'
+if ($devAutoLoginEmail) {
+    $env:VITE_DEV_AUTO_LOGIN_EMAIL = $devAutoLoginEmail
+}
+
 try {
     Write-Host '=== FitDash Windows stack ==='
     Write-Host "Python: $Python"
+
+    Reset-StackPorts -PortsToReset @(
+        [pscustomobject]@{ Name = 'mlflow'; Port = $MLFLOW_PORT },
+        [pscustomobject]@{ Name = 'fastapi'; Port = $FASTAPI_PORT },
+        [pscustomobject]@{ Name = 'mcp_weather'; Port = [int]$Ports.MCP_PORTS.weather },
+        [pscustomobject]@{ Name = 'mcp_routes'; Port = [int]$Ports.MCP_PORTS.routes },
+        [pscustomobject]@{ Name = 'mcp_strava'; Port = [int]$Ports.MCP_PORTS.strava },
+        [pscustomobject]@{ Name = 'mcp_garmin'; Port = [int]$Ports.MCP_PORTS.garmin },
+        [pscustomobject]@{ Name = 'mcp_calendar'; Port = [int]$Ports.MCP_PORTS.calendar },
+        [pscustomobject]@{ Name = 'mcp_flythrough'; Port = [int]$Ports.MCP_PORTS.flythrough },
+        [pscustomobject]@{ Name = 'mcp_google_maps'; Port = [int]$Ports.MCP_PORTS.google_maps },
+        [pscustomobject]@{ Name = 'mcp_athlete'; Port = [int]$Ports.MCP_PORTS.athlete },
+        [pscustomobject]@{ Name = 'agent_recovery'; Port = [int]$Ports.AGENT_PORTS.recovery },
+        [pscustomobject]@{ Name = 'agent_load'; Port = [int]$Ports.AGENT_PORTS.load },
+        [pscustomobject]@{ Name = 'agent_context'; Port = [int]$Ports.AGENT_PORTS.context },
+        [pscustomobject]@{ Name = 'agent_route'; Port = [int]$Ports.AGENT_PORTS.route },
+        [pscustomobject]@{ Name = 'agent_fitness'; Port = [int]$Ports.AGENT_PORTS.fitness },
+        [pscustomobject]@{ Name = 'agent_coach'; Port = [int]$Ports.AGENT_PORTS.coach },
+        [pscustomobject]@{ Name = 'agent_orchestrator'; Port = [int]$Ports.AGENT_PORTS.orchestrator },
+        [pscustomobject]@{ Name = 'telegram_mcp'; Port = $TELEGRAM_MCP_PORT }
+    )
 
     $requiredModules = @('fastapi', 'uvicorn', 'a2a', 'mlflow')
     $missingModules = @()
@@ -202,6 +303,8 @@ try {
         '--port', $FASTAPI_PORT,
         '--reload'
     ) -Port $FASTAPI_PORT | Out-Null
+
+    Wait-HttpReady -Url "http://127.0.0.1:$FASTAPI_PORT/api/ping"
 
     if ($Bridge) {
         $apiId = Get-EnvValue 'TELEGRAM_API_ID'
