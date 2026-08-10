@@ -38,7 +38,7 @@ npm run build       # → web/dist (what the BFF serves in production)
 | Path | What's in it |
 |---|---|
 | `src/App.tsx` | The shell: auth gate → onboarding → sidebar + routes |
-| `src/nav.tsx` | **Single source of truth** for the primary navigation — sidebar, breadcrumb and quick-search all read it |
+| `src/nav.ts` | **Single source of truth** for the primary navigation — sidebar, breadcrumb and quick-search all read it |
 | `src/pages/` | One file per page: Dashboard, Coach, Health, Chat, Settings, Login |
 | `src/lib/api.ts` | Typed client over the FastAPI seam (`callTool`, `streamChat`, …) |
 | `src/components/` | Shared kit: `MetricCard`, `PlotlyChart`, `RouteMap` (MapLibre), `PeriodSelector`, `Card` |
@@ -46,6 +46,6 @@ npm run build       # → web/dist (what the BFF serves in production)
 | `src/theme/` | Colour tokens + the dark Plotly theme, kept in step with `core/viz_telegram.py` so charts look the same in the browser and in Telegram |
 | `src/store/` | Global UI state (zustand): auth, chat, refresh trigger |
 
-**Adding a page:** create it in `src/pages/`, add one entry to `src/nav.tsx` *and* one
+**Adding a page:** create it in `src/pages/`, add one entry to `src/nav.ts` *and* one
 `<Route>` in `src/App.tsx`. Miss the second step and the page exists but is
 unreachable — which is exactly how the old Routes and Sync pages became dead code.

@@ -61,6 +61,9 @@ is reachable from the Windows browser as usual — or use the Docker route above
 - **Health.** Sleep, HRV, Body Battery, stress and training load from Garmin.
 - **3D flythrough.** A cinematic camera flight over any activity's GPS track, exportable as MP4
   from the browser.
+- **Garmin → Strava sync.** Settings finds Garmin activities that never reached Strava and
+  uploads their original FIT files. Admin-only, and it always shows you the list before it
+  uploads anything.
 - **Telegram.** Optionally talk to the same coach over Telegram, voice memos included.
 
 ---
@@ -215,6 +218,7 @@ Lets you chat with the coach from Telegram, and is what keeps proactive check-in
 
 > The bridge also hosts the **proactive scheduler**, so it runs by default even without Telegram
 > configured — it just degrades to a headless worker and mirrors check-ins into the web Coach chat.
+> `SCHEDULER=0 ./run.sh` turns that off; then the coach never checks in on its own.
 
 ### 5. Run it
 
@@ -407,7 +411,7 @@ read it live via `scripts/export_ports.py`, so never hardcode a port anywhere el
 
 ## Docker
 
-The full stack — 17 services — runs in containers:
+The full stack — 20 services — runs in containers:
 
 ```bash
 ./docker-up.sh up --build      # → http://localhost:3000
@@ -503,8 +507,9 @@ Strava/Garmin accounts; `tests/tools/` are debug utilities. See
 Lint configuration lives in [`pyproject.toml`](pyproject.toml) and
 [`web/eslint.config.js`](web/eslint.config.js) — both are narrow on purpose and
 say in comments which rules are off and why. `ruff check .` and `pytest` are
-clean; `npm run lint` reports no errors and 22 warnings, all of them the React
-Compiler's `set-state-in-effect` and `only-export-components` advisories.
+clean; `npm run lint` reports no errors — only a handful of accepted warnings, all
+of them the React Compiler's `set-state-in-effect` and `only-export-components`
+advisories.
 
 The **quality** evaluation (personas, scorers, generated reports) is a separate
 harness in [`evaluation/`](evaluation/README.md).

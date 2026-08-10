@@ -12,6 +12,9 @@
 # Optional switches (env vars, all default off unless noted):
 #   PY=/path/to/python    interpreter to use      (default: .venv, then python3)
 #   MLFLOW=0              skip the tracing server (default on, :5001)
+#   SCHEDULER=0           skip the proactive scheduler (default ON — it lives in
+#                         telegram_bridge.py and runs headless without Telegram;
+#                         with it off the coach never checks in on its own)
 #   TELEGRAM=1            also start the Telegram bridge (needs .env config)
 #   TELEGRAM_MCP=1        also start the Telegram tool proxy (needs `uv`)
 #   FUNNEL=1              prod only: publish via Tailscale Funnel
