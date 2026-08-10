@@ -1,8 +1,10 @@
 """Fitness-literature vector store + retriever (the RAG seam).
 
 The Fitness specialist is the one agent with **no MCP server**. Instead of calling
-live APIs it answers from a local corpus of public-domain fitness/physical-culture
-books (Project Gutenberg), retrieved with a lightweight **local** embedding model.
+live APIs it answers from a local corpus of German sport-science textbooks (see
+``data/fitness_library/SOURCES.txt``), retrieved with a lightweight **local**
+embedding model. The corpus is copyrighted material used locally for retrieval
+only — it is never redistributed and never leaves the machine.
 
 This module is the runtime side of that RAG pipeline:
 

@@ -1,14 +1,18 @@
-"""Build the Fitness RAG vector index from the downloaded corpus.
+"""Build the Fitness RAG vector index from the corpus.
 
-Pipeline:  corpus/*.txt → strip Gutenberg boilerplate → chunk → embed (local
-model) → save a normalised vector matrix + chunk sidecar to the index dir.
+Pipeline:  corpus/*.txt → chunk → embed (local model) → save a normalised vector
+matrix + chunk sidecar to the index dir.
 
-    python -m scripts.build_fitness_index               # build (fetches corpus if absent)
+    python -m scripts.build_fitness_index               # build
     python -m scripts.build_fitness_index --if-missing  # no-op when an index already exists
     python -m scripts.build_fitness_index --rebuild     # force a clean rebuild
 
 The ``--if-missing`` form is what the launch scripts call: the first run downloads
 the embedding model (~90 MB) and embeds the corpus; later runs skip instantly.
+
+The corpus itself is committed (``data/fitness_library/corpus/*.txt``), produced
+from the source PDFs by ``scripts.extract_literature_corpus``. This script only
+turns that text into vectors — it never fetches anything.
 """
 
 from __future__ import annotations
@@ -24,31 +28,16 @@ ROOT = Path(__file__).resolve().parent.parent
 CORPUS_DIR = ROOT / "data" / "fitness_library" / "corpus"
 SOURCES_JSON = ROOT / "data" / "fitness_library" / "sources.json"
 
-# Gutenberg wraps each book in legal boilerplate between these markers.
-_START_RE = re.compile(r"\*\*\*\s*START OF (?:THE|THIS) PROJECT GUTENBERG.*?\*\*\*", re.I | re.S)
-_END_RE = re.compile(r"\*\*\*\s*END OF (?:THE|THIS) PROJECT GUTENBERG.*?\*\*\*", re.I | re.S)
-
 CHUNK_CHARS = 900       # target chunk size (characters)
 CHUNK_OVERLAP = 150     # carried-over context between adjacent chunks
 MIN_CHUNK_CHARS = 200   # drop slivers shorter than this
 
 
-def strip_boilerplate(text: str) -> str:
-    """Keep only the body between the START/END Gutenberg markers."""
-    start = _START_RE.search(text)
-    if start:
-        text = text[start.end():]
-    end = _END_RE.search(text)
-    if end:
-        text = text[:end.start()]
-    return text.strip()
-
-
 def chunk_text(text: str) -> list[str]:
     """Paragraph-aware splitter: pack paragraphs to ~CHUNK_CHARS with overlap.
 
-    Whitespace is normalised so embeddings see clean prose, not Gutenberg's
-    hard-wrapped 70-column lines.
+    Whitespace is normalised first, so embeddings see continuous prose rather
+    than the PDF extractor's line breaks.
     """
     paras = [re.sub(r"\s+", " ", p).strip() for p in re.split(r"\n\s*\n", text)]
     paras = [p for p in paras if len(p) > 1]
@@ -101,7 +90,11 @@ def build() -> int:
     sources = load_sources()
     files = sorted(CORPUS_DIR.glob("*.txt"))
     if not files:
-        print("No corpus found. Run: python -m scripts.fetch_fitness_books", file=sys.stderr)
+        print(f"No corpus found in {CORPUS_DIR}.\n"
+              "The corpus ships with the repo; if it is missing, regenerate it from the\n"
+              "source PDFs (see data/fitness_library/SOURCES.txt):\n"
+              "    python -m scripts.extract_literature_corpus --replace",
+              file=sys.stderr)
         return 1
 
     chunks: list[dict] = []
@@ -109,7 +102,7 @@ def build() -> int:
     for path in files:
         slug = path.stem
         meta = sources.get(slug, {})
-        body = strip_boilerplate(path.read_text(encoding="utf-8", errors="ignore"))
+        body = path.read_text(encoding="utf-8", errors="ignore").strip()
         pieces = chunk_text(body)
         if pieces:
             indexed_slugs.append(slug)
@@ -119,8 +112,8 @@ def build() -> int:
                 "text":      piece,
                 "title":     meta.get("title", slug),
                 "author":    meta.get("author", "Unknown"),
-                "source_id": meta.get("gutenberg_id"),
-                "license":   meta.get("license", "Public domain (Project Gutenberg)"),
+                "source_id": meta.get("source_url"),
+                "license":   meta.get("license", "unknown"),
             })
         print(f"  {slug}: {len(pieces)} chunks")
 
@@ -140,8 +133,8 @@ def build() -> int:
             {"slug": s,
              "title": sources.get(s, {}).get("title", s),
              "author": sources.get(s, {}).get("author", "Unknown"),
-             "gutenberg_id": sources.get(s, {}).get("gutenberg_id"),
-             "license": sources.get(s, {}).get("license", "Public domain (Project Gutenberg)")}
+             "source_url": sources.get(s, {}).get("source_url"),
+             "license": sources.get(s, {}).get("license", "unknown")}
             for s in indexed_slugs
         ],
     }
@@ -177,13 +170,6 @@ def main() -> int:
             return 0
         n_books = len(sorted(CORPUS_DIR.glob("*.txt")))
         print(f"corpus changed ({n_books} books) — rebuilding index…")
-
-    # Auto-fetch the corpus if it's missing (e.g. a fresh checkout without it).
-    if not any(CORPUS_DIR.glob("*.txt")):
-        print("Corpus missing — fetching books first …")
-        from scripts.fetch_fitness_books import main as fetch_main
-        if fetch_main() != 0:
-            return 1
 
     return build()
 

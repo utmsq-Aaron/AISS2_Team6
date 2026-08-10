@@ -1,6 +1,5 @@
 [
   {
-    "gutenberg_id": null,
     "slug": "ferrauti-trainingswissenschaft-sportpraxis",
     "title": "Trainingswissenschaft für die Sportpraxis. Lehrbuch für Studium, Ausbildung und Unterricht im Sport",
     "author": "Ferrauti, Alexander (ed.)",
@@ -9,7 +8,6 @@
     "file": "corpus/ferrauti-trainingswissenschaft-sportpraxis.txt"
   },
   {
-    "gutenberg_id": null,
     "slug": "guellich-krueger-handbuch-sport-sportwissenschaft",
     "title": "Handbuch Sport und Sportwissenschaft — Bewegung, Training, Leistung und Gesundheit",
     "author": "Güllich, Arne; Krüger, Michael (ed.)",
@@ -18,7 +16,6 @@
     "file": "corpus/guellich-krueger-handbuch-sport-sportwissenschaft.txt"
   },
   {
-    "gutenberg_id": null,
     "slug": "koenig-carlsohn-praxis-sporternaehrung",
     "title": "Praxis der Sporternährung — Ein Leitfaden für Studierende und Fachkräfte der Ernährungs- und Sportwissenschaften",
     "author": "König, Daniel; Carlsohn, Anja (ed.)",
@@ -27,7 +24,6 @@
     "file": "corpus/koenig-carlsohn-praxis-sporternaehrung.txt"
   },
   {
-    "gutenberg_id": null,
     "slug": "dransmann-hiit-vs-dauermethode",
     "title": "Hochintensives Intervalltraining vs. extensive Dauermethode — Feldstudie zum ausdauernden Laufen im Sportunterricht",
     "author": "Dransmann, Milan",
@@ -36,7 +32,6 @@
     "file": "corpus/dransmann-hiit-vs-dauermethode.txt"
   },
   {
-    "gutenberg_id": null,
     "slug": "engel-hiit-nachwuchsleistungssport",
     "title": "Physiologische Reaktionen auf hochintensives Intervalltraining bei Nachwuchsleistungssportlern und erwachsenen Athleten",
     "author": "Engel, Florian",

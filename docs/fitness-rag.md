@@ -28,16 +28,20 @@ UI's agent-trace panel exactly like any other tool call. No UI change was needed
 
 ## The corpus
 
-50 **public-domain** fitness / physical-culture books from **Project Gutenberg**
-(redistributable, so the corpus lives in the repo). Curated for breadth — physical
-culture & strength training, athletics & specific sports (swimming, boxing,
-wrestling, fencing, football, golf, cycling, dancing), the physiology and anatomy of
-the human body, and personal/public hygiene, longevity & health. The manifest is
-`data/fitness_library/sources.json`.
+Five German **sport-science textbooks** — training science, the HIIT literature and
+sports nutrition. They are the same works the deterministic training math is derived
+from (see [`trainingsregeln.md`](trainingsregeln.md)), which is the point: the coach's
+arithmetic and the Fitness Expert's prose answers rest on one body of literature
+rather than on two unrelated sources. The manifest is
+`data/fitness_library/sources.json`, the full bibliography
+`data/fitness_library/SOURCES.txt`.
 
-> We deliberately do **not** pull from shadow-library sites (e.g. libgen): those
-> distribute copyrighted books without permission. Public-domain sources give the
-> same RAG demonstration with clean provenance.
+> **Licensing.** These are copyrighted works (Springer and journal articles),
+> obtained through the university library and used **locally, for retrieval only** —
+> the text is never redistributed by the app and never leaves the machine. The source
+> PDFs are deliberately not in the repo. An earlier build used ~50 public-domain
+> Project Gutenberg titles; those were replaced because century-old physical-culture
+> books cannot ground modern training rules. Nothing here comes from a shadow library.
 
 ## The vector store
 
@@ -74,7 +78,6 @@ Manually:
 
 ```bash
 pip install -r requirements.txt                  # adds sentence-transformers (+ torch)
-python -m scripts.fetch_fitness_books            # download the corpus (committed already)
 python -m scripts.build_fitness_index            # embed → data/fitness_library/index/
 python -m agents.fitness_agent                   # serve the agent on :9005
 
@@ -95,9 +98,16 @@ committed, so a rebuild is deterministic and offline.
 
 ## Adding / changing books
 
-Edit the `BOOKS` list in `scripts/fetch_fitness_books.py` (Gutenberg id + slug), then
-re-run fetch (`python -m scripts.fetch_fitness_books`). You can rebuild the index
-explicitly with `python -m scripts.build_fitness_index`, but you don't have to: the
-corpus change bumps the `corpus_fingerprint`, so the next launcher start (which runs
-`--if-missing`) detects the mismatch and rebuilds automatically. Use only
-public-domain / openly-licensed sources.
+Put the PDF in `data/fitness_library/Literatur_Fitness/`, add its entry to the `BOOKS`
+list in `scripts/extract_literature_corpus.py` (slug, title, author, licence,
+source URL), then re-extract:
+
+```bash
+python -m scripts.extract_literature_corpus     # --replace wipes the old corpus first
+```
+
+You can rebuild the index explicitly with `python -m scripts.build_fitness_index`, but
+you don't have to: the corpus change bumps the `corpus_fingerprint`, so the next
+launcher start (which runs `--if-missing`) detects the mismatch and rebuilds
+automatically. Keep the licence field honest — it is what tells a reader of the repo
+what the corpus actually is.

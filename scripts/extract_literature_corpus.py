@@ -142,7 +142,6 @@ def main() -> int:
         out.write_text(body, encoding="utf-8")
         print(f"  {book['slug']}: {len(body):,} chars → {out.name}")
         sources.append({
-            "gutenberg_id": None,
             "slug": book["slug"],
             "title": book["title"],
             "author": book["author"],
