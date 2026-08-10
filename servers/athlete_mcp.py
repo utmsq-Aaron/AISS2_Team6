@@ -1,7 +1,7 @@
 """Athlete — native FastMCP server (Streamable HTTP).
 
 The structured athlete store + the DETERMINISTIC training-math layer:
-    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
+
   • race goal (sport run/ride, date, distance, target time) and training preferences
   • personal timeline (injuries, illnesses, races, notes) as CRUD events
   • heart-rate and pace zones — computed from numbers the caller supplies
@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from mcp.server.mcpserver import MCPServer as FastMCP
+from mcp.server.fastmcp import FastMCP
 
 from core import jsonstore
 
@@ -121,6 +121,9 @@ mcp = FastMCP(
         "Garmin/Strava numbers; scaffold_plan gives the deterministic week/phase "
         "skeleton a coach fills with workouts; save_plan enforces the guardrails."
     ),
+    host=HOST,
+    port=PORT,
+    stateless_http=True,
 )
 
 
@@ -1255,4 +1258,4 @@ def get_plan() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
+    mcp.run(transport="streamable-http")

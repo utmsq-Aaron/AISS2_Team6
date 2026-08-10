@@ -115,7 +115,7 @@ async def _call_tool(name: str, arguments: dict | None):
     if session is None:
         raise RuntimeError("telegram upstream not connected")
     result = await session.call_tool(name, arguments or {})
-    if result.is_error:
+    if result.isError:
         text = "\n".join(c.text for c in result.content if getattr(c, "type", "") == "text")
         raise RuntimeError(text or "telegram tool error")
     return list(result.content)

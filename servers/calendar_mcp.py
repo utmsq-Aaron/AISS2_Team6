@@ -1,7 +1,7 @@
 """Google Calendar — native FastMCP server (Streamable HTTP).
 
 Standardized per the Anthropic/MCP model:
-    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
+  - Native MCP server (FastMCP) over Streamable HTTP — own vs external servers are
     identical to the host; this one just happens to be ours.
   - Prescriptive tool descriptions so the model picks the right one.
   - Auth is SEPARATE from the tool: the access token is provided to the *server*
@@ -27,7 +27,7 @@ from typing import Any, Dict, Optional
 
 import requests
 from dotenv import load_dotenv
-from mcp.server.mcpserver import MCPServer as FastMCP
+from mcp.server.fastmcp import FastMCP
 
 load_dotenv()
 
@@ -55,6 +55,9 @@ mcp = FastMCP(
     "calendar",
     instructions="Google Calendar: list calendars, list/get events, and create, "
                  "update or delete events (full read/write).",
+    host=HOST,
+    port=PORT,
+    stateless_http=True,
 )
 
 
@@ -519,4 +522,4 @@ def delete_event(event_id: str, calendar_id: str = "primary") -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
+    mcp.run(transport="streamable-http")

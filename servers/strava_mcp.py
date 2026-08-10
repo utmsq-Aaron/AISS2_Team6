@@ -1,7 +1,7 @@
 """Strava — native FastMCP server (Streamable HTTP).
 
 Self-contained MCP server for Strava activity data, backed by the Strava v3 REST API
-    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
+with OAuth2. No BaseMCPServer, no dispatch indirection — the tools call the API directly.
 The app reaches it as a plain MCP client via ``core.host.ToolHost``.
 
 Run locally:   python -m servers.strava_mcp
@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 import polyline
 import requests
 from dotenv import load_dotenv
-from mcp.server.mcpserver import MCPServer as FastMCP
+from mcp.server.fastmcp import FastMCP
 
 # Allow running as a standalone process from the project root
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -52,6 +52,9 @@ mcp = FastMCP(
         "analysis over time, activity vs. baseline comparison, and training load "
         "(ATL/CTL/TSB)."
     ),
+    host=HOST,
+    port=PORT,
+    stateless_http=True,
 )
 
 
@@ -1507,4 +1510,4 @@ async def get_training_load(weeks: int = 16) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host=HOST, port=PORT, stateless_http=True)
+    mcp.run(transport="streamable-http")
