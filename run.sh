@@ -175,13 +175,40 @@ if [ "$MODE" = "setup" ]; then
   head1 "Connecting accounts"
   say "Each of these is optional and can also be done later in the app's Settings page."
   echo
-  say "Strava    — OAuth runs automatically on first use; nothing to do here."
-  say "Garmin    — needs a one-time login (MFA capable):"
-  say "              $PY auth/garmin_setup.py"
-  say "Google    — Calendar + the OTP login mailer:"
-  say "              $PY auth/google_oauth.py"
-  say "Telegram  — optional chat bridge; put TELEGRAM_API_ID/HASH in .env, then:"
-  say "              $PY telegram_bridge.py --login"
+  # Report what is ALREADY connected rather than printing the same four lines every
+  # run: a cached token in .tokens/ is exactly what the servers check at call time,
+  # so its presence is the same truth the app uses. Only the missing ones get a
+  # command to run, which is what the README promises this step does.
+  if [ -f .tokens/strava.json ]; then
+    ok  "Strava    — connected"
+  elif env_has CLIENT_ID && env_has CLIENT_SECRET; then
+    say "Strava    — OAuth opens in the browser on first use; nothing to do here."
+  else
+    warn "Strava    — set CLIENT_ID / CLIENT_SECRET in .env to enable it."
+  fi
+
+  if [ -f .tokens/garmin_tokens.json ]; then
+    ok  "Garmin    — connected"
+  else
+    say "Garmin    — needs a one-time login (MFA capable):"
+    say "              $PY -m auth garmin"
+  fi
+
+  if [ -f .tokens/google.json ] || [ -f .tokens/google_mail.json ]; then
+    ok  "Google    — connected"
+  else
+    say "Google    — Calendar + the OTP login mailer:"
+    say "              $PY -m auth gmail"
+  fi
+
+  if env_has TELEGRAM_SESSION_STRING || env_has TELEGRAM_BRIDGE_SESSION_STRING; then
+    ok  "Telegram  — session configured"
+  else
+    say "Telegram  — optional chat bridge; put TELEGRAM_API_ID/HASH in .env, then:"
+    say "              $PY telegram_bridge.py --login"
+  fi
+  echo
+  say "Run all the one-off flows in sequence with:  $PY -m auth all"
   echo
   say "Building the fitness knowledge index (one-time, downloads a small model)…"
   "$PY" -m scripts.build_fitness_index --if-missing \
