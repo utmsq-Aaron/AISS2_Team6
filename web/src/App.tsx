@@ -3,7 +3,6 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { CoachPoll } from "./components/CoachPoll";
 import { RouteErrorBoundary } from "./components/ErrorBoundary";
-import { FeedbackButton } from "./components/FeedbackButton";
 import { Header } from "./components/Header";
 import { OnboardingWizard } from "./components/onboarding/OnboardingWizard";
 import { Sidebar } from "./components/Sidebar";
@@ -73,7 +72,6 @@ function MainShell() {
           </RouteErrorBoundary>
         </main>
       </div>
-      <FeedbackButton />
     </div>
   );
 }
