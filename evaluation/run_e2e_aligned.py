@@ -1,6 +1,6 @@
 """End-to-end evaluation with ALIGNED scorers — same tests, validated judges.
 
-Identical to ``run_e2e.py`` — same 10 personas, same simulator model, same flow,
+Identical to ``run_e2e.py`` — same 12 personas, same simulator model, same flow,
 same fixed-template report — except the conversations are scored by the **aligned
 scorer set** (``aligned_scorers.py``). Those scorers were calibrated against
 expert validation of the ``fitdash-e2e-20260729-185504`` run, following
@@ -15,9 +15,11 @@ side-by-side with (never mixed into) the original e2e experiments.
 
 Run from the repo root with the stack up (``./dev_stack.sh``):
 
-    python -m evaluation.run_e2e_aligned                 # all 10 personas
+    python -m evaluation.run_e2e_aligned                 # all 12 personas
     python -m evaluation.run_e2e_aligned --smoke         # 1 persona, 2 turns
     python -m evaluation.run_e2e_aligned --type hobby_cyclist
+    python -m evaluation.run_e2e_aligned --sport swimmer
+    python -m evaluation.run_e2e_aligned --level ambitious
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ import datetime as _dt
 import sys
 
 from . import config
+from .personas import LEVELS, PERSONA_TYPES, SPORTS
 
 config.apply_openai_routing()
 
@@ -66,10 +69,14 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="FitDash end-to-end persona evaluation with ALIGNED scorers."
     )
-    ap.add_argument("--type", choices=["ambitious_triathlete", "hobby_cyclist"],
-                    default=None, help="only run one persona type (default: both)")
+    ap.add_argument("--type", choices=list(PERSONA_TYPES),
+                    default=None, help="only run one persona type (default: all 6)")
+    ap.add_argument("--sport", choices=list(SPORTS),
+                    default=None, help="only run one sport (default: all 3)")
+    ap.add_argument("--level", choices=list(LEVELS),
+                    default=None, help="only run one level (default: both)")
     ap.add_argument("--personas", type=int, default=None,
-                    help="cap the number of personas (after --type filter)")
+                    help="cap the number of personas (after the type/sport/level filters)")
     ap.add_argument("--max-turns", type=int, default=5, help="max turns per conversation")
     ap.add_argument("--workers", type=int, default=3,
                     help="parallel conversations (MLFLOW_GENAI_SIMULATOR_MAX_WORKERS)")
@@ -100,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     _preflight(orch)
 
     test_cases, persona_records = personas_mod.build_test_cases(
-        persona_type=args.type, limit=args.personas
+        persona_type=args.type, sport=args.sport, level=args.level, limit=args.personas
     )
     if not test_cases:
         sys.exit("✗ No personas selected.")

@@ -13,10 +13,11 @@ changes none of the Copilot's behaviour.
 For each run it:
 
 1. Creates a **new MLflow experiment** (`fitdash-e2e-<timestamp>`).
-2. Has **gpt-5.4-mini** role-play **10 personas** (5 *ambitious triathletes*,
-   5 *hobby road cyclists* — including the slide personas **Julian** and
-   **Sophie**), each pursuing a different multi-turn goal. Every persona is made
-   aware of the Copilot's real capabilities (`copilot_brief.py`).
+2. Has **gpt-5.4-mini** role-play **12 personas** — 3 sports (*cyclist*,
+   *runner*, *swimmer*) × 2 levels (*hobby*, *ambitious*) × 2 personas each,
+   with **Sophie** (the product-slide persona) among the hobby cyclists — each
+   pursuing a different multi-turn goal. Every persona is made aware of the
+   Copilot's real capabilities (`copilot_brief.py`).
 3. Runs each conversation against the **live Copilot** (`FitDashOrchestrator`),
    tracing every turn to the experiment and grouping turns by session. The
    Copilot's specialist + tool-call structure is **reconstructed as spans** into
@@ -54,9 +55,11 @@ The Copilot's own agents run in separate processes and are unaffected.
 From the **repo root**, with the stack up (`./run.sh`):
 
 ```bash
-python -m evaluation.run_e2e                 # all 10 personas, ≤5 turns
+python -m evaluation.run_e2e                 # all 12 personas, ≤5 turns
 python -m evaluation.run_e2e --smoke         # 1 persona, 2 turns (quick check)
 python -m evaluation.run_e2e --type hobby_cyclist
+python -m evaluation.run_e2e --sport swimmer      # all levels of one sport
+python -m evaluation.run_e2e --level ambitious    # all sports at one level
 python -m evaluation.run_e2e --personas 4 --max-turns 4 --workers 2
 ```
 
@@ -127,7 +130,7 @@ experiments appear in the MLflow UI alongside `fitdash` and the e2e experiments.
 | `aligned_scorers.py` | the aligned judge set from the alignment study |
 | `alignment/` | the alignment study: rubric, gold grades, analysis, ALIGNMENT.md |
 | `config.py` | model constants + official-OpenAI routing + paths |
-| `personas.py` | the 10 persona test cases (2 types × 5) |
+| `personas.py` | the 12 persona test cases (3 sports × 2 levels × 2) |
 | `copilot_brief.py` | capability awareness injected into every persona |
 | `agent_under_test.py` | `predict_fn` wrapping `FitDashOrchestrator.run` |
 | `scorers.py` | 4 nano LLM judges + a deterministic tool-usage scorer |

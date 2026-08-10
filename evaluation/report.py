@@ -157,6 +157,8 @@ def collect_facts(experiment, results, personas: list[dict], run_meta: dict) -> 
                 "persona_id": persona.get("id", "?"),
                 "persona_name": persona.get("name", "?"),
                 "persona_type": persona.get("type", "?"),
+                "sport": persona.get("sport", "?"),
+                "level": persona.get("level", "?"),
                 "goal": goal or persona.get("goal", ""),
                 "n_turns": len(ts_sorted),
                 "total_copilot_latency_ms": total_latency,
@@ -202,6 +204,23 @@ def collect_facts(experiment, results, personas: list[dict], run_meta: dict) -> 
     }
 
 
+def _canonical_cohorts(types) -> list[str]:
+    """Persona types in the canonical ``personas.PERSONA_TYPES`` order.
+
+    Any type not in that tuple (e.g. an old facts file from a previous persona
+    structure) is appended afterwards in sorted order, so historic runs still
+    render.
+    """
+    present = set(types)
+    try:
+        from .personas import PERSONA_TYPES
+    except Exception:  # personas unavailable → pure alphabetical fallback
+        PERSONA_TYPES = ()
+    known = [t for t in PERSONA_TYPES if t in present]
+    extra = sorted(present.difference(PERSONA_TYPES))
+    return known + extra
+
+
 def _json_safe(obj: Any) -> Any:
     try:
         json.dumps(obj)
@@ -214,7 +233,8 @@ def _json_safe(obj: Any) -> Any:
 _PROSE_SYSTEM = (
     "You are an ML evaluation analyst writing one section of a report on FitDash, an "
     "AI sports-analytics Training Copilot evaluated end-to-end with simulated persona "
-    "users (ambitious triathletes and hobby road cyclists) over multi-turn conversations. "
+    "users across six cohorts — three sports (cyclists, runners, swimmers) × two levels "
+    "(hobby, ambitious) — over multi-turn conversations. "
     "Write plain prose only — no markdown, no headings, no HTML, no bullet symbols unless "
     "asked. Use ONLY the facts given; never invent numbers, scores, or quotes."
 )
@@ -246,9 +266,14 @@ def _scorer_passrates(facts: dict) -> dict[str, str]:
 def _exec_summary(client, facts: dict) -> str:
     avg_latency = _avg([s["total_copilot_latency_ms"] for s in facts["sessions"]])
     errors = sum(1 for s in facts["sessions"] if s["had_error"])
+    counts: dict[str, int] = {}
+    for s in facts["sessions"]:
+        counts[s["persona_type"]] = counts.get(s["persona_type"], 0) + 1
+    cohorts = {c: counts[c] for c in _canonical_cohorts(counts)}
     scope = {
         "personas": facts["n_personas"],
         "conversations": facts["n_sessions"],
+        "cohorts": cohorts,
         "scorer_positive_rates": _scorer_passrates(facts),
         "aggregate_metrics": facts.get("aggregate_metrics", {}),
         "conversations_with_a_tool_error": errors,
@@ -431,7 +456,8 @@ def _cohort_section(facts: dict, blurbs: dict[str, str]) -> str:
     for s in facts["sessions"]:
         by_type.setdefault(s["persona_type"], []).append(s)
     out = []
-    for ctype, sessions in by_type.items():
+    for ctype in _canonical_cohorts(by_type):
+        sessions = by_type[ctype]
         passes = {}
         for s in sessions:
             for name, v in s["scores"].items():
@@ -499,7 +525,7 @@ def render_html(facts: dict) -> str:
     # Field-scoped prose completions. Per-persona verdicts run concurrently.
     exec_summary = _exec_summary(client, facts)
     recommendations = _recommendations(client, facts)
-    cohorts = sorted({s["persona_type"] for s in facts["sessions"]})
+    cohorts = _canonical_cohorts({s["persona_type"] for s in facts["sessions"]})
     cohort_sessions = {c: [s for s in facts["sessions"] if s["persona_type"] == c] for c in cohorts}
     cohort_blurbs = {c: _cohort_blurb(client, c, cohort_sessions[c]) for c in cohorts}
 

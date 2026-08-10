@@ -8,9 +8,11 @@ structured HTML report of the run.
 Prerequisites: the full A2A stack and the MLflow tracking server must be running
 (``./run.sh`` from the repo root). Run from the repo root:
 
-    python -m evaluation.run_e2e                 # all 10 personas, 5 turns each
+    python -m evaluation.run_e2e                 # all 12 personas, 5 turns each
     python -m evaluation.run_e2e --smoke         # 1 persona, 2 turns (plumbing check)
     python -m evaluation.run_e2e --type hobby_cyclist
+    python -m evaluation.run_e2e --sport swimmer
+    python -m evaluation.run_e2e --level ambitious
     python -m evaluation.run_e2e --personas 4 --max-turns 4 --workers 2
 """
 
@@ -24,6 +26,7 @@ import sys
 # anything imports MLflow/openai or the Copilot (whose .env points at the KIT
 # gateway). Re-applied again just before evaluation to be safe.
 from . import config
+from .personas import LEVELS, PERSONA_TYPES, SPORTS
 
 config.apply_openai_routing()
 
@@ -59,10 +62,14 @@ def _preflight(orch) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="FitDash end-to-end persona evaluation.")
-    ap.add_argument("--type", choices=["ambitious_triathlete", "hobby_cyclist"],
-                    default=None, help="only run one persona type (default: both)")
+    ap.add_argument("--type", choices=list(PERSONA_TYPES),
+                    default=None, help="only run one persona type (default: all 6)")
+    ap.add_argument("--sport", choices=list(SPORTS),
+                    default=None, help="only run one sport (default: all 3)")
+    ap.add_argument("--level", choices=list(LEVELS),
+                    default=None, help="only run one level (default: both)")
     ap.add_argument("--personas", type=int, default=None,
-                    help="cap the number of personas (after --type filter)")
+                    help="cap the number of personas (after the type/sport/level filters)")
     ap.add_argument("--max-turns", type=int, default=5, help="max turns per conversation")
     ap.add_argument("--workers", type=int, default=3,
                     help="parallel conversations (MLFLOW_GENAI_SIMULATOR_MAX_WORKERS)")
@@ -94,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     _preflight(orch)
 
     test_cases, persona_records = personas_mod.build_test_cases(
-        persona_type=args.type, limit=args.personas
+        persona_type=args.type, sport=args.sport, level=args.level, limit=args.personas
     )
     if not test_cases:
         sys.exit("✗ No personas selected.")
