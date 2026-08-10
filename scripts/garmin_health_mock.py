@@ -29,7 +29,12 @@ def _decode_mock_id(activity_id: int) -> tuple:
 def _seed(date_str: str, offset: int = 0) -> float:
     """Deterministic float in [0, 1) derived from date + offset."""
     key = f"{date_str}:{offset}".encode()
-    return hashlib.md5(key).digest()[0] / 255.0
+    # 256, not 255: a digest byte of 255 would otherwise make this return exactly
+    # 1.0, and the four callers that index a list with int(_seed(...) * len(x))
+    # then run off the end. That crashed get_activities for any window reaching a
+    # date whose byte happened to be 255 (~1 date in 256) — e.g. the default
+    # limit=50 call, which is the one the Health page and the agent both make.
+    return hashlib.md5(key).digest()[0] / 256.0
 
 
 def _lerp(a: float, b: float, t: float) -> float:
