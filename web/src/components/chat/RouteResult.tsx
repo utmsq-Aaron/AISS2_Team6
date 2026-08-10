@@ -210,6 +210,8 @@ function SingleRoute({
     ((data.requested_profile as string) ?? (data.profile as string)) || ""
   ).toLowerCase();
   const q = (question || "").toLowerCase();
+  // German terms below are deliberate: these match what the USER typed, and users
+  // ask in German as well as English. They are input matching, not UI language.
   const sport: "Run" | "Ride" | null =
     /run|jog/.test(requested) || /jogg|joggen|lauf|läuf|run\b|rennen/.test(q)
       ? "Run"

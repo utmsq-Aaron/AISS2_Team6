@@ -1165,8 +1165,8 @@ async def analyze_performance_trends(
     best and worst activity.
 
     Use when the user asks: "is my pace improving?", "how has my training changed
-    over the last month?", "show me my running progress", "Trainingsfortschritt",
-    "Entwicklung meiner Laufleistung", etc.
+    over the last month?", "show me my running progress", "am I getting fitter?",
+    "how is my running developing?", etc.
 
     Args:
         sport_type: Strava sport type, e.g. "Run", "Ride", "Hike", "Walk".

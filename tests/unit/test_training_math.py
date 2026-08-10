@@ -21,13 +21,13 @@ from servers import athlete_mcp as am  # noqa: E402 — needs the sys.path line 
 
 # ── heart-rate zones ──────────────────────────────────────────────────────────
 
-def test_hfmax_fallback_follows_tanaka():
-    """HFmax = 208 − 0,7·Alter (Tanaka 2001) — the documented fallback formula."""
-    assert am._estimate_hfmax(30) == 187          # 208 − 21
-    assert am._estimate_hfmax(50) == 173          # 208 − 35
+def test_hrmax_fallback_follows_tanaka():
+    """HRmax = 208 − 0.7·age (Tanaka 2001) — the documented fallback formula."""
+    assert am._estimate_hrmax(30) == 187          # 208 − 21
+    assert am._estimate_hrmax(50) == 173          # 208 − 35
     # No age → no guess. The book prefers a measurement; inventing one is worse.
-    assert am._estimate_hfmax(None) is None
-    assert am._estimate_hfmax(0) is None
+    assert am._estimate_hrmax(None) is None
+    assert am._estimate_hrmax(0) is None
 
 
 def test_hr_zones_are_ordered_and_within_max():
@@ -36,27 +36,27 @@ def test_hr_zones_are_ordered_and_within_max():
 
     assert list(bands) == ["ReKom", "GA1", "GA2", "WSA"]
     for lo, hi in bands.values():
-        assert lo < hi <= 190                     # no band may exceed HFmax
+        assert lo < hi <= 190                     # no band may exceed HRmax
     # The four German zones ascend without gaps between their lower bounds.
     lows = [bands[z][0] for z in ("ReKom", "GA1", "GA2", "WSA")]
     assert lows == sorted(lows)
-    assert zones["method"] == "%HFmax"
+    assert zones["method"] == "%HRmax"
 
 
 def test_karvonen_bands_appear_only_with_a_resting_hr():
-    """%HFR needs a resting HR; without one the server must not fake it."""
-    assert "bands_bpm_hfr" not in am._hr_zones(max_hr=190, resting_hr=None)
+    """%HRR needs a resting HR; without one the server must not fake it."""
+    assert "bands_bpm_hrr" not in am._hr_zones(max_hr=190, resting_hr=None)
 
     zones = am._hr_zones(max_hr=190, resting_hr=50)
-    hfr = zones["bands_bpm_hfr"]
+    hrr = zones["bands_bpm_hrr"]
     # Karvonen is anchored on the resting HR, so every band sits above it.
-    assert list(hfr) == ["ReKom", "GA1", "GA2", "WSA"]
-    for lo, hi in hfr.values():
+    assert list(hrr) == ["ReKom", "GA1", "GA2", "WSA"]
+    for lo, hi in hrr.values():
         assert 50 < lo < hi <= 190
     # The two methods genuinely differ — that is why both are reported rather
     # than one being derived from the other.
-    assert hfr["GA1"] != zones["bands_bpm"]["GA1"]
-    assert "Karvonen" in zones["hfr_basis"]
+    assert hrr["GA1"] != zones["bands_bpm"]["GA1"]
+    assert "Karvonen" in zones["hrr_basis"]
 
 
 def test_no_max_hr_means_no_zones():
@@ -87,8 +87,8 @@ def test_pace_zones_flag_a_far_off_anchor():
     """The factors are calibrated on a ~10 km result; anything else is labelled."""
     near = am._pace_zones(race_dist_km=12, race_secs=54 * 60)
     far = am._pace_zones(race_dist_km=42.195, race_secs=3 * 3600)
-    assert "Anker" not in near["basis"]
-    assert "Anker idealerweise ~10 km" in far["basis"]
+    assert "anchor" not in near["basis"]
+    assert "anchor ideally ~10 km" in far["basis"]
 
 
 def test_no_race_result_means_no_pace_zones():

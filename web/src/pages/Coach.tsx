@@ -1,5 +1,5 @@
 // Coach tab — the structured race-goal journey. Everything numeric on this page
-// comes from the athlete server's deterministic, corpus-grounded math (%HFmax +
+// comes from the athlete server's deterministic, corpus-grounded math (%HRmax +
 // Karvonen zone bands, benchmark prognosis, ramp-capped week volumes — see
 // docs/trainingsregeln.md); the coach agent only fills workouts. Three states:
 //   1. no race goal   → goal capture form
@@ -20,7 +20,7 @@ import {
 } from "../lib/api";
 
 // Zone ramp — warm ramp on the secondary (orange) accent, light→dark = easy→hard.
-// German training bands ReKom/GA1/GA2/WSA (%HFmax; docs/trainingsregeln.md).
+// German training bands ReKom/GA1/GA2/WSA (%HRmax; docs/trainingsregeln.md).
 const ZONE_COLORS: Record<string, string> = {
   REKOM: "#FFD9B8", GA1: "#FDBA74", GA12: "#FB923C", GA2: "#FB923C", WSA: "#B45309",
 };
@@ -773,7 +773,7 @@ function UpcomingWeeks({ plan }: { plan: NonNullable<AthleteOverview["plan"]> })
   );
 }
 
-// ── 6. volume chart (plan targets; Ist-Abgleich folgt) ───────────────────────
+// ── 6. volume chart (plan targets; actual-vs-plan comparison to follow) ──────
 
 function VolumeChart({ weeks, currentWeek }: { weeks: PlanWeek[]; currentWeek: number | null }) {
   const max = Math.max(...weeks.map((w) => Math.max(w.target_km, w.actual?.distance_km ?? 0)), 1);
@@ -827,7 +827,7 @@ function ZonesTable({ ov }: { ov: AthleteOverview }) {
           <h2 className="text-sm font-semibold text-text-primary">Your zones</h2>
           {(ov.zones?.hr?.basis || ov.zones?.pace?.basis) && (
             <InfoHint
-              label="Berechnungsbasis"
+              label="Calculation basis"
               text={`Computed from: ${[ov.zones.hr?.basis, ov.zones.pace?.basis].filter(Boolean).join(" · ")}`}
             />
           )}
@@ -841,7 +841,7 @@ function ZonesTable({ ov }: { ov: AthleteOverview }) {
           <thead>
             <tr className="fd-label text-left">
               <th className="border-b border-border px-1.5 py-1">Zone</th>
-              <th className="border-b border-border px-1.5 py-1">HR (%HFmax)</th>
+              <th className="border-b border-border px-1.5 py-1">HR (%HRmax)</th>
               <th className="border-b border-border px-1.5 py-1">Pace</th>
             </tr>
           </thead>

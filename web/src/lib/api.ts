@@ -408,15 +408,15 @@ export interface TimelineEvent {
 }
 
 // Zones use the German bands ReKom/GA1/GA2/WSA (keys of the band records),
-// grounded in the textbook corpus (%HFmax + Karvonen/HFR; pace = factor × race
+// grounded in the textbook corpus (%HRmax + Karvonen/HRR; pace = factor × race
 // pace). See docs/trainingsregeln.md.
 export interface ZoneSet {
   hr?: {
-    bands_bpm: Record<string, [number, number]>;      // %HFmax bands
-    bands_bpm_hfr?: Record<string, [number, number]>; // Karvonen/%HFR bands (if resting HR)
+    bands_bpm: Record<string, [number, number]>;      // %HRmax bands
+    bands_bpm_hrr?: Record<string, [number, number]>; // Karvonen/%HRR bands (if resting HR)
     method?: string;
     basis: string;
-    hfr_basis?: string;
+    hrr_basis?: string;
   };
   pace?: { bands_pace: Record<string, [string, string]>; race_pace?: string; basis: string };
   pace_source?: { distance_km: number; time_secs: number; label: string | null };
@@ -453,7 +453,7 @@ export interface WeekActual {
 export interface PlanWeek {
   week: number;
   phase: "base" | "build" | "peak" | "taper";
-  phase_label?: string;        // e.g. "Allgemeine Vorbereitung" (Ferrauti Tab. 7.10)
+  phase_label?: string;        // e.g. "General preparation" (Ferrauti tab. 7.10)
   phase_focus?: string;        // content prescription for the phase
   focus?: string;              // coach-written one-liner: what this week is FOR
   start_date: string;
@@ -503,7 +503,7 @@ export interface AthleteOverview {
 
 export const getAthleteOverview = () => http<AthleteOverview>("/athlete/overview");
 
-/** POST /athlete/profile — store the athlete's age (drives the literature HFmax default). */
+/** POST /athlete/profile — store the athlete's age (drives the literature HRmax default). */
 export const setAthleteProfile = (age: number) =>
   http<{ ok: boolean }>("/athlete/profile", { method: "POST", body: JSON.stringify({ age }) });
 

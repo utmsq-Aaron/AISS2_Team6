@@ -202,8 +202,22 @@ Lets you chat with the coach from Telegram, and is what keeps proactive check-in
 ./run.sh
 ```
 
-Open <http://localhost:5173>. First launch builds the fitness-library vector index (a one-time
-~90 MB model download). Agent traces are at <http://localhost:5001>.
+Open <http://localhost:5173>. Agent traces are at <http://localhost:5001>.
+
+**The fitness library (RAG) needs no setup step of its own.** The Fitness Expert answers from a
+local vector index over five German sports-science works, and the first `./run.sh` builds it: the
+extracted corpus text ships in the repo (`data/fitness_library/corpus/`), and the launcher runs
+`build_fitness_index --if-missing` over it — ~2 min, plus a one-time ~90 MB download of the local
+embedding model (`sentence-transformers/all-MiniLM-L6-v2`). No embedding API, no key. To force a
+rebuild: `.venv/bin/python -m scripts.build_fitness_index --rebuild`.
+
+The **source PDFs are deliberately not in the repo** (copyright + size) and are not needed at
+runtime — only to regenerate the corpus text itself, which you should not have to do. If you ever
+do: put them in `data/fitness_library/Literatur_Fitness/` (filenames per `SOURCES.txt`), then
+`extract_literature_corpus --replace` followed by `build_fitness_index --rebuild`.
+
+Which works are in there, with ISBN/DOI and chunk counts: [`data/fitness_library/SOURCES.txt`](data/fitness_library/SOURCES.txt).
+How the retrieval works: [`docs/fitness-rag.md`](docs/fitness-rag.md).
 
 ---
 

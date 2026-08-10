@@ -32,14 +32,17 @@ CORPUS_DIR = ROOT / "data" / "fitness_library" / "corpus"
 SOURCES_JSON = ROOT / "data" / "fitness_library" / "sources.json"
 
 # pdf-filename → bibliographic metadata + target slug.
+# The titles stay in the original German on purpose: they are citations of German
+# works (they end up in sources.json and in the RAG's source attribution), not UI
+# text. Translating them would misquote the literature.
 BOOKS = [
     {
         "pdf": "978-3-662-69524-1.pdf",
         "slug": "ferrauti-trainingswissenschaft-sportpraxis",
         "title": "Trainingswissenschaft für die Sportpraxis. Lehrbuch für Studium, "
                  "Ausbildung und Unterricht im Sport",
-        "author": "Ferrauti, Alexander (Hrsg.)",
-        "license": "© Springer — urheberrechtlich geschützt (nur lokale RAG-Nutzung)",
+        "author": "Ferrauti, Alexander (ed.)",
+        "license": "© Springer — copyrighted (local RAG use only)",
         "source_url": "https://doi.org/10.1007/978-3-662-69524-1",
     },
     {
@@ -47,8 +50,8 @@ BOOKS = [
         "slug": "guellich-krueger-handbuch-sport-sportwissenschaft",
         "title": "Handbuch Sport und Sportwissenschaft — Bewegung, Training, "
                  "Leistung und Gesundheit",
-        "author": "Güllich, Arne; Krüger, Michael (Hrsg.)",
-        "license": "© Springer — urheberrechtlich geschützt (nur lokale RAG-Nutzung)",
+        "author": "Güllich, Arne; Krüger, Michael (ed.)",
+        "license": "© Springer — copyrighted (local RAG use only)",
         "source_url": "https://doi.org/10.1007/978-3-662-53410-6",
     },
     {
@@ -56,8 +59,8 @@ BOOKS = [
         "slug": "koenig-carlsohn-praxis-sporternaehrung",
         "title": "Praxis der Sporternährung — Ein Leitfaden für Studierende und "
                  "Fachkräfte der Ernährungs- und Sportwissenschaften",
-        "author": "König, Daniel; Carlsohn, Anja (Hrsg.)",
-        "license": "© Springer — urheberrechtlich geschützt (nur lokale RAG-Nutzung)",
+        "author": "König, Daniel; Carlsohn, Anja (ed.)",
+        "license": "© Springer — copyrighted (local RAG use only)",
         "source_url": "https://doi.org/10.1007/978-3-662-68974-5",
     },
     {
@@ -66,7 +69,7 @@ BOOKS = [
         "title": "Hochintensives Intervalltraining vs. extensive Dauermethode — "
                  "Feldstudie zum ausdauernden Laufen im Sportunterricht",
         "author": "Dransmann, Milan",
-        "license": "© Springer — urheberrechtlich geschützt (nur lokale RAG-Nutzung)",
+        "license": "© Springer — copyrighted (local RAG use only)",
         "source_url": "https://doi.org/10.1007/978-3-658-29154-9",
     },
     {
@@ -75,7 +78,7 @@ BOOKS = [
         "title": "Physiologische Reaktionen auf hochintensives Intervalltraining bei "
                  "Nachwuchsleistungssportlern und erwachsenen Athleten",
         "author": "Engel, Florian",
-        "license": "Dissertation (urheberrechtlich geschützt, nur lokale RAG-Nutzung)",
+        "license": "Dissertation (copyrighted, local RAG use only)",
         "source_url": "",
     },
 ]

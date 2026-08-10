@@ -101,8 +101,8 @@ class GoogleOAuthManager:
                     self.wfile.write(
                         b"<html><head><meta charset='utf-8'></head>"
                         b"<body style='font-family:sans-serif;text-align:center;padding:60px'>"
-                        b"<h1 style='color:#4285F4'>&#10003; Google Calendar verbunden!</h1>"
-                        b"<p>Du kannst dieses Fenster schlie&szlig;en und zur App zur&uuml;ckkehren.</p>"
+                        b"<h1 style='color:#4285F4'>&#10003; Google Calendar connected!</h1>"
+                        b"<p>You can close this window and return to the app.</p>"
                         b"<script>setTimeout(window.close, 3000);</script>"
                         b"</body></html>"
                     )

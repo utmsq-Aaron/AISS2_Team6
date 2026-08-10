@@ -131,7 +131,7 @@ def delete_goal(race_id: str, user: str = Depends(current_user)) -> dict:
 
 
 class ProfileBody(BaseModel):
-    age: int = 0                         # years — drives the literature HFmax default
+    age: int = 0                         # years — drives the literature HRmax default
 
 
 @router.post("/profile")
@@ -162,7 +162,7 @@ _GENERATE_INSTRUCTION = (
     "Build the complete training plan FOR my stored race goal now — goal first, my "
     "history only sets the starting point. Follow your workflow strictly: read the "
     "overview (note the goal's SPORT); if zones are missing, compute them from my AGE "
-    "via athlete__compute_zones (age-based HFmax is the DEFAULT — do not use Garmin's "
+    "via athlete__compute_zones (age-based HRmax is the DEFAULT — do not use Garmin's "
     "observed max HR unless I explicitly logged a real all-out effort) plus resting HR "
     "from garmin. Read my current weekly volume IN THE GOAL SPORT from the last Strava "
     "weeks — in get_training_trends use each week's distance_by_sport_km for the goal "
@@ -217,7 +217,7 @@ def generate_plan(user: str = Depends(current_user)) -> dict:
     """Kick off plan generation via the coach agent; poll /overview for the result."""
     ov = _call(user, "get_athlete_overview")
     if not isinstance(ov, dict) or not (ov.get("profile") or {}).get("race"):
-        raise HTTPException(status_code=422, detail="Kein Wettkampfziel gesetzt — erst POST /athlete/goal.")
+        raise HTTPException(status_code=422, detail="No race goal set — POST /athlete/goal first.")
     with _gen_lock:
         if _gen_status.get(user) == "running":
             return {"ok": True, "status": "running"}

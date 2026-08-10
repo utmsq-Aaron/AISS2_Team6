@@ -3,8 +3,8 @@
     "gutenberg_id": null,
     "slug": "ferrauti-trainingswissenschaft-sportpraxis",
     "title": "Trainingswissenschaft für die Sportpraxis. Lehrbuch für Studium, Ausbildung und Unterricht im Sport",
-    "author": "Ferrauti, Alexander (Hrsg.)",
-    "license": "© Springer — urheberrechtlich geschützt (nur lokale RAG-Nutzung)",
+    "author": "Ferrauti, Alexander (ed.)",
+    "license": "© Springer — copyrighted (local RAG use only)",
     "source_url": "https://doi.org/10.1007/978-3-662-69524-1",
     "file": "corpus/ferrauti-trainingswissenschaft-sportpraxis.txt"
   },
@@ -12,8 +12,8 @@
     "gutenberg_id": null,
     "slug": "guellich-krueger-handbuch-sport-sportwissenschaft",
     "title": "Handbuch Sport und Sportwissenschaft — Bewegung, Training, Leistung und Gesundheit",
-    "author": "Güllich, Arne; Krüger, Michael (Hrsg.)",
-    "license": "© Springer — urheberrechtlich geschützt (nur lokale RAG-Nutzung)",
+    "author": "Güllich, Arne; Krüger, Michael (ed.)",
+    "license": "© Springer — copyrighted (local RAG use only)",
     "source_url": "https://doi.org/10.1007/978-3-662-53410-6",
     "file": "corpus/guellich-krueger-handbuch-sport-sportwissenschaft.txt"
   },
@@ -21,8 +21,8 @@
     "gutenberg_id": null,
     "slug": "koenig-carlsohn-praxis-sporternaehrung",
     "title": "Praxis der Sporternährung — Ein Leitfaden für Studierende und Fachkräfte der Ernährungs- und Sportwissenschaften",
-    "author": "König, Daniel; Carlsohn, Anja (Hrsg.)",
-    "license": "© Springer — urheberrechtlich geschützt (nur lokale RAG-Nutzung)",
+    "author": "König, Daniel; Carlsohn, Anja (ed.)",
+    "license": "© Springer — copyrighted (local RAG use only)",
     "source_url": "https://doi.org/10.1007/978-3-662-68974-5",
     "file": "corpus/koenig-carlsohn-praxis-sporternaehrung.txt"
   },
@@ -31,7 +31,7 @@
     "slug": "dransmann-hiit-vs-dauermethode",
     "title": "Hochintensives Intervalltraining vs. extensive Dauermethode — Feldstudie zum ausdauernden Laufen im Sportunterricht",
     "author": "Dransmann, Milan",
-    "license": "© Springer — urheberrechtlich geschützt (nur lokale RAG-Nutzung)",
+    "license": "© Springer — copyrighted (local RAG use only)",
     "source_url": "https://doi.org/10.1007/978-3-658-29154-9",
     "file": "corpus/dransmann-hiit-vs-dauermethode.txt"
   },
@@ -40,7 +40,7 @@
     "slug": "engel-hiit-nachwuchsleistungssport",
     "title": "Physiologische Reaktionen auf hochintensives Intervalltraining bei Nachwuchsleistungssportlern und erwachsenen Athleten",
     "author": "Engel, Florian",
-    "license": "Dissertation (urheberrechtlich geschützt, nur lokale RAG-Nutzung)",
+    "license": "Dissertation (copyrighted, local RAG use only)",
     "source_url": "",
     "file": "corpus/engel-hiit-nachwuchsleistungssport.txt"
   }

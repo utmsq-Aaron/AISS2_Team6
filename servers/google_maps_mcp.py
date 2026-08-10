@@ -217,7 +217,7 @@ def maps_search_along_route(query: str, anchors: List[Dict[str, float]],
     """Find places that lie ON a planned route (within max_detour_m of its track).
 
     Call this — NOT maps_search_places — whenever the user wants a stop ALONG a
-    planned route ("ein Café an der Strecke"). Pass the route result's
+    planned route ("a café along the route"). Pass the route result's
     ``poi_anchors`` list (from routes__plan_route / plan_circular_route /
     plan_park_loop) VERBATIM as ``anchors``; never invent coordinates. Only
     places within ``max_detour_m`` of the track are returned — an empty result
@@ -225,7 +225,7 @@ def maps_search_along_route(query: str, anchors: List[Dict[str, float]],
     of substituting a place elsewhere in town.
 
     Args:
-        query: What to find, e.g. "Café", "Bäckerei", "Trinkwasserbrunnen".
+        query: What to find, e.g. "café", "bakery", "drinking fountain".
         anchors: The route's poi_anchors — [{"km": …, "lat": …, "lon": …}, …].
         max_detour_m: Max distance off the track in metres (50–2000, default 400).
         max_results: Max places to return (default 5).

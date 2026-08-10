@@ -78,7 +78,7 @@ server/dist/
 data/fitness_library/index/
 
 # Copyrighted source PDFs — not distributed (too large + licensed); colleagues
-# fetch them from the university library. See data/fitness_library/QUELLEN.txt.
+# fetch them from the university library. See data/fitness_library/SOURCES.txt.
 data/fitness_library/Literatur_Fitness/
 
 # Per-user memory — entirely per-deployment runtime state, never committed:

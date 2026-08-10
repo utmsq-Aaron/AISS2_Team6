@@ -407,30 +407,30 @@ function GarminCard({ data, refetch }: { data: SettingsResponse; refetch: () => 
         </button>
       ) : flow === "idle" || flow === "error" ? (
         <>
-          <p className="text-xs text-text-muted">Garmin Connect E-Mail und Passwort</p>
-          <input className="fd-input w-full" aria-label="Garmin E-Mail" placeholder="E-Mail" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="fd-input w-full" type="password" aria-label="Garmin Passwort" placeholder="Passwort" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <p className="text-xs text-text-muted">Garmin Connect email and password</p>
+          <input className="fd-input w-full" aria-label="Garmin email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input className="fd-input w-full" type="password" aria-label="Garmin password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button className="fd-btn-primary w-full" onClick={() => login.mutate()} disabled={login.isPending || !email.trim() || !password}>
-            Verbinden
+            Connect
           </button>
           {flow === "error" && err && <ErrorBox message={`Error: ${err}`} />}
         </>
       ) : flow === "authenticating" ? (
         <div className="rounded-lg border border-border bg-bg-surface px-3 py-2">
-          <Spinner label="Verbinde mit Garmin Connect…" />
+          <Spinner label="Connecting to Garmin Connect…" />
         </div>
       ) : flow === "mfa_needed" ? (
         <div className="rounded-lg border border-metric-amber/40 bg-metric-amber/10 p-3">
-          <p className="mb-2 text-sm text-metric-amber">🔐 Zwei-Faktor-Authentifizierung erforderlich</p>
+          <p className="mb-2 text-sm text-metric-amber">🔐 Two-factor authentication required</p>
           <input className="fd-input w-full" aria-label="Garmin MFA / OTP Code" placeholder="MFA / OTP Code (123456)" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} />
           <button className="fd-btn-primary mt-2 w-full" onClick={() => submitMfa.mutate()} disabled={submitMfa.isPending || !mfaCode.trim()}>
-            Bestätigen
+            Confirm
           </button>
         </div>
       ) : (
         // mfa_submitted
         <div className="rounded-lg border border-border bg-bg-surface px-3 py-2">
-          <Spinner label="MFA wird verifiziert…" />
+          <Spinner label="Verifying MFA…" />
         </div>
       )}
     </>

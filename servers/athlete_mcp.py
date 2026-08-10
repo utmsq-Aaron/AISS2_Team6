@@ -53,20 +53,20 @@ _DATA_DIR = _ROOT / "data" / "user_memory"
 
 # Guardrails + zone definitions — hard-coded sport science from the German
 # textbook corpus, NOT model output. Every number is sourced in docs/trainingsregeln.md.
-MAX_WEEKLY_RAMP = 0.08          # ≤ +8 %/Woche — konservative "allmähliche progressive
-                               # Belastungssteigerung" (Güllich S.631; Roux-Reizstufenregel).
-                               # Weiche Guardrail, kein exakter Buchwert.
-CUTBACK_EVERY = 4              # 4-Wochen-Zyklus, Entlastung am Zyklusende (Ferrauti S.295)
-CUTBACK_FACTOR = 0.70          # Entlastungswoche ≈ 70 % der vorangehenden Aufbauwoche
-HFMAX_AGE_A = 208.0           # HFmax-Schätzung 208 − 0,7·Alter (Tanaka 2001, via Güllich S.771)
-HFMAX_AGE_B = 0.7             # NUR Fallback — echte Messung immer bevorzugt
+MAX_WEEKLY_RAMP = 0.08          # ≤ +8 %/week — a conservative reading of "gradual
+                               # progressive load increase" (Güllich p.631; Roux's
+                               # stimulus-level rule). A soft guardrail, not a book value.
+CUTBACK_EVERY = 4              # 4-week cycle, cutback week at the end of it (Ferrauti p.295)
+CUTBACK_FACTOR = 0.70          # cutback week ≈ 70 % of the preceding build week
+HRMAX_AGE_A = 208.0           # HRmax estimate 208 − 0.7·age (Tanaka 2001, via Güllich p.771)
+HRMAX_AGE_B = 0.7             # fallback ONLY — a real measurement always wins
 
-# HF-Zonen (deutsche Bereiche ReKom/GA1/GA2/WSA) als %HFmax und %HFR/Karvonen — Ferrauti S.459.
+# HR zones (the German bands ReKom/GA1/GA2/WSA) as %HRmax and %HRR/Karvonen — Ferrauti p.459.
 HR_ZONES_PCT_MAX = {"ReKom": (0.50, 0.60), "GA1": (0.60, 0.80),
                     "GA2": (0.80, 0.90), "WSA": (0.90, 1.00)}
-HR_ZONES_PCT_HFR = {"ReKom": (0.35, 0.50), "GA1": (0.50, 0.70),
+HR_ZONES_PCT_HRR = {"ReKom": (0.35, 0.50), "GA1": (0.50, 0.70),
                     "GA2": (0.70, 0.85), "WSA": (0.85, 1.00)}
-# Pace-Zonen als (langsam, schnell)-Faktor × 10-km-Renntempo — Ferrauti Tab. 7.7 (Joch 2004).
+# Pace zones as a (slow, fast) factor × 10 km race pace — Ferrauti tab. 7.7 (Joch 2004).
 PACE_ZONES_FACTOR = {"ReKom": (1.43, 1.33), "GA1": (1.33, 1.18),
                      "GA2": (1.11, 1.05), "WSA": (1.00, 0.95)}
 
@@ -85,30 +85,30 @@ LONG_RUN_START_FACTOR = 0.5     # the line starts at half the anchor and builds 
 SUPPORT_RUN_FACTOR = 0.4        # each supporting run ≈ 40 % of that week's long run
 TAPER_LONG_FACTORS = (0.5, 0.3) # taper long runs: 50 % then 30 % of the peak
 
-# Phase content per Ferrauti Tab. 7.10/7.11 (Marathon-Jahres-/Wochenplan): the plan
+# Phase content per Ferrauti tab. 7.10/7.11 (marathon year/week plan): the plan
 # is built FOR the goal — each phase prescribes what kind of work serves it, incl.
 # where unspecific cross-training (bike/swim/aqua jogging) is appropriate.
 PHASE_FOCUS = {
     "base": {
-        "label": "Allgemeine Vorbereitung",
-        "focus": ("Volume first: raise frequency, then duration (Ferrauti S.188). "
+        "label": "General preparation",
+        "focus": ("Volume first: raise frequency, then duration (Ferrauti p.188). "
                   "GA1 endurance in the goal sport; unspecific cross-training "
                   "(bike/MTB, swimming, aqua jogging) welcome as GA1/ReKom sessions "
-                  "(Ferrauti Tab. 7.10)."),
+                  "(Ferrauti tab. 7.10)."),
     },
     "build": {
-        "label": "Spezielle Vorbereitung",
+        "label": "Specific preparation",
         "focus": ("Sport-specific endurance GA1/GA2 in the goal sport (Ferrauti "
-                  "Tab. 7.10); cross-training only as ReKom recovery sessions."),
+                  "tab. 7.10); cross-training only as ReKom recovery sessions."),
     },
     "peak": {
-        "label": "Unmittelbare Wettkampfvorbereitung",
-        "focus": ("Race-pace work GA2/WSA — interval protocols per Ferrauti S.58-59 "
-                  "and Tab. 7.11; cross-training only as ReKom recovery sessions."),
+        "label": "Immediate race preparation",
+        "focus": ("Race-pace work GA2/WSA — interval protocols per Ferrauti p.58-59 "
+                  "and tab. 7.11; cross-training only as ReKom recovery sessions."),
     },
     "taper": {
         "label": "Taper",
-        "focus": "Volume sharply down, intensity kept (Ferrauti S.117).",
+        "focus": "Volume sharply down, intensity kept (Ferrauti p.117).",
     },
 }
 
@@ -226,18 +226,18 @@ def _fmt_pace(sec_per_km: Optional[float]) -> Optional[str]:
 
 # ── deterministic math ─────────────────────────────────────────────────────────
 
-def _estimate_hfmax(age: Optional[int]) -> Optional[int]:
-    """Fallback HFmax = 208 − 0,7·Alter (Tanaka 2001, via Güllich S.771). Nur wenn keine
-    gemessene HFmax vorliegt — Messung ist laut Buch immer genauer."""
+def _estimate_hrmax(age: Optional[int]) -> Optional[int]:
+    """Fallback HRmax = 208 − 0.7·age (Tanaka 2001, via Güllich p.771). Only when no
+    measured HRmax exists — the book is clear that measuring always beats estimating."""
     if not age or age <= 0:
         return None
-    return int(round(HFMAX_AGE_A - HFMAX_AGE_B * int(age)))
+    return int(round(HRMAX_AGE_A - HRMAX_AGE_B * int(age)))
 
 
 def _hr_zones(max_hr: Optional[int], resting_hr: Optional[int]) -> Optional[Dict[str, Any]]:
-    """Deutsche HF-Zonen ReKom/GA1/GA2/WSA als %HFmax; zusätzlich %HFR/Karvonen, sobald eine
-    Ruhe-HF vorliegt (Ferrauti S.459 — HFR bei niedriger/moderater Intensität präziser).
-    Reine Arithmetik, Basis protokolliert; KEIN Laktat/v4 (nicht messbar aus Garmin/Strava)."""
+    """German HR zones ReKom/GA1/GA2/WSA as %HRmax; additionally %HRR/Karvonen as soon as a
+    resting HR exists (Ferrauti p.459 — HRR is more precise at low/moderate intensity).
+    Pure arithmetic, basis recorded; NO lactate/v4 (not measurable from Garmin/Strava)."""
     if not max_hr:
         return None
 
@@ -246,35 +246,35 @@ def _hr_zones(max_hr: Optional[int], resting_hr: Optional[int]) -> Optional[Dict
 
     out: Dict[str, Any] = {
         "bands_bpm": {z: band_max(lo, hi) for z, (lo, hi) in HR_ZONES_PCT_MAX.items()},
-        "method": "%HFmax",
-        "basis": f"max_hr={max_hr} — %HFmax-Bänder ReKom/GA1/GA2/WSA (Ferrauti S.459)",
+        "method": "%HRmax",
+        "basis": f"max_hr={max_hr} — %HRmax bands ReKom/GA1/GA2/WSA (Ferrauti p.459)",
     }
     if resting_hr and resting_hr < max_hr:
-        hrr = max_hr - resting_hr                           # Herzfrequenzreserve
+        hrr = max_hr - resting_hr                           # heart-rate reserve
 
-        def band_hfr(lo: float, hi: float) -> List[int]:    # Karvonen: rest + %HFR·HFR
+        def band_hrr(lo: float, hi: float) -> List[int]:    # Karvonen: rest + %HRR·HRR
             return [int(round(resting_hr + hrr * lo)), int(round(resting_hr + hrr * hi))]
 
-        out["bands_bpm_hfr"] = {z: band_hfr(lo, hi) for z, (lo, hi) in HR_ZONES_PCT_HFR.items()}
-        out["hfr_basis"] = (f"resting_hr={resting_hr} — Karvonen/%HFR "
-                            f"(Ferrauti S.459: bei niedriger/moderater Intensität präziser)")
+        out["bands_bpm_hrr"] = {z: band_hrr(lo, hi) for z, (lo, hi) in HR_ZONES_PCT_HRR.items()}
+        out["hrr_basis"] = (f"resting_hr={resting_hr} — Karvonen/%HRR "
+                            f"(Ferrauti p.459: more precise at low/moderate intensity)")
     return out
 
 
 def _pace_zones(race_dist_km: Optional[float], race_secs: Optional[int]) -> Optional[Dict[str, Any]]:
-    """Deutsche Pace-Zonen aus EINEM realen Wettkampf (idealerweise ~10 km): Bänder als
-    Faktor × Renntempo nach Ferrauti Tab. 7.7 (Joch 2004). Keine Distanz-Extrapolation."""
+    """German pace zones from ONE real race (ideally ~10 km): bands as a factor ×
+    race pace per Ferrauti tab. 7.7 (Joch 2004). No distance extrapolation."""
     if not race_dist_km or not race_secs:
         return None
-    race_pace = race_secs / race_dist_km                   # sec/km — 10-km-Bestleistung als Anker
+    race_pace = race_secs / race_dist_km                   # sec/km — 10 km best as the anchor
     bands = {z: [_fmt_pace(race_pace * f_slow), _fmt_pace(race_pace * f_fast)]
-             for z, (f_slow, f_fast) in PACE_ZONES_FACTOR.items()}  # [langsam, schnell]
-    anchor = "" if abs(race_dist_km - 10) <= 3 else " (Anker idealerweise ~10 km)"
+             for z, (f_slow, f_fast) in PACE_ZONES_FACTOR.items()}  # [slow, fast]
+    anchor = "" if abs(race_dist_km - 10) <= 3 else " (anchor ideally ~10 km)"
     return {
         "bands_pace": bands,
         "race_pace": _fmt_pace(race_pace),
-        "basis": f"Renntempo {_fmt_pace(race_pace)} aus {race_dist_km} km in {_fmt_secs(race_secs)} "
-                 f"→ Faktor×Renntempo (Ferrauti Tab. 7.7, Joch 2004){anchor}",
+        "basis": f"race pace {_fmt_pace(race_pace)} from {race_dist_km} km in {_fmt_secs(race_secs)} "
+                 f"→ factor×race pace (Ferrauti tab. 7.7, Joch 2004){anchor}",
     }
 
 
@@ -311,10 +311,10 @@ def _run_targets(phases: List[str], race_dist_km: float,
       • anchor: last growth week's long run = _long_run_anchor(race distance);
       • the line starts at half the anchor and grows in even steps across every
         growth week (non-cutback, non-taper) — steady approach, no jumps;
-      • cutback weeks drop the long run to 70 % (Ferrauti S.295), taper weeks
-        to 50 %/30 % of the peak (volume down, intensity kept, S.117);
+      • cutback weeks drop the long run to 70 % (Ferrauti p.295), taper weeks
+        to 50 %/30 % of the peak (volume down, intensity kept, p.117);
       • frequency still rises first (+1 session/week toward the athlete's
-        target — Ferrauti S.83/S.188); each supporting run ≈ 40 % of that
+        target — Ferrauti p.83/p.188); each supporting run ≈ 40 % of that
         week's long run, so the week volume DERIVES from the runs.
 
     Returns (week_target_km, long_run_km, sessions_per_week, line_info)."""
@@ -365,7 +365,7 @@ def _feasibility(race: Dict[str, Any], targets: List[float], n_weeks: int,
                  sessions: Optional[tuple] = None) -> Dict[str, Any]:
     """Goal-vs-data FACTS, no verdict: what the backward-planned long-run line
     demands vs. where the athlete stands. Pure arithmetic — judging
-    achievability (SMART, Ferrauti Tab. 1.2) and confronting the athlete is the
+    achievability (SMART, Ferrauti tab. 1.2) and confronting the athlete is the
     coach's job (compare the line's entry point with the athlete's real longest
     recent runs from Strava)."""
     sport = race.get("sport", "run")
@@ -378,7 +378,7 @@ def _feasibility(race: Dict[str, Any], targets: List[float], n_weeks: int,
         "peak_week_km": max(targets) if targets else None,
         "basis": ("backward-planned long-run line (anchor = race demand, even steps "
                   "across the growth weeks) + frequency-first build-up (Ferrauti "
-                  "S.83/S.188) — check the line's ENTRY against the athlete's real "
+                  "p.83/p.188) — check the line's ENTRY against the athlete's real "
                   "longest recent runs and the required vs. benchmark pace, then "
                   "talk to the athlete honestly"),
     }
@@ -489,11 +489,11 @@ def _validate_plan(plan: Dict[str, Any], timeline: List[dict],
         else:
             continue_baseline = True
             # Sessions rise one per week, never more (frequency before duration —
-            # Ferrauti S.83/S.188).
+            # Ferrauti p.83/p.188).
             if sessions and baseline_sessions and sessions > baseline_sessions + 1:
                 violations.append(
                     f"week {i + 1}: sessions jump {baseline_sessions} → {sessions} "
-                    f"— raise frequency one session per week (Ferrauti S.83)")
+                    f"— raise frequency one session per week (Ferrauti p.83)")
             # LEGACY weeks without a long-run line keep the old %-cap; line-based
             # weeks are governed by the line itself (the biggest run must match
             # long_run_km below — the weekly sum then follows from the runs).
@@ -633,11 +633,11 @@ def get_athlete_overview() -> Dict[str, Any]:
         out["plan"] = {**plan, "current_week": cur, "n_weeks": len(weeks)}
     else:
         out["plan"] = None
-    # Prognose: das ZIELTEMPO ist reine Arithmetik und wird immer ausgewiesen, sobald
-    # Zielzeit + Distanz gesetzt sind. Ein "on_track"-Urteil gibt es NUR mit einem realen
-    # Benchmark-Wettkampf nahe der Zieldistanz IN der Zielsportart — Vergleich Renntempo
-    # vs. Zieltempo, KEINE Distanz-Extrapolation (Riegel); fehlt der Benchmark, ehrlich
-    # auf Leistungsdiagnostik verweisen (Ferrauti S.50).
+    # Prognosis: the TARGET PACE is pure arithmetic and is always reported as soon as
+    # target time + distance are set. An "on_track" verdict exists ONLY with a real
+    # benchmark race near the goal distance IN the goal sport — race pace vs. target
+    # pace, NO distance extrapolation (Riegel); without that benchmark, honestly point
+    # at performance testing instead (Ferrauti p.50).
     goal_dist = float(race["distance_km"]) if race.get("distance_km") else None
     if rd and goal_dist:
         prog: Dict[str, Any] = {}
@@ -655,12 +655,12 @@ def get_athlete_overview() -> Dict[str, Any]:
                 "benchmark": z.get("label") or f"{bench_dist} km",
                 "benchmark_pace": _fmt_pace(bench_pace),
                 "on_track": (bench_pace <= req_pace) if req_pace else None,
-                "basis": "Benchmark-Renntempo vs. Zieltempo (Ferrauti S.50; keine Extrapolation)",
+                "basis": "benchmark race pace vs. target pace (Ferrauti p.50; no extrapolation)",
             })
         else:
             prog["note"] = (
-                f"kein Benchmark nahe der Zieldistanz ({goal_dist} km, {sport}) — für eine "
-                f"Prognose einen Testlauf/Wettkampf ~Zieldistanz absolvieren (messen statt schätzen)")
+                f"no benchmark near the goal distance ({goal_dist} km, {sport}) — for a "
+                f"prognosis, run a test run/race at ~the goal distance (measure, don't estimate)")
         if prog:
             out["prognosis"] = prog
     return out
@@ -870,7 +870,7 @@ def delete_timeline_event(event_id: str) -> Dict[str, Any]:
 @mcp.tool()
 def set_athlete_profile(age: int = 0) -> Dict[str, Any]:
     """Store stable athlete attributes used for zone defaults. Currently: age (years),
-    which drives the literature HFmax estimate 208-0.7*age when no measured max HR from
+    which drives the literature HRmax estimate 208-0.7*age when no measured max HR from
     a real all-out effort exists. Captured at onboarding / editable in settings."""
     user = _user()
     doc = _load(user)
@@ -886,11 +886,11 @@ def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
                   race_label: str = "", race_sport: str = "run") -> Dict[str, Any]:
     """Compute and store HR + pace zones DETERMINISTICALLY.
 
-    German training bands ReKom/GA1/GA2/WSA. HR zones as %HFmax and — with a resting
-    HR — additionally %HFR/Karvonen (Ferrauti p.459). Pace zones as a factor x race
+    German training bands ReKom/GA1/GA2/WSA. HR zones as %HRmax and — with a resting
+    HR — additionally %HRR/Karvonen (Ferrauti p.459). Pace zones as a factor x race
     pace from a real ~10 km race (Ferrauti tab. 7.7, Joch 2004). No lactate/threshold.
 
-    DEFAULT = literature: if no measured max_hr is passed, HFmax is estimated from AGE
+    DEFAULT = literature: if no measured max_hr is passed, HRmax is estimated from AGE
     (208 - 0.7*age, Tanaka via Guellich p.771), falling back to the stored profile age.
     Only pass a measured max_hr when the athlete has done a REAL all-out effort (a
     reference run / max-HR test) — a wrist-optical max from easy runs underestimates and
@@ -898,8 +898,8 @@ def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
 
     Args:
         max_hr: measured max HR in bpm — ONLY from a genuine all-out reference effort.
-        resting_hr: resting HR in bpm (Garmin) — enables the more precise Karvonen/%HFR bands.
-        age: age in years (defaults to the stored profile age) — drives the literature HFmax.
+        resting_hr: resting HR in bpm (Garmin) — enables the more precise Karvonen/%HRR bands.
+        age: age in years (defaults to the stored profile age) — drives the literature HRmax.
         race_distance_km: distance of a recent ~10 km race for pace zones (optional).
         race_time: its finish time "H:MM:SS" / "MM:SS".
         race_label: where the race result came from.
@@ -910,7 +910,7 @@ def compute_zones(max_hr: int = 0, resting_hr: int = 0, age: int = 0,
     doc = _load(user)
     eff_age = int(age) or int((doc.get("profile") or {}).get("age") or 0)
     measured = bool(int(max_hr))
-    mh = int(max_hr) or _estimate_hfmax(eff_age or None)
+    mh = int(max_hr) or _estimate_hrmax(eff_age or None)
     hr = _hr_zones(mh, int(resting_hr) or None)
     secs = _parse_hms(race_time)
     pace = _pace_zones(float(race_distance_km) or None, secs)
@@ -944,14 +944,14 @@ def scaffold_plan(current_weekly_km: float = 0, current_weekly_sessions: int = 0
     ON the distance, not on an abstract weekly sum: the week's ``target_km``
     DERIVES from its runs (long run + supporting runs of ~40 % its length),
     sessions still rise first (+1/week toward the athlete's target — Ferrauti
-    S.83/S.188), every 4th week is a cutback, the taper steps down (S.117/S.295).
-    Each week carries its ``phase_focus`` content prescription (Tab. 7.10/7.11).
+    p.83/p.188), every 4th week is a cutback, the taper steps down (p.117/p.295).
+    Each week carries its ``phase_focus`` content prescription (tab. 7.10/7.11).
 
     The ``feasibility`` block gives goal-vs-data FACTS — the long-run line
     (entry point, step size, growth weeks), required vs. benchmark pace.
     COMPARE the line's entry with the athlete's real longest recent runs from
     Strava and confront them honestly when goal and data don't line up (SMART
-    "achievable", Ferrauti Tab. 1.2) — the server states facts, judging them is
+    "achievable", Ferrauti tab. 1.2) — the server states facts, judging them is
     your job. A "warning" in the block MUST lead your summary.
 
     Each week also lists any MILESTONES that fall inside it (transient — not
@@ -966,7 +966,7 @@ def scaffold_plan(current_weekly_km: float = 0, current_weekly_sessions: int = 0
         current_weekly_sessions: how many goal-sport sessions per week the
             athlete currently does (recent Strava weeks; after a break, the last
             active weeks). Defaults to 2 — the typical Freizeitsport entry
-            frequency (Ferrauti S.83). The plan raises this by one session per
+            frequency (Ferrauti p.83). The plan raises this by one session per
             week toward the athlete's sessions target.
     """
     user = _user()
@@ -1028,7 +1028,7 @@ def save_plan(plan: dict) -> Dict[str, Any]:
     zone bands (from the stored zones), add a one-sentence ``why`` and, where it
     came from the literature, a ``source``. The goal-sport workouts of a week
     must SUM to that week's target_km (±10 %) — spread over the week's sessions
-    (frequency before duration, Ferrauti S.188), never one lone session leaving
+    (frequency before duration, Ferrauti p.188), never one lone session leaving
     the rest of the target unplanned. You may also set a one-sentence ``focus``
     per week (what this week is FOR, in plain words).
 
@@ -1037,7 +1037,7 @@ def save_plan(plan: dict) -> Dict[str, Any]:
     toward the week's target_km (which is goal-sport volume only). Use them per
     phase_focus: unspecific endurance (GA1) in the base phase, ReKom recovery
     sessions anywhere, substitutes during an injury window — never as the week's
-    race-specific key session (Ferrauti Tab. 7.10/7.11).
+    race-specific key session (Ferrauti tab. 7.10/7.11).
 
     Rejected plans return the exact violations — fix them and call again;
     nothing is stored on rejection.
@@ -1090,12 +1090,12 @@ def save_plan(plan: dict) -> Dict[str, Any]:
 def record_week_actual(week: int, distance_km: float, sessions: int = 0,
                        note: str = "") -> Dict[str, Any]:
     """Record what the athlete ACTUALLY did in a plan week — the monitoring half
-    of the adaptation loop (Ferrauti Tab. 1.2 Stufe 6: the short-term plan is
-    continuously adjusted to athlete monitoring; S.185).
+    of the adaptation loop (Ferrauti tab. 1.2 step 6: the short-term plan is
+    continuously adjusted to athlete monitoring; p.185).
 
     Fetch the real numbers from Strava/Garmin first (goal-sport km + session
     count for that calendar week) and pass them in — RAW values only, never a
-    derived "readiness score" (Ferrauti S.202). The server stores them on the
+    derived "readiness score" (Ferrauti p.202). The server stores them on the
     week and computes compliance_pct (actual/target) deterministically. Reviewed
     weeks also become the ramp baseline in save_plan's guardrail (demonstrated
     load beats planned load).
@@ -1146,7 +1146,7 @@ def rescaffold_plan(current_weekly_km: float = 0) -> Dict[str, Any]:
     long run to the race anchor. What adapts is the SUPPORT volume around the
     line: pass current_weekly_km when the athlete is OVERLOADED (a deliberately
     reduced weekly volume — the supporting runs shrink, relief per Ferrauti
-    S.295/Reizstufenregel, while the key sessions keep approaching the race) or
+    p.295/Reizstufenregel, while the key sessions keep approaching the race) or
     leave it 0 to keep the standard ~40 %-support derivation. If even the line
     itself is unsustainable, the honest move is changing the GOAL (date/
     distance) — say so to the athlete instead of silently flattening the line.

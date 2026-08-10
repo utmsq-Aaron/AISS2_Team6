@@ -7,7 +7,7 @@ Seite + Originalzitat). Ziel (Entscheidung vom 2026-07-20): **Alles basiert auf
 diesen Werken, nicht auf angloamerikanischen Open-Source-Quellen** (Riegel/Friel/
 Daniels wurden verworfen — sie stehen nicht in unserem Korpus).
 
-Quellen-Kurzform (siehe `data/fitness_library/QUELLEN.txt`):
+Quellen-Kurzform (siehe `data/fitness_library/SOURCES.txt`):
 - **Ferrauti** = Ferrauti (Hrsg.), *Trainingswissenschaft für die Sportpraxis*, Springer (ISBN 978-3-662-69524-1)
 - **Güllich** = Güllich/Krüger (Hrsg.), *Handbuch Sport und Sportwissenschaft*, Springer (ISBN 978-3-662-53410-6)
 - **König** = König/Carlsohn (Hrsg.), *Praxis der Sporternährung*, Springer (ISBN 978-3-662-68974-5)

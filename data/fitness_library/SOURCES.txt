@@ -1,0 +1,78 @@
+========================================================================
+SOURCES OF THE FITNESS RAG (Fitness Expert / vector index)
+========================================================================
+
+These textbooks form the corpus of the fitness RAG. The fitness agent
+(agents/fitness_agent.py) answers training, technique and nutrition
+questions exclusively from these works (semantic search over
+data/fitness_library/index/).
+
+The source PDFs are NOT in the repo (copyright + file size). To rebuild
+the index yourself, download the PDFs through the university library
+(SpringerLink / DNB), put them in
+data/fitness_library/Literatur_Fitness/, then:
+
+    python -m scripts.extract_literature_corpus --replace
+    python -m scripts.build_fitness_index --rebuild
+
+To merely USE the RAG, the shipped corpus text is enough: the index is
+built from it automatically on first start (build_fitness_index
+--if-missing, ~2 min, a one-time ~90 MB model download). The PDFs are not
+needed at runtime.
+
+As of: 2026-07-20 · Model: sentence-transformers/all-MiniLM-L6-v2 (dim 384)
+Total chunks: 10,943
+
+The titles below are kept in the original German — they are bibliographic
+records of German works, not UI text.
+
+------------------------------------------------------------------------
+1) Trainingswissenschaft für die Sportpraxis
+   Lehrbuch für Studium, Ausbildung und Unterricht im Sport
+   Ed.: Alexander Ferrauti
+   Springer · ISBN 978-3-662-69523-4 (print) / 978-3-662-69524-1 (eBook)
+   DOI: https://doi.org/10.1007/978-3-662-69524-1
+   Chunks in the index: 4,010
+   Covers: training control, endurance/strength/speed training,
+           supercompensation, recovery management, periodisation,
+           training plans for running, triathlon and more.
+
+2) Handbuch Sport und Sportwissenschaft
+   Bewegung, Training, Leistung und Gesundheit
+   Ed.: Arne Güllich, Michael Krüger
+   Springer · ISBN 978-3-662-53409-0 (print) / 978-3-662-53410-6 (eBook)
+   DOI: https://doi.org/10.1007/978-3-662-53410-6
+   Chunks in the index: 4,929
+   Covers: a comprehensive sport-science reference — movement science,
+           training theory, exercise physiology, health and performance.
+
+3) Praxis der Sporternährung
+   Ein Leitfaden für Studierende und Fachkräfte der Ernährungs- und
+   Sportwissenschaften
+   Ed.: Daniel König, Anja Carlsohn
+   Springer · ISBN 978-3-662-68973-8 (print) / 978-3-662-68974-5 (eBook)
+   DOI: https://doi.org/10.1007/978-3-662-68974-5
+   Chunks in the index: 950
+   Covers: carbohydrate/protein/fluid intake, race-day nutrition,
+           drinking strategies, supplements, sport-specific nutrition.
+
+4) Hochintensives Intervalltraining vs. extensive Dauermethode
+   Feldstudie zum ausdauernden Laufen im Sportunterricht
+   Author: Milan Dransmann
+   Springer · ISBN 978-3-658-29153-2 (print) / 978-3-658-29154-9 (eBook)
+   DOI: https://doi.org/10.1007/978-3-658-29154-9
+   Chunks in the index: 545
+   Covers: HIIT vs. continuous method, endurance diagnostics, training
+           effects in school sport.
+
+5) Physiologische Reaktionen auf hochintensives Intervalltraining bei
+   Nachwuchsleistungssportlern und erwachsenen Athleten
+   Author: Florian Engel (dissertation)
+   Chunks in the index: 509
+   Covers: HIIT in youth elite sport, physiological adaptations,
+           Wingate/anaerobic diagnostics, age and maturation effects.
+
+------------------------------------------------------------------------
+Copyright note: these works are copyrighted and are used exclusively
+locally, for RAG use within this student project. No redistribution of
+the full texts or the PDFs.
