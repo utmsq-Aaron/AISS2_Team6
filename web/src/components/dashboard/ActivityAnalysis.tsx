@@ -177,15 +177,43 @@ function StreamCharts({ rows }: { rows: StreamRow[] }) {
     );
   }
 
-  // 2-up grid.
+  // One chart at a time. Showing every available stream at once (a 2-up grid of
+  // up to five charts) was the single busiest thing on the page; picking one keeps
+  // it readable and lets each chart be tall enough to actually read.
+  return <ChartSwitcher charts={charts} />;
+}
+
+function ChartSwitcher({
+  charts,
+}: {
+  charts: Array<{ title: string; data: Data[]; layout: Partial<Layout> }>;
+}) {
+  const [active, setActive] = useState(charts[0]?.title ?? "");
+  const shown = charts.find((c) => c.title === active) ?? charts[0];
+  if (!shown) return null;
+
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {charts.map((c) => (
-        <div key={c.title}>
-          <p className="fd-label mb-1">{c.title}</p>
-          <PlotlyChart data={c.data} layout={c.layout} height={220} />
+    <div>
+      {charts.length > 1 && (
+        <div className="mb-3 inline-flex flex-wrap gap-1 rounded-lg border border-border bg-bg-surface p-1">
+          {charts.map((c) => (
+            <button
+              key={c.title}
+              type="button"
+              onClick={() => setActive(c.title)}
+              aria-pressed={shown.title === c.title}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                shown.title === c.title
+                  ? "bg-accent text-white"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {c.title}
+            </button>
+          ))}
         </div>
-      ))}
+      )}
+      <PlotlyChart data={shown.data} layout={shown.layout} height={300} />
     </div>
   );
 }
@@ -270,55 +298,124 @@ export function ActivityAnalysis({ activityId }: { activityId: number }) {
   const startPt = points.find((p) => p.lat != null && p.lon != null);
   const finishPt = [...points].reverse().find((p) => p.lat != null && p.lon != null);
 
+  // One view, no tabs: the numbers and the map sit side by side (the map is the
+  // wide half), the per-stream charts run full width underneath. The tabs this
+  // replaced hid two thirds of the panel behind a click for no real gain — the
+  // three parts answer one question together.
   return (
-    <div>
-      <h3 className="mb-3 text-lg font-semibold text-text-primary">Activity Analysis</h3>
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+        <RouteInfo rows={rows} points={points} />
 
-      {/* Metric selector */}
-      {available.length > 0 && (
-        <div className="mb-3 inline-flex flex-wrap gap-1 rounded-lg border border-border bg-bg-surface p-1">
-          {available.map((k) => (
-            <button
-              key={k}
-              onClick={() => setChosen(k)}
-              aria-pressed={activeKey === k}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                activeKey === k ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
-              }`}
-            >
-              {METRIC_DEFS[k][0]}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="flex gap-3">
-        <div className="min-w-0 flex-1">
-          {segs.length ? (
-            <RouteMap
-              polylines={segs}
-              markers={[
-                ...(startPt
-                  ? [{ lat: startPt.lat as number, lon: startPt.lon as number, color: MAP_START, label: "Start" }]
-                  : []),
-                ...(finishPt
-                  ? [{ lat: finishPt.lat as number, lon: finishPt.lon as number, color: MAP_FINISH, label: "Finish" }]
-                  : []),
-              ]}
-              height={440}
-              ariaLabel="Activity route map"
-            />
-          ) : (
-            <EmptyState message="Not enough GPS points for route visualization." />
+        <div className="min-w-0">
+          {/* Metric selector — which channel colours the track */}
+          {available.length > 0 && (
+            <div className="mb-3 inline-flex flex-wrap gap-1 rounded-lg border border-border bg-bg-surface p-1">
+              {available.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setChosen(k)}
+                  aria-pressed={activeKey === k}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    activeKey === k
+                      ? "bg-accent text-white"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  {METRIC_DEFS[k][0]}
+                </button>
+              ))}
+            </div>
           )}
+
+          <div className="flex gap-3">
+            <div className="min-w-0 flex-1">
+              {segs.length ? (
+                <RouteMap
+                  polylines={segs}
+                  markers={[
+                    ...(startPt
+                      ? [{ lat: startPt.lat as number, lon: startPt.lon as number, color: MAP_START, label: "Start" }]
+                      : []),
+                    ...(finishPt
+                      ? [{ lat: finishPt.lat as number, lon: finishPt.lon as number, color: MAP_FINISH, label: "Finish" }]
+                      : []),
+                  ]}
+                  height={360}
+                  ariaLabel="Activity route map"
+                />
+              ) : (
+                <EmptyState message="Not enough GPS points for route visualization." />
+              )}
+            </div>
+            {available.length > 0 && segs.length > 0 && (
+              <Legend highLabel={highLbl as string} lowLabel={lowLbl as string} />
+            )}
+          </div>
         </div>
-        {available.length > 0 && segs.length > 0 && (
-          <Legend highLabel={highLbl as string} lowLabel={lowLbl as string} />
-        )}
       </div>
 
-      <div className="my-5 h-px bg-border" />
       <StreamCharts rows={rows} />
+    </div>
+  );
+}
+
+// Summary numbers for the left column — derived from the same stream rows the map
+// and charts use, so the panel never disagrees with itself. A label/value table
+// rather than a tile grid: it lives in a narrow column beside the map, where one
+// row per number reads far better than wrapped tiles.
+function RouteInfo({ rows, points }: { rows: StreamRow[]; points: StreamPoint[] }) {
+  const distKm = rows.length ? rows[rows.length - 1].dist_km : 0;
+  const times = points.map((p) => p.time_s).filter((t): t is number => t != null);
+  const durMin = times.length ? (Math.max(...times) - Math.min(...times)) / 60 : 0;
+
+  let gain = 0;
+  let prev: number | null = null;
+  for (const p of points) {
+    if (p.ele == null) continue;
+    if (prev != null && p.ele > prev) gain += p.ele - prev;
+    prev = p.ele;
+  }
+
+  const eles = points.map((p) => p.ele).filter((e): e is number => e != null);
+  const avgHr = avgOf(rows, "hr");
+  const avgVel = avgOf(rows, "velocity");
+  const avgCad = avgOf(rows, "cadence");
+  const avgW = avgOf(rows, "watts");
+
+  const stats: Array<[string, string]> = [
+    ["Distance", `${distKm.toFixed(2)} km`],
+    ["Duration", durMin >= 60
+      ? `${Math.floor(durMin / 60)} h ${Math.round(durMin % 60)} min`
+      : `${Math.round(durMin)} min`],
+    ["Elevation gain", `${Math.round(gain)} m`],
+  ];
+  if (eles.length) stats.push(["Highest point", `${Math.round(Math.max(...eles))} m`]);
+  if (avgVel != null && avgVel > 0.5) {
+    stats.push(["Avg pace", `${(1000 / (avgVel * 60)).toFixed(2)} min/km`]);
+    stats.push(["Avg speed", `${(avgVel * 3.6).toFixed(1)} km/h`]);
+  }
+  if (avgHr != null) stats.push(["Avg heart rate", `${avgHr.toFixed(0)} bpm`]);
+  if (avgCad != null) stats.push(["Avg cadence", `${avgCad.toFixed(0)} spm`]);
+  if (avgW != null) stats.push(["Avg power", `${avgW.toFixed(0)} W`]);
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-bg-surface/40">
+      <table className="w-full text-sm">
+        <caption className="sr-only">Route summary</caption>
+        <tbody>
+          {stats.map(([label, value]) => (
+            <tr key={label} className="border-b border-border/60 last:border-0">
+              <th scope="row" className="fd-label px-3 py-2 text-left font-normal">
+                {label}
+              </th>
+              <td className="px-3 py-2 text-right font-semibold tabular-nums text-text-primary">
+                {value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

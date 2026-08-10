@@ -1,17 +1,29 @@
 // Dashboard — a READ-ONLY cockpit. Nothing is created or edited here; goals are
-// managed in the Coach tab and only mirrored here. Groups: a greeting, an at-a-
-// glance row (recovery, weather, last session with a colour verdict, streak), a
-// recent-activity calendar, a read-only goals strip, and the deeper Analysis
-// (merged in — the old Analysis tab is gone).
+// managed in the Coach tab and only mirrored here.
+//
+// The page narrows from "right now" to "over time", and that order is deliberate:
+//   1. greeting + at-a-glance tiles (recovery, weather, last session, streak)
+//   2. the goals strip, mirrored from Coach
+//   3. Recent trainings — individual sessions, their route/streams and the
+//      per-activity actions (the 3D flythrough). Uses its own unfiltered list.
+//      A 3-week day-tile calendar used to sit above this; it was dropped because
+//      it answered a strictly weaker version of the same question.
+//   4. Analysis — everything time-series, scoped by ITS OWN period selector.
+// Keeping the period selector below step 3 matters: it scopes the charts, and
+// when it also scoped the session list a 30-day default showed nothing at all to
+// anyone who last trained five weeks ago.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { ActivityAnalysis } from "../components/dashboard/ActivityAnalysis";
 import { GoalCockpit } from "../components/dashboard/GoalCockpit";
+import FlythroughModal from "../components/FlythroughModal";
 import { PageHeader } from "../components/PageHeader";
 import { Spinner } from "../components/Spinner";
 import { callTool, getAthleteOverview } from "../lib/api";
 import { useAvatarUrl, useProfile } from "../lib/profileHooks";
+import { useRevealOnExpand } from "../lib/revealOnExpand";
 import type { AthleteProfile, AthleteResult } from "../lib/stravaTypes";
 import { useUiStore } from "../store/uiStore";
 import { activityIcon } from "../theme/tokens";
@@ -39,6 +51,9 @@ interface Act {
   id: number; name: string; type?: string; sport_type?: string;
   date?: string; start_date?: string; distance_km?: number;
   pace_display?: string; avg_heart_rate?: number | null; duration_min?: number;
+  elevation_gain_m?: number;
+  // Present whenever the activity has a GPS track — gates the 3D flythrough.
+  map_polyline?: string;
 }
 type ZoneBands = Record<string, [number, number]>;
 
@@ -149,14 +164,166 @@ export function Dashboard() {
       {/* ── Goal cockpit — training vs. goal at a glance ── */}
       <GoalCockpit ov={zonesQ.data} acts={acts} />
 
-      {/* ── Recent activity calendar ── */}
-      <RecentCalendar acts={acts} loading={actsQ.isLoading} />
+      {/* ── Individual sessions + their per-activity actions ── */}
+      <RecentTrainings acts={acts} loading={actsQ.isLoading} />
 
-      {/* ── Deeper analysis (merged in — no separate tab) ── */}
+      {/* ── Deeper analysis: everything below is scoped by its own period selector ── */}
       <div className="border-t border-border pt-2">
         <Analysis />
       </div>
     </div>
+  );
+}
+
+// ── Recent trainings ──────────────────────────────────────────────────────────
+// The per-session entry point: the last few workouts with their numbers and the
+// per-activity actions (today: the 3D flythrough). Deliberately NOT tied to the
+// Analysis period selector below — that selector scopes the time-series charts,
+// and letting it also hide individual sessions meant a 30-day default could show
+// an empty list to anyone who last trained five weeks ago.
+function RecentTrainings({ acts, loading }: { acts: Act[]; loading: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const [flythroughFor, setFlythroughFor] = useState<Act | null>(null);
+  // Which row has its route map + stream analysis open (null = none). One at a
+  // time: each open map mounts a MapLibre canvas, and stacking them is wasteful.
+  const [openId, setOpenId] = useState<number | null>(null);
+
+  const shown = expanded ? acts : acts.slice(0, 5);
+  const more = acts.length - 5;
+
+  return (
+    <section className="fd-card px-5 py-4">
+      {flythroughFor && (
+        <FlythroughModal
+          activityId={flythroughFor.id}
+          activityName={flythroughFor.name}
+          onClose={() => setFlythroughFor(null)}
+        />
+      )}
+
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold text-text-primary">Recent trainings</h2>
+        <span className="fd-label">last {shown.length}</span>
+      </div>
+
+      {loading ? (
+        <Spinner label="Loading activities…" />
+      ) : acts.length === 0 ? (
+        <p className="text-sm text-text-muted">No activities found.</p>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {shown.map((a) => (
+              <TrainingRow
+                key={a.id}
+                act={a}
+                open={openId === a.id}
+                onToggle={() => setOpenId((id) => (id === a.id ? null : a.id))}
+                onFlythrough={() => setFlythroughFor(a)}
+              />
+            ))}
+          </ul>
+
+          {more > 0 && (
+            <button
+              type="button"
+              className="fd-btn-ghost mt-3 w-full text-xs"
+              onClick={() => setExpanded((e) => !e)}
+              aria-expanded={expanded}
+            >
+              {expanded ? "Show less" : `Show ${more} more`}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+// One session: the summary line, and — while open — its route, streams and the
+// flythrough. Its own component so it can hold the reveal-on-expand ref; hooks
+// can't live inside the .map() above.
+function TrainingRow({
+  act,
+  open,
+  onToggle,
+  onFlythrough,
+}: {
+  act: Act;
+  open: boolean;
+  onToggle: () => void;
+  onFlythrough: () => void;
+}) {
+  // The whole <li> is revealed, not just the panel: scrolling the panel flush
+  // would push the row's own title out of view.
+  const rowRef = useRevealOnExpand<HTMLLIElement>(open);
+
+  const d = actDate(act);
+  const dateLabel = d
+    ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    : "";
+  const bits = [
+    act.distance_km ? `${act.distance_km} km` : null,
+    act.duration_min ? `${Math.round(act.duration_min)} min` : null,
+    act.pace_display || null,
+    act.avg_heart_rate ? `${Math.round(act.avg_heart_rate)} bpm` : null,
+    act.elevation_gain_m ? `${Math.round(act.elevation_gain_m)} m ↑` : null,
+  ].filter(Boolean);
+
+  return (
+    <li
+      ref={rowRef}
+      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-bg-surface/40 px-3 py-2 transition-colors hover:border-accent/50"
+    >
+      {/* The whole row toggles the detail panel — a small "Details" button
+          beside a large inert row is the less obvious target. */}
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-label={`Show route, heart rate, pace and elevation for ${act.name}`}
+      >
+        <span aria-hidden="true" className="shrink-0 text-xs text-text-muted">
+          {open ? "▲" : "▼"}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-medium text-text-primary">
+            {activityIcon(act.sport_type || act.type)} {act.name}
+          </span>
+          <span className="block text-xs text-text-muted">
+            {[dateLabel, ...bits].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+      </button>
+
+      {/* Route map (with the HR / pace / cadence / elevation overlay switcher)
+          plus the per-stream charts — mounted only while open so we don't pay
+          for a MapLibre canvas per row. The flythrough sits at the top, right
+          above the map it animates: it's an optional extra, so it stays inside
+          the panel, but below the charts nobody would connect it to the route. */}
+      {open && (
+        <div className="w-full border-t border-border pt-3">
+          <div className="mb-3 flex justify-end">
+            {act.map_polyline ? (
+              <button
+                type="button"
+                className="fd-btn-ghost text-xs"
+                onClick={onFlythrough}
+                aria-label={`Watch a 3D flythrough of ${act.name}`}
+              >
+                🎥 3D Flythrough
+              </button>
+            ) : (
+              <span className="text-xs text-text-faint" title="No GPS track recorded">
+                no GPS track — no flythrough
+              </span>
+            )}
+          </div>
+          <ActivityAnalysis activityId={act.id} />
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -221,53 +388,5 @@ function LastSessionTile({ act, bands, loading }: { act?: Act; bands?: ZoneBands
         {bits}{bits && " · "}<span style={{ color: v.color }}>{v.label}</span>
       </div>
     </div>
-  );
-}
-
-// ── Recent-activity calendar (last 3 weeks) ───────────────────────────────────
-function RecentCalendar({ acts, loading }: { acts: Act[]; loading: boolean }) {
-  const days = useMemo(() => {
-    const byDay: Record<string, Act[]> = {};
-    for (const a of acts) {
-      const d = actDate(a);
-      if (d) (byDay[d] ||= []).push(a);
-    }
-    const out: { iso: string; date: Date; acts: Act[] }[] = [];
-    const today = new Date();
-    for (let i = 20; i >= 0; i--) {
-      const d = new Date(today); d.setDate(today.getDate() - i);
-      const iso = d.toISOString().slice(0, 10);
-      out.push({ iso, date: d, acts: byDay[iso] ?? [] });
-    }
-    return out;
-  }, [acts]);
-
-  return (
-    <section className="fd-card px-5 py-4">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">Last 3 weeks</h2>
-        <span className="fd-label">{acts.length} activities</span>
-      </div>
-      {loading ? (
-        <Spinner label="Loading activities…" />
-      ) : (
-        <div className="grid grid-cols-7 gap-1.5">
-          {days.map(({ iso, date, acts: da }) => {
-            const active = da.length > 0;
-            const label = date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
-            return (
-              <div key={iso}
-                title={active ? `${label}: ${da.map((a) => a.name).join(", ")}` : label}
-                className={`flex aspect-square flex-col items-center justify-center rounded-lg border text-[10px] ${
-                  active ? "border-accent/40 bg-accent/10 text-accent" : "border-border bg-bg-surface/40 text-text-faint"
-                }`}>
-                <span>{date.getDate()}</span>
-                {active && <span className="mt-0.5 text-[13px] leading-none">{activityIcon(da[0].sport_type || da[0].type)}</span>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
   );
 }

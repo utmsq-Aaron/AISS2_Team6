@@ -8,7 +8,6 @@ import {
   PctBar,
   TrendPill,
 } from "../components/analysis/AnalysisBits";
-import { ActivityMapSection } from "../components/analysis/ActivityMapSection";
 import { AnalysisOverview } from "../components/analysis/AnalysisOverview";
 import { OfficialStatsSection } from "../components/analysis/OfficialStatsSection";
 import { PlanVsActualSection } from "../components/analysis/PlanVsActualSection";
@@ -23,6 +22,8 @@ import { callTool } from "../lib/api";
 import {
   PERIOD_DAYS,
   dayStr,
+  sportOf,
+  type Activity,
   type AthleteResult,
   type ActivitiesResult as StravaActivitiesResult,
   type Period,
@@ -130,17 +131,28 @@ function toolErrorMessage(error: string, tool: string): string {
 // Section 1 — Training Load
 // ════════════════════════════════════════════════════════════════════════════════
 
-const WEEKS_OPTIONS = ["4", "8", "12", "16", "24", "32", "52"] as const;
-type WeeksOption = (typeof WEEKS_OPTIONS)[number];
+// The load window follows the page period — the section used to carry its own
+// weeks picker, which quietly contradicted the selector at the top of the page.
+// Floor of 6 weeks: CTL is a 42-day average, so a shorter window would show a
+// "fitness" number that hasn't had time to mean anything. "All time" → 52.
+function loadWeeks(periodDays: number): number {
+  if (periodDays <= 0) return 52;
+  return Math.min(52, Math.max(6, Math.ceil(periodDays / 7)));
+}
 
-function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
-  const [weeks, setWeeks] = useState<WeeksOption>("16");
+function TrainingLoadSection({
+  refreshVersion,
+  periodDays,
+}: {
+  refreshVersion: number;
+  periodDays: number;
+}) {
+  const weeks = loadWeeks(periodDays);
   const [view, setView] = useState<"bar" | "atl">("bar");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["analysis", "training_load", weeks, refreshVersion],
-    queryFn: () =>
-      callTool<TrainingLoad>("strava__get_training_load", { weeks: Number(weeks) }),
+    queryFn: () => callTool<TrainingLoad>("strava__get_training_load", { weeks }),
   });
 
   return (
@@ -165,10 +177,10 @@ function TrainingLoadSection({ refreshVersion }: { refreshVersion: number }) {
         </p>
       </HowTo>
 
-      <div className="mb-4">
-        <div className="fd-label mb-1">Time range (weeks)</div>
-        <PeriodSelector options={WEEKS_OPTIONS} value={weeks} onChange={setWeeks} />
-      </div>
+      <p className="fd-label mb-4">
+        Window: last {weeks} weeks — follows the period selected in Overview
+        {weeks === 6 ? " (6-week minimum, the CTL window)" : ""}.
+      </p>
 
       {isLoading && <Spinner label="Loading training data…" />}
       {error && <ErrorBox message={String(error)} />}
@@ -306,13 +318,33 @@ const TREND_SPORTS = [
 
 type TrendTab = "pace" | "hr" | "dist" | "elev";
 
-function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number }) {
+function PerformanceTrendSection({
+  refreshVersion,
+  activities,
+  period,
+}: {
+  refreshVersion: number;
+  activities: Activity[];
+  period: Period;
+}) {
   const [sport, setSport] = useState<string>("Run");
-  const [limit, setLimit] = useState<number>(30);
   const [tab, setTab] = useState<TrendTab>("pace");
+
+  // The window is the page period, not a free-floating count: the tool takes a
+  // `limit` of most-recent same-sport activities, and since the period is always
+  // trailing from now, "the N in the period" and "the last N" are the same set.
+  // This replaced a standalone "Activities: N" slider that ignored the selector
+  // at the top of the page. Capped so "All time" can't ask for a huge analysis.
+  const inPeriod = useMemo(
+    () => activities.filter((a) => sportOf(a) === sport).length,
+    [activities, sport],
+  );
+  const limit = Math.min(inPeriod, 200);
+  const tooFew = limit < 3; // linear regression over 1–2 points says nothing
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["analysis", "trends", sport, limit, refreshVersion],
+    enabled: !tooFew,
     queryFn: () =>
       callTool<PerformanceTrends>("strava__analyze_performance_trends", {
         sport_type: sport,
@@ -363,23 +395,17 @@ function PerformanceTrendSection({ refreshVersion }: { refreshVersion: number })
             ))}
           </select>
         </div>
-        <div>
-          <label htmlFor="trend-limit" className="fd-label mb-1 block">
-            Activities: {limit}
-          </label>
-          <input
-            id="trend-limit"
-            type="range"
-            min={10}
-            max={100}
-            step={1}
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value))}
-            className="w-48 accent-accent"
-          />
-        </div>
+        <p className="fd-label pb-2">
+          {limit} {sport} activit{limit === 1 ? "y" : "ies"} in the last {period.toLowerCase()}
+          {" "}— follows the period selected in Overview
+        </p>
       </div>
 
+      {tooFew && (
+        <EmptyState
+          message={`Not enough ${sport} activities in the last ${period.toLowerCase()} to show a trend — pick a longer period in Overview.`}
+        />
+      )}
       {isLoading && <Spinner label={`Analysing ${sport} activities…`} />}
       {error && <ErrorBox message={String(error)} />}
       {data?.error && (
@@ -927,7 +953,6 @@ export function Analysis() {
   const [open, setOpen] = useState({
     overview: true,
     plan: false,
-    map: false,
     volume: false,
     stats: false,
     load: false,
@@ -1009,18 +1034,6 @@ export function Analysis() {
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="🗺️ Activity Map & Recent"
-        open={open.map}
-        onToggle={() => setOpen((o) => ({ ...o, map: !o.map }))}
-      >
-        {activitiesQ.isLoading ? (
-          <Spinner label="Loading activities…" />
-        ) : (
-          <ActivityMapSection activities={activities} />
-        )}
-      </CollapsibleSection>
-
-      <CollapsibleSection
         title="📉 Training Volume"
         open={open.volume}
         onToggle={() => setOpen((o) => ({ ...o, volume: !o.volume }))}
@@ -1051,7 +1064,7 @@ export function Analysis() {
         open={open.load}
         onToggle={() => setOpen((o) => ({ ...o, load: !o.load }))}
       >
-        <TrainingLoadSection refreshVersion={refreshVersion} />
+        <TrainingLoadSection refreshVersion={refreshVersion} periodDays={loadDays} />
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -1059,7 +1072,11 @@ export function Analysis() {
         open={open.trend}
         onToggle={() => setOpen((o) => ({ ...o, trend: !o.trend }))}
       >
-        <PerformanceTrendSection refreshVersion={refreshVersion} />
+        <PerformanceTrendSection
+          refreshVersion={refreshVersion}
+          activities={activities}
+          period={period}
+        />
       </CollapsibleSection>
 
       <CollapsibleSection

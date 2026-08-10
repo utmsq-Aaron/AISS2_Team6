@@ -4,6 +4,7 @@
 
 import type { ReactNode } from "react";
 
+import { revealElement, useRevealOnExpand } from "../../lib/revealOnExpand";
 import { C_GREEN, C_RED, C_ORANGE, TEXT_MUTED, TEXT_FAINT } from "../../theme/tokens";
 
 // ── Collapsible section card (clickable header toggles open/closed) ─────────────
@@ -21,8 +22,12 @@ export function CollapsibleSection({
   onToggle: () => void;
   children: ReactNode;
 }) {
+  // Scroll the whole card into view on open — its content is regularly taller
+  // than the space left below the header you clicked.
+  const cardRef = useRevealOnExpand<HTMLDivElement>(open);
+
   return (
-    <div className="fd-card mb-5 overflow-hidden">
+    <div ref={cardRef} className="fd-card mb-5 overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -114,8 +119,16 @@ export function PctBar({
 // ── How-to expander (mirrors st.expander "💡 …") ────────────────────────────────
 
 export function HowTo({ title, children }: { title: string; children: ReactNode }) {
+  // <details> manages its own open state, so it reveals from the toggle event
+  // rather than the hook. Its content is static — nothing to follow afterwards.
   return (
-    <details className="mb-3 rounded-lg border border-border bg-bg-surface/60 px-3 py-2 text-sm text-text-muted">
+    <details
+      className="mb-3 rounded-lg border border-border bg-bg-surface/60 px-3 py-2 text-sm text-text-muted"
+      onToggle={(e) => {
+        const el = e.currentTarget;
+        if (el.open) requestAnimationFrame(() => revealElement(el));
+      }}
+    >
       <summary className="cursor-pointer select-none font-medium text-text-primary">
         {title}
       </summary>
