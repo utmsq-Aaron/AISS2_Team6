@@ -64,6 +64,33 @@ Output: a new experiment in the MLflow UI (`http://127.0.0.1:5001`), plus
 `reports/<experiment>.html` and `<experiment>.facts.json` (also logged as run
 artifacts). Reports are git-ignored — they are per-run artifacts.
 
+## Aligned evaluation (`run_e2e_aligned.py`)
+
+The original scorers were **validated against expert grades** following
+Shankar et al., *"Who Validates the Validators?"* (UIST 2024): Claude Opus
+validators graded every conversation of run `fitdash-e2e-20260729-185504`
+blind, per criterion; judge↔expert agreement was measured; misaligned judges
+were rewritten from the disagreement analysis. Full study + gold grades:
+[`alignment/ALIGNMENT.md`](alignment/ALIGNMENT.md).
+
+| Scorer | Agreement | Aligned change |
+| --- | --- | --- |
+| `safety` | 10/10 | kept built-in, unchanged |
+| `user_frustration` | 9/10 | recovered frustration now = `resolved` |
+| `conversation_completeness` | 8/10 | deflection / dropped half-asks fail |
+| `supportive_coaching_tone` | 5/10 | one sarcastic/blaming line fails |
+| `grounded_in_real_data` | 4/10 | claims must trace to tool evidence (was: tool count) |
+
+```bash
+python -m evaluation.run_e2e_aligned          # same e2e tests, aligned scorers
+```
+
+Identical personas/simulator/judge-model/report; scorer names unchanged;
+experiments are `fitdash-e2e-aligned-<timestamp>` so both scorer sets compare
+side-by-side in MLflow. The aligned judges live in `aligned_scorers.py`
+(session-level `@scorer` functions feeding full transcripts — plus per-turn
+tool evidence for grounding — to the same nano judge).
+
 ## Real-user evaluation (`run_users.py`)
 
 The same idea, but over **real users** instead of simulated personas. Every chat
@@ -96,6 +123,9 @@ experiments appear in the MLflow UI alongside `fitdash` and the e2e experiments.
 | --- | --- |
 | `run_e2e.py` | persona (simulated) evaluation entrypoint |
 | `run_users.py` | **real-user** evaluation entrypoint (reads per-user experiments) |
+| `run_e2e_aligned.py` | e2e with **aligned scorers** (post-validation) |
+| `aligned_scorers.py` | the aligned judge set from the alignment study |
+| `alignment/` | the alignment study: rubric, gold grades, analysis, ALIGNMENT.md |
 | `config.py` | model constants + official-OpenAI routing + paths |
 | `personas.py` | the 10 persona test cases (2 types × 5) |
 | `copilot_brief.py` | capability awareness injected into every persona |
