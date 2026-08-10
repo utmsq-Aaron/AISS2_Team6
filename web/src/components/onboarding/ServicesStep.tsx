@@ -297,7 +297,7 @@ export function ServicesStep({ onFinish }: { onFinish: () => void }) {
       </div>
 
       <p className="mt-4 text-[11px] text-text-muted">
-        Heads up: these connections apply to this whole FitDash instance, not just your account.
+        Heads up: these connections apply to this whole Training Copilot instance, not just your account.
       </p>
 
       {error && <div className="mt-3"><ErrorBox message={error} /></div>}

@@ -41,7 +41,7 @@ export function WelcomeStep({ onNext }: { onNext: () => void }) {
       <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 text-accent">
         <Dumbbell size={28} strokeWidth={2} />
       </span>
-      <h1 className="text-xl font-semibold text-text-primary">Hey there, welcome to FitDash!</h1>
+      <h1 className="text-xl font-semibold text-text-primary">Hey there, welcome to Training Copilot!</h1>
       <p className="mt-2 max-w-sm text-sm text-text-muted">
         I&apos;m your training buddy — I&apos;ll help you keep tabs on your training, cheer you on,
         and nudge you when it matters. Let&apos;s get you set up, it only takes a minute (and you

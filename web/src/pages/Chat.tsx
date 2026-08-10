@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Copy, FileSpreadsheet, FileText, Menu } from "lucide-react";
+import { Copy, Menu } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -14,7 +14,7 @@ import { PageHeader } from "../components/PageHeader";
 import { PlotlyFigure } from "../components/PlotlyChart";
 import { generateCharts, getServerHealth, refreshChatTools } from "../lib/api";
 import type { FlythroughAction } from "../lib/api";
-import { copyPlan, downloadPlanPdf, downloadPlanXlsx, planTitle } from "../lib/exportPlan";
+import { copyPlan } from "../lib/copyPlan";
 import { useAuthStore } from "../store/authStore";
 import type { AssistantTurn } from "../store/chatStore";
 import { useChatStore } from "../store/chatStore";
@@ -308,15 +308,13 @@ function AssistantBubble({
   );
 }
 
-// Export toolbar (issue #30) — Copy / PDF / Excel for any assistant message.
-// A "training plan" is just the message markdown, so we offer this on every
-// assistant turn (no fragile plan-detection); Excel degrades to a single-column
-// sheet when the message has no table. Skipped for empty/whitespace content.
+// Copy button for any assistant message. Offered on every assistant turn (no
+// fragile plan-detection), skipped for empty/whitespace content. The PDF and
+// Excel exports that used to sit here were removed along with their libraries.
 function PlanExportToolbar({ content }: { content: string }) {
   const [copied, setCopied] = useState(false);
   if (!content || !content.trim()) return null;
 
-  const filename = planTitle(content);
   const btn =
     "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:bg-bg-surface hover:text-text-primary";
 
@@ -335,24 +333,6 @@ function PlanExportToolbar({ content }: { content: string }) {
       <button type="button" className={btn} onClick={doCopy} aria-label="Copy plan to clipboard">
         <Copy size={13} strokeWidth={2} />
         {copied ? "Copied" : "Copy"}
-      </button>
-      <button
-        type="button"
-        className={btn}
-        onClick={() => downloadPlanPdf(content, filename)}
-        aria-label="Download plan as PDF"
-      >
-        <FileText size={13} strokeWidth={2} />
-        PDF
-      </button>
-      <button
-        type="button"
-        className={btn}
-        onClick={() => downloadPlanXlsx(content, filename)}
-        aria-label="Download plan as Excel spreadsheet"
-      >
-        <FileSpreadsheet size={13} strokeWidth={2} />
-        Excel
       </button>
     </div>
   );

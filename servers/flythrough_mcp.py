@@ -25,9 +25,11 @@ PORT = int(os.getenv("FLYTHROUGH_MCP_PORT", "8107"))
 mcp = FastMCP(
     "flythrough",
     instructions=(
-        "3D cinematic GPS flythrough: prepare a render request for a Strava activity. "
-        "Use prepare_flythrough ONLY after the user has confirmed orientation, map style, "
-        "and duration — and you have a concrete activity_id from a Strava tool call."
+        "3D cinematic GPS flythrough for a Strava activity, rendered inline in the chat. "
+        "prepare_flythrough is what puts the player in front of the user — never refer "
+        "them elsewhere in the app to watch it. Call it once you have a concrete "
+        "activity_id from a Strava tool call AND the user has confirmed orientation, "
+        "map style and duration."
     ),
     host=HOST,
     port=PORT,
@@ -50,7 +52,10 @@ def prepare_flythrough(
 ) -> Dict[str, Any]:
     """Prepare a 3D cinematic GPS flythrough for a Strava activity.
 
-    Returns a render payload the UI turns into an MP4. The video shows only
+    Calling this tool IS how the flythrough gets shown: the chat renders the player
+    inline, right in this conversation, from the payload returned here. So never tell
+    the user to open the activity elsewhere in the app or on Strava to watch it —
+    collect the three settings below and call this tool instead. The video shows only
     the animated GPS route over a map — no stats, no overlays.
 
     STRICT WORKFLOW — follow exactly:

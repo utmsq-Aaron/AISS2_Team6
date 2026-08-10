@@ -1,9 +1,16 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 // A tiny, dependency-free Markdown renderer covering the subset the chat
 // orchestrator emits: headings (#…), bullet lists (-, *, •), bold **x**, italic
 // *x*, inline `code`, links [t](u), and line breaks. Anything unrecognised falls
 // back to plain text, so it never throws on unexpected input.
+//
+// Links come in two kinds. An app-internal target (`/coach`, `/health#hrv`) is a
+// router <Link> rendered as a chip: the coach is told to link the page instead of
+// describing the click path, so those have to jump in place — target="_blank" on
+// an SPA path would cost a full reload and drop the chat. Everything else stays a
+// plain external anchor in a new tab.
 //
 // Element keys are the position in the array being built. Keys only have to be
 // unique among siblings, and a shared module-level counter would be reset by
@@ -33,16 +40,30 @@ function renderInline(text: string): ReactNode[] {
     } else if (tok.startsWith("[")) {
       const lm = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(tok);
       if (lm) {
+        const href = lm[2];
+        // "/foo" is in-app; "//host" is protocol-relative and therefore external.
+        const internal = href.startsWith("/") && !href.startsWith("//");
         out.push(
-          <a
-            key={out.length}
-            href={lm[2]}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="text-accent underline"
-          >
-            {lm[1]}
-          </a>,
+          internal ? (
+            <Link
+              key={out.length}
+              to={href}
+              className="inline-flex items-center gap-1 rounded-md border border-accent/40 bg-accent/10 px-1.5 py-0.5 align-baseline text-[0.9em] font-medium text-accent no-underline transition-colors hover:bg-accent/20"
+            >
+              {lm[1]}
+              <span aria-hidden="true">→</span>
+            </Link>
+          ) : (
+            <a
+              key={out.length}
+              href={href}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-accent underline"
+            >
+              {lm[1]}
+            </a>
+          ),
         );
       } else {
         out.push(tok);
