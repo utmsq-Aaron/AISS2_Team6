@@ -68,7 +68,25 @@ function renderInline(text: string): ReactNode[] {
   return out;
 }
 
-// ── Block-level: headings, lists, paragraphs ──────────────────────────────────
+// ── GFM tables ────────────────────────────────────────────────────────────────
+// Split one `| a | b |` row into trimmed cells (outer pipes dropped).
+function splitTableRow(line: string): string[] {
+  let s = line.trim();
+  if (s.startsWith("|")) s = s.slice(1);
+  if (s.endsWith("|")) s = s.slice(0, -1);
+  return s.split("|").map((c) => c.trim());
+}
+
+// True only for a GFM separator row `| --- | :--: |` — every cell is dashes with
+// optional alignment colons. This guards against ordinary pipe lines becoming tables.
+function isTableSeparator(line: string): boolean {
+  const t = line.trim();
+  if (!/^\|.*\|$/.test(t)) return false;
+  const cells = splitTableRow(t);
+  return cells.length > 0 && cells.every((c) => /^:?-+:?$/.test(c));
+}
+
+// ── Block-level: headings, lists, paragraphs, tables ──────────────────────────
 export function Markdown({ children }: { children: string }) {
   _key = 0; // deterministic keys per render
   const src = children ?? "";
@@ -102,6 +120,57 @@ export function Markdown({ children }: { children: string }) {
         </div>,
       );
       i += 1;
+      continue;
+    }
+
+    // GFM table: a `| a | b |` header row IMMEDIATELY followed by a
+    // `| --- | --- |` separator, then the contiguous `| ... |` body rows.
+    // Guarded on the separator so non-table pipe lines fall through to paragraphs.
+    if (
+      /^\|.*\|$/.test(trimmed) &&
+      i + 1 < lines.length &&
+      isTableSeparator(lines[i + 1])
+    ) {
+      const headers = splitTableRow(trimmed);
+      const bodyRows: string[][] = [];
+      let j = i + 2;
+      while (j < lines.length && /^\|.*\|$/.test(lines[j].trim())) {
+        bodyRows.push(splitTableRow(lines[j]));
+        j += 1;
+      }
+      blocks.push(
+        <div key={nextKey()} className="overflow-x-auto">
+          <table className="min-w-full border-collapse text-xs">
+            <thead>
+              <tr>
+                {headers.map((cell) => (
+                  <th
+                    key={nextKey()}
+                    className="border border-border px-2 py-1 text-left font-semibold text-text-primary"
+                  >
+                    {renderInline(cell)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bodyRows.map((row) => (
+                <tr key={nextKey()}>
+                  {headers.map((_, ci) => (
+                    <td
+                      key={nextKey()}
+                      className="border border-border px-2 py-1 align-top text-text-primary"
+                    >
+                      {renderInline(row[ci] ?? "")}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      i = j;
       continue;
     }
 
@@ -143,7 +212,8 @@ export function Markdown({ children }: { children: string }) {
         !t ||
         /^(#{1,4})\s+/.test(t) ||
         /^([-*•])\s+/.test(t) ||
-        /^\d+\.\s+/.test(t)
+        /^\d+\.\s+/.test(t) ||
+        (/^\|.*\|$/.test(t) && i + 1 < lines.length && isTableSeparator(lines[i + 1]))
       )
         break;
       para.push(lines[i]);
