@@ -16,6 +16,12 @@ from __future__ import annotations
 import io
 from typing import Dict, List, Optional, Tuple
 
+# Shared with the GPX/link exporter on purpose: both answer "is this result one
+# ordered waypoint list?", and when the tuple lived in both files they drifted —
+# plan_park_loop was added to neither, so a park loop drew a map in chat but
+# produced no GPX, no directions link and no PNG over Telegram.
+from core.route_export import SINGLE_ROUTE_TOOLS
+
 # Keep colours in sync with web/src/theme/tokens.ts so web and Telegram look alike.
 _LINE = "#FF6400"
 _START = "#16A34A"   # green
@@ -49,7 +55,7 @@ def render_route_image(route_data: Optional[Dict]) -> Optional[bytes]:
     )
     drew = False
 
-    if tool in ("plan_route", "plan_circular_route"):
+    if tool in SINGLE_ROUTE_TOOLS:
         coords = _waypoint_coords(data.get("waypoints"))
         if len(coords) >= 2:
             smap.add_line(Line(coords, _LINE, 5))

@@ -23,7 +23,12 @@ from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlencode
 
 _LatLon = Tuple[float, float]
-_SINGLE_ROUTE_TOOLS = ("plan_route", "plan_circular_route")
+# Route tools whose result is ONE ordered waypoint list, so it exports as a single
+# GPX track / directions link. plan_park_loop belongs here: it returns the exact
+# same [{lat, lon, ele_m}] shape as the other two, and agent_trace.ROUTE_TOOLS
+# already accepts it as route_data — so leaving it out meant a park loop rendered a
+# map in chat but produced no GPX, no link and no static PNG over Telegram.
+SINGLE_ROUTE_TOOLS = ("plan_route", "plan_circular_route", "plan_park_loop")
 _GMAPS_MAX_WAYPOINTS = 8  # the consumer dir URL practically supports ~9 stops
 
 
@@ -56,7 +61,7 @@ def route_gpx(route_data: Optional[Dict], name: str = "Training Copilot route") 
     data = (route_data or {}).get("data") or {}
     segments: List[List[Tuple[float, float, Optional[float]]]] = []
 
-    if tool in _SINGLE_ROUTE_TOOLS:
+    if tool in SINGLE_ROUTE_TOOLS:
         seg = [(wp["lat"], wp["lon"], wp.get("ele_m"))
                for wp in (data.get("waypoints") or [])
                if isinstance(wp, dict) and wp.get("lat") is not None and wp.get("lon") is not None]
@@ -96,7 +101,7 @@ def _ordered_latlon(route_data: Optional[Dict]) -> List[_LatLon]:
     """Ordered (lat, lon) for single-route tools; [] for trails/isochrone/empty."""
     tool = (route_data or {}).get("tool", "")
     data = (route_data or {}).get("data") or {}
-    if tool in _SINGLE_ROUTE_TOOLS:
+    if tool in SINGLE_ROUTE_TOOLS:
         return [(wp["lat"], wp["lon"]) for wp in (data.get("waypoints") or [])
                 if isinstance(wp, dict) and wp.get("lat") is not None and wp.get("lon") is not None]
     return []
