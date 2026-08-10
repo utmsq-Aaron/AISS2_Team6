@@ -50,7 +50,9 @@ interface Meta {
   docsUrl: string;
 }
 
-// DISPLAY_ORDER from ui/settings.py: strava, garmin, google, openai, routes, weather, telegram
+// Display order of the connection cards: strava, garmin, google, openai, routes,
+// weather, telegram. Inherited from the retired Streamlit settings page — kept so
+// the page users already know does not reshuffle itself.
 const META: Meta[] = [
   { key: "strava", label: "Strava", icon: "🏃", type: "oauth", description: "Activities, GPS streams, statistics", docsUrl: "https://www.strava.com/settings/api" },
   { key: "garmin", label: "Garmin Connect", icon: "⌚", type: "credentials", description: "Sleep, HRV, Body Battery, steps", docsUrl: "https://connect.garmin.com" },

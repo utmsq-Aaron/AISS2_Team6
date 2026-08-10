@@ -17,6 +17,10 @@ import { Login } from "./pages/Login";
 import { Settings } from "./pages/Settings";
 import { useAuthStore } from "./store/authStore";
 
+const SHOW_GMAIL_REGISTRATION_PAGE = String(import.meta.env.VITE_SHOW_GMAIL_REGISTRATION_PAGE ?? "false")
+  .trim()
+  .toLowerCase() === "true";
+
 export default function App() {
   // Gate on the persisted user hint (the session lives in an httpOnly cookie the
   // JS can't see). If the cookie is actually stale, the first authenticated call
@@ -42,7 +46,7 @@ function Authenticated() {
 
   // Only gate on an explicit `false` from a successfully-loaded profile — never
   // lock a user out of the app because the profile endpoint hiccuped once.
-  if (profileQuery.data && !profileQuery.data.onboarding_complete) {
+  if (SHOW_GMAIL_REGISTRATION_PAGE && profileQuery.data && !profileQuery.data.onboarding_complete) {
     return <OnboardingWizard onDone={() => profileQuery.refetch()} />;
   }
 

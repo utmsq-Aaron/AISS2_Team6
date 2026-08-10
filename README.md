@@ -42,6 +42,10 @@ Logs live in `/tmp/training-copilot/`.
 Prefer containers? `./docker-up.sh up --build` runs the **entire** stack in Docker → **:3000**.
 See [Docker](#docker).
 
+`run.sh` is a bash script and expects a Unix shell (it uses `lsof` and `pgrep` for its
+"reuse what is already running" logic). On **Windows**, run it from **WSL2** — `localhost:5173`
+is reachable from the Windows browser as usual — or use the Docker route above.
+
 ---
 
 ## What it can do
@@ -111,10 +115,26 @@ Three providers are supported and switchable at runtime from **Settings → Open
 
 Everything else is optional — each integration simply stays dark until you configure it.
 
+Two flags make local development less tedious. Both are read by the SPA out of this same
+repo-root `.env` (`web/vite.config.ts` points Vite's `envDir` here), and only `VITE_`-prefixed
+variables ever reach the browser bundle:
+
+```ini
+VITE_SHOW_GMAIL_REGISTRATION_PAGE=false   # skip the Google/Gmail onboarding page
+# VITE_DEV_AUTO_LOGIN_EMAIL=you@example.com   # skip the email-OTP login entirely
+```
+
+`VITE_DEV_AUTO_LOGIN_EMAIL` makes the app call `POST /api/auth/dev-login` once on boot and land
+you in the shell as that account. **Dev only** — never set it on anything reachable from outside.
+
 ### 4. Connect your accounts
 
 Each of these is independent; skip any you do not need. All tokens land in `.tokens/`, which is
 git-ignored and never leaves your machine.
+
+All the one-off flows share an entry point: `.venv/bin/python -m auth <garmin|strava|gmail>`, or
+`-m auth all` to walk through them in order. It just calls the scripts named below, so either
+form works.
 
 #### Strava — activities
 

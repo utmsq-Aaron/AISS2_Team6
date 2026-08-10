@@ -105,7 +105,7 @@ def setup_tracing(service: str) -> bool:
         except Exception:  # noqa: BLE001
             pass
         _active = True
-        print(f"[{service}] MLflow tracing → {tracking_uri()} "
+        print(f"[{service}] MLflow tracing -> {tracking_uri()} "
               f"(experiment={experiment()})", flush=True)
         return True
     except Exception as exc:  # noqa: BLE001 — tracing must never break the app

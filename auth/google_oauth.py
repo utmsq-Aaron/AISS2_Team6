@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Google OAuth2 — one-time authorization for the ADMIN email sender.
+"""Google OAuth2 — one-time authorization for the ADMIN Gmail sender.
 
 Run once on the host, signed in as the admin Google account (the one in ADMIN_EMAIL):
     python auth/google_oauth.py
 
-Saves the token to .tokens/google_mail.json with the gmail.send scope (plus calendar),
-which api/email_service uses to send OTP login emails. This is intentionally a
+Saves the token to .tokens/google_mail.json with the gmail.send scope, which
+api/email_service uses to send OTP login emails. This is intentionally a
 SEPARATE file from the user-connectable calendar token (.tokens/google.json), so a
 user (re)connecting Google Calendar in Settings can never clobber the email
 credential. Requires the Gmail API enabled in the Cloud project.
@@ -30,9 +30,7 @@ TOKEN_FILE   = Path(".tokens/google_mail.json")   # admin email sender (separate
 REDIRECT_URI = "http://localhost:8888/callback"
 AUTH_URL     = "https://accounts.google.com/o/oauth2/auth"
 TOKEN_URL    = "https://oauth2.googleapis.com/token"
-SCOPE        = ("https://www.googleapis.com/auth/calendar.readonly "
-                "https://www.googleapis.com/auth/calendar.events "
-                "https://www.googleapis.com/auth/gmail.send")  # calendar r/w + send OTP mail
+SCOPE        = "https://www.googleapis.com/auth/gmail.send"
 
 
 class GoogleOAuthManager:
@@ -55,7 +53,7 @@ class GoogleOAuthManager:
             tokens = self._exchange(self._auth_code)
             tokens["expires_at"] = time.time() + int(tokens.get("expires_in", 3600))
             self._save(tokens)
-            print(f"Google Calendar authorized. Token saved to {TOKEN_FILE}.")
+            print(f"Gmail sender authorized. Token saved to {TOKEN_FILE}.")
         finally:
             self._stop_callback_server()
 
@@ -101,7 +99,7 @@ class GoogleOAuthManager:
                     self.wfile.write(
                         b"<html><head><meta charset='utf-8'></head>"
                         b"<body style='font-family:sans-serif;text-align:center;padding:60px'>"
-                        b"<h1 style='color:#4285F4'>&#10003; Google Calendar connected!</h1>"
+                        b"<h1 style='color:#4285F4'>&#10003; Gmail sender connected!</h1>"
                         b"<p>You can close this window and return to the app.</p>"
                         b"<script>setTimeout(window.close, 3000);</script>"
                         b"</body></html>"

@@ -34,6 +34,13 @@ function fastApiPort(): number {
 // origin (mirrors how the Node BFF serves things in production).
 export default defineConfig({
   plugins: [react()],
+  // Read .env from the REPO ROOT, not web/. The app has exactly one .env (the one
+  // .env.example documents), and the VITE_* flags live in it alongside everything
+  // else. Without this Vite would look in web/ and silently ignore them — which is
+  // why the old launcher scripts had to export them by hand. Only VITE_-prefixed
+  // variables are ever exposed to client code, so pointing at the root .env does
+  // not leak API keys into the bundle.
+  envDir: repoRoot,
   server: {
     port: 5173,
     proxy: {
