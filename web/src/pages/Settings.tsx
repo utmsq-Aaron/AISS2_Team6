@@ -33,10 +33,15 @@ import {
   tgDisconnect,
   tgBridge,
   restartServers,
+  syncPreview,
+  syncExport,
   type SettingsResponse,
   type Integrations,
   type EnvVar,
   type GarminState,
+  type SyncPreview,
+  type SyncResult,
+  type SyncCounts,
 } from "../lib/settingsApi";
 import { BORDER, C_GREEN, C_RED, TEXT_PRIMARY, TEXT_MUTED } from "../theme/tokens";
 
@@ -735,6 +740,192 @@ function WeatherCard() {
   return <div className="rounded-lg border border-metric-green/40 bg-metric-green/10 px-3 py-2 text-sm text-metric-green">Active — no setup needed</div>;
 }
 
+// ── Garmin → Strava sync ──────────────────────────────────────────────────────
+// Two clicks, never one. Uploading to Strava is visible to the user's followers
+// and awkward to undo, so the first button only LOOKS: it lists the Garmin
+// activities with no Strava counterpart. Nothing leaves the machine until the
+// second button is pressed.
+const SYNC_RANGES = [7, 30, 90, 365] as const;
+
+function SyncSection({ integ }: { integ: Integrations }) {
+  const ready = integ.strava && integ.garmin;
+
+  const [days, setDays] = useState<number>(30);
+  const [preview, setPreview] = useState<SyncPreview | null>(null);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
+  const [results, setResults] = useState<SyncResult[]>([]);
+  const [summary, setSummary] = useState<SyncCounts | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const check = useMutation({
+    mutationFn: () => syncPreview(days),
+    onSuccess: (p) => {
+      setPreview(p);
+      setResults([]);
+      setSummary(null);
+      setError(null);
+    },
+    onError: (e: unknown) => setError(e instanceof Error ? e.message : String(e)),
+  });
+
+  function startExport() {
+    if (!preview?.missing.length) return;
+    setRunning(true);
+    setResults([]);
+    setSummary(null);
+    setError(null);
+    syncExport(preview.missing, {
+      onProgress: (name, index, total) => setProgress(`${index + 1}/${total} · ${name}`),
+      onResult: (r) => setResults((rs) => [...rs, r]),
+      onSummary: (c) => setSummary(c),
+      onError: (m) => setError(m),
+      onDone: () => {
+        setRunning(false);
+        setProgress(null);
+        // The uploaded ones are on Strava now — the old list would still offer them.
+        setPreview(null);
+      },
+    });
+  }
+
+  return (
+    <div className="fd-card p-4">
+      <div className="mb-2 flex items-center gap-1.5">
+        <h3 className="text-sm font-semibold text-text-primary">⇄ Garmin → Strava</h3>
+        <InfoHint text="Finds Garmin activities that never made it to Strava and uploads their original FIT files. Matching is by date plus duration or distance, since the two services use different activity ids." />
+      </div>
+
+      {!ready ? (
+        <p className="text-sm text-text-muted">
+          Connect both Strava and Garmin above to use this.
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="fd-label">
+              Range
+              <select
+                className="fd-input mt-1 w-36 font-normal normal-case tracking-normal text-text-primary"
+                value={days}
+                onChange={(e) => {
+                  setDays(Number(e.target.value));
+                  setPreview(null);
+                }}
+                disabled={running}
+              >
+                {SYNC_RANGES.map((d) => (
+                  <option key={d} value={d}>
+                    last {d} days
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="fd-btn-secondary text-sm disabled:opacity-40"
+              onClick={() => check.mutate()}
+              disabled={check.isPending || running}
+            >
+              {check.isPending ? "Checking…" : "🔍 Check for missing activities"}
+            </button>
+          </div>
+
+          {preview && !preview.has_matches && (
+            <p className="mt-3 text-sm text-metric-amber">
+              Could not read your Strava activities for this range, so there is nothing to
+              compare against. Reconnect Strava and try again.
+            </p>
+          )}
+
+          {preview?.has_matches && preview.missing.length === 0 && (
+            <p className="mt-3 text-sm text-text-muted">
+              All {preview.activities.length} Garmin activities in the last {preview.days} days
+              are already on Strava. Nothing to do.
+            </p>
+          )}
+
+          {preview?.has_matches && preview.missing.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-2 text-sm text-text-primary">
+                <strong>{preview.missing.length}</strong> of {preview.activities.length} Garmin
+                activities are not on Strava:
+              </p>
+              <ul className="mb-3 max-h-56 space-y-1 overflow-y-auto">
+                {preview.missing.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex items-baseline justify-between gap-3 rounded-md border border-border bg-bg-surface/40 px-2.5 py-1.5 text-xs"
+                  >
+                    <span className="min-w-0 truncate text-text-primary">{a.name}</span>
+                    <span className="shrink-0 text-text-muted">
+                      {[a.date, a.distance_km ? `${a.distance_km} km` : null]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className="fd-btn-primary text-sm disabled:opacity-40"
+                onClick={startExport}
+                disabled={running}
+              >
+                {running
+                  ? "Uploading…"
+                  : `⬆️ Upload ${preview.missing.length} to Strava`}
+              </button>
+            </div>
+          )}
+
+          {progress && (
+            <p className="mt-3 text-sm text-text-muted">Uploading {progress}…</p>
+          )}
+
+          {results.length > 0 && (
+            <ul className="mt-3 space-y-1">
+              {results.map((r) => (
+                <li key={`${r.index}-${r.name}`} className="text-xs text-text-muted">
+                  {r.status === "ok"
+                    ? "✅"
+                    : r.status === "duplicate"
+                      ? "↩️"
+                      : r.status === "skipped"
+                        ? "⏭️"
+                        : "❌"}{" "}
+                  <span className="text-text-primary">{r.name}</span>
+                  {r.message ? ` — ${r.message}` : ""}
+                  {r.url && (
+                    <>
+                      {" "}
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-accent underline"
+                      >
+                        open
+                      </a>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {summary && (
+            <Toast
+              message={`Done — ${summary.ok} uploaded, ${summary.duplicate} already there, ${summary.skipped} skipped, ${summary.error} failed.`}
+            />
+          )}
+          {error && <Toast message={`Error: ${error}`} />}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Developer section (restart MCP servers) ──────────────────────────────────────
 function DeveloperSection() {
   const [result, setResult] = useState<string | null>(null);
@@ -900,6 +1091,8 @@ export function Settings() {
           ))}
         </div>
       </div>
+
+      <SyncSection integ={integ} />
 
       {isAdmin && <DeveloperSection />}
     </div>
