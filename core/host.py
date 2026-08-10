@@ -21,7 +21,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from mcp.client.session import ClientSession
-from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
+from mcp.client.streamable_http import streamablehttp_client
 
 from core.config import MCP_SERVERS, SEP
 
@@ -53,8 +53,7 @@ class ToolHost:
         """
         async def _fetch(name: str, url: str) -> List[Dict[str, Any]]:
             async def _do():
-                http_client = create_mcp_http_client(headers=self.headers.get(name) or None)
-                async with streamable_http_client(url, http_client=http_client) as (read, write):
+                async with streamablehttp_client(url, headers=self.headers.get(name)) as (read, write, _):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
                         result = await session.list_tools()
@@ -63,7 +62,7 @@ class ToolHost:
                             "function": {
                                 "name":        f"{name}{SEP}{t.name}",
                                 "description": t.description or "",
-                                "parameters":  getattr(t, "input_schema", None) or {
+                                "parameters":  t.inputSchema or {
                                     "type": "object", "properties": {}, "required": []
                                 },
                             },
@@ -89,8 +88,7 @@ class ToolHost:
             return json.dumps({"error": f"No server '{server}' for tool '{name}'"})
 
         async def _do() -> str:
-            http_client = create_mcp_http_client(headers=self.headers.get(server) or None)
-            async with streamable_http_client(url, http_client=http_client) as (read, write):
+            async with streamablehttp_client(url, headers=self.headers.get(server)) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     result = await session.call_tool(tool, arguments=args or {})
@@ -99,7 +97,7 @@ class ToolHost:
                         for c in result.content
                         if getattr(c, "type", "") == "text"
                     ]
-                    if result.is_error:
+                    if result.isError:
                         return json.dumps({"error": "\n".join(texts) or "tool error"})
                     return "\n".join(texts) if texts else json.dumps({"result": "ok"})
 

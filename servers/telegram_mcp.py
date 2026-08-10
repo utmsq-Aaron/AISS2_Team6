@@ -91,9 +91,17 @@ def _check_prereqs() -> None:
 def _upstream_params() -> StdioServerParameters:
     # Run the upstream entrypoint via uv (isolated env, pinned Python). The full parent
     # environment is forwarded so PATH/HOME and every TELEGRAM_* var reach the child.
+    #
+    # `--with "mcp[cli]<2"` caps the SDK for the CHILD, and is needed independently of
+    # what our own venv pins: uv resolves the upstream in its OWN environment from
+    # external/telegram-mcp/pyproject.toml, which asks for `mcp[cli]>=1.8.0`. Left
+    # unpinned that now resolves to 2.x, which removed `mcp.server.fastmcp` — the
+    # module the upstream imports — so the subprocess dies on import. Capping here
+    # rather than editing the vendored pyproject.toml keeps our copy byte-identical
+    # to upstream, which is the whole point of vendoring it.
     return StdioServerParameters(
         command=shutil.which("uv") or "uv",
-        args=["run", "--directory", str(UPSTREAM_DIR), "main.py"],
+        args=["run", "--with", "mcp[cli]<2", "--directory", str(UPSTREAM_DIR), "main.py"],
         env={**os.environ},
     )
 

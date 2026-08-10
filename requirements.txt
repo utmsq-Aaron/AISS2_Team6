@@ -1,43 +1,34 @@
 requests>=2.31.0
 python-dotenv>=1.0.0
 openai>=2.0.0
-mcp>=1.0.0
-anyio>=4.0              # mcp 1.x client uses anyio subscript syntax unavailable in 3.x
+mcp>=1.9,<2               # 1.x API: mcp.server.fastmcp, inputSchema, isError. 2.x breaks all servers.
+anyio>=4.0
 plotly>=5.20.0
-statsmodels>=0.14.0        # required by plotly express trendline="ols"
+statsmodels>=0.14.0       # plotly express trendline="ols"
 pandas>=2.0.0
 polyline>=2.0.0
-staticmap>=0.5.7           # static route-map PNGs for the Telegram bridge (no browser)
+staticmap>=0.5.7          # static route-map PNGs for the Telegram bridge
 garminconnect>=0.3.0
-telethon>=1.42.0          # Settings-tab Telegram session-string generation
-qrcode>=7,<9              # optional: in-terminal QR for `telegram_bridge.py --login-qr`
-playwright>=1.44.0        # optional: server-side flythrough MP4 render (core/video_renderer.py)
+telethon>=1.42.0
+qrcode>=7,<9              # optional: telegram_bridge.py --login-qr
+playwright>=1.44.0        # optional: server-side flythrough MP4 render
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
-python-multipart>=0.0.9  # required by FastAPI's UploadFile (avatar upload, api/routers/profile.py)
-starlette                 # telegram_mcp proxy ASGI app (also a transitive mcp dep)
-faster-whisper>=1.0.0     # local voice-memo transcription (portable CPU engine, no ffmpeg needed)
-# Apple Silicon GPU speedup (optional, Mac-only — also needs `brew install ffmpeg`):
-#   pip install mlx-whisper
+python-multipart>=0.0.9   # FastAPI UploadFile (avatar upload)
+starlette
+faster-whisper>=1.0.0     # local voice-memo transcription
 aiohttp>=3.9.0
-psutil>=5.9.0             # cross-platform port/process management for MCP server lifecycle
-kaleido>=0.2.1            # static Plotly PNG export (fig.to_image) for Telegram chart delivery
+psutil>=5.9.0
+kaleido>=0.2.1            # Plotly PNG export for Telegram
 
-# ── Agent layer: LangGraph specialists + A2A coordination ─────────────────────
-# Orchestrator + 6 specialists are LangGraph ReAct agents, each its own A2A server.
-# a2a-sdk is pinned to the 0.3.x (pydantic) line to match the official Python
-# tutorial / A2A examples; create_agent comes from langchain 1.x.
+# Agent layer: LangGraph specialists + A2A coordination
 a2a-sdk>=0.3.26,<0.4
 langgraph>=1.2,<2
 langchain>=1,<2
 langchain-core>=1.4,<2
-langchain-openai>=1.3,<2     # ChatOpenAI against the OpenAI-compatible KIT gateway
-langchain-google-genai>=2,<4 # optional: LLM_PROVIDER=gemini (Google Gemini)
-mlflow>=3,<4                 # tracing the agent layer (LangGraph + LLM + tool spans); UI on :5001
+langchain-openai>=1.3,<2
+langchain-google-genai>=2,<4  # optional: LLM_PROVIDER=gemini
+mlflow>=3,<4
 
-# ── Fitness Expert agent: local RAG over a vector DB of fitness literature ─────
-# The fitness specialist has no MCP server; it retrieves from a local vector index
-# built from public-domain fitness books. Embeddings come from a small LOCAL model
-# (default all-MiniLM-L6-v2) — sentence-transformers pulls torch, which ships a
-# CPU/MPS build automatically on Apple Silicon. No external embedding API needed.
+# Fitness Expert agent: local RAG (embeddings run locally, no external API)
 sentence-transformers>=3,<6
