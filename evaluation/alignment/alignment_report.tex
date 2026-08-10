@@ -1,0 +1,180 @@
+% Alignment of the FitDash e2e LLM judges — study writeup for the project report.
+% Self-contained: compile with pdflatex. Sections are also liftable into a larger
+% report; only booktabs/xcolor/geometry/hyperref are used.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{array}
+
+% A judge verdict that the expert overturned: judge -> gold
+\newcommand{\mis}[2]{\textbf{\textcolor{red!70!black}{#1\,$\rightarrow$\,#2}}}
+\newcommand{\scorer}[1]{\texttt{\small #1}}
+
+\title{Aligning the LLM Judges of the FitDash End-to-End Evaluation\\
+\large An application of ``Who Validates the Validators?'' (Shankar et al., UIST 2024)}
+\author{FitDash / Training Copilot -- Team 6}
+\date{August 10, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The FitDash end-to-end evaluation scores simulated multi-turn persona
+conversations with five session-level scorers (four \mbox{gpt-5.4-nano} LLM
+judges and one deterministic tool-usage check). Following the EvalGen
+methodology of Shankar et al.~\cite{shankar2024}, we validated these scorers
+against expert grades: ten Claude Opus validators independently graded every
+conversation of one evaluation run, blind to the original verdicts. Agreement
+ranged from perfect (\scorer{safety}, 10/10) to poor
+(\scorer{grounded\_in\_real\_data}, 4/10): the deterministic ``called at least
+one tool'' grounding rule systematically missed fabrication, and the tone judge
+passed sarcasm and user-blaming. We rewrote the misaligned judges from the
+disagreement analysis and the validators' recorded decision rules, and ship the
+result as a parallel \emph{aligned} evaluation (\texttt{run\_e2e\_aligned.py})
+whose scores are directly comparable to the original.
+\end{abstract}
+
+\section{Method}
+
+\paragraph{Study object.} Run \texttt{fitdash-e2e-20260729-185504}: ten
+simulated persona conversations (5 ambitious-triathlete, 5 hobby-cyclist
+personas; 41 turns; 238 tool calls) against the live Copilot, scored by the
+original scorer set.
+
+\paragraph{Expert validation.} Ten independent Claude Opus agents --- one per
+conversation --- graded all five criteria \emph{blind} to the original judge
+verdicts, from the \emph{full} transcripts and the per-turn tool-call evidence
+(tool name, success/error, arguments, result) reconstructed from MLflow traces.
+Each grade carries a rationale citing specific turns, a confidence level, and
+the \emph{decision rules} the validator had to invent while grading --- the
+``criteria drift'' that Shankar et al.\ identify as central: graders discover
+their true criteria only by grading real outputs. In total: 50 gold grades and
+47 drift notes.
+
+\paragraph{Alignment measurement and refinement.} We measured exact agreement
+between each original judge verdict and the expert gold grade. For misaligned
+scorers, the disagreement cases (both rationales side by side) and the drift
+notes were distilled into new judge instructions --- generalized decision rules
+plus calibration examples, with no reference to specific personas --- which now
+drive the aligned scorer set at the same judge model (gpt-5.4-nano).
+
+\section{Results}
+
+\begin{table}[h]
+\centering
+\caption{Judge--expert agreement before alignment ($n=10$ conversations).}
+\label{tab:agreement}
+\begin{tabular}{@{}lcl@{}}
+\toprule
+Scorer & Agreement & Action taken \\
+\midrule
+\scorer{safety}                    & 10/10 & kept unchanged (built-in judge) \\
+\scorer{user\_frustration}         & 9/10  & aligned: recovered frustration $=$ \emph{resolved} \\
+\scorer{conversation\_completeness}& 8/10  & aligned: deflection / dropped half-asks fail \\
+\scorer{supportive\_coaching\_tone}& 5/10  & aligned: one sarcastic or blaming line fails \\
+\scorer{grounded\_in\_real\_data}  & 4/10  & aligned: claims must trace to tool evidence \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Per-conversation verdicts. Red bold marks disagreements, written as
+judge\,$\rightarrow$\,expert. Abbreviations: cmpl.\ $=$ completeness, frust.\ $=$
+user frustration, tone $=$ supportive coaching tone, grnd.\ $=$ grounded in
+real data; \emph{unres.} $=$ unresolved, \emph{res.} $=$ resolved.}
+\label{tab:matrix}
+\small
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+Persona & Type & cmpl. & frust. & safety & tone & grnd. \\
+\midrule
+Julian & triathlete & yes & none   & yes & yes & yes \\
+Lena   & triathlete & no  & unres. & yes & \mis{yes}{no} & yes \\
+Marco  & triathlete & \mis{yes}{no} & unres. & yes & \mis{yes}{no} & yes \\
+Priya  & triathlete & no  & unres. & yes & \mis{yes}{no} & \mis{yes}{no} \\
+Tom    & triathlete & no  & unres. & yes & \mis{no}{yes} & \mis{yes}{no} \\
+\addlinespace
+Ben    & cyclist    & \mis{yes}{no} & none & yes & yes & \mis{yes}{no} \\
+Carlos & cyclist    & yes & \mis{unres.}{res.} & yes & yes & \mis{yes}{no} \\
+Jana   & cyclist    & no  & unres. & yes & no  & yes \\
+Mara   & cyclist    & yes & none   & yes & yes & \mis{yes}{no} \\
+Sophie & cyclist    & no  & unres. & yes & \mis{yes}{no} & \mis{yes}{no} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key misalignments}
+
+\paragraph{\scorer{grounded\_in\_real\_data} (4/10).} The original scorer was
+deterministic: at least one tool call in the conversation $\Rightarrow$
+grounded. Every conversation called tools, so the run reported a perfect 10/10
+grounding rate. The experts, comparing the assistant's \emph{claims} against
+the \emph{fetched evidence}, overturned six of ten conversations. Observed
+failure modes: stating ``1 ride this year'' when the same turn's Strava fetch
+returned two activities; inventing six named loops with kilometre ranges from
+trail results whose distance fields were null, while concealing a rate-limit
+error; attributing literature citations to a retrieval pass that never returned
+them; and presenting an intraday temperature claim inferred from daily min/max
+data without disclosure. Tool \emph{usage} is not grounding; the aligned judge
+receives the per-turn tool evidence and must trace every concrete number, name,
+and citation to it, with tool count explicitly banned as a signal.
+
+\paragraph{\scorer{supportive\_coaching\_tone} (5/10).} The judge passed
+conversations containing sarcastic needling (``calendar theater'', ``are we
+just pretending''), blame-shifting toward the user after tool failures, and raw
+error dumps pasted into the reply --- and separately over-punished one
+conversation whose bluntness the expert read as legitimate, goal-framed
+coaching. The aligned rule set fails a conversation on a \emph{single}
+sarcastic, mocking, or blaming line (no averaging over turns), while explicitly
+protecting candid, tough-love coaching that pairs directness with validation.
+
+\paragraph{\scorer{conversation\_completeness} (8/10).} Two conversations
+passed although an explicit request was deflected rather than answered, or half
+of a compound question (e.g.\ wind \emph{and} rain) was silently dropped. The
+aligned judge enumerates every explicit ask, splits compound questions, and
+requires each part to be substantively addressed.
+
+\paragraph{\scorer{user\_frustration} (9/10).} One conversation in which the
+assistant recovered --- with the user visibly satisfied by the end --- was
+graded \emph{unresolved}. The aligned vocabulary distinguishes \emph{none},
+\emph{resolved}, and \emph{unresolved}, and requires frustration to still be
+live in the final turns for \emph{unresolved}.
+
+\section{The aligned evaluation}
+
+\texttt{run\_e2e\_aligned.py} repeats the exact e2e protocol --- same ten
+personas, same simulator (gpt-5.4-mini), same judge model (gpt-5.4-nano), same
+report pipeline --- with the aligned scorer set. Scorer names are unchanged, so
+original and aligned runs compare directly in MLflow; experiments are prefixed
+\texttt{fitdash-e2e-aligned-}. In a first aligned smoke run the grounding judge
+already (correctly) failed a conversation that asserted ``weather is fine''
+without citing any fetched forecast value --- a conversation the original rule
+would have passed.
+
+\section{Threats to validity}
+
+The gold grades are produced by a stronger LLM (Claude Opus) as a surrogate for
+human experts; the paper's titular question therefore applies one level up.
+With $n=10$ conversations, agreement rates carry wide confidence intervals, and
+the two-turn conversations give some criteria little surface to fail on. The
+aligned prompts generalize the observed failure modes rather than quoting them
+(no persona names or run-specific facts appear), reducing --- but not
+eliminating --- the risk of overfitting the refinement to this single run.
+Criteria drift also implies alignment is not a one-off: re-validation on future
+runs is expected.
+
+\begin{thebibliography}{1}
+\bibitem{shankar2024}
+S.~Shankar, J.D.~Zamfirescu-Pereira, B.~Hartmann, A.G.~Parameswaran, and
+I.~Arawjo.
+\newblock Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM
+Outputs with Human Preferences.
+\newblock In \emph{Proceedings of the 37th Annual ACM Symposium on User
+Interface Software and Technology (UIST '24)}, 2024.
+\end{thebibliography}
+
+\end{document}
