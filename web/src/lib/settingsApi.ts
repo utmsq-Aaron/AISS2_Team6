@@ -205,8 +205,9 @@ export interface SyncActivity {
 export interface SyncPreview {
   activities: SyncActivity[];
   missing: SyncActivity[];
-  /** False when the Strava fetch returned nothing — treat `missing` as unusable. */
-  has_matches: boolean;
+  /** False only when Strava could not be READ — then `missing` is unusable. An
+   *  empty-but-readable Strava is normal and makes every Garmin activity missing. */
+  strava_readable: boolean;
   start: string;
   end: string;
   days: number;

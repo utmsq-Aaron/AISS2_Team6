@@ -26,6 +26,17 @@ TOKEN_STORE = ".tokens"
 
 def garmin_client():
     """Log in to Garmin via cached tokens, falling back to credentials."""
+    # GARMIN_MOCK_HEALTH makes api.connections report Garmin as "connected", which
+    # is right for the Health page (the mock generates that data) but wrong here:
+    # there is no mock FIT file to upload. Say so instead of failing on a login.
+    from api.connections import garmin_mock_mode
+
+    if garmin_mock_mode():
+        raise RuntimeError(
+            "Garmin is in mock mode (GARMIN_MOCK_HEALTH) — there are no real "
+            "activities to export. Disable the mock and connect a real Garmin account."
+        )
+
     from garminconnect import Garmin
 
     has_tokens = (pathlib.Path(TOKEN_STORE) / "garmin_tokens.json").exists()
@@ -58,7 +69,15 @@ def strava_token() -> str:
     return OAuth2Manager(cid, csec).get_valid_access_token()
 
 
-def fetch_strava_for_range(start_str: str, end_str: str) -> List[Dict]:
+def fetch_strava_for_range(start_str: str, end_str: str) -> Optional[List[Dict]]:
+    """Strava activities in the range, or None if Strava could not be read.
+
+    The distinction matters: an empty list is a legitimate answer ("you logged
+    nothing to Strava that week") and means every Garmin activity is genuinely
+    missing, while None means we know nothing and must not claim anything is
+    missing. Collapsing both into [] told users with an empty Strava account that
+    their connection was broken.
+    """
     try:
         token = strava_token()
         after = int(datetime.strptime(start_str, "%Y-%m-%d").timestamp())
@@ -73,7 +92,9 @@ def fetch_strava_for_range(start_str: str, end_str: str) -> List[Dict]:
                 timeout=30,
             )
             if not resp.ok:
-                break
+                # A partial read is still unusable as a "what's missing" baseline:
+                # the pages we did not get would look like gaps.
+                return None
             batch = resp.json()
             if not batch:
                 break
@@ -83,7 +104,7 @@ def fetch_strava_for_range(start_str: str, end_str: str) -> List[Dict]:
                 break
         return collected
     except Exception:
-        return []
+        return None
 
 
 def match_in_strava(garmin_act: Dict, strava_acts: List[Dict]) -> bool:
@@ -136,13 +157,27 @@ def normalize_activity(a: Dict, in_strava: Optional[bool] = None) -> Dict:
 
 
 def fetch_activities(start_str: str, end_str: str) -> Dict:
-    """Garmin activities in range, each flagged with its Strava-duplicate status."""
+    """Garmin activities in range, each flagged with its Strava-duplicate status.
+
+    `strava_readable` is False only when Strava could not be read at all — then
+    `in_strava` is None everywhere and no caller may call anything "missing". An
+    empty but readable Strava is the normal case for a new account and correctly
+    marks every Garmin activity as missing.
+    """
     g = garmin_client()
     acts = g.get_activities_by_date(start_str, end_str) or []
     strava_acts = fetch_strava_for_range(start_str, end_str)
-    has_matches = bool(strava_acts)
-    out = [normalize_activity(a, match_in_strava(a, strava_acts) if has_matches else None) for a in acts]
-    return {"activities": out, "has_matches": has_matches, "start": start_str, "end": end_str}
+    readable = strava_acts is not None
+    out = [
+        normalize_activity(a, match_in_strava(a, strava_acts) if readable else None)
+        for a in acts
+    ]
+    return {
+        "activities": out,
+        "strava_readable": readable,
+        "start": start_str,
+        "end": end_str,
+    }
 
 
 def route_coords(activity_id: int) -> List[List[float]]:
@@ -155,7 +190,14 @@ def route_coords(activity_id: int) -> List[List[float]]:
         return []
 
 
-def _download_fit(garmin, activity_id: int) -> Optional[bytes]:
+def _download_fit(garmin, activity_id: int) -> tuple[Optional[bytes], str]:
+    """The activity's FIT bytes, or (None, reason).
+
+    The reason is carried out rather than swallowed: an expired Garmin session
+    and a genuinely file-less activity both used to surface as "skipped — no FIT
+    file", so a batch could report forty skips without hinting that re-connecting
+    Garmin would fix all of them.
+    """
     try:
         from garminconnect import Garmin as _G
 
@@ -163,10 +205,10 @@ def _download_fit(garmin, activity_id: int) -> Optional[bytes]:
         with zipfile.ZipFile(io.BytesIO(raw)) as zf:
             for name in zf.namelist():
                 if name.lower().endswith(".fit"):
-                    return zf.read(name)
-    except Exception:
-        pass
-    return None
+                    return zf.read(name), ""
+    except Exception as exc:  # noqa: BLE001 — reported, not silenced
+        return None, f"Garmin download failed: {exc}"
+    return None, "no FIT file in the Garmin export"
 
 
 def _upload_to_strava(token: str, fit_bytes: bytes, name: str) -> Dict:
@@ -220,9 +262,9 @@ def export_one(garmin, token: str, act: Dict) -> Dict:
     """Download one Garmin FIT and upload to Strava. Returns a result dict."""
     aid = act.get("id")
     name = act.get("name") or f"Activity {aid}"
-    fit = _download_fit(garmin, aid)
+    fit, why = _download_fit(garmin, aid)
     if fit is None:
-        return {"status": "skipped", "name": name, "message": "no FIT file"}
+        return {"status": "skipped", "name": name, "message": why}
     resp = _upload_to_strava(token, fit, name)
     if resp.get("error"):
         return {"status": "error", "name": name, "message": resp["error"]}
@@ -233,7 +275,10 @@ def export_one(garmin, token: str, act: Dict) -> Dict:
     err = final.get("error") or ""
     activity_id = final.get("activity_id")
     if err:
-        if "already exists" in err.lower():
+        # Strava phrases this as "<file>.fit duplicate of activity <id>" — matching
+        # on "already exists" never fired, so re-running a sync reported every
+        # already-uploaded activity as a hard error.
+        if "duplicate" in err.lower():
             return {"status": "duplicate", "name": name, "message": "already on Strava"}
         return {"status": "error", "name": name, "message": err}
     if activity_id:

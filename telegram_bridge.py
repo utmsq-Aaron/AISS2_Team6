@@ -52,6 +52,7 @@ import asyncio
 import io
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -170,8 +171,16 @@ def _chunk(text: str, limit: int = TG_LIMIT) -> List[str]:
     return parts
 
 
+#  [Coach](/coach) — an in-app SPA route the web chat renders as a jump button.
+#  Telethon rejects it as a URL, which fails the whole chunk's Markdown parse and
+#  dumps raw markup on the user, so unwrap those links to their label here. Real
+#  http(s) links are left alone.
+_APP_LINK_RE = re.compile(r"\[([^\]]+)\]\((/[^)]*)\)")
+
+
 async def _send_text(event, text: str) -> None:
     """Send a possibly-long reply; try Markdown, fall back to plain on parse errors."""
+    text = _APP_LINK_RE.sub(r"\1", text)
     for chunk in _chunk(text) or ["(no response)"]:
         sent = None
         try:

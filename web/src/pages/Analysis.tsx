@@ -322,10 +322,14 @@ function PerformanceTrendSection({
   refreshVersion,
   activities,
   period,
+  activitiesReady,
 }: {
   refreshVersion: number;
   activities: Activity[];
   period: Period;
+  /** False while the shared activity query is loading or has failed — until then
+   *  an empty `activities` says nothing, and "not enough data" would be a lie. */
+  activitiesReady: boolean;
 }) {
   const [sport, setSport] = useState<string>("Run");
   const [tab, setTab] = useState<TrendTab>("pace");
@@ -340,11 +344,11 @@ function PerformanceTrendSection({
     [activities, sport],
   );
   const limit = Math.min(inPeriod, 200);
-  const tooFew = limit < 3; // linear regression over 1–2 points says nothing
+  const tooFew = activitiesReady && limit < 3; // regression over 1–2 points says nothing
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["analysis", "trends", sport, limit, refreshVersion],
-    enabled: !tooFew,
+    enabled: activitiesReady && !tooFew,
     queryFn: () =>
       callTool<PerformanceTrends>("strava__analyze_performance_trends", {
         sport_type: sport,
@@ -401,6 +405,7 @@ function PerformanceTrendSection({
         </p>
       </div>
 
+      {!activitiesReady && <Spinner label="Loading activities…" />}
       {tooFew && (
         <EmptyState
           message={`Not enough ${sport} activities in the last ${period.toLowerCase()} to show a trend — pick a longer period in Overview.`}
@@ -1076,6 +1081,7 @@ export function Analysis() {
           refreshVersion={refreshVersion}
           activities={activities}
           period={period}
+          activitiesReady={activitiesQ.isSuccess && !actError}
         />
       </CollapsibleSection>
 

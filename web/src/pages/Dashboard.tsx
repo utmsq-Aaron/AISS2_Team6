@@ -50,7 +50,8 @@ interface DailyHealth {
 interface Act {
   id: number; name: string; type?: string; sport_type?: string;
   date?: string; start_date?: string; distance_km?: number;
-  pace_display?: string; avg_heart_rate?: number | null; duration_min?: number;
+  // Strava reports moving time in hours; there is no duration_min on this shape.
+  pace_display?: string; avg_heart_rate?: number | null; moving_time_hours?: number;
   elevation_gain_m?: number;
   // Present whenever the activity has a GPS track — gates the 3D flythrough.
   map_polyline?: string;
@@ -264,7 +265,7 @@ function TrainingRow({
     : "";
   const bits = [
     act.distance_km ? `${act.distance_km} km` : null,
-    act.duration_min ? `${Math.round(act.duration_min)} min` : null,
+    act.moving_time_hours ? `${Math.round(act.moving_time_hours * 60)} min` : null,
     act.pace_display || null,
     act.avg_heart_rate ? `${Math.round(act.avg_heart_rate)} bpm` : null,
     act.elevation_gain_m ? `${Math.round(act.elevation_gain_m)} m ↑` : null,
@@ -320,7 +321,7 @@ function TrainingRow({
               </span>
             )}
           </div>
-          <ActivityAnalysis activityId={act.id} />
+          <ActivityAnalysis activityId={act.id} elevationGainM={act.elevation_gain_m} />
         </div>
       )}
     </li>

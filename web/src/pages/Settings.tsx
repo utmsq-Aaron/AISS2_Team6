@@ -7,7 +7,7 @@
 // API-key services (OpenAI, ORS) get a simple form that saves to .env.
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { LogOut } from "lucide-react";
@@ -769,13 +769,18 @@ function SyncSection({ integ }: { integ: Integrations }) {
     onError: (e: unknown) => setError(e instanceof Error ? e.message : String(e)),
   });
 
+  // Abort a running upload if the user navigates away — otherwise the fetch and
+  // its setState callbacks outlive the component.
+  const abortRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => abortRef.current?.(), []);
+
   function startExport() {
     if (!preview?.missing.length) return;
     setRunning(true);
     setResults([]);
     setSummary(null);
     setError(null);
-    syncExport(preview.missing, {
+    abortRef.current = syncExport(preview.missing, {
       onProgress: (name, index, total) => setProgress(`${index + 1}/${total} · ${name}`),
       onResult: (r) => setResults((rs) => [...rs, r]),
       onSummary: (c) => setSummary(c),
@@ -783,6 +788,7 @@ function SyncSection({ integ }: { integ: Integrations }) {
       onDone: () => {
         setRunning(false);
         setProgress(null);
+        abortRef.current = null;
         // The uploaded ones are on Strava now — the old list would still offer them.
         setPreview(null);
       },
@@ -831,21 +837,21 @@ function SyncSection({ integ }: { integ: Integrations }) {
             </button>
           </div>
 
-          {preview && !preview.has_matches && (
+          {preview && !preview.strava_readable && (
             <p className="mt-3 text-sm text-metric-amber">
               Could not read your Strava activities for this range, so there is nothing to
               compare against. Reconnect Strava and try again.
             </p>
           )}
 
-          {preview?.has_matches && preview.missing.length === 0 && (
+          {preview?.strava_readable && preview.missing.length === 0 && (
             <p className="mt-3 text-sm text-text-muted">
               All {preview.activities.length} Garmin activities in the last {preview.days} days
               are already on Strava. Nothing to do.
             </p>
           )}
 
-          {preview?.has_matches && preview.missing.length > 0 && (
+          {preview?.strava_readable && preview.missing.length > 0 && (
             <div className="mt-3">
               <p className="mb-2 text-sm text-text-primary">
                 <strong>{preview.missing.length}</strong> of {preview.activities.length} Garmin
@@ -1092,7 +1098,9 @@ export function Settings() {
         </div>
       </div>
 
-      <SyncSection integ={integ} />
+      {/* Admin-only, matching the API: the sync acts on the instance owner's
+          Garmin and Strava accounts, not on the logged-in user's. */}
+      {isAdmin && <SyncSection integ={integ} />}
 
       {isAdmin && <DeveloperSection />}
     </div>

@@ -30,8 +30,17 @@ interface StreamPoint {
   velocity: number | null;
   watts: number | null;
 }
+// Strava's own summary for this activity, returned alongside the streams. Prefer
+// these over anything re-derived from the raw points: the summary row above this
+// panel shows the same figures, and two different numbers for one run read as a bug.
+interface StreamActivityMeta {
+  distance_km?: number;
+  pace_display?: string;
+  avg_hr?: number | null;
+}
 interface StreamData {
   activity_id?: number;
+  activity?: StreamActivityMeta;
   points?: StreamPoint[];
   has_hr?: boolean;
   has_cadence?: boolean;
@@ -247,7 +256,16 @@ function hAnnot(text: string, y: number): Annotation {
 
 // ── Public component ────────────────────────────────────────────────────────
 
-export function ActivityAnalysis({ activityId }: { activityId: number }) {
+export function ActivityAnalysis({
+  activityId,
+  elevationGainM,
+}: {
+  activityId: number;
+  /** Strava's own climb figure for this activity, when the caller has it. Summing
+   *  the raw altitude stream instead overstates it several-fold — a 1 Hz altimeter
+   *  wanders by a metre or two constantly, and every wobble counts as a climb. */
+  elevationGainM?: number;
+}) {
   const refreshVersion = useUiStore((s) => s.refreshVersion);
   const { data, isLoading, error } = useQuery({
     queryKey: ["streams", activityId, refreshVersion],
@@ -305,7 +323,12 @@ export function ActivityAnalysis({ activityId }: { activityId: number }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-        <RouteInfo rows={rows} points={points} />
+        <RouteInfo
+          rows={rows}
+          points={points}
+          meta={data?.activity}
+          elevationGainM={elevationGainM}
+        />
 
         <div className="min-w-0">
           {/* Metric selector — which channel colours the track */}
@@ -364,35 +387,57 @@ export function ActivityAnalysis({ activityId }: { activityId: number }) {
 // and charts use, so the panel never disagrees with itself. A label/value table
 // rather than a tile grid: it lives in a narrow column beside the map, where one
 // row per number reads far better than wrapped tiles.
-function RouteInfo({ rows, points }: { rows: StreamRow[]; points: StreamPoint[] }) {
-  const distKm = rows.length ? rows[rows.length - 1].dist_km : 0;
+// Altitude samples wander by up to a metre even standing still, so only rises
+// beyond this count as climbing. Without the threshold the sum runs several times
+// over Strava's figure for the same activity.
+const ELE_NOISE_M = 1;
+
+function RouteInfo({
+  rows,
+  points,
+  meta,
+  elevationGainM,
+}: {
+  rows: StreamRow[];
+  points: StreamPoint[];
+  meta?: StreamActivityMeta;
+  elevationGainM?: number;
+}) {
+  const streamDistKm = rows.length ? rows[rows.length - 1].dist_km : 0;
+  const distKm = meta?.distance_km ?? streamDistKm;
   const times = points.map((p) => p.time_s).filter((t): t is number => t != null);
-  const durMin = times.length ? (Math.max(...times) - Math.min(...times)) / 60 : 0;
+  const elapsedMin = times.length ? (Math.max(...times) - Math.min(...times)) / 60 : 0;
 
   let gain = 0;
   let prev: number | null = null;
   for (const p of points) {
     if (p.ele == null) continue;
-    if (prev != null && p.ele > prev) gain += p.ele - prev;
+    if (prev != null && p.ele - prev > ELE_NOISE_M) gain += p.ele - prev;
     prev = p.ele;
   }
 
   const eles = points.map((p) => p.ele).filter((e): e is number => e != null);
-  const avgHr = avgOf(rows, "hr");
+  const avgHr = meta?.avg_hr ?? avgOf(rows, "hr");
   const avgVel = avgOf(rows, "velocity");
   const avgCad = avgOf(rows, "cadence");
   const avgW = avgOf(rows, "watts");
 
   const stats: Array<[string, string]> = [
     ["Distance", `${distKm.toFixed(2)} km`],
-    ["Duration", durMin >= 60
-      ? `${Math.floor(durMin / 60)} h ${Math.round(durMin % 60)} min`
-      : `${Math.round(durMin)} min`],
-    ["Elevation gain", `${Math.round(gain)} m`],
+    // Elapsed, not moving time — the summary line above shows moving time, and
+    // the gap between the two is exactly how long the stops were.
+    ["Elapsed time", elapsedMin >= 60
+      ? `${Math.floor(elapsedMin / 60)} h ${Math.round(elapsedMin % 60)} min`
+      : `${Math.round(elapsedMin)} min`],
+    ["Elevation gain", `${Math.round(elevationGainM ?? gain)} m`],
   ];
   if (eles.length) stats.push(["Highest point", `${Math.round(Math.max(...eles))} m`]);
-  if (avgVel != null && avgVel > 0.5) {
+  if (meta?.pace_display) {
+    stats.push(["Avg pace", meta.pace_display]);
+  } else if (avgVel != null && avgVel > 0.5) {
     stats.push(["Avg pace", `${(1000 / (avgVel * 60)).toFixed(2)} min/km`]);
+  }
+  if (avgVel != null && avgVel > 0.5) {
     stats.push(["Avg speed", `${(avgVel * 3.6).toFixed(1)} km/h`]);
   }
   if (avgHr != null) stats.push(["Avg heart rate", `${avgHr.toFixed(0)} bpm`]);
