@@ -67,6 +67,15 @@ def _max_peer_depth() -> int:
         return 2
 
 
+def _mesh_excluded() -> set[str]:
+    """Specialists that must not consult peers, by name — an escape hatch for an
+    agent that turns out to over-delegate in practice. Empty by default: taking an
+    agent out of the mesh is an operational decision, so it belongs in .env rather
+    than in an `if name == …` here."""
+    raw = os.getenv("AGENT_MESH_EXCLUDE", "")
+    return {p.strip().lower() for p in raw.split(",") if p.strip()}
+
+
 def _incoming_depth(context: RequestContext) -> int:
     """Delegation depth carried on the inbound A2A message (orchestrator sends 1)."""
     meta = getattr(getattr(context, "message", None), "metadata", None) or {}
@@ -87,11 +96,10 @@ def _peers_for(name: str, depth: int) -> List[str]:
 
     Full mesh (every specialist may consult every other), capped by depth so a
     consulted peer cannot re-delegate — that bounds the call tree and rules out
-    cycles (A→B→A). Toggle with AGENT_MESH=0; cap with AGENT_MAX_PEER_DEPTH.
+    cycles (A→B→A). Toggle with AGENT_MESH=0; cap with AGENT_MAX_PEER_DEPTH;
+    take single agents out of the mesh with AGENT_MESH_EXCLUDE=recovery,route.
     """
-    if not _mesh_enabled() or depth >= _max_peer_depth():
-        return []
-    if name == "recovery":
+    if not _mesh_enabled() or depth >= _max_peer_depth() or name in _mesh_excluded():
         return []
     return [s for s in AGENT_MCP_SCOPE if s != name]
 
