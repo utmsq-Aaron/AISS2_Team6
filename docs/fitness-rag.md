@@ -59,7 +59,7 @@ data/fitness_library/index/
 the launchers use to auto-rebuild when the corpus changes (see *Build / run*).
 
 Embeddings come from a small **local** model (default
-`sentence-transformers/all-MiniLM-L6-v2`, ~90 MB) — no embedding API needed; runs on
+`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`, ~460 MB) — no embedding API needed; runs on
 Apple-Silicon MPS / CPU. The corpus is a few thousand chunks, so brute-force cosine
 search in numpy is instant. Runtime code is in `core/fitness_rag.py`.
 
@@ -67,12 +67,14 @@ search in numpy is instant. Runtime code is in `core/fitness_rag.py`.
 
 The launcher (`./run.sh`) builds the index automatically on
 first run and then start the agent on :9005. They call
-`build_fitness_index --if-missing`, which is **corpus-aware**: it skips instantly
-when an index already exists *and* its stored `corpus_fingerprint` matches the
-current corpus, but **auto-rebuilds** when the fingerprint differs — i.e. whenever
-books were added, removed, resized, or `sources.json` changed since the index was
-last built. So every machine self-heals a stale index on its next start; no launcher
-change and no manual rebuild is needed after the corpus grows.
+`build_fitness_index --if-missing`, which skips instantly when an index already
+exists *and* both its stored `corpus_fingerprint` and its `model` still match, but
+**auto-rebuilds** when either differs — i.e. whenever books were added, removed,
+resized, `sources.json` changed, or `FITNESS_EMBED_MODEL` was switched. So every
+machine self-heals a stale index on its next start; no launcher change and no manual
+rebuild is needed. Should an index somehow survive a model switch anyway,
+`FitnessRetriever.search` refuses it with the rebuild command rather than comparing
+vectors from two different models.
 
 Manually:
 
@@ -82,7 +84,7 @@ python -m scripts.build_fitness_index            # embed → data/fitness_librar
 python -m agents.fitness_agent                   # serve the agent on :9005
 
 # quick retrieval smoke test (no LLM):
-python -m core.fitness_rag "how should a beginner build strength?"
+python -m core.fitness_rag "Wie viele Kohlenhydrate brauche ich vor einem langen Lauf?"
 ```
 
 The built index is git-ignored (a derived artifact); the corpus and scripts are
@@ -92,7 +94,7 @@ committed, so a rebuild is deterministic and offline.
 
 | var | default | purpose |
 |-----|---------|---------|
-| `FITNESS_EMBED_MODEL`  | `sentence-transformers/all-MiniLM-L6-v2` | embedding model |
+| `FITNESS_EMBED_MODEL`  | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | embedding model |
 | `FITNESS_EMBED_DEVICE` | auto (`mps`→`cuda`→`cpu`)                | force a device |
 | `FITNESS_INDEX_DIR`    | `data/fitness_library/index`             | index location |
 

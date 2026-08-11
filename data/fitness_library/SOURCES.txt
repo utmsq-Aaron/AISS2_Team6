@@ -17,10 +17,10 @@ data/fitness_library/Literatur_Fitness/, then:
 
 To merely USE the RAG, the shipped corpus text is enough: the index is
 built from it automatically on first start (build_fitness_index
---if-missing, ~2 min, a one-time ~90 MB model download). The PDFs are not
+--if-missing, ~2 min, a one-time ~460 MB model download). The PDFs are not
 needed at runtime.
 
-As of: 2026-07-20 · Model: sentence-transformers/all-MiniLM-L6-v2 (dim 384)
+As of: 2026-08-11 · Model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (dim 384)
 Total chunks: 10,943
 
 The titles below are kept in the original German — they are bibliographic

@@ -151,25 +151,32 @@ def main() -> int:
     ap.add_argument("--rebuild", action="store_true", help="(alias) force a build")
     args = ap.parse_args()
 
-    from core.fitness_rag import VectorStore, index_dir
+    from core.fitness_rag import VectorStore, embed_model_name, index_dir
     if args.if_missing and VectorStore.exists(index_dir()):
-        # Skip only when the on-disk index matches the current corpus. The stored
-        # fingerprint lets every machine self-heal: if books were added/changed
-        # since the index was built, the fingerprints differ and we rebuild.
+        # Skip only when the on-disk index matches BOTH the current corpus and the
+        # configured embedding model. The stored fingerprint lets every machine
+        # self-heal: if books were added/changed since the index was built, the
+        # fingerprints differ and we rebuild. The model check does the same for
+        # FITNESS_EMBED_MODEL — vectors from two models are not comparable, so a
+        # switched model must never be served from the old index.
         # Read manifest.json directly (not VectorStore.load) so the skip stays
         # cheap — no need to load the multi-MB vectors matrix just to compare.
         manifest_path = index_dir() / VectorStore.MANIFEST
-        stored_fp = None
+        stored_fp = stored_model = None
         if manifest_path.exists():
-            stored_fp = json.loads(
-                manifest_path.read_text(encoding="utf-8")).get("corpus_fingerprint")
-        current_fp = corpus_fingerprint()
-        if stored_fp == current_fp:
+            stored = json.loads(manifest_path.read_text(encoding="utf-8"))
+            stored_fp = stored.get("corpus_fingerprint")
+            stored_model = stored.get("model")
+        want_model = embed_model_name()
+        if stored_fp == corpus_fingerprint() and stored_model == want_model:
             print(f"✓ Fitness index already present at {index_dir()} "
-                  f"(corpus unchanged) — skipping build.")
+                  f"(corpus + model unchanged) — skipping build.")
             return 0
-        n_books = len(sorted(CORPUS_DIR.glob("*.txt")))
-        print(f"corpus changed ({n_books} books) — rebuilding index…")
+        if stored_model and stored_model != want_model:
+            print(f"embedding model changed ({stored_model} → {want_model}) — rebuilding index…")
+        else:
+            n_books = len(sorted(CORPUS_DIR.glob("*.txt")))
+            print(f"corpus changed ({n_books} books) — rebuilding index…")
 
     return build()
 

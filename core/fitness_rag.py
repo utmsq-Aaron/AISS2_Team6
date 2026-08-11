@@ -21,9 +21,16 @@ here. Heavy imports (torch / sentence-transformers) are lazy so importing this
 module stays cheap for processes that never touch the fitness agent.
 
 Config (live from ``.env``, like ``core.llm``):
-  FITNESS_EMBED_MODEL   default ``sentence-transformers/all-MiniLM-L6-v2``
+  FITNESS_EMBED_MODEL   default ``paraphrase-multilingual-MiniLM-L12-v2``
   FITNESS_EMBED_DEVICE  default auto (mps → cuda → cpu); override e.g. ``cpu``
   FITNESS_INDEX_DIR     default ``data/fitness_library/index``
+
+The default is a MULTILINGUAL model because the corpus and the questions are both
+German. It replaced the English-only ``all-MiniLM-L6-v2``, which returned a passage
+on running-gait video analysis when asked how many carbohydrates to eat before a
+long run. Changing the model invalidates the index — vectors from two models are
+not comparable — so both the builder and the retriever check the manifest's model
+and rebuild / refuse accordingly.
 """
 
 from __future__ import annotations
@@ -42,7 +49,7 @@ from core.llm import _env
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 _ROOT = Path(__file__).resolve().parent.parent
-_DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+_DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 _DEFAULT_INDEX_DIR = _ROOT / "data" / "fitness_library" / "index"
 
 
@@ -196,8 +203,25 @@ class FitnessRetriever:
 
     def search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
         """Embed ``query`` and return the ``k`` most relevant book passages."""
+        self._assert_index_matches_model()
         q = embed([query])[0]
         return self.store.search_vec(q, k=k)
+
+    def _assert_index_matches_model(self) -> None:
+        """Refuse to search an index built by a different embedding model.
+
+        Vectors from two models are not comparable even at equal width, and at
+        unequal width the dot product raises a bare numpy shape error that says
+        nothing about the cause. Changing FITNESS_EMBED_MODEL therefore requires
+        a rebuild, and this is where the user finds that out.
+        """
+        built_with = self.store.manifest.get("model")
+        want = embed_model_name()
+        if built_with and built_with != want:
+            raise RuntimeError(
+                f"Fitness index at {self.directory} was built with '{built_with}', "
+                f"but FITNESS_EMBED_MODEL is '{want}'. Rebuild it:\n"
+                "    python -m scripts.build_fitness_index --rebuild")
 
     def sources(self) -> List[Dict[str, Any]]:
         return self.store.manifest.get("books", [])

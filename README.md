@@ -231,8 +231,8 @@ Open <http://localhost:5173>. Agent traces are at <http://localhost:5001>.
 **The fitness library (RAG) needs no setup step of its own.** The Fitness Expert answers from a
 local vector index over five German sports-science works, and the first `./run.sh` builds it: the
 extracted corpus text ships in the repo (`data/fitness_library/corpus/`), and the launcher runs
-`build_fitness_index --if-missing` over it — ~2 min, plus a one-time ~90 MB download of the local
-embedding model (`sentence-transformers/all-MiniLM-L6-v2`). No embedding API, no key. To force a
+`build_fitness_index --if-missing` over it — ~2 min, plus a one-time ~460 MB download of the local
+embedding model (`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`). No embedding API, no key. To force a
 rebuild: `.venv/bin/python -m scripts.build_fitness_index --rebuild`.
 
 The **source PDFs are deliberately not in the repo** (copyright + size) and are not needed at
