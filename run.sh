@@ -27,6 +27,14 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
 
+# Force UTF-8 for every Python subprocess this script spawns. Without it, Python
+# on Windows falls back to the system ANSI codepage (e.g. cp1252) whenever stdout
+# isn't a real console — which is always true here, since every service's output
+# is redirected to a log file — and any print() with a non-Latin-1 character (✓,
+# →, ⚠, …) crashes the process with a UnicodeEncodeError. No-op on Linux/macOS,
+# which already default to UTF-8.
+export PYTHONUTF8=1
+
 MODE="${1:-dev}"
 
 # ── Interpreter ───────────────────────────────────────────────────────────────
