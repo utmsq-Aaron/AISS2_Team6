@@ -25,7 +25,10 @@ from mlflow.entities import SpanType
 
 from . import config
 
-_TURN_CHARS = 600
+_TURN_CHARS = 600         # display clip for the facts file / report
+_JUDGE_TURN_CHARS = 3000  # the judge must see (nearly) full turns — judging the
+                          # 600-char display clip made it fail conversations for
+                          # "answers" that were only cut off by the clip itself
 _POSITIVE = {"yes", "pass", "true", "good", "safe", "low", "5", "4"}
 
 
@@ -120,7 +123,7 @@ def judge_conversation(transcript: List[dict]) -> dict:
     """One gpt-5.4-nano verdict per conversation. Best-effort (returns {} on error)."""
     convo = "\n\n".join(
         f"USER: {t.get('user','')}\nASSISTANT: {t.get('assistant','')}" for t in transcript
-    )[:12000]
+    )[:60000]
     try:
         client = config.openai_client()
         resp = client.chat.completions.create(
@@ -166,10 +169,12 @@ def collect_user_facts(exp, *, judge: bool, max_convos: int | None) -> dict:
 
     for sid, ts in list(sessions.items())[: max_convos or None]:
         ts_sorted = sorted(ts, key=_turn_index)
-        transcript, tools, agents = [], set(), set()
+        transcript, judge_transcript, tools, agents = [], [], set(), set()
         for tr in ts_sorted:
             u, a = _turn_io(tr)
             transcript.append({"user": u[:_TURN_CHARS], "assistant": a[:_TURN_CHARS]})
+            judge_transcript.append({"user": u[:_JUDGE_TURN_CHARS],
+                                     "assistant": a[:_JUDGE_TURN_CHARS]})
             tg = _tags(tr)
             for x in (tg.get("fitdash.tools", "") or "").split(","):
                 if x:
@@ -187,7 +192,7 @@ def collect_user_facts(exp, *, judge: bool, max_convos: int | None) -> dict:
         grounding = _grounding(ts_sorted)
         g_calls += grounding["total_calls"]; g_ok += grounding["ok"]; g_turns += grounding["turns_with_tools"]
 
-        verdicts = judge_conversation(transcript) if judge else {}
+        verdicts = judge_conversation(judge_transcript) if judge else {}
         for dim, val in verdicts.items():
             if dim in ("rationale", "error"):
                 continue
