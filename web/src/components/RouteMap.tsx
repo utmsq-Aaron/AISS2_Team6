@@ -20,7 +20,11 @@ export interface PolyLineSpec {
   color?: string;
   weight?: number;
   opacity?: number;
+  /** Opaque id handed back through `onLineClick` when this line is clicked.
+   *  Lines without one are inert. */
+  pickId?: string | number;
 }
+
 export interface MarkerSpec {
   lat: number;
   lon: number;
@@ -33,6 +37,10 @@ export interface MarkerSpec {
 // The three selectable basemaps. `basemap` prop is the INITIAL value; the
 // in-map switcher lets the user change it at runtime.
 export type BasemapId = "dark" | "osm" | "satellite";
+
+/** Click/hover slop in pixels. An unselected track is drawn 2 px wide, which is
+ *  not something a mouse can be expected to hit exactly. */
+const HIT_SLOP_PX = 5;
 
 export const BASEMAPS: Record<BasemapId, { label: string; tiles: string; attr: string }> = {
   dark: { label: "Dark", tiles: DARK_MAP_TILES, attr: DARK_MAP_ATTR },
@@ -61,6 +69,7 @@ function lineFeatures(polylines: PolyLineSpec[]): GeoJSON.FeatureCollection {
         color: p.color ?? ACCENT,
         weight: p.weight ?? 5,
         opacity: p.opacity ?? 0.9,
+        ...(p.pickId != null ? { pickId: p.pickId } : {}),
       },
       geometry: { type: "LineString", coordinates: p.coords.map(([lat, lon]) => [lon, lat]) },
     })),
@@ -78,6 +87,10 @@ interface RouteMapProps {
   showBasemapSwitcher?: boolean;
   /** Accessible name for the map region (screen readers). */
   ariaLabel?: string;
+  /** Called with a line's `pickId` when the user clicks it. Omit to keep the
+   *  map inert — the hit-testing is only wired up when this is provided.
+   *  Mouse-only by nature, so callers must offer a keyboard path of their own. */
+  onLineClick?: (pickId: string | number) => void;
   className?: string;
 }
 
@@ -89,6 +102,7 @@ export function RouteMap({
   basemap = "dark",
   showBasemapSwitcher = true,
   ariaLabel = "Interactive map",
+  onLineClick,
   className = "",
 }: RouteMapProps) {
   const container = useRef<HTMLDivElement>(null);
@@ -102,6 +116,12 @@ export function RouteMap({
   const [active, setActive] = useState<BasemapId>(basemap);
   // Skip the style-switch effect on the initial render (map already built with it).
   const firstStyleRun = useRef(true);
+  // The click callback lives in a ref so the map-creation effect can register a
+  // single listener for the map's whole lifetime and still reach the latest one.
+  const clickRef = useRef(onLineClick);
+  useEffect(() => {
+    clickRef.current = onLineClick;
+  }, [onLineClick]);
 
   // Create the map once.
   useEffect(() => {
@@ -114,6 +134,38 @@ export function RouteMap({
       attributionControl: { compact: true },
     });
     map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+
+    // Which line is under the pointer, if any. Bound to the map rather than the
+    // "lines" layer: switching the basemap calls setStyle, which drops every
+    // source and layer, and a layer-scoped listener would not survive that.
+    const pick = (e: maplibregl.MapMouseEvent): string | number | null => {
+      const m = map.current;
+      if (!clickRef.current || !m?.getLayer("lines")) return null;
+      const { x, y } = e.point;
+      const hits = m.queryRenderedFeatures(
+        [
+          [x - HIT_SLOP_PX, y - HIT_SLOP_PX],
+          [x + HIT_SLOP_PX, y + HIT_SLOP_PX],
+        ],
+        { layers: ["lines"] },
+      );
+      const hit = hits.find((f) => f.properties?.pickId != null);
+      return hit ? (hit.properties.pickId as string | number) : null;
+    };
+
+    map.current.on("click", (e) => {
+      const id = pick(e);
+      if (id != null) clickRef.current?.(id);
+    });
+    map.current.on("mousemove", (e) => {
+      const m = map.current;
+      if (!m || !clickRef.current) return;
+      // Leave the cursor alone mid-pan/zoom, or it fights MapLibre's own
+      // "grabbing" cursor for the length of the drag.
+      if (m.isMoving()) return;
+      m.getCanvas().style.cursor = pick(e) != null ? "pointer" : "";
+    });
+
     return () => {
       map.current?.remove();
       map.current = null;

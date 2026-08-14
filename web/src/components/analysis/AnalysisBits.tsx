@@ -9,15 +9,16 @@ import { C_GREEN, C_RED, C_ORANGE, TEXT_MUTED, TEXT_FAINT } from "../../theme/to
 
 // ── Collapsible section card (clickable header toggles open/closed) ─────────────
 
+// No `caption` prop: every section header is a title alone. The one section that
+// ever passed a caption just read as broken next to the other seven, so the
+// option is gone rather than left lying around for the next one to drift on.
 export function CollapsibleSection({
   title,
-  caption,
   open,
   onToggle,
   children,
 }: {
   title: ReactNode;
-  caption?: ReactNode;
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
@@ -34,10 +35,7 @@ export function CollapsibleSection({
         aria-expanded={open}
         className="flex w-full items-start justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-bg-surface/50"
       >
-        <div>
-          <div className="text-base font-semibold text-text-primary">{title}</div>
-          {caption && <div className="mt-0.5 text-xs text-text-muted">{caption}</div>}
-        </div>
+        <div className="text-base font-semibold text-text-primary">{title}</div>
         <span
           aria-hidden="true"
           className={`mt-1 text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
