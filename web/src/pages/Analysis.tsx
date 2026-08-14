@@ -8,6 +8,7 @@ import {
   PctBar,
   TrendPill,
 } from "../components/analysis/AnalysisBits";
+import { ActivityMapSection } from "../components/analysis/ActivityMapSection";
 import { AnalysisOverview } from "../components/analysis/AnalysisOverview";
 import { OfficialStatsSection } from "../components/analysis/OfficialStatsSection";
 import { PlanVsActualSection } from "../components/analysis/PlanVsActualSection";
@@ -958,6 +959,7 @@ export function Analysis() {
   const [open, setOpen] = useState({
     overview: true,
     plan: false,
+    map: false,
     volume: false,
     stats: false,
     load: false,
@@ -1036,6 +1038,18 @@ export function Analysis() {
         onToggle={() => setOpen((o) => ({ ...o, plan: !o.plan }))}
       >
         <PlanVsActualSection />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="🗺️ Activity Map"
+        open={open.map}
+        onToggle={() => setOpen((o) => ({ ...o, map: !o.map }))}
+      >
+        {activitiesQ.isLoading ? (
+          <Spinner label="Loading activities…" />
+        ) : (
+          <ActivityMapSection activities={activities} />
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection

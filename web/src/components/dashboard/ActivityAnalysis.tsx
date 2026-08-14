@@ -10,7 +10,7 @@ import { RouteMap } from "../RouteMap";
 import { Spinner, EmptyState } from "../Spinner";
 import { callTool } from "../../lib/api";
 import {
-  C_AMBER, C_CYAN, C_GREEN, C_INDIGO, C_ROSE, MAP_FINISH, MAP_START, TEXT_MUTED,
+  C_AMBER, C_CYAN, C_INDIGO, C_ROSE, MAP_FINISH, MAP_START, TEXT_MUTED,
 } from "../../theme/tokens";
 import { useUiStore } from "../../store/uiStore";
 import {
@@ -133,27 +133,10 @@ function StreamCharts({ rows }: { rows: StreamRow[] }) {
     });
   }
 
-  if (rows.some((r) => r.cadence != null)) {
-    const avg = avgOf(rows, "cadence");
-    charts.push({
-      title: "Cadence",
-      data: [
-        {
-          x: dist,
-          y: rows.map((r) => r.cadence),
-          mode: "lines",
-          line: { color: C_GREEN, width: 1.5, shape: "spline" },
-          fill: "tozeroy",
-          fillcolor: "rgba(34,197,94,0.10)",
-          hovertemplate: "<b>%{x:.2f} km</b><br>Cadence: %{y:.0f} spm<extra></extra>",
-        } as Data,
-      ],
-      layout: {
-        shapes: avg != null ? [hLine(avg)] : [],
-        annotations: avg != null ? [hAnnot(`avg ${avg.toFixed(0)}`, avg)] : [],
-      },
-    });
-  }
+  // No cadence chart, and no cadence track overlay either (see `available`
+  // below) — it only ever appeared for activities recorded with a cadence
+  // sensor, so the switcher gained and lost a button depending on which session
+  // you opened. The average is still listed in the route summary table.
 
   if (rows.some((r) => r.watts != null)) {
     const avg = avgOf(rows, "watts");
@@ -280,7 +263,8 @@ export function ActivityAnalysis({
     if (data?.has_hr) out.push("hr");
     if (data?.has_velocity) out.push("velocity");
     if (points.some((p) => p.ele != null)) out.push("ele");
-    if (data?.has_cadence) out.push("cadence");
+    // Cadence deliberately omitted — see the note in StreamCharts. (The chat's
+    // route view keeps it: there the user asks for that overlay explicitly.)
     if (data?.has_watts) out.push("watts");
     return out;
   }, [data, points]);
