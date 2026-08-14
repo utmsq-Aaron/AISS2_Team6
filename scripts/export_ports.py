@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.config import AGENT_PORTS, FASTAPI_PORT, MCP_PORTS  # noqa: E402
+from core.config import AGENT_PORTS, FASTAPI_PORT, MCP_PORTS, VITE_PORT  # noqa: E402
 
 # docker-compose.yml's per-agent env-var naming convention — derived, not listed,
 # so a new agent in AGENT_PORTS is exported automatically instead of KeyError-ing.
@@ -44,6 +44,7 @@ def _bash() -> str:
     agents = " ".join(f"{name}:{port}" for name, port in ordered_agents)
     return (
         f"FASTAPI_PORT={FASTAPI_PORT}\n"
+        f"VITE_PORT={VITE_PORT}\n"
         f"TELEGRAM_MCP_PORT={MCP_PORTS['telegram']}\n"
         f"ORCHESTRATOR_PORT={AGENT_PORTS['orchestrator']}\n"
         f"MCP_SERVERS=({mcp})\n"
@@ -53,7 +54,7 @@ def _bash() -> str:
 
 def _json() -> str:
     return json.dumps(
-        {"FASTAPI_PORT": FASTAPI_PORT, "MCP_PORTS": MCP_PORTS, "AGENT_PORTS": AGENT_PORTS},
+        {"FASTAPI_PORT": FASTAPI_PORT, "VITE_PORT": VITE_PORT, "MCP_PORTS": MCP_PORTS, "AGENT_PORTS": AGENT_PORTS},
         indent=2,
     )
 

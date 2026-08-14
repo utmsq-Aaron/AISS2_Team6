@@ -46,6 +46,13 @@ MCP_SERVERS: dict[str, str] = {name: _url(name) for name in MCP_PORTS}
 # what the launcher scripts actually start FastAPI on.
 FASTAPI_PORT: int = int(os.getenv("FASTAPI_PORT", "8000"))
 
+# The Vite dev server's port. Here rather than only in vite.config.ts so `./run.sh
+# stop` can actually free it: it kills what the registry lists, and while this port
+# lived solely in vite.config.ts, stop left the dev server running. Vite then took
+# the next free port on the following start, quietly accumulating one stale dev
+# server per launch — each serving a stale bundle behind a dead /api proxy.
+VITE_PORT: int = int(os.getenv("VITE_PORT", "5173"))
+
 
 # ── A2A agent layer ───────────────────────────────────────────────────────────
 # Each agent is its own A2A server (LangGraph inside). The orchestrator (:9000)

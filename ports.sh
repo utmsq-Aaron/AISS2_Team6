@@ -35,7 +35,7 @@ MLFLOW_PORT=5001
 # Every port the app can claim, flattened — used by `./run.sh stop` to free them
 # all. The BFF port (default 3000, see run.sh PORT=) is NOT included here since
 # it's caller-configurable, not fixed; run.sh appends it separately.
-ALL_PORTS=("$MLFLOW_PORT" "$FASTAPI_PORT" "$TELEGRAM_MCP_PORT")
+ALL_PORTS=("$MLFLOW_PORT" "$FASTAPI_PORT" "$VITE_PORT" "$TELEGRAM_MCP_PORT")
 for _s in "${MCP_SERVERS[@]}"; do ALL_PORTS+=("${_s##*:}"); done
 for _a in "${AGENT_PORTS[@]}"; do ALL_PORTS+=("${_a##*:}"); done
 unset _s _a

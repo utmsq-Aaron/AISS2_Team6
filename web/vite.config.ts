@@ -14,19 +14,19 @@ const repoRoot = path.resolve(__dirname, "..");
 // standalone, outside the repo's launcher scripts) — degrades gracefully rather
 // than failing the dev server, matching how the rest of the app treats missing
 // tooling as "skipped, never fatal".
-function fastApiPort(): number {
+function portFromConfig(name: "FASTAPI_PORT" | "VITE_PORT", fallback: number): number {
   try {
     const py = process.env.PY || "python3";
     const out = execFileSync(py, [path.join(repoRoot, "scripts", "export_ports.py"), "--format", "json"], {
       cwd: repoRoot,
       encoding: "utf-8",
     });
-    const port = JSON.parse(out).FASTAPI_PORT;
-    if (!Number.isInteger(port)) throw new Error(`unexpected FASTAPI_PORT: ${port}`);
+    const port = JSON.parse(out)[name];
+    if (!Number.isInteger(port)) throw new Error(`unexpected ${name}: ${port}`);
     return port;
   } catch (err) {
-    console.warn(`[vite] could not read FASTAPI_PORT from core/config.py (${err}) — falling back to 8000`);
-    return 8000;
+    console.warn(`[vite] could not read ${name} from core/config.py (${err}) — falling back to ${fallback}`);
+    return fallback;
   }
 }
 
@@ -42,10 +42,16 @@ export default defineConfig({
   // not leak API keys into the bundle.
   envDir: repoRoot,
   server: {
-    port: 5173,
+    port: portFromConfig("VITE_PORT", 5173),
+    // Fail instead of hopping to the next free port. Vite's default is to drift
+    // silently (5173 → 5174 → 5175), which hid the fact that `./run.sh stop` was
+    // not freeing this port at all: every launch left the previous dev server
+    // running and started another one beside it, each serving a stale bundle
+    // behind a proxy pointing at a backend that was long gone.
+    strictPort: true,
     proxy: {
       "/api": {
-        target: `http://127.0.0.1:${fastApiPort()}`,
+        target: `http://127.0.0.1:${portFromConfig("FASTAPI_PORT", 8000)}`,
         changeOrigin: true,
         // SSE: keep the connection open and unbuffered
         configure: (proxy) => {

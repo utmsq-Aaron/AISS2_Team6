@@ -82,7 +82,7 @@ if [ "$MODE" = "status" ]; then
   for s in "${MCP_SERVERS[@]}"; do probe "MCP ${s%%:*}" "${s##*:}"; done
   for a in "${AGENT_PORTS[@]}"; do probe "agent ${a%%:*}" "${a##*:}"; done
   probe "FastAPI" "$FASTAPI_PORT"
-  probe "Vite"    "5173"
+  probe "Vite"    "$VITE_PORT"
   probe "BFF"     "$BFF_PORT"
   pgrep -f telegram_bridge.py >/dev/null 2>&1 && ok "Telegram bridge + scheduler" \
     || say "· Telegram bridge — down (proactive check-ins are paused)"
@@ -394,7 +394,7 @@ fi
 wait_for_api || warn "FastAPI slow to start — see $LOG_DIR/api.log"
 
 head1 "Starting the web app"
-ok "open http://localhost:5173"
+ok "open http://localhost:${VITE_PORT}"
 say "logs: $LOG_DIR   ·   MLflow traces: http://localhost:$MLFLOW_PORT"
 say "stop everything with Ctrl-C"
 echo
