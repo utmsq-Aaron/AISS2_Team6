@@ -5,9 +5,11 @@ Usage from the repo root:
     python -m auth garmin
     python -m auth strava
     python -m auth gmail
+    python -m auth calendar
 
-The Google Calendar connect flow itself still lives in the app's Settings page.
-This launcher covers the standalone auth/setup scripts in ``auth/``.
+The ``calendar`` flow writes the single-user token the calendar MCP server
+reads; the app's Settings page offers the same connect for deployments whose
+callback URL is registered with the OAuth client.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ COMMANDS = {
     "strava": AUTH_DIR / "strava_oauth.py",
     "gmail": AUTH_DIR / "google_oauth.py",
     "google": AUTH_DIR / "google_oauth.py",
+    "calendar": AUTH_DIR / "google_calendar.py",
 }
 
 
