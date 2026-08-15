@@ -1,0 +1,2258 @@
+{
+  "meta": {
+    "generated_at_utc": "2026-08-15T11:02:17+00:00",
+    "python": "3.13.0",
+    "servers": {
+      "weather": "http://127.0.0.1:8101/mcp",
+      "routes": "http://127.0.0.1:8102/mcp",
+      "strava": "http://127.0.0.1:8103/mcp",
+      "garmin": "http://127.0.0.1:8104/mcp",
+      "calendar": "http://127.0.0.1:8105/mcp",
+      "telegram": "http://127.0.0.1:8106/mcp",
+      "flythrough": "http://127.0.0.1:8107/mcp",
+      "google_maps": "http://127.0.0.1:8108/mcp",
+      "athlete": "http://127.0.0.1:8109/mcp"
+    },
+    "args": {
+      "repeat": 5,
+      "concurrency": "1,4,8",
+      "conc_calls": 16,
+      "only": "",
+      "skip_sweep": false,
+      "with_orchestrator": true
+    },
+    "inventory": {
+      "total_tools": 59,
+      "by_server": {
+        "athlete": 14,
+        "calendar": 6,
+        "flythrough": 1,
+        "garmin": 13,
+        "routes": 7,
+        "strava": 14,
+        "weather": 4
+      },
+      "unreachable_servers": [
+        "google_maps",
+        "telegram"
+      ]
+    },
+    "fixtured": 36,
+    "selected": 36,
+    "skipped": 23,
+    "fixtured_not_live": [],
+    "skip_list": [
+      {
+        "tool": "athlete__add_milestone",
+        "reason": "write path ('add'), excluded from automated sweep"
+      },
+      {
+        "tool": "athlete__add_timeline_event",
+        "reason": "write path ('add'), excluded from automated sweep"
+      },
+      {
+        "tool": "athlete__compute_zones",
+        "reason": "write path \u2014 computes AND stores the athlete's zones"
+      },
+      {
+        "tool": "athlete__delete_race_goal",
+        "reason": "write path ('delete'), excluded from automated sweep"
+      },
+      {
+        "tool": "athlete__delete_timeline_event",
+        "reason": "write path ('delete'), excluded from automated sweep"
+      },
+      {
+        "tool": "athlete__record_week_actual",
+        "reason": "write path ('record'), excluded from automated sweep"
+      },
+      {
+        "tool": "athlete__rescaffold_plan",
+        "reason": "write path ('rescaffold'), excluded from automated sweep"
+      },
+      {
+        "tool": "athlete__save_plan",
+        "reason": "write path \u2014 persists a training plan"
+      },
+      {
+        "tool": "athlete__scaffold_plan",
+        "reason": "write path \u2014 plan scaffolding, not a read-only tool"
+      },
+      {
+        "tool": "athlete__set_athlete_profile",
+        "reason": "write path ('set'), excluded from automated sweep"
+      },
+      {
+        "tool": "athlete__set_race_goal",
+        "reason": "write path ('set'), excluded from automated sweep"
+      },
+      {
+        "tool": "athlete__update_milestone_status",
+        "reason": "write path ('update'), excluded from automated sweep"
+      },
+      {
+        "tool": "calendar__create_event",
+        "reason": "write path ('create'), excluded from automated sweep"
+      },
+      {
+        "tool": "calendar__delete_event",
+        "reason": "write path ('delete'), excluded from automated sweep"
+      },
+      {
+        "tool": "calendar__get_event",
+        "reason": "signature unclear for a static fixture \u2014 needs a live event_id"
+      },
+      {
+        "tool": "calendar__update_event",
+        "reason": "write path ('update'), excluded from automated sweep"
+      },
+      {
+        "tool": "flythrough__prepare_flythrough",
+        "reason": "starts a headless render \u2014 never called by the automated suite"
+      },
+      {
+        "tool": "garmin__get_activity_gps_track",
+        "reason": "signature unclear for a static fixture \u2014 needs a live Garmin activity_id"
+      },
+      {
+        "tool": "garmin__get_garmin_activity_detail",
+        "reason": "signature unclear for a static fixture \u2014 needs a live Garmin activity_id"
+      },
+      {
+        "tool": "strava__compare_activity_to_baseline",
+        "reason": "signature unclear for a static fixture \u2014 needs a live activity_id/name"
+      },
+      {
+        "tool": "strava__delete_activity",
+        "reason": "write path ('delete'), excluded from automated sweep"
+      },
+      {
+        "tool": "strava__get_activity_detail",
+        "reason": "signature unclear for a static fixture \u2014 needs a live activity_id/name"
+      },
+      {
+        "tool": "strava__get_activity_streams",
+        "reason": "signature unclear for a static fixture \u2014 needs a live activity_id/name"
+      }
+    ],
+    "known_skip_entries": 29,
+    "duration_s": 268.7
+  },
+  "sweep": {
+    "enabled": true,
+    "repeat": 5,
+    "tools": [
+      {
+        "tool": "athlete__get_athlete_overview",
+        "server": "athlete",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 4190,
+        "latencies_ms": [
+          12.0,
+          11.4,
+          13.1,
+          10.9,
+          11.0
+        ],
+        "p50_ms": 11.4,
+        "p95_ms": 12.9,
+        "max_ms": 13.1,
+        "mean_ms": 11.7
+      },
+      {
+        "tool": "athlete__get_plan",
+        "server": "athlete",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 2271,
+        "latencies_ms": [
+          10.7,
+          11.4,
+          10.8,
+          10.5,
+          10.2
+        ],
+        "p50_ms": 10.7,
+        "p95_ms": 11.3,
+        "max_ms": 11.4,
+        "mean_ms": 10.7
+      },
+      {
+        "tool": "calendar__list_calendars",
+        "server": "calendar",
+        "args": {
+          "max_results": 10
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 410,
+        "latencies_ms": [
+          650.0,
+          203.4,
+          191.0,
+          194.8,
+          223.3
+        ],
+        "p50_ms": 203.4,
+        "p95_ms": 564.7,
+        "max_ms": 650.0,
+        "mean_ms": 292.5
+      },
+      {
+        "tool": "calendar__list_events",
+        "server": "calendar",
+        "args": {
+          "time_min": "2026-08-15T11:02:16Z",
+          "time_max": "2026-08-22T11:02:16Z",
+          "calendar_id": "primary",
+          "max_results": 10
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 794,
+        "latencies_ms": [
+          241.8,
+          208.9,
+          212.3,
+          217.1,
+          243.0
+        ],
+        "p50_ms": 217.1,
+        "p95_ms": 242.8,
+        "max_ms": 243.0,
+        "mean_ms": 224.6
+      },
+      {
+        "tool": "garmin__get_garmin_activities",
+        "server": "garmin",
+        "args": {
+          "limit": 5
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 2260,
+        "latencies_ms": [
+          32.8,
+          24.7,
+          25.3,
+          20.9,
+          15.6
+        ],
+        "p50_ms": 24.7,
+        "p95_ms": 31.3,
+        "max_ms": 32.8,
+        "mean_ms": 23.9
+      },
+      {
+        "tool": "garmin__get_garmin_body_battery",
+        "server": "garmin",
+        "args": {
+          "start_date": "2026-08-12",
+          "end_date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 20689,
+        "latencies_ms": [
+          18.0,
+          20.1,
+          16.7,
+          15.8,
+          15.8
+        ],
+        "p50_ms": 16.7,
+        "p95_ms": 19.7,
+        "max_ms": 20.1,
+        "mean_ms": 17.3
+      },
+      {
+        "tool": "garmin__get_garmin_body_composition",
+        "server": "garmin",
+        "args": {
+          "start_date": "2026-08-08",
+          "end_date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 1487,
+        "latencies_ms": [
+          14.5,
+          13.0,
+          12.9,
+          12.5,
+          12.9
+        ],
+        "p50_ms": 12.9,
+        "p95_ms": 14.2,
+        "max_ms": 14.5,
+        "mean_ms": 13.2
+      },
+      {
+        "tool": "garmin__get_garmin_daily_health",
+        "server": "garmin",
+        "args": {
+          "date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 442,
+        "latencies_ms": [
+          14.3,
+          12.8,
+          13.3,
+          14.2,
+          14.0
+        ],
+        "p50_ms": 14.0,
+        "p95_ms": 14.3,
+        "max_ms": 14.3,
+        "mean_ms": 13.7
+      },
+      {
+        "tool": "garmin__get_garmin_heart_rate_timeline",
+        "server": "garmin",
+        "args": {
+          "date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 5022,
+        "latencies_ms": [
+          12.6,
+          13.2,
+          13.7,
+          13.5,
+          13.4
+        ],
+        "p50_ms": 13.4,
+        "p95_ms": 13.7,
+        "max_ms": 13.7,
+        "mean_ms": 13.3
+      },
+      {
+        "tool": "garmin__get_garmin_hrv_status",
+        "server": "garmin",
+        "args": {
+          "date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 199,
+        "latencies_ms": [
+          12.1,
+          12.2,
+          13.0,
+          11.8,
+          12.0
+        ],
+        "p50_ms": 12.1,
+        "p95_ms": 12.8,
+        "max_ms": 13.0,
+        "mean_ms": 12.2
+      },
+      {
+        "tool": "garmin__get_garmin_sleep",
+        "server": "garmin",
+        "args": {
+          "date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 304,
+        "latencies_ms": [
+          14.0,
+          11.9,
+          12.8,
+          12.3,
+          12.7
+        ],
+        "p50_ms": 12.7,
+        "p95_ms": 13.8,
+        "max_ms": 14.0,
+        "mean_ms": 12.7
+      },
+      {
+        "tool": "garmin__get_garmin_steps_timeline",
+        "server": "garmin",
+        "args": {
+          "date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 16459,
+        "latencies_ms": [
+          12.7,
+          13.0,
+          12.9,
+          14.3,
+          12.5
+        ],
+        "p50_ms": 12.9,
+        "p95_ms": 14.0,
+        "max_ms": 14.3,
+        "mean_ms": 13.1
+      },
+      {
+        "tool": "garmin__get_garmin_stress_timeline",
+        "server": "garmin",
+        "args": {
+          "date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 5994,
+        "latencies_ms": [
+          12.8,
+          11.7,
+          13.5,
+          12.8,
+          12.0
+        ],
+        "p50_ms": 12.8,
+        "p95_ms": 13.4,
+        "max_ms": 13.5,
+        "mean_ms": 12.6
+      },
+      {
+        "tool": "garmin__get_garmin_training_metrics",
+        "server": "garmin",
+        "args": {
+          "date": "2026-08-14"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 374,
+        "latencies_ms": [
+          11.2,
+          12.5,
+          12.2,
+          11.9,
+          12.9
+        ],
+        "p50_ms": 12.2,
+        "p95_ms": 12.8,
+        "max_ms": 12.9,
+        "mean_ms": 12.1
+      },
+      {
+        "tool": "garmin__get_garmin_wellness_trends",
+        "server": "garmin",
+        "args": {
+          "days": 7
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 3197,
+        "latencies_ms": [
+          16.4,
+          15.1,
+          14.8,
+          14.0,
+          18.3
+        ],
+        "p50_ms": 15.1,
+        "p95_ms": 17.9,
+        "max_ms": 18.3,
+        "mean_ms": 15.7
+      },
+      {
+        "tool": "routes__explore_trails",
+        "server": "routes",
+        "args": {
+          "lat": 49.0069,
+          "lon": 8.4037,
+          "radius_km": 5.0,
+          "sport_type": "hiking",
+          "limit": 3
+        },
+        "calls": 5,
+        "ok": 3,
+        "err": 2,
+        "crashes": 0,
+        "success_rate": 0.6,
+        "errors": [
+          "Overpass 429: <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n    \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:",
+          "Overpass 504: <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n    \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:"
+        ],
+        "chars_max": 368059,
+        "latencies_ms": [
+          9950.6,
+          1419.2,
+          1240.1,
+          12363.6,
+          8452.6
+        ],
+        "p50_ms": 8452.6,
+        "p95_ms": 11881.0,
+        "max_ms": 12363.6,
+        "mean_ms": 6685.2
+      },
+      {
+        "tool": "routes__geocode",
+        "server": "routes",
+        "args": {
+          "query": "Schlossgarten, Karlsruhe",
+          "region": "de"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 430,
+        "latencies_ms": [
+          265.3,
+          190.7,
+          202.0,
+          221.7,
+          219.0
+        ],
+        "p50_ms": 219.0,
+        "p95_ms": 256.6,
+        "max_ms": 265.3,
+        "mean_ms": 219.7
+      },
+      {
+        "tool": "routes__get_elevation_profile",
+        "server": "routes",
+        "args": {
+          "coordinates": [
+            [
+              49.0069,
+              8.4037
+            ],
+            [
+              49.01,
+              8.405
+            ],
+            [
+              49.0134,
+              8.4044
+            ]
+          ],
+          "format_out": "geojson"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 353,
+        "latencies_ms": [
+          437.2,
+          435.8,
+          311.0,
+          265.8,
+          388.1
+        ],
+        "p50_ms": 388.1,
+        "p95_ms": 436.9,
+        "max_ms": 437.2,
+        "mean_ms": 367.6
+      },
+      {
+        "tool": "routes__get_isochrone",
+        "server": "routes",
+        "args": {
+          "lat": 49.0069,
+          "lon": 8.4037,
+          "range_value": 600,
+          "range_type": "time",
+          "profile": "cycling-regular"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 3346,
+        "latencies_ms": [
+          307.6,
+          322.7,
+          267.1,
+          266.3,
+          225.1
+        ],
+        "p50_ms": 267.1,
+        "p95_ms": 319.7,
+        "max_ms": 322.7,
+        "mean_ms": 277.8
+      },
+      {
+        "tool": "routes__plan_circular_route",
+        "server": "routes",
+        "args": {
+          "lat": 49.0069,
+          "lon": 8.4037,
+          "distance_km": 5.0,
+          "profile": "foot-walking"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 9844,
+        "latencies_ms": [
+          138.7,
+          177.3,
+          155.8,
+          209.7,
+          149.8
+        ],
+        "p50_ms": 155.8,
+        "p95_ms": 203.2,
+        "max_ms": 209.7,
+        "mean_ms": 166.3
+      },
+      {
+        "tool": "routes__plan_park_loop",
+        "server": "routes",
+        "args": {
+          "area": "Schlossgarten Karlsruhe",
+          "distance_km": 2.0,
+          "profile": "foot-walking"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 9806,
+        "latencies_ms": [
+          31628.6,
+          2515.3,
+          34535.4,
+          2383.7,
+          26870.0
+        ],
+        "p50_ms": 26870.0,
+        "p95_ms": 33954.0,
+        "max_ms": 34535.4,
+        "mean_ms": 19586.6
+      },
+      {
+        "tool": "routes__plan_route",
+        "server": "routes",
+        "args": {
+          "start_lat": 49.0069,
+          "start_lon": 8.4037,
+          "end_lat": 49.0134,
+          "end_lon": 8.4044,
+          "profile": "foot-walking",
+          "simplify_points": 50
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 4858,
+        "latencies_ms": [
+          130.3,
+          127.8,
+          186.5,
+          154.7,
+          130.5
+        ],
+        "p50_ms": 130.5,
+        "p95_ms": 180.1,
+        "max_ms": 186.5,
+        "mean_ms": 146.0
+      },
+      {
+        "tool": "strava__analyze_performance_trends",
+        "server": "strava",
+        "args": {
+          "sport_type": "Run",
+          "limit": 10
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 3575,
+        "latencies_ms": [
+          25.0,
+          24.3,
+          17.2,
+          16.1,
+          15.4
+        ],
+        "p50_ms": 17.2,
+        "p95_ms": 24.9,
+        "max_ms": 25.0,
+        "mean_ms": 19.6
+      },
+      {
+        "tool": "strava__get_activities",
+        "server": "strava",
+        "args": {
+          "limit": 5
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 22306,
+        "latencies_ms": [
+          18.2,
+          17.6,
+          19.3,
+          15.2,
+          18.8
+        ],
+        "p50_ms": 18.2,
+        "p95_ms": 19.2,
+        "max_ms": 19.3,
+        "mean_ms": 17.8
+      },
+      {
+        "tool": "strava__get_activity_stats",
+        "server": "strava",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 1055,
+        "latencies_ms": [
+          13.2,
+          13.3,
+          13.5,
+          14.2,
+          13.4
+        ],
+        "p50_ms": 13.4,
+        "p95_ms": 14.1,
+        "max_ms": 14.2,
+        "mean_ms": 13.5
+      },
+      {
+        "tool": "strava__get_athlete_profile",
+        "server": "strava",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 1953,
+        "latencies_ms": [
+          946.3,
+          752.8,
+          697.9,
+          815.0,
+          565.9
+        ],
+        "p50_ms": 752.8,
+        "p95_ms": 920.0,
+        "max_ms": 946.3,
+        "mean_ms": 755.6
+      },
+      {
+        "tool": "strava__get_gear_info",
+        "server": "strava",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 32,
+        "latencies_ms": [
+          270.7,
+          309.8,
+          253.4,
+          255.7,
+          258.7
+        ],
+        "p50_ms": 258.7,
+        "p95_ms": 302.0,
+        "max_ms": 309.8,
+        "mean_ms": 269.7
+      },
+      {
+        "tool": "strava__get_personal_bests",
+        "server": "strava",
+        "args": {
+          "sport_type": "Run"
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 6182,
+        "latencies_ms": [
+          47.1,
+          30.6,
+          27.2,
+          24.6,
+          27.7
+        ],
+        "p50_ms": 27.7,
+        "p95_ms": 43.8,
+        "max_ms": 47.1,
+        "mean_ms": 31.4
+      },
+      {
+        "tool": "strava__get_training_load",
+        "server": "strava",
+        "args": {
+          "weeks": 4
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 921,
+        "latencies_ms": [
+          22.8,
+          20.8,
+          18.7,
+          18.0,
+          16.5
+        ],
+        "p50_ms": 18.7,
+        "p95_ms": 22.4,
+        "max_ms": 22.8,
+        "mean_ms": 19.4
+      },
+      {
+        "tool": "strava__get_training_trends",
+        "server": "strava",
+        "args": {
+          "weeks": 4
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 1287,
+        "latencies_ms": [
+          17.2,
+          16.3,
+          17.8,
+          16.0,
+          16.6
+        ],
+        "p50_ms": 16.6,
+        "p95_ms": 17.7,
+        "max_ms": 17.8,
+        "mean_ms": 16.8
+      },
+      {
+        "tool": "strava__get_yearly_breakdown",
+        "server": "strava",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 2373,
+        "latencies_ms": [
+          14.8,
+          15.5,
+          14.4,
+          13.7,
+          13.2
+        ],
+        "p50_ms": 14.4,
+        "p95_ms": 15.4,
+        "max_ms": 15.5,
+        "mean_ms": 14.3
+      },
+      {
+        "tool": "strava__search_activities",
+        "server": "strava",
+        "args": {
+          "keyword": "run",
+          "limit": 5
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 592,
+        "latencies_ms": [
+          18.5,
+          13.1,
+          13.7,
+          13.4,
+          13.0
+        ],
+        "p50_ms": 13.4,
+        "p95_ms": 17.5,
+        "max_ms": 18.5,
+        "mean_ms": 14.3
+      },
+      {
+        "tool": "weather__get_current_weather",
+        "server": "weather",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 136,
+        "latencies_ms": [
+          123.1,
+          157.4,
+          176.3,
+          133.6,
+          140.4
+        ],
+        "p50_ms": 140.4,
+        "p95_ms": 172.5,
+        "max_ms": 176.3,
+        "mean_ms": 146.2
+      },
+      {
+        "tool": "weather__get_pollen_levels",
+        "server": "weather",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 371,
+        "latencies_ms": [
+          165.8,
+          137.1,
+          147.9,
+          162.3,
+          169.2
+        ],
+        "p50_ms": 162.3,
+        "p95_ms": 168.5,
+        "max_ms": 169.2,
+        "mean_ms": 156.5
+      },
+      {
+        "tool": "weather__get_uv_index",
+        "server": "weather",
+        "args": {},
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 71,
+        "latencies_ms": [
+          135.6,
+          150.5,
+          116.5,
+          143.6,
+          135.3
+        ],
+        "p50_ms": 135.6,
+        "p95_ms": 149.1,
+        "max_ms": 150.5,
+        "mean_ms": 136.3
+      },
+      {
+        "tool": "weather__get_weather_forecast",
+        "server": "weather",
+        "args": {
+          "days": 3
+        },
+        "calls": 5,
+        "ok": 5,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "errors": [],
+        "chars_max": 877,
+        "latencies_ms": [
+          170.7,
+          129.3,
+          122.0,
+          125.1,
+          163.7
+        ],
+        "p50_ms": 129.3,
+        "p95_ms": 169.3,
+        "max_ms": 170.7,
+        "mean_ms": 142.2
+      }
+    ],
+    "by_server": {
+      "athlete": {
+        "tools": 2,
+        "calls": 10,
+        "ok": 10,
+        "err": 0,
+        "success_rate": 1.0,
+        "p50_ms": 10.9,
+        "p95_ms": 12.6,
+        "max_ms": 13.1,
+        "mean_ms": 11.2
+      },
+      "calendar": {
+        "tools": 2,
+        "calls": 10,
+        "ok": 10,
+        "err": 0,
+        "success_rate": 1.0,
+        "p50_ms": 214.7,
+        "p95_ms": 466.8,
+        "max_ms": 650.0,
+        "mean_ms": 258.6
+      },
+      "garmin": {
+        "tools": 11,
+        "calls": 55,
+        "ok": 55,
+        "err": 0,
+        "success_rate": 1.0,
+        "p50_ms": 13.0,
+        "p95_ms": 22.0,
+        "max_ms": 32.8,
+        "mean_ms": 14.5
+      },
+      "routes": {
+        "tools": 7,
+        "calls": 35,
+        "ok": 33,
+        "err": 2,
+        "success_rate": 0.943,
+        "p50_ms": 266.3,
+        "p95_ms": 28297.6,
+        "max_ms": 34535.4,
+        "mean_ms": 3921.3
+      },
+      "strava": {
+        "tools": 10,
+        "calls": 50,
+        "ok": 50,
+        "err": 0,
+        "success_rate": 1.0,
+        "p50_ms": 17.9,
+        "p95_ms": 728.1,
+        "max_ms": 946.3,
+        "mean_ms": 117.2
+      },
+      "weather": {
+        "tools": 4,
+        "calls": 20,
+        "ok": 20,
+        "err": 0,
+        "success_rate": 1.0,
+        "p50_ms": 142.0,
+        "p95_ms": 171.0,
+        "max_ms": 176.3,
+        "mean_ms": 145.3
+      }
+    }
+  },
+  "malformed": {
+    "tools": [
+      {
+        "tool": "athlete__get_athlete_overview",
+        "server": "athlete",
+        "variants": [
+          {
+            "label": "+unexpected_arg=\"boom\"",
+            "args": {
+              "unexpected_arg": "boom"
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 48.0,
+            "error": null
+          },
+          {
+            "label": "+days=7",
+            "args": {
+              "days": 7
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 26.6,
+            "error": null
+          }
+        ],
+        "passed": 2,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 22.9,
+          "error": null
+        }
+      },
+      {
+        "tool": "calendar__list_events",
+        "server": "calendar",
+        "variants": [
+          {
+            "label": "-calendar_id, max_results=5, -time_max, time_min=\"not-a-timestamp\"",
+            "args": {
+              "time_min": "not-a-timestamp",
+              "max_results": 5
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 18.3,
+            "error": "Error executing tool list_events: Invalid isoformat string: 'not-a-timestamp'"
+          },
+          {
+            "label": "-calendar_id, max_results=-3, -time_max, -time_min",
+            "args": {
+              "max_results": -3
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 227.6,
+            "error": null
+          },
+          {
+            "label": "-calendar_id, max_results=2, +query=<str\u00d710000>, -time_max, -time_min",
+            "args": {
+              "query": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "max_results": 2
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 241.6,
+            "error": null
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 431.6,
+          "error": null
+        }
+      },
+      {
+        "tool": "garmin__get_garmin_sleep",
+        "server": "garmin",
+        "variants": [
+          {
+            "label": "date=\"yesterday\"",
+            "args": {
+              "date": "yesterday"
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 41.9,
+            "error": null
+          },
+          {
+            "label": "date=20250101",
+            "args": {
+              "date": 20250101
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 21.9,
+            "error": "Error executing tool get_garmin_sleep: 1 validation error for get_garmin_sleepArguments\ndate\n  Input should be a valid string [type=string_type, input_value=20250101, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+          },
+          {
+            "label": "date=<str\u00d710000>",
+            "args": {
+              "date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 32.0,
+            "error": null
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 24.0,
+          "error": null
+        }
+      },
+      {
+        "tool": "garmin__get_garmin_wellness_trends",
+        "server": "garmin",
+        "variants": [
+          {
+            "label": "days=\"many\"",
+            "args": {
+              "days": "many"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 15.3,
+            "error": "Error executing tool get_garmin_wellness_trends: 1 validation error for get_garmin_wellness_trendsArguments\ndays\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='many', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
+          },
+          {
+            "label": "days=-5",
+            "args": {
+              "days": -5
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 16.1,
+            "error": "Error executing tool get_garmin_wellness_trends: max_workers must be greater than 0"
+          },
+          {
+            "label": "-days, +end_date=\"2026-08-14\", +start_date=\"not-a-date\"",
+            "args": {
+              "start_date": "not-a-date",
+              "end_date": "2026-08-14"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 16.5,
+            "error": "Error executing tool get_garmin_wellness_trends: time data 'not-a-date' does not match format '%Y-%m-%d'"
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 23.9,
+          "error": null
+        }
+      },
+      {
+        "tool": "routes__explore_trails",
+        "server": "routes",
+        "variants": [
+          {
+            "label": "-limit, -lon, -radius_km, -sport_type",
+            "args": {
+              "lat": 49.0069
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 13.1,
+            "error": "Error executing tool explore_trails: 1 validation error for explore_trailsArguments\nlon\n  Field required [type=missing, input_value={'lat': 49.0069}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing"
+          },
+          {
+            "label": "lat=999.0, limit=1, lon=999.0, -radius_km, -sport_type",
+            "args": {
+              "lat": 999.0,
+              "lon": 999.0,
+              "limit": 1
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 142.4,
+            "error": "Overpass 400: <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n    \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:"
+          },
+          {
+            "label": "limit=1, radius_km=\"far\", -sport_type",
+            "args": {
+              "lat": 49.0069,
+              "lon": 8.4037,
+              "radius_km": "far",
+              "limit": 1
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 23.3,
+            "error": "Error executing tool explore_trails: 1 validation error for explore_trailsArguments\nradius_km\n  Input should be a valid number, unable to parse string as a number [type=float_parsing, input_value='far', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/float_parsing"
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": false,
+          "ms": 9694.0,
+          "error": "Overpass 429: <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n    \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:"
+        }
+      },
+      {
+        "tool": "routes__geocode",
+        "server": "routes",
+        "variants": [
+          {
+            "label": "-query, -region",
+            "args": {},
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 26.3,
+            "error": "Error executing tool geocode: 1 validation error for geocodeArguments\nquery\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing"
+          },
+          {
+            "label": "query=12345",
+            "args": {
+              "query": 12345,
+              "region": "de"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 20.8,
+            "error": "Error executing tool geocode: 1 validation error for geocodeArguments\nquery\n  Input should be a valid string [type=string_type, input_value=12345, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_type"
+          },
+          {
+            "label": "query=<str\u00d710000>",
+            "args": {
+              "query": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "region": "de"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 206.7,
+            "error": "Google geocode HTTP 400: {\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"The address input exceeded the maximum size of 4096 bytes.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n"
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 182.6,
+          "error": null
+        }
+      },
+      {
+        "tool": "routes__get_elevation_profile",
+        "server": "routes",
+        "variants": [
+          {
+            "label": "coordinates=[], -format_out",
+            "args": {
+              "coordinates": []
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 33.5,
+            "error": "No coordinates provided"
+          },
+          {
+            "label": "coordinates=\"49.0069,8.4037\", -format_out",
+            "args": {
+              "coordinates": "49.0069,8.4037"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 22.6,
+            "error": "Error executing tool get_elevation_profile: 1 validation error for get_elevation_profileArguments\ncoordinates\n  Input should be a valid list [type=list_type, input_value='49.0069,8.4037', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
+          },
+          {
+            "label": "coordinates=[[49.0069]], -format_out",
+            "args": {
+              "coordinates": [
+                [
+                  49.0069
+                ]
+              ]
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 18.8,
+            "error": "Error executing tool get_elevation_profile: list index out of range"
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 510.0,
+          "error": null
+        }
+      },
+      {
+        "tool": "routes__get_isochrone",
+        "server": "routes",
+        "variants": [
+          {
+            "label": "-profile, -range_type, -range_value",
+            "args": {
+              "lat": 49.0069,
+              "lon": 8.4037
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 25.4,
+            "error": "Error executing tool get_isochrone: 1 validation error for get_isochroneArguments\nrange_value\n  Field required [type=missing, input_value={'lat': 49.0069, 'lon': 8.4037}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing"
+          },
+          {
+            "label": "-profile, -range_type, range_value=-600",
+            "args": {
+              "lat": 49.0069,
+              "lon": 8.4037,
+              "range_value": -600
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 186.5,
+            "error": "No isochrone data returned"
+          },
+          {
+            "label": "-profile, range_type=\"parsecs\"",
+            "args": {
+              "lat": 49.0069,
+              "lon": 8.4037,
+              "range_value": 600,
+              "range_type": "parsecs"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 151.3,
+            "error": "ORS isochrones 400: {\"error\":{\"code\":3003,\"message\":\"Parameter 'range_type' has incorrect value of 'parsecs'.\"},\"info\":{\"engine\":{\"build_date\":\"2026-06-12T10:08:58Z\",\"graph_version\":\"4\",\"graph_date\":\"2026-08-12T12:24:38Z"
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 232.5,
+          "error": null
+        }
+      },
+      {
+        "tool": "routes__plan_circular_route",
+        "server": "routes",
+        "variants": [
+          {
+            "label": "-distance_km, -profile",
+            "args": {
+              "lat": 49.0069,
+              "lon": 8.4037
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 21.0,
+            "error": "Error executing tool plan_circular_route: 1 validation error for plan_circular_routeArguments\ndistance_km\n  Field required [type=missing, input_value={'lat': 49.0069, 'lon': 8.4037}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing"
+          },
+          {
+            "label": "lat=999.0, -profile",
+            "args": {
+              "lat": 999.0,
+              "lon": 8.4037,
+              "distance_km": 5.0
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 106.2,
+            "error": "ORS circular 404: {\"error\":{\"code\":2010,\"message\":\"Point 0 is out of bounds: 999.0,8.4037, the bounds are: -180.0,180.0,-85.0511284,82.5254024,-27934.55078125,1.7976931348623157E308\"},\"info\":{\"engine\":{\"build_date\":\"20"
+          },
+          {
+            "label": "lat=\"north\", -profile",
+            "args": {
+              "lat": "north",
+              "lon": 8.4037,
+              "distance_km": 5.0
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 20.9,
+            "error": "Error executing tool plan_circular_route: 1 validation error for plan_circular_routeArguments\nlat\n  Input should be a valid number, unable to parse string as a number [type=float_parsing, input_value='north', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/float_parsing"
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 141.8,
+          "error": null
+        }
+      },
+      {
+        "tool": "strava__get_activities",
+        "server": "strava",
+        "variants": [
+          {
+            "label": "limit=\"many\"",
+            "args": {
+              "limit": "many"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 27.5,
+            "error": "Error executing tool get_activities: 1 validation error for get_activitiesArguments\nlimit\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='many', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
+          },
+          {
+            "label": "limit=-10",
+            "args": {
+              "limit": -10
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 90.4,
+            "error": null
+          },
+          {
+            "label": "limit=3, +sport_type=<str\u00d710000>",
+            "args": {
+              "limit": 3,
+              "sport_type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 31.9,
+            "error": null
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 20.9,
+          "error": null
+        }
+      },
+      {
+        "tool": "strava__get_training_load",
+        "server": "strava",
+        "variants": [
+          {
+            "label": "weeks=\"sixteen\"",
+            "args": {
+              "weeks": "sixteen"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 12.2,
+            "error": "Error executing tool get_training_load: 1 validation error for get_training_loadArguments\nweeks\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='sixteen', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
+          },
+          {
+            "label": "weeks=0",
+            "args": {
+              "weeks": 0
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 15.0,
+            "error": null
+          },
+          {
+            "label": "weeks=-12",
+            "args": {
+              "weeks": -12
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 16.8,
+            "error": null
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 15.9,
+          "error": null
+        }
+      },
+      {
+        "tool": "weather__get_current_weather",
+        "server": "weather",
+        "variants": [
+          {
+            "label": "+unexpected_arg=\"boom\"",
+            "args": {
+              "unexpected_arg": "boom"
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 127.3,
+            "error": null
+          },
+          {
+            "label": "+days=3",
+            "args": {
+              "days": 3
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 113.3,
+            "error": null
+          }
+        ],
+        "passed": 2,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 186.4,
+          "error": null
+        }
+      },
+      {
+        "tool": "weather__get_weather_forecast",
+        "server": "weather",
+        "variants": [
+          {
+            "label": "days=\"seven\"",
+            "args": {
+              "days": "seven"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 24.7,
+            "error": "Error executing tool get_weather_forecast: 1 validation error for get_weather_forecastArguments\ndays\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='seven', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
+          },
+          {
+            "label": "days=-5",
+            "args": {
+              "days": -5
+            },
+            "outcome": "normal reply (input tolerated)",
+            "verdict": "PASS",
+            "ms": 234.2,
+            "error": null
+          },
+          {
+            "label": "+date=\"2999-99-99\"",
+            "args": {
+              "days": 3,
+              "date": "2999-99-99"
+            },
+            "outcome": "structured error",
+            "verdict": "PASS",
+            "ms": 249.7,
+            "error": "No forecast for 2999-99-99 within 3 days."
+          }
+        ],
+        "passed": 3,
+        "failed": 0,
+        "survives": {
+          "ok": true,
+          "ms": 160.7,
+          "error": null
+        }
+      }
+    ],
+    "totals": {
+      "tools": 13,
+      "variants": 37,
+      "passed": 37,
+      "failed": 0,
+      "survived": 12
+    }
+  },
+  "unreachable": {
+    "endpoint": "http://127.0.0.1:9/mcp",
+    "timeout_s": 5.0,
+    "bound_ms": 8000.0,
+    "checks": [
+      {
+        "name": "alist_tools on a dead endpoint returns []",
+        "passed": true,
+        "duration_ms": 11.2,
+        "bound_ms": 8000.0,
+        "detail": "0 tool(s) returned"
+      },
+      {
+        "name": "acall_tool on a dead endpoint returns an error string",
+        "passed": true,
+        "duration_ms": 8.6,
+        "bound_ms": 8000.0,
+        "detail": "unhandled errors in a TaskGroup (1 sub-exception)"
+      },
+      {
+        "name": "mixed registry: the healthy server still lists, the dead one is skipped",
+        "passed": true,
+        "duration_ms": 31.8,
+        "bound_ms": 8000.0,
+        "detail": "4 tool(s), servers=['weather']"
+      }
+    ],
+    "passed": 3,
+    "failed": 0
+  },
+  "concurrency": {
+    "pool": [
+      "weather__get_weather_forecast",
+      "routes__geocode"
+    ],
+    "calls_per_level": 16,
+    "levels": [
+      {
+        "level": 1,
+        "calls": 16,
+        "ok": 16,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "wall_s": 3.63,
+        "throughput_rps": 4.41,
+        "errors": [],
+        "p50_ms": 225.4,
+        "p95_ms": 271.5,
+        "max_ms": 283.0,
+        "mean_ms": 226.7
+      },
+      {
+        "level": 4,
+        "calls": 16,
+        "ok": 16,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "wall_s": 2.33,
+        "throughput_rps": 6.87,
+        "errors": [],
+        "p50_ms": 356.6,
+        "p95_ms": 1402.0,
+        "max_ms": 1407.9,
+        "mean_ms": 553.3
+      },
+      {
+        "level": 8,
+        "calls": 16,
+        "ok": 16,
+        "err": 0,
+        "crashes": 0,
+        "success_rate": 1.0,
+        "wall_s": 1.36,
+        "throughput_rps": 11.76,
+        "errors": [],
+        "p50_ms": 610.1,
+        "p95_ms": 703.8,
+        "max_ms": 711.5,
+        "mean_ms": 562.0
+      }
+    ]
+  },
+  "selection": {
+    "enabled": true,
+    "prompts": [
+      {
+        "prompt": "How was my sleep last night?",
+        "expect": [
+          "garmin__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "garmin__get_garmin_body_battery",
+          "garmin__get_garmin_daily_health",
+          "garmin__get_garmin_hrv_status",
+          "garmin__get_garmin_sleep",
+          "garmin__get_garmin_stress_timeline"
+        ],
+        "tools": [
+          "garmin__get_garmin_sleep",
+          "garmin__get_garmin_hrv_status",
+          "garmin__get_garmin_body_battery",
+          "garmin__get_garmin_daily_health",
+          "garmin__get_garmin_stress_timeline"
+        ],
+        "agents": [
+          "recovery"
+        ],
+        "answer_chars": 677,
+        "ms": 8329.8,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "Check my HRV and body battery from the last few days.",
+        "expect": [
+          "garmin__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "garmin__get_garmin_body_battery",
+          "garmin__get_garmin_hrv_status",
+          "garmin__get_garmin_wellness_trends"
+        ],
+        "tools": [
+          "garmin__get_garmin_wellness_trends",
+          "garmin__get_garmin_hrv_status",
+          "garmin__get_garmin_body_battery"
+        ],
+        "agents": [
+          "recovery"
+        ],
+        "answer_chars": 1121,
+        "ms": 8705.6,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "How is my training load right now compared to the past weeks?",
+        "expect": [
+          "strava__",
+          "garmin__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "strava__get_training_load"
+        ],
+        "tools": [
+          "strava__get_training_load"
+        ],
+        "agents": [
+          "load"
+        ],
+        "answer_chars": 557,
+        "ms": 5785.0,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "Show me my activities from the last two weeks.",
+        "expect": [
+          "strava__",
+          "garmin__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "strava__get_activities"
+        ],
+        "tools": [
+          "strava__get_activities"
+        ],
+        "agents": [
+          "load"
+        ],
+        "answer_chars": 233,
+        "ms": 4361.1,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "Is my running pace improving over the recent runs?",
+        "expect": [
+          "strava__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "strava__analyze_performance_trends",
+          "strava__get_activities"
+        ],
+        "tools": [
+          "strava__get_activities",
+          "strava__analyze_performance_trends"
+        ],
+        "agents": [
+          "load"
+        ],
+        "answer_chars": 679,
+        "ms": 7150.6,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "What is the weather like for a ride tomorrow morning?",
+        "expect": [
+          "weather__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "weather__get_weather_forecast"
+        ],
+        "tools": [
+          "weather__get_weather_forecast",
+          "weather__get_weather_forecast"
+        ],
+        "agents": [
+          "context"
+        ],
+        "answer_chars": 576,
+        "ms": 6249.2,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "Check the pollen and UV levels in Karlsruhe today.",
+        "expect": [
+          "weather__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "weather__get_pollen_levels",
+          "weather__get_uv_index"
+        ],
+        "tools": [
+          "weather__get_pollen_levels",
+          "weather__get_uv_index"
+        ],
+        "agents": [
+          "context"
+        ],
+        "answer_chars": 368,
+        "ms": 4370.2,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "Where do I have a free slot in my calendar this week for a long run?",
+        "expect": [
+          "calendar__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "calendar__list_events"
+        ],
+        "tools": [
+          "weather__get_weather_forecast",
+          "calendar__list_events",
+          "weather__get_weather_forecast",
+          "weather__get_weather_forecast",
+          "weather__get_weather_forecast"
+        ],
+        "agents": [
+          "context"
+        ],
+        "answer_chars": 491,
+        "ms": 9305.2,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "What is on my schedule for the next three days?",
+        "expect": [
+          "calendar__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "calendar__list_events"
+        ],
+        "tools": [
+          "calendar__list_events"
+        ],
+        "agents": [
+          "context"
+        ],
+        "answer_chars": 414,
+        "ms": 5929.7,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "Find me a 10 km running loop starting in Karlsruhe.",
+        "expect": [
+          "routes__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "routes__plan_circular_route"
+        ],
+        "tools": [
+          "routes__plan_circular_route"
+        ],
+        "agents": [
+          "route"
+        ],
+        "answer_chars": 379,
+        "ms": 5074.7,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "What does the sports-science literature say about polarized training?",
+        "expect": [
+          "search_fitness_literature"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "search_fitness_literature"
+        ],
+        "tools": [
+          "search_fitness_literature",
+          "search_fitness_literature",
+          "search_fitness_literature"
+        ],
+        "agents": [
+          "fitness"
+        ],
+        "answer_chars": 1605,
+        "ms": 19156.9,
+        "trace_error": null,
+        "error": null
+      },
+      {
+        "prompt": "Show me an overview of my season so far.",
+        "expect": [
+          "athlete__",
+          "strava__"
+        ],
+        "passed": true,
+        "matched_tools": [
+          "strava__analyze_performance_trends",
+          "strava__get_activity_stats",
+          "strava__get_personal_bests",
+          "strava__get_training_load",
+          "strava__get_training_trends",
+          "strava__get_yearly_breakdown"
+        ],
+        "tools": [
+          "strava__get_activity_stats",
+          "strava__get_training_trends",
+          "strava__get_training_load",
+          "strava__get_personal_bests",
+          "strava__analyze_performance_trends",
+          "strava__get_yearly_breakdown"
+        ],
+        "agents": [
+          "load"
+        ],
+        "answer_chars": 1214,
+        "ms": 12739.4,
+        "trace_error": null,
+        "error": null
+      }
+    ],
+    "passed": 12,
+    "total": 12,
+    "pass_rate": 1.0
+  },
+  "summary": {
+    "sweep": {
+      "tools": 36,
+      "calls": 180,
+      "ok": 178,
+      "err": 2,
+      "success_rate": 0.989,
+      "crashes": 0,
+      "tools_fully_ok": 35,
+      "tools_degraded": [
+        "routes__explore_trails"
+      ],
+      "tools_failing": [],
+      "p50_ms": 19.1,
+      "p95_ms": 1249.1,
+      "max_ms": 34535.4,
+      "mean_ms": 830.6
+    },
+    "per_server_success_rate": {
+      "athlete": 1.0,
+      "calendar": 1.0,
+      "garmin": 1.0,
+      "routes": 0.943,
+      "strava": 1.0,
+      "weather": 1.0
+    },
+    "malformed": {
+      "variants": 37,
+      "handled": 37,
+      "escaped_exceptions": 0,
+      "servers_survived": "12/13"
+    },
+    "unreachable": {
+      "checks": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    "concurrency": {
+      "1": {
+        "success_rate": 1.0,
+        "p50_ms": 225.4,
+        "p95_ms": 271.5
+      },
+      "4": {
+        "success_rate": 1.0,
+        "p50_ms": 356.6,
+        "p95_ms": 1402.0
+      },
+      "8": {
+        "success_rate": 1.0,
+        "p50_ms": 610.1,
+        "p95_ms": 703.8
+      }
+    },
+    "selection": {
+      "enabled": true,
+      "passed": 12,
+      "total": 12,
+      "pass_rate": 1.0
+    },
+    "error_taxonomy": [
+      {
+        "pattern": "overpass <n>: <?xml version='\u2026' encoding='\u2026'?> <!doctype html public '\u2026' '\u2026'> <html xmlns='\u2026' xml:",
+        "count": 4,
+        "example": "Overpass 429: <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n    \"http:",
+        "tools": [
+          "routes__explore_trails"
+        ],
+        "sources": [
+          "sweep",
+          "malformed",
+          "malformed-survives"
+        ]
+      },
+      {
+        "pattern": "error executing tool explore_trails: <n> validation error for explore_trailsarguments lon field requ",
+        "count": 1,
+        "example": "Error executing tool explore_trails: 1 validation error for explore_trailsArguments\nlon\n  Field required [type=missing, ",
+        "tools": [
+          "routes__explore_trails"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      },
+      {
+        "pattern": "error executing tool explore_trails: <n> validation error for explore_trailsarguments radius_km inpu",
+        "count": 1,
+        "example": "Error executing tool explore_trails: 1 validation error for explore_trailsArguments\nradius_km\n  Input should be a valid ",
+        "tools": [
+          "routes__explore_trails"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      },
+      {
+        "pattern": "error executing tool geocode: <n> validation error for geocodearguments query field required [type=m",
+        "count": 1,
+        "example": "Error executing tool geocode: 1 validation error for geocodeArguments\nquery\n  Field required [type=missing, input_value=",
+        "tools": [
+          "routes__geocode"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      },
+      {
+        "pattern": "error executing tool geocode: <n> validation error for geocodearguments query input should be a vali",
+        "count": 1,
+        "example": "Error executing tool geocode: 1 validation error for geocodeArguments\nquery\n  Input should be a valid string [type=strin",
+        "tools": [
+          "routes__geocode"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      },
+      {
+        "pattern": "error executing tool get_activities: <n> validation error for get_activitiesarguments limit input sh",
+        "count": 1,
+        "example": "Error executing tool get_activities: 1 validation error for get_activitiesArguments\nlimit\n  Input should be a valid inte",
+        "tools": [
+          "strava__get_activities"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      },
+      {
+        "pattern": "error executing tool get_elevation_profile: <n> validation error for get_elevation_profilearguments ",
+        "count": 1,
+        "example": "Error executing tool get_elevation_profile: 1 validation error for get_elevation_profileArguments\ncoordinates\n  Input sh",
+        "tools": [
+          "routes__get_elevation_profile"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      },
+      {
+        "pattern": "error executing tool get_elevation_profile: list index out of range",
+        "count": 1,
+        "example": "Error executing tool get_elevation_profile: list index out of range",
+        "tools": [
+          "routes__get_elevation_profile"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      },
+      {
+        "pattern": "error executing tool get_garmin_sleep: <n> validation error for get_garmin_sleeparguments date input",
+        "count": 1,
+        "example": "Error executing tool get_garmin_sleep: 1 validation error for get_garmin_sleepArguments\ndate\n  Input should be a valid s",
+        "tools": [
+          "garmin__get_garmin_sleep"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      },
+      {
+        "pattern": "error executing tool get_garmin_wellness_trends: <n> validation error for get_garmin_wellness_trends",
+        "count": 1,
+        "example": "Error executing tool get_garmin_wellness_trends: 1 validation error for get_garmin_wellness_trendsArguments\ndays\n  Input",
+        "tools": [
+          "garmin__get_garmin_wellness_trends"
+        ],
+        "sources": [
+          "malformed"
+        ]
+      }
+    ]
+  }
+}
