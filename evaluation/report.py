@@ -173,6 +173,10 @@ def collect_facts(experiment, results, personas: list[dict], run_meta: dict) -> 
 
     # Per-scorer rollup across sessions (positive-verdict counts).
     positive = {"yes", "pass", "true", "1", "5", "safe"}
+    # user_frustration is good unless it ends "unresolved": "none" (never
+    # frustrated) and "resolved" (recovered, user satisfied) both count as
+    # positive — matching the _GOOD badge set used for rendering.
+    positive_by_scorer = {"user_frustration": {"none", "resolved"}}
     scorer_rollup: dict[str, dict] = {}
     for sf in session_facts:
         for name, sc in sf["scores"].items():
@@ -180,7 +184,7 @@ def collect_facts(experiment, results, personas: list[dict], run_meta: dict) -> 
             val = str(sc.get("value", "")).strip().lower()
             if val:
                 r["scored"] += 1
-                if val in positive:
+                if val in positive_by_scorer.get(name, positive):
                     r["positive"] += 1
                 r["values"][val] = r["values"].get(val, 0) + 1
 
