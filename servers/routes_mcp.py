@@ -25,6 +25,9 @@ load_dotenv()
 
 ORS_BASE = "https://api.openrouteservice.org"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+# Failover order for the retry loops: the main instance rate-limits aggressively
+# per IP; the Kumi mirror is a public instance provisioned for higher throughput.
+OVERPASS_URLS = (OVERPASS_URL, "https://overpass.kumi.systems/api/interpreter")
 # Geocoding API v4 — works with a billing-free Maps Demo Key (the legacy
 # /maps/api/geocode/json endpoint requires billing on the project).
 GOOGLE_GEOCODE_URL = "https://geocode.googleapis.com/v4/geocode/address/{address}"
@@ -221,7 +224,7 @@ def _fetch_area_polygon(lat: float, lon: float, name_hint: str = "",
     elements = None
     for attempt in range(3):  # Overpass is flaky (429/504/transient empties) — retry
         try:
-            resp = requests.post(OVERPASS_URL, data={"data": query},
+            resp = requests.post(OVERPASS_URLS[attempt % len(OVERPASS_URLS)], data={"data": query},
                                  headers={"Accept": "application/json",
                                           "User-Agent": "AISS2-Team6-RoutesMCP/1.0"}, timeout=35)
             if resp.ok:
@@ -548,9 +551,21 @@ def explore_trails(lat: float, lon: float, radius_km: float = 15.0,
 
     query = (f'[out:json][timeout:30];(relation["type"="route"]["route"="{osm_route}"]'
              f'(around:{radius_km * 1000},{lat},{lon}););out geom {fetch_limit};')
-    resp = requests.post(OVERPASS_URL, data={"data": query},
-                         headers={"Accept": "application/json", "User-Agent": "AISS2-Team6-RoutesMCP/1.0"},
-                         timeout=35)
+    resp = None
+    for attempt in range(3):  # Overpass is flaky (429/504/transient errors) — retry
+        try:
+            resp = requests.post(OVERPASS_URLS[attempt % len(OVERPASS_URLS)], data={"data": query},
+                                 headers={"Accept": "application/json",
+                                          "User-Agent": "AISS2-Team6-RoutesMCP/1.0"},
+                                 timeout=35)
+            if resp.ok:
+                break
+        except Exception:  # noqa: BLE001 — transient; retry then report the last status
+            resp = None
+        if attempt < 2:
+            time.sleep(1.5)
+    if resp is None:
+        return {"error": "Overpass unreachable after 3 attempts"}
     if not resp.ok:
         return {"error": f"Overpass {resp.status_code}: {resp.text[:200]}"}
 

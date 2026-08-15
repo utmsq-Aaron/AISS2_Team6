@@ -55,7 +55,9 @@ if str(ROOT) not in sys.path:                        # allow running from anywhe
 from core.config import MCP_SERVERS, SEP            # noqa: E402  (after the path fix)
 from core.host import ToolHost                      # noqa: E402
 
-from .fixtures import FIXTURES, SKIP, malformed_variants, skip_reason, write_path_reason  # noqa: E402
+from .fixtures import (  # noqa: E402
+    FIXTURES, SKIP, malformed_variants, pace_seconds, skip_reason, write_path_reason,
+)
 
 REPORTS_DIR = ROOT / "evaluation" / "reports"
 
@@ -215,8 +217,11 @@ async def probe_sweep(host: ToolHost, targets: Sequence[str], repeat: int) -> Di
     tools: List[Dict[str, Any]] = []
     for name in targets:
         args = FIXTURES[name]["args"]
+        pace = pace_seconds(name)
         calls: List[Dict[str, Any]] = []
-        for _ in range(repeat):
+        for i in range(repeat):
+            if pace and i:
+                await asyncio.sleep(pace)
             calls.append(await _timed_call(host, name, args))
         latencies = [c["ms"] for c in calls]
         ok = sum(1 for c in calls if c["ok"])
@@ -266,8 +271,11 @@ async def probe_malformed(host: ToolHost, targets: Sequence[str]) -> Dict[str, A
         if not variants:
             continue
         valid_args = FIXTURES[name]["args"]
+        pace = pace_seconds(name)
         results: List[Dict[str, Any]] = []
         for bad in variants:
+            if pace:
+                await asyncio.sleep(pace)
             outcome = await _timed_call(host, name, bad)
             if outcome["crashed"]:
                 verdict, kind = "FAIL", "exception escaped ToolHost"
@@ -283,6 +291,8 @@ async def probe_malformed(host: ToolHost, targets: Sequence[str]) -> Dict[str, A
                 "ms": outcome["ms"],
                 "error": outcome["error"],
             })
+        if pace:
+            await asyncio.sleep(pace)
         survives = await _timed_call(host, name, valid_args)
         record = {
             "tool": name,

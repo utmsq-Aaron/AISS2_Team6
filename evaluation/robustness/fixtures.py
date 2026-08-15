@@ -162,6 +162,9 @@ FIXTURES: Dict[str, Dict[str, Any]] = {
     "routes__explore_trails": {
         "args": {"lat": KARLSRUHE_LAT, "lon": KARLSRUHE_LON,
                  "radius_km": 5.0, "sport_type": "hiking", "limit": 3},
+        # Overpass rate-limits per IP; pace repeated calls so the probe measures
+        # the service, not its quota policy.
+        "pace_s": 10.0,
         "malformed": [
             {"lat": KARLSRUHE_LAT},                     # missing required 'lon'
             {"lat": 999.0, "lon": 999.0, "limit": 1},   # out-of-domain coordinate
@@ -327,6 +330,15 @@ def skip_reason(full_name: str) -> str:
 def malformed_variants(full_name: str) -> List[Dict[str, Any]]:
     """The malformed argument sets for a tool (possibly empty)."""
     return list((FIXTURES.get(full_name) or {}).get("malformed") or [])
+
+
+def pace_seconds(full_name: str) -> float:
+    """Seconds to wait between successive calls to this tool (0 = unpaced).
+
+    Set on fixtures whose upstream rate-limits per IP (e.g. Overpass), so the
+    sweep measures the service rather than tripping its quota policy.
+    """
+    return float((FIXTURES.get(full_name) or {}).get("pace_s") or 0.0)
 
 
 # ── Import-time safety self-check ─────────────────────────────────────────────
