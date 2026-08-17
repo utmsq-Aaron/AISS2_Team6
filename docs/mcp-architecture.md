@@ -2,9 +2,10 @@
 
 **Purpose of this document:** describe the current architecture as it actually stands in the code, why it follows the Anthropic/MCP standard, and how it extends to **external MCP servers**.
 
-> **Relation to the other docs**
-> - [`docs/architecture-review.md`](architecture-review.md) — the *why* (a critical review of the old architecture that motivated the rebuild). Kept as a historical reference.
-> - **This document** — the authoritative *what/how*. It governs every new server.
+> This is the authoritative *what/how*, and it governs every new server. The subsystems
+> built on top of this foundation — the coach, proactivity, the flythrough, the
+> Garmin→Strava sync — are described in [`CLAUDE.md`](../CLAUDE.md); the training maths and
+> its sources in [`trainingsregeln.md`](trainingsregeln.md).
 
 ---
 
@@ -164,7 +165,7 @@ user_host = ToolHost(
 
 `FitDashOrchestrator` takes a host in its constructor (`FitDashOrchestrator(host=user_host)`) — same engine, same tool surface, and the user gains the external tools without a single line in the core knowing that server exists. In multi-tenant operation, `servers`/`headers` are filled per user from a config/DB or a secret vault instead of from the global default.
 
-> ⚠️ **The security side of this is not finished.** External servers are a large attack surface: SSRF, data exfiltration, and prompt injection through tool *descriptions* and *outputs*. An allowlist/approval flow, sandboxing, egress limits and treating "tool output = untrusted" are all **still open** — see [`docs/architecture-review.md`](architecture-review.md) §3 (C-3) and phase 4. The external path above is the *mechanism*; a public launch needs the tenancy and security layer in front of it.
+> **Scope.** What is shown above is the *mechanism*, and it is where this design stops. Third-party servers are outside the trust boundary the current implementation establishes, so attaching them is a capability for a controlled setting — a developer adding a server they operate — not for arbitrary user input. Opening it to end users additionally requires the tenancy layer plus an approval model for which server may be attached at all, with tool output treated as untrusted input to the model. That layer is deliberately out of scope here (see *Scope and limitations* below).
 
 ---
 
@@ -203,11 +204,11 @@ On the host, `ToolHost` runs alongside the servers and reaches them over `localh
 
 ---
 
-## 6. Status and next steps
+## 6. Scope and limitations
 
-**Done:** the uniform MCP host (`ToolHost`), a tool-agnostic core, **eight** native FastMCP servers (weather/routes/strava/garmin/calendar/flythrough/google_maps/athlete) plus telegram as a proxy to an external stdio server, the A2A agent layer (orchestrator + six specialists), a vendor-neutral LLM seam, tool namespacing, observability via MLflow (`core/tracing.py`), a tenancy/auth layer (`api/auth.py`: email + OTP, signed tokens, per-user state under `data/user_memory/<slug>/`), and complete legacy removal (registry, `BaseMCPServer`, the agents pipeline, the Streamlit frontend).
+The system implements the uniform MCP host (`ToolHost`) with a tool-agnostic core, **eight** native FastMCP servers (weather/routes/strava/garmin/calendar/flythrough/google_maps/athlete) plus telegram as a proxy to an external stdio server, the A2A agent layer (orchestrator + six specialists), a vendor-neutral LLM seam, tool namespacing, observability via MLflow (`core/tracing.py`), and an identity layer (`api/auth.py`: email + OTP, signed tokens, per-user state under `data/user_memory/<slug>/`). Contract tests at the seams live in `tests/unit/` — the agent-trace contracts, the deterministic training maths and the route export — and run offline via `pytest`.
 
-**Still open:**
-- **Token vault:** identity is per user, but the upstream tokens (`.tokens/`) are not — Strava and Garmin are currently *one* shared account per deployment.
-- **Sandboxing, allowlist and egress control** for user-added MCP servers, and treating tool output as untrusted throughout.
-- Uniform logging (today partly `print`, partly `logging`); contract tests at the seams beyond `tests/unit/`, which currently holds the agent-trace contracts, the deterministic training maths and the route export — all runnable offline via `pytest`.
+Two boundaries are worth stating explicitly, because they shape what the architecture is designed for:
+
+- **Identity is per user; upstream credentials are per deployment.** The auth layer separates users, but the Strava and Garmin tokens in `.tokens/` are shared by the whole instance. The design therefore targets a single-athlete deployment — one person's accounts, optionally reachable by that person from several devices. Serving several athletes from one instance is a token-vault question (per-user encrypted credential storage), not a question about the MCP layer, which is already per-request capable through `ToolHost(headers=…)`.
+- **User-attachable MCP servers are a mechanism, not an offering.** §4 shows how an external server plugs in, and the uniform host makes that cheap. Exposing it to end users is a separate problem — which servers may be attached, under whose authority, and with tool output treated as untrusted model input — and is out of scope for this implementation.

@@ -366,22 +366,27 @@ build-up race per tab. 7.10); `record_week_actual` and `rescaffold_plan` form th
 
 ---
 
-## Mapping: current code constants → source → change
+## Mapping: code → its basis in the literature
 
-| `athlete_mcp.py` | previously (Anglo) | basis in the books | change |
-|---|---|---|---|
-| `_hr_zones` | Friel %LTHR | %HRmax (Ferrauti p. 446) + v4 (p. 200) | **switch** to %HRmax/%v4 |
-| `_pace_zones` | Daniels VDOT multiples | %v4 velocity (Ferrauti p. 200) | **switch** to %v4 |
-| `_riegel` / prediction | Riegel 1.06 | performance diagnostics v4 (Ferrauti p. 50) | **replace** with v4 vs. target pace |
-| HRmax fallback | (none) | 208 − 0.7·age (Güllich p. 771) | **add** |
-| `MAX_WEEKLY_RAMP` | +8 % convention | progressive load (Güllich p. 631) | **cite**, declare as a soft guardrail |
-| `CUTBACK_EVERY=4` | convention | four-week cycle + unloading (Ferrauti p. 295) | **cited** — comment carries the source |
-| `_phase_split` | base/build/peak/taper | macro/meso + recreational-runner model (Ferrauti p. 69, p. 188) | **cite**; order frequency→duration→intensity→taper |
-| taper check | ≤75 % of peak | 2–15 days, volume↓ intensity retained (Ferrauti p. 117) | **cited** — add the source |
-| HIIT workouts | freely invented | protocols, Ferrauti pp. 58–59 | anchor **in the coach prompt** |
-| supercompensation assumption | implicit | treated critically (Ferrauti/Güllich) | remove timing assumptions |
-| `PHASE_FOCUS` (phase content) | (new) | tab. 7.10/7.11 (phases + cross-training) | a content spec per scaffolded week |
-| `_feasibility` (goal vs. data) | (new) | SMART/tab. 1.2 + section 3 (benchmark) | facts only; the judgement is the coach's |
-| cross-training validation | (new) | tab. 7.10/7.11 (REKOM/unspecific) | duration-based, outside the km ramp |
-| `record_week_actual` | (new) | tab. 1.2 step 6 + p. 185/p. 202 (monitoring, raw values) | actuals + actual/target ratio, deterministic |
-| `rescaffold_plan` | (new) | p. 295 (unloading), Güllich p. 631 (progressive) | re-baseline future weeks only, +8 % cap from the last frozen week |
+Every computation in `servers/athlete_mcp.py` and where it comes from. The right-hand
+column separates the two kinds of number in the system: values the books state, and
+conventions we chose and declare as such.
+
+| `athlete_mcp.py` | basis in the books | status of the numbers |
+|---|---|---|
+| `_hr_zones` | %HRmax + %HRR/Karvonen (Ferrauti pp. 446, 459) | book values |
+| `_pace_zones` | factor × race pace (Ferrauti p. 462, tab. 7.7) | book values |
+| prediction / "on track" | performance diagnostics, benchmark race (Ferrauti p. 50) | book method; no extrapolation |
+| HRmax fallback | 208 − 0.7·age (Güllich p. 771) | book formula |
+| `MAX_WEEKLY_RAMP` | progressive load (Güllich p. 631; Ferrauti p. 81) | principle from the books, percentage a declared soft guardrail |
+| `CUTBACK_EVERY=4` | four-week cycle with unloading at its end (Ferrauti p. 295) | book value |
+| `_phase_split` | macro/meso cycles + the recreational-runner model (Ferrauti pp. 69, 188) | book structure; order frequency→duration→intensity→taper |
+| taper check | 2–15 days, volume down, intensity retained (Ferrauti p. 117) | book values |
+| HIIT workouts | the protocols in Ferrauti pp. 58–59 | book protocols, selected by the coach |
+| supercompensation | treated critically (Ferrauti/Güllich) | no timing assumption is made |
+| `PHASE_FOCUS` (phase content) | tab. 7.10/7.11 (phases + cross-training) | book content, per scaffolded week |
+| `_feasibility` (goal vs. data) | SMART/tab. 1.2 + section 3 (benchmark) | facts only; the judgement is the coach's |
+| cross-training validation | tab. 7.10/7.11 (REKOM/unspecific) | duration-based, outside the km ramp |
+| `record_week_actual` | tab. 1.2 step 6 + pp. 185, 202 (monitoring, raw values) | actuals + actual/target ratio, deterministic |
+| `rescaffold_plan` | p. 295 (unloading), Güllich p. 631 (progressive) | future weeks only, +8 % cap from the last frozen week |
+| `_run_targets` (long-run line) | progressive load §6; frequency before duration (pp. 83, 188) | principle from the books; the individual factors are documented conventions (§11) |

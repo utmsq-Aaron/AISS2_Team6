@@ -62,7 +62,7 @@ stack with `./run.sh` first, then run one directly:
 | `test_chained.py` | Multi-step queries needing several tools in one turn |
 | `test_multiquery.py` | Parallel delegation (several specialists in one turn) |
 | `test_smoke_queries.py` | Quick pass over the key query shapes |
-| `test_regression_queries.py` | The two queries that were broken once — kept so they stay fixed |
+| `test_regression_queries.py` | Two queries pinned to fixed expectations, so their behaviour stays put |
 | `test_final.py` | Broad end-to-end pass |
 | `test_new_tools.py` | Newly added MCP tools answer at all |
 | `test_strava_cache.py` | Strava file cache: hits, and eviction of dead activity ids |
@@ -104,7 +104,6 @@ Not tests. They read state and print it; none of them assert anything.
 | `check_cache.py` | Contents of the Strava activity file cache |
 | `clear_dead_cache.py` | **Mutates state** — drops dead activity ids from that cache |
 | `check_constants.py` | Constants as the orchestrator module sees them |
-| `check_prompt.py` | ⚠️ **Broken.** Reads `core.orchestrator._SYSTEM`, which moved to `agents/prompts.py` when the A2A agent layer replaced the single-prompt loop. Kept as a marker — fix or delete |
 | `run_remaining.py` | Re-runs only queries 20–25 of the viz-quality suite |
 
 Output goes to `tests/logs/` (git-ignored, created on demand).
