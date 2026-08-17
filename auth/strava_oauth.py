@@ -33,10 +33,22 @@ class OAuth2Manager:
 
     # ── Public interface ──────────────────────────────────────────────────────
 
-    def get_valid_access_token(self) -> str:
-        """Return a valid access token, refreshing or re-authorizing as needed."""
+    def get_valid_access_token(self, *, interactive: bool = True) -> str:
+        """Return a valid access token, refreshing or re-authorizing as needed.
+
+        ``interactive=False`` is mandatory for anything long-running (the MCP
+        server, the API): the fallback is a browser flow that blocks for up to
+        five minutes waiting for a redirect nobody is there to trigger. One
+        failed refresh used to take the whole Strava server down for that long,
+        and every call against it timed out with no usable error. Non-interactive
+        callers get a RuntimeError naming the fix instead.
+        """
         tokens = self._load()
         if not tokens:
+            if not interactive:
+                raise RuntimeError(
+                    "Strava is not connected (no .tokens/strava.json). Connect it in "
+                    "Settings → Strava, or run: python auth/strava_oauth.py")
             return self._authorize()
 
         expires_at = tokens.get("expires_at", 0)
@@ -47,6 +59,11 @@ class OAuth2Manager:
                 self._save(tokens)
                 return tokens["access_token"]
             except Exception as e:
+                if not interactive:
+                    raise RuntimeError(
+                        f"Strava token refresh failed ({e}). If this persists, "
+                        "reconnect Strava in Settings, or run: "
+                        "python auth/strava_oauth.py") from e
                 print(f"Token refresh failed ({e}) — re-authorizing...")
                 return self._authorize()
 

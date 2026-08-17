@@ -8,12 +8,12 @@ Run locally:   python -m servers.strava_mcp
 Endpoint:      http://127.0.0.1:8103/mcp   (override host/port via env)
 """
 
+import asyncio
 import json
 import math
 import os
 import random
 import sys
-import threading
 import time
 import urllib.parse
 from datetime import datetime, timedelta, timezone
@@ -74,7 +74,10 @@ class StravaAPI:
     def __init__(self) -> None:
         self._oauth: Optional[OAuth2Manager] = None
         self._token: Optional[str] = None
-        self._lock = threading.Lock()
+        # asyncio, not threading: this lock is taken from async tool handlers, and a
+        # blocking threading.Lock there stalls the whole event loop — no other tool
+        # call can even start while one waits. With an asyncio.Lock they queue.
+        self._lock = asyncio.Lock()
 
     def _init_oauth(self) -> None:
         if self._oauth is None:
@@ -88,10 +91,18 @@ class StravaAPI:
             self._oauth = OAuth2Manager(cid, csec)
 
     async def _ensure_token(self) -> None:
-        """Refresh/obtain access token, serialised to prevent thundering-herd."""
-        with self._lock:
+        """Refresh/obtain access token, serialised to prevent thundering-herd.
+
+        `interactive=False`: a server must never fall into the browser OAuth flow.
+        It blocks for five minutes on a redirect nobody can trigger here, and while
+        it did, every other Strava tool call timed out at 60 s with no explanation.
+        Now a broken token surfaces as an error naming the fix.
+        """
+        async with self._lock:
             self._init_oauth()
-            self._token = self._oauth.get_valid_access_token()
+            # The refresh is a blocking HTTPS round-trip — off the event loop.
+            self._token = await asyncio.to_thread(
+                self._oauth.get_valid_access_token, interactive=False)
 
     def _headers(self) -> Dict[str, str]:
         return {"Authorization": f"Bearer {self._token}"}

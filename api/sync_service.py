@@ -66,7 +66,9 @@ def strava_token() -> str:
         raise RuntimeError("CLIENT_ID / CLIENT_SECRET not set in .env")
     from auth.strava_oauth import OAuth2Manager
 
-    return OAuth2Manager(cid, csec).get_valid_access_token()
+    # Non-interactive: a request handler must not fall into the browser OAuth flow
+    # (five minutes blocked on a redirect nobody triggers) — fail with the fix instead.
+    return OAuth2Manager(cid, csec).get_valid_access_token(interactive=False)
 
 
 def fetch_strava_for_range(start_str: str, end_str: str) -> Optional[List[Dict]]:
