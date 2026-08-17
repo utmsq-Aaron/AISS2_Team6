@@ -50,6 +50,22 @@ process's `OPENAI_API_KEY` to `OPENAI_OFFICIAL_API_KEY` from `.env` and clears
 the KIT-gateway base URL, so MLflow's `openai:/…` provider reaches these models.
 The Copilot's own agents run in separate processes and are unaffected.
 
+## Install
+
+Nothing extra is needed in practice: the app's own `requirements.txt` already
+provides everything this harness imports (mlflow ≥ 3, openai, python-dotenv), and
+`tqdm` arrives transitively. [`requirements.txt`](requirements.txt) here exists to
+state the harness's own floor explicitly — mlflow **3.10+** for the multi-turn
+simulator and the GenAI scorers, above the app's `>=3,<4`. Install it if you run
+the evaluation against a leaner environment than the app's:
+
+```bash
+pip install -r evaluation/requirements.txt
+```
+
+The judges need `OPENAI_OFFICIAL_API_KEY` in `.env` — see *Models* above for why
+they deliberately do not use the gateway the Copilot itself runs on.
+
 ## Running
 
 From the **repo root**, with the stack up (`./run.sh`):
@@ -129,6 +145,8 @@ experiments appear in the MLflow UI alongside `fitdash` and the e2e experiments.
 | `run_e2e_aligned.py` | e2e with **aligned scorers** (post-validation) |
 | `aligned_scorers.py` | the aligned judge set from the alignment study |
 | `alignment/` | the alignment study: rubric, gold grades, analysis, ALIGNMENT.md |
+| `robustness/` | five probes against the live MCP stack — see [`robustness/README.md`](robustness/README.md) |
+| `requirements.txt` | the harness's own dependency floor (see *Install*) |
 | `config.py` | model constants + official-OpenAI routing + paths |
 | `personas.py` | the 12 persona test cases (3 sports × 2 levels × 2) |
 | `copilot_brief.py` | capability awareness injected into every persona |

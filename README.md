@@ -511,8 +511,11 @@ clean; `npm run lint` reports no errors — only a handful of accepted warnings,
 of them the React Compiler's `set-state-in-effect` and `only-export-components`
 advisories.
 
-The **quality** evaluation (personas, scorers, generated reports) is a separate
-harness in [`evaluation/`](evaluation/README.md).
+The **quality** evaluation is a separate harness in
+[`evaluation/`](evaluation/README.md) — 12 simulated personas, LLM judges validated
+against expert gold grades, and a [technical-robustness suite](evaluation/robustness/README.md)
+that probes the live MCP stack. It drives the app through `core.orchestrator`, the
+same engine the UI uses, and is never imported by it. Both need the stack running.
 
 ---
 
