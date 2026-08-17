@@ -99,9 +99,11 @@ def clean_block(text: str) -> str:
 
 
 def extract(pdf_path: Path) -> str:
-    import fitz  # PyMuPDF — lazy so --help stays cheap
+    # Lazy so --help stays cheap. `pymupdf` is the current module name; the old
+    # `fitz` alias still works but warns on import.
+    import pymupdf
 
-    doc = fitz.open(pdf_path)
+    doc = pymupdf.open(pdf_path)
     paras: list[str] = []
     for page in doc:
         for block in page.get_text("blocks"):
