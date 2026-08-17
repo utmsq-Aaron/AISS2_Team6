@@ -204,14 +204,35 @@ def get_garmin_activities(
     return {"total": len(rows), "activities": rows}
 
 
+#: Garmin activity ids are 32-bit; Strava's are far larger (11 digits and growing).
+#: An id above this is therefore certainly not a Garmin id — most likely a Strava
+#: one, since the load agent sees both servers and their ids look interchangeable.
+_MAX_GARMIN_ACTIVITY_ID = 2_147_483_647
+
+
 @mcp.tool()
 def get_garmin_activity_detail(activity_id: int) -> Dict[str, Any]:
     """Full detail for one Garmin activity: per-lap splits, HR zone breakdown,
     training effect, average power and cadence.
 
     Args:
-        activity_id: Garmin numeric activity ID (from get_garmin_activities).
+        activity_id: Garmin numeric activity ID — it MUST come from
+            get_garmin_activities. Garmin and Strava number their activities
+            independently: a Strava id is meaningless here and will not resolve
+            to the same workout. To go from a Strava activity to its Garmin
+            counterpart, match on date and distance, not on id.
     """
+    # Without this the oversized id reaches garminconnect and surfaces as
+    # "Python int too large to convert to C int" — an error that says nothing
+    # about the actual mistake, so the agent just drops it and answers from
+    # Strava alone as if Garmin had been consulted.
+    if activity_id > _MAX_GARMIN_ACTIVITY_ID:
+        return {"error": (
+            f"{activity_id} is not a Garmin activity id (too large — that is a "
+            "Strava id). Garmin and Strava number activities independently. Call "
+            "get_garmin_activities and use an id from there; to find the Garmin "
+            "counterpart of a Strava activity, match on date and distance.")}
+
     g = _api.client()
     summary = _api._call(g.get_activity, activity_id)
     try:
@@ -832,11 +853,19 @@ def get_activity_gps_track(
     Note: GPS data is only available for activities recorded with a GPS-enabled device.
 
     Args:
-        activity_id: Garmin numeric activity ID (from get_garmin_activities).
+        activity_id: Garmin numeric activity ID — it MUST come from
+                 get_garmin_activities. A Strava id will not resolve here; Garmin and
+                 Strava number their activities independently.
         overlay: pass 'altitude' when the user asks to see the track coloured by elevation —
                  the chat map renders the gradient automatically. (Garmin GPX carries only
                  elevation, so heart-rate/pace overlays are not available here.)
     """
+    if activity_id > _MAX_GARMIN_ACTIVITY_ID:
+        return {"error": (
+            f"{activity_id} is not a Garmin activity id (too large — that is a Strava "
+            "id). For a Strava activity's track use strava__get_activity_streams "
+            "instead; Garmin ids come from get_garmin_activities.")}
+
     # Normalise + validate the requested overlay metric; drop silently if unknown.
     overlay_norm = (overlay or "").strip().lower() or None
     if overlay_norm not in _OVERLAY_METRICS:
