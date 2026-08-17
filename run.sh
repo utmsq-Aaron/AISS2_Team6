@@ -62,6 +62,33 @@ cleanup() {
   return 0
 }
 port_busy() { lsof -ti "tcp:$1" -sTCP:LISTEN >/dev/null 2>&1; }
+
+# This node's own FQDN from `tailscale status --json`, trailing dot stripped.
+# Scoped to the "Self" object on purpose: every PEER carries a "DNSName" too, and
+# printing a teammate's hostname as the share URL would be worse than printing
+# nothing. jq when present (exact), otherwise an awk fallback that only starts
+# matching after "Self" opens. Silent failure is fine — the caller degrades.
+_funnel_hostname() {
+  local json name=""
+  json="$(tailscale status --json 2>/dev/null)" || return 1
+  [ -n "$json" ] || return 1
+  if command -v jq >/dev/null 2>&1; then
+    name="$(printf '%s' "$json" | jq -r '.Self.DNSName // empty' 2>/dev/null)"
+  fi
+  if [ -z "$name" ]; then
+    name="$(printf '%s' "$json" | awk '
+      /"Self"[[:space:]]*:/ { inself = 1 }
+      inself && match($0, /"DNSName"[[:space:]]*:[[:space:]]*"[^"]+"/) {
+        s = substr($0, RSTART, RLENGTH)
+        sub(/^"DNSName"[[:space:]]*:[[:space:]]*"/, "", s)
+        sub(/"$/, "", s)
+        print s; exit
+      }')"
+  fi
+  name="${name%.}"
+  [ -n "$name" ] || return 1
+  printf '%s\n' "$name"
+}
 env_has()   { grep -qE "^$1=[\"']?[A-Za-z0-9]" .env 2>/dev/null; }
 say()       { printf "  %s\n" "$*"; }
 ok()        { printf "  \033[32m✓\033[0m %s\n" "$*"; }
@@ -370,8 +397,25 @@ if [ "$MODE" = "prod" ]; then
   sleep 2
 
   if [ "${FUNNEL:-0}" = "1" ] && command -v tailscale >/dev/null 2>&1; then
-    tailscale funnel --bg "$BFF_PORT" >/dev/null 2>&1 \
-      && ok "published via Tailscale Funnel" || warn "tailscale funnel failed — running local only"
+    if tailscale funnel --bg "$BFF_PORT" >/dev/null 2>&1; then
+      ok "published via Tailscale Funnel"
+      # Print the URL to actually share. Without this the only URL on screen is
+      # localhost:3000, and the natural guess — https://<host>.ts.net:3000 — is
+      # exactly the one the Let's Encrypt cert does NOT cover (it covers the bare
+      # name on 443), which is what produces "your connection is not private".
+      # Best-effort: any failure here leaves the funnel up and just skips the box.
+      funnel_host="$(_funnel_hostname || true)"
+      if [ -n "$funnel_host" ]; then
+        printf "\n  \033[1mSHARE THIS URL\033[0m\n"
+        printf "  \033[32m  https://%s/\033[0m\n" "$funnel_host"
+        say  "  (bare hostname, no :$BFF_PORT — the cert only covers the name on 443)"
+        echo
+      else
+        warn "funnel is up, but the public hostname could not be read — 'tailscale funnel status'"
+      fi
+    else
+      warn "tailscale funnel failed — running local only"
+    fi
   fi
 
   head1 "Running"

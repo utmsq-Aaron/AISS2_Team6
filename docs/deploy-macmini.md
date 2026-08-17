@@ -12,7 +12,7 @@ HTTPS URL — without opening router ports or touching the macOS firewall.
                                                    ▼
                                               127.0.0.1:8000  FastAPI
                                                    ▼
-                          agents :9000–9005  ·  MCP servers :8101–8107  ·  MLflow :5001
+                          agents :9000–9006  ·  MCP servers :8101–8109  ·  MLflow :5001
 ```
 
 Only **one** local port (the BFF, `127.0.0.1:3000`) is fronted. Everything else stays
@@ -25,8 +25,9 @@ nothing to forward and no inbound firewall rule to add.
 
 ## 1. One-time prep on the Mac mini
 
-- **Python env + deps:** the `aiss` conda env with `pip install -r requirements.txt`
-  (same as dev). Note its python path, e.g. `/opt/miniconda3/envs/aiss/bin/python3`.
+- **Python env + deps:** a `.venv` in the repo root with `pip install -r requirements.txt`
+  (same as dev — see the README). `run.sh` picks it up on its own; you only need an
+  explicit python path for the launchd job in step 4, and only if you deviate from `.venv`.
 - **Node 18+** (`brew install node`).
 - **`.env`** filled in (LLM keys, Strava/Garmin/Google client creds, etc.). For a
   public deployment also set:
@@ -70,8 +71,9 @@ cd /path/to/AISS2_Team6
 ./run.sh prod                    # builds web/dist, starts everything, BFF on 127.0.0.1:3000
 ```
 
-Verify locally on the mini: open `http://localhost:3000`, log in with a name
-(Marvin/Max/Lorenz/Aaron/Simon), ask a question.
+Verify locally on the mini: open `http://localhost:3000`, log in with your email and
+the 6-digit code you receive (see step 1 — the first login for an address registers it),
+then ask a question.
 
 Useful flags:
 - `SKIP_BUILD=1 ./run.sh prod` — reuse an existing `web/dist` (fast restarts).
@@ -108,12 +110,17 @@ FUNNEL=1 ./run.sh prod   # starts the app AND the Funnel in one go
 # …or, if the app is already running:
 tailscale funnel 3000
 ```
-With `FUNNEL=1`, `run.sh` runs `tailscale funnel --bg 3000` for you (and tears it
-down on Ctrl-C). It **pre-provisions** the HTTPS cert, **verifies** the public URL
-serves a trusted cert (a real `curl` handshake), and prints your public URL — a
-**stable** hostname like `https://macmini.<your-tailnet>.ts.net` that does **not**
-change across restarts. The SPA's same-origin `/api` calls (incl. the chat SSE stream)
-work unchanged because Funnel forwards everything to `127.0.0.1:3000`.
+With `FUNNEL=1`, `run.sh` runs `tailscale funnel --bg 3000` for you, tears it down on
+Ctrl-C, and prints the URL to share in a box labelled **SHARE THIS URL** — a **stable**
+hostname like `https://macmini.<your-tailnet>.ts.net/` that does **not** change across
+restarts. It reads that hostname from `tailscale status` (this node's own entry only);
+if it cannot, the funnel still comes up and you get a pointer to `tailscale funnel
+status` instead. The SPA's same-origin `/api` calls (incl. the chat SSE stream) work
+unchanged because Funnel forwards everything to `127.0.0.1:3000`.
+
+The launcher does **not** pre-provision the HTTPS certificate — Tailscale issues it on
+first access, so the very first visit can take ~30 s or briefly warn before the cert is
+live. Reload once. To force it ahead of time: `tailscale cert <your-host>.ts.net`.
 
 > **Share the bare hostname only — no port.** The valid Let's Encrypt cert covers the
 > `*.ts.net` **name on 443**. Funnel maps public `https://<name>/` → local `:3000`, so
@@ -153,10 +160,17 @@ sudo pmset -a sleep 0 disksleep 0      # never sleep the machine/disk
 
 **Autostart on boot/crash** via the included launchd job:
 1. Build once: `./run.sh prod` so `web/dist` exists.
-2. Edit `deploy/com.trainingcopilot.serve.plist`, replacing:
-   - `__REPO__` → absolute repo path (e.g. `/Users/you/.../AISS2_Team6`)
-   - `__PY__` → your conda python (e.g. `/opt/miniconda3/envs/aiss/bin/python3`)
-   - `__CONDA_BIN__` → its directory (e.g. `/opt/miniconda3/envs/aiss/bin`)
+2. Edit `deploy/com.trainingcopilot.serve.plist`, replacing every `__PLACEHOLDER__`:
+   - `__REPO__` (**twice** — `ProgramArguments` and `WorkingDirectory`) → absolute repo
+     path, e.g. `/Users/you/.../AISS2_Team6`
+   - `__PY__` → absolute python path, e.g. `<repo>/.venv/bin/python3`. Using `.venv`?
+     Then delete the whole `PY` key instead — `run.sh` finds it by itself.
+   - `__LONG_PASSPHRASE__` / `__RANDOM_HEX__` → only if you uncomment the PIN-gate block
+     below them (see Security). `openssl rand -hex 32` for the latter.
+
+   Leftover `__…__` values fail loudly rather than silently: launchd will try to exec a
+   path that does not exist. Check with
+   `grep -n '__' ~/Library/LaunchAgents/com.trainingcopilot.serve.plist` after copying.
 3. Install it:
    ```bash
    cp deploy/com.trainingcopilot.serve.plist ~/Library/LaunchAgents/
@@ -223,7 +237,7 @@ Other notes:
   used has a **`:3000`** on it or is an **IP**, both of which the cert doesn't cover.
   Share the exact `https://<name>/` the launcher prints (no port). If the *bare* name
   truly warns, the cert hasn't provisioned: admin console → **DNS → enable MagicDNS +
-  "HTTPS Certificates"**, then re-run with `FUNNEL=1` (it pre-provisions and verifies).
+  "HTTPS Certificates"**, then force issuance with `tailscale cert <your-host>.ts.net`.
   A one-off first-visit hiccup can also be the ~30s issuance window — reload after a
   moment. And a *client*-side clock that's wrong will reject any cert as out-of-date.
 - **Everything dies when you close Terminal:** you didn't install the launchd job —
