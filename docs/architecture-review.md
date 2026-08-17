@@ -1,166 +1,166 @@
-# FitDash — Architektur-Review & Umbau-Empfehlung
+# Training Copilot — architecture review and rebuild recommendation
 
-**Reviewer-Perspektive:** extern, kritisch
-**Bewertungsmaßstab (Zielbild):** öffentliche Website · mehrere Nutzer · nutzer-erweiterbare MCP-Server · domänenübergreifender Lifestyle-Assistent (Training × Wetter × Kalender …)
-**Bewerteter Stand:** Branch `main` (Stand *vor* dem Umbau)
+**Reviewer stance:** external, critical
+**Yardstick (target picture):** a public website · multiple users · user-extensible MCP servers · a cross-domain lifestyle assistant (training × weather × calendar …)
+**State reviewed:** branch `main` as it stood *before* the rebuild
 
-> **Status-Hinweis:** Dieses Review bewertet die **alte** `main`-Architektur und begründet den Umbau. Inzwischen umgesetzt (Phasen 1–3 vollständig): **uniformer MCP-Host** (`core/host.ToolHost`), **tool-agnostischer Kern** (`core/orchestrator`), **alle fünf Server als native FastMCP-Services** (weather/routes/strava/garmin/calendar), **vendor-neutrale LLM-Naht** (`core/llm`), vollständige **Legacy-Entfernung** (Registry, BaseMCPServer, agents-Pipeline, api.py). **Noch offen (Phase 4–5):** Mandanten-/Sicherheitsschicht (Pro-Nutzer-Identität, Token-Vault, Session-Isolation) und Observability/Logging. Dieses Dokument bleibt als „Warum"/Vorher-Referenz erhalten.
+> **Status note:** this review assesses the **old** `main` architecture and gives the reasons for the rebuild. Since then, phases 1–3 have been implemented in full: a **uniform MCP host** (`core/host.ToolHost`), a **tool-agnostic core** (`core/orchestrator`), **all five servers as native FastMCP services** (weather/routes/strava/garmin/calendar), a **vendor-neutral LLM seam** (`core/llm`), and complete **legacy removal** (registry, `BaseMCPServer`, the agents pipeline, `api.py`). **Still open (phases 4–5):** the tenancy/security layer (per-user identity, token vault, session isolation) and observability/logging. This document is kept as the "why" — the before picture.
 
 ---
 
-## 1. Management Summary
+## 1. Management summary
 
-| Frage | Antwort |
+| Question | Answer |
 |---|---|
-| Ist `main` als Prototyp/Lernstand brauchbar? | **Ja.** |
-| Ist `main` ein tragfähiges Fundament für das Zielbild? | **Nein — drei grundlegende Umbauten nötig.** |
-| Größtes Risiko | **Kein Mandanten-/Sicherheitsmodell** — heute nicht freigabefähig für eine öffentliche, nutzer-erweiterbare Plattform. |
-| Häufiges Missverständnis | Das Problem ist **nicht** „if/else-Dispatching" (das nutzt auf `main` korrekt die Registry-Schleife), sondern **hardcodiertes Domänenwissen** + **fehlende Mandantenfähigkeit**. |
+| Is `main` usable as a prototype / learning state? | **Yes.** |
+| Is `main` a viable foundation for the target picture? | **No — three fundamental rebuilds are needed.** |
+| Biggest risk | **No tenancy or security model** — not releasable today as a public, user-extensible platform. |
+| Common misreading | The problem is **not** "if/else dispatching" (on `main` that correctly uses the registry loop), but **hardcoded domain knowledge** plus the **absence of multi-tenancy**. |
 
-**Drei Umbau-Achsen:**
-1. **Tool-agnostischer Kern** — kein Code darf Tools beim Namen kennen.
-2. **Uniformer MCP-Host** — eigene = externe Server, ein Aufrufpfad.
-3. **Mandanten- + Sicherheitsmodell** — Pro-Nutzer-Identität, Isolation, Sandboxing fremder Server.
-
----
-
-## 2. Was gut ist (behalten)
-
-- **Registry statt Hand-Verdrahtung** (`servers/registry.py`): `dispatch()` ist eine Namens-Schleife, kein if/else. Richtiges Muster — **nicht** löschen (wie es der `strava`-Branch tat).
-- **MCP-förmige Tool-Specs** (`name/description/inputSchema`) + `to_openai_tools()` → anbieter-neutral nutzbar.
-- **FastMCP** wird in den Agenten bereits verwendet → halber Weg zum echten MCP-Host.
-- **Defensiver Orchestrator** (try/except + Timeouts pro Agent).
+**Three axes of rebuild:**
+1. **A tool-agnostic core** — no code may know a tool by name.
+2. **A uniform MCP host** — our servers = external servers, one call path.
+3. **A tenancy and security model** — per-user identity, isolation, sandboxing of third-party servers.
 
 ---
 
-## 3. Befunde nach Schweregrad
+## 2. What is good (keep it)
 
-### 🔴 KRITISCH — blockiert öffentlichen Multi-User-Betrieb
-
-**C-1 · Keine Mandantentrennung (Identität/State).**
-Tokens liegen als **einzelne, geteilte Dateien** (`.tokens/strava.json`, `.tokens/google.json`). Das ist *ein* Nutzer auf der Platte. Mehrere Website-Nutzer ⇒ Datenvermischung.
-→ *Pro-Nutzer-Identität + Pro-Nutzer-Token/Secret-Vault. State niemals global auf Dateiebene.*
-
-**C-2 · Keine Session-Isolation.**
-Streamlit-Single-Prozess + `@st.cache_resource`-Singletons ⇒ Server-Instanzen werden **über alle Sessions geteilt**. Nutzer A bekäme Nutzer Bs Instanz/Daten.
-→ *Kern als mandantenfähiger Service vom UI trennen; State pro Request/Nutzer.*
-
-**C-3 · Keine Sicherheit für nutzer-hinzugefügte MCP-Server.**
-Fremde Server = große Angriffsfläche: SSRF, bei stdio-Transport **Befehlsausführung**, Daten-Exfiltration, **Prompt-Injection** über Tool-*Beschreibungen* und Tool-*Outputs* (fließen ungefiltert in den LLM-Kontext). `main` hat **keine** Allowlist, **kein** Sandboxing, **keine** Egress-Kontrolle, behandelt Tool-Output **nicht** als untrusted.
-→ *Genehmigungs-/Allowlist-Flow, Sandbox + Egress-Limit, Tool-Output grundsätzlich als untrusted behandeln, Injection-Abwehr.*
-
-**C-4 · Secrets-Handling.**
-OAuth-Client-Secrets in Env, Tokens im Klartext auf der Platte. Für Multi-User fehlt ein Pro-Nutzer-Secret-Store. (Siehe auch Kalender-Scope: über-privilegiert mit Schreib-Scope für read-only Features.)
-→ *Verschlüsselter Pro-Nutzer-Vault; minimale OAuth-Scopes.*
-
-### 🟠 HOCH — blockiert nutzer-erweiterbare Tools
-
-**H-1 · Feste 4-Agenten-Pipeline.** (`ui/orchestrator.py`)
-„Fetch → Viz∥Flyover → Chat" unterstellt: jede Anfrage = Fitnessdaten holen → visualisieren. Kalender-/Finanz-/Smart-Home-Tools passen nicht in diese Form; domänenübergreifendes Verketten ist nicht vorgesehen.
-→ *Tool-agnostischer **Tool-Use-Loop** (Modell verkettet beliebige Tools selbst). Existiert bereits als Entwurf auf `feature/tool-use-loop`.*
-
-**H-2 · Per-Tool-Code: `_extract_key_findings`.** (`servers/agents/fetching.py`, ~170 Z.)
-Eine `elif tool == "get_garmin_sleep" …`-Kette. **Bricht bei jedem nutzer-hinzugefügten Tool** (unbekannt ⇒ keine findings).
-→ *Generische, schema-getriebene Zusammenfassung — kein Code, der Tools beim Namen nennt.*
-
-**H-3 · Per-Tool-Rendering.** (`ui/viz.py`)
-Rendert nur bekannte Tool-Outputs. Nutzer-Tools rendern **nichts**.
-→ *Schema-/typgetriebenes Rendering (z. B. Tabelle/Zeitreihe/Karte je nach Output-Form), generischer Fallback.*
-
-**H-4 · Domänen-Sonderpfade.** Weather-Fast-Path (Keyword→feste Tools) und Flythrough-Routing (Spezialpfad für *ein* Feature) im Planner/Orchestrator.
-→ *Entfernen; alles über den generischen Loop.*
-
-**H-5 · Statische Server-Liste.** (`registry._setup()`)
-Server sind im Code fest verdrahtet — Nutzer können zur Laufzeit nichts hinzufügen.
-→ *Pro-Nutzer-Connection-Registry, zur Laufzeit befüllbar (Config/DB statt Code).*
-
-### 🟡 MITTEL — Uniformität & Sauberkeit
-
-**M-1 · Zwei Server-Stile.** `strava`/`garmin` = Legacy-Klassen, `routes`/`weather` = `BaseMCPServer`. Unterschiedliche Behandlung im Aufrufpfad.
-→ *Eine Schnittstelle für alle; eigen und extern ununterscheidbar.*
-
-**M-2 · Mehrere Aufruf-Flächen.** `shared.call_tool`, `registry.dispatch`, in `api.py` ein eigenes `_find_server_key`. Dieselbe Aufgabe an drei Stellen.
-→ *Eine `ToolHost`-Fassade (`list_tools` / `call_tool`) für Agenten, API und UI.*
-
-**M-3 · Streamlit-Kopplung des Kerns.** Agenten greifen über `ui.shared` in Streamlit. Kern nicht standalone/testbar/serverfähig.
-→ *`core/`-Package, vendor-neutrale LLM-Naht, Streamlit nur als ein Frontend.*
-
-**M-4 · Fehlende Tool-Namespaces.** Tool-Namen global flach (`get_activities`). Bei vielen (v. a. externen) Servern → Kollisionen.
-→ *Namespacing `server.tool`.*
-
-### 🟢 NIEDRIG — Qualität
-
-- **L-1 · `except Exception: pass`** an vielen Stellen → verschluckte Fehler, schweres Debugging. → `logging`.
-- **L-2 · Kaum Tests** (nur `test_routes.py`) → Refactor ohne Netz. → Contract-Tests an den Nähten.
-- **L-3 · Progress-Callback dopplet** Status-Einträge (kosmetisch).
+- **A registry instead of hand-wiring** (`servers/registry.py`): `dispatch()` is a loop over names, not an if/else chain. The right pattern — do **not** delete it (as the `strava` branch did).
+- **MCP-shaped tool specs** (`name/description/inputSchema`) plus `to_openai_tools()` → usable provider-neutrally.
+- **FastMCP** is already used inside the agents → halfway to a real MCP host.
+- **A defensive orchestrator** (try/except plus per-agent timeouts).
 
 ---
 
-## 4. Zielarchitektur
+## 3. Findings by severity
+
+### 🔴 CRITICAL — blocks public multi-user operation
+
+**C-1 · No tenant separation (identity/state).**
+Tokens live as **single shared files** (`.tokens/strava.json`, `.tokens/google.json`). That is *one* user on disk. Several website users ⇒ data bleeding between them.
+→ *Per-user identity plus a per-user token/secret vault. State must never be global at the file level.*
+
+**C-2 · No session isolation.**
+A single Streamlit process with `@st.cache_resource` singletons ⇒ server instances are **shared across all sessions**. User A would get user B's instance and data.
+→ *Separate the core from the UI as a multi-tenant service; state per request/user.*
+
+**C-3 · No security for user-added MCP servers.**
+Third-party servers are a large attack surface: SSRF, **command execution** over the stdio transport, data exfiltration, and **prompt injection** through tool *descriptions* and tool *outputs* (which flow unfiltered into the LLM context). `main` has **no** allowlist, **no** sandboxing, **no** egress control, and does **not** treat tool output as untrusted.
+→ *An approval/allowlist flow, a sandbox plus egress limits, tool output treated as untrusted by default, injection defences.*
+
+**C-4 · Secrets handling.**
+OAuth client secrets in env, tokens in plaintext on disk. For multi-user there is no per-user secret store. (See also the calendar scope: over-privileged with a write scope for read-only features.)
+→ *An encrypted per-user vault; minimal OAuth scopes.*
+
+### 🟠 HIGH — blocks user-extensible tools
+
+**H-1 · A fixed four-agent pipeline.** (`ui/orchestrator.py`)
+"Fetch → viz ∥ flyover → chat" assumes every request means: fetch fitness data, then visualise it. Calendar, finance or smart-home tools do not fit that shape, and cross-domain chaining is not provided for.
+→ *A tool-agnostic **tool-use loop** where the model chains arbitrary tools itself. A draft already exists on `feature/tool-use-loop`.*
+
+**H-2 · Per-tool code: `_extract_key_findings`.** (`servers/agents/fetching.py`, ~170 lines)
+An `elif tool == "get_garmin_sleep" …` chain. It **breaks for every user-added tool** — unknown tool ⇒ no findings.
+→ *A generic, schema-driven summary — no code that names tools.*
+
+**H-3 · Per-tool rendering.** (`ui/viz.py`)
+Renders only known tool outputs. User tools render **nothing**.
+→ *Schema/type-driven rendering (table, time series or map depending on output shape) with a generic fallback.*
+
+**H-4 · Domain special cases.** A weather fast path (keyword → fixed tools) and flythrough routing (a special path for *one* feature) inside the planner/orchestrator.
+→ *Remove both; everything goes through the generic loop.*
+
+**H-5 · A static server list.** (`registry._setup()`)
+Servers are hardwired in code — users cannot add anything at runtime.
+→ *A per-user connection registry, fillable at runtime from config/DB instead of code.*
+
+### 🟡 MEDIUM — uniformity and cleanliness
+
+**M-1 · Two server styles.** `strava`/`garmin` are legacy classes, `routes`/`weather` use `BaseMCPServer`. They are treated differently in the call path.
+→ *One interface for all; ours and external indistinguishable.*
+
+**M-2 · Several call surfaces.** `shared.call_tool`, `registry.dispatch`, and a separate `_find_server_key` in `api.py`. The same job in three places.
+→ *One `ToolHost` facade (`list_tools` / `call_tool`) for agents, API and UI.*
+
+**M-3 · The core is coupled to Streamlit.** Agents reach into Streamlit via `ui.shared`, so the core is not standalone, not testable, not serviceable.
+→ *A `core/` package with a vendor-neutral LLM seam; Streamlit as just one frontend.*
+
+**M-4 · No tool namespaces.** Tool names are globally flat (`get_activities`). With many servers — especially external ones — they collide.
+→ *Namespacing as `server.tool`.*
+
+### 🟢 LOW — quality
+
+- **L-1 · `except Exception: pass`** in many places → swallowed errors, painful debugging. → use `logging`.
+- **L-2 · Almost no tests** (only `test_routes.py`) → refactoring without a net. → contract tests at the seams.
+- **L-3 · The progress callback duplicates** status entries (cosmetic).
+
+---
+
+## 4. Target architecture
 
 ```
                     ┌───────────── Frontends ─────────────┐
-                    │  Streamlit-UI   ·   Web-Client/API   │
-                    └───────────────────┬──────────────────┘
-                                        │  (eine Fassade)
-                    ┌───────────────────▼──────────────────┐
-                    │      CORE (mandantenfähig, vendor-neutral)
-                    │   • Tool-Use-Loop  (tool-AGNOSTISCH)  │
-                    │   • LLM-Naht       (Provider per Config)
-                    │   • ToolHost.call_tool / list_tools   │
-                    └───────────────────┬──────────────────┘
-                                        │  uniformer MCP-Client
+                    │  Streamlit UI   ·   web client/API   │
+                    └───────────────────┬─────────────────┘
+                                        │  (one facade)
+                    ┌───────────────────▼─────────────────┐
+                    │   CORE (multi-tenant, vendor-neutral)
+                    │   • tool-use loop  (tool-AGNOSTIC)   │
+                    │   • LLM seam       (provider by config)
+                    │   • ToolHost.call_tool / list_tools  │
+                    └───────────────────┬─────────────────┘
+                                        │  uniform MCP client
         ┌───────────────────────────────┼───────────────────────────────┐
-        ▼                                ▼                                ▼
-  eigene MCP-Server            externe MCP-Server (Nutzer)        Pro-Nutzer-Registry
-  (stdio / in-proc, schnell)   (HTTP + OAuth, gesandboxt)         + Token/Secret-Vault
+        ▼                               ▼                               ▼
+  our own MCP servers          external MCP servers (user)      per-user registry
+  (stdio / in-proc, fast)      (HTTP + OAuth, sandboxed)         + token/secret vault
 ```
 
-**Prinzipien:** alle Server gleich (eigen = extern) · kein Code kennt Tool-Namen · State & Secrets pro Nutzer · Tool-Output = untrusted.
+**Principles:** every server treated alike (ours = external) · no code knows tool names · state and secrets per user · tool output = untrusted.
 
 ---
 
-## 5. Priorisierter Umbauplan
+## 5. Prioritised rebuild plan
 
-> Regel: **erweitern, nie löschen** (Registry bleibt und wächst). Jede Phase hält den lauffähigen `inproc`-Pfad.
+> Rule: **extend, never delete** (the registry stays and grows). Every phase keeps the working `inproc` path.
 
-**Phase 0 — Sicherheitsnetz (sofort)**
-- Contract-Tests an den Nähten: `call_tool`, `orchestrator.run`, LLM-Client. *(L-2)*
+**Phase 0 — a safety net (immediately)**
+- Contract tests at the seams: `call_tool`, `orchestrator.run`, the LLM client. *(L-2)*
 
-**Phase 1 — Tool-agnostischer Kern** *(H-1…H-4)*
-- Tool-Use-Loop (von `feature/tool-use-loop`) als Standardpfad, vertragstreu.
-- `_extract_key_findings` → generisch; Per-Tool-Rendering → schema-getrieben; Domänen-Sonderpfade raus.
-- **Wirkung:** beliebige (auch unbekannte) Tools funktionieren end-to-end.
+**Phase 1 — a tool-agnostic core** *(H-1…H-4)*
+- The tool-use loop (from `feature/tool-use-loop`) as the default path, contract-compatible.
+- `_extract_key_findings` → generic; per-tool rendering → schema-driven; domain special cases removed.
+- **Effect:** arbitrary tools, including unknown ones, work end to end.
 
-**Phase 2 — Entkopplung + eine Fassade** *(M-2, M-3)*
-- `core/`-Package, vendor-neutrale LLM-Naht (kein `@st.cache_resource` im Kern).
-- `core/host.py` (`ToolHost`) als **einzige** `list_tools`/`call_tool`-Fläche für Agenten, API, UI.
+**Phase 2 — decoupling plus one facade** *(M-2, M-3)*
+- A `core/` package with a vendor-neutral LLM seam (no `@st.cache_resource` in the core).
+- `core/host.py` (`ToolHost`) as the **only** `list_tools`/`call_tool` surface for agents, API and UI.
 
-**Phase 3 — Uniformer MCP-Host** *(M-1, M-4, H-5)*
-- `ServerEntry` → Verbindung (`transport=inproc|stdio|http`, endpoint, auth). Bestehende Server als `inproc` umhüllt.
-- Tool-Namespacing. Externe Server via HTTP einhängbar — gleich behandelt wie eigene.
+**Phase 3 — a uniform MCP host** *(M-1, M-4, H-5)*
+- `ServerEntry` → a connection (`transport=inproc|stdio|http`, endpoint, auth). Existing servers wrapped as `inproc`.
+- Tool namespacing. External servers attachable over HTTP — treated exactly like ours.
 
-**Phase 4 — Mandanten- + Sicherheitsmodell** *(C-1…C-4, H-5)* — **Pflicht vor öffentlichem Launch**
-- Pro-Nutzer-Identität; verschlüsselter Pro-Nutzer-Token/Secret-Vault; State pro Request statt global.
-- Kern als eigenständiger Service vom Streamlit-Monolithen trennen (Session-Isolation).
-- Sandboxing/Allowlist/Egress-Limit für nutzer-hinzugefügte Server; Tool-Output als untrusted; Prompt-Injection-Abwehr; minimale OAuth-Scopes.
+**Phase 4 — a tenancy and security model** *(C-1…C-4, H-5)* — **mandatory before a public launch**
+- Per-user identity; an encrypted per-user token/secret vault; state per request instead of global.
+- Split the core out of the Streamlit monolith as a standalone service (session isolation).
+- Sandboxing/allowlist/egress limits for user-added servers; tool output as untrusted; prompt-injection defences; minimal OAuth scopes.
 
-**Phase 5 — Härtung** *(L-1, L-3)*
-- `logging` statt `except: pass`; Observability; Progress-Dopplung fixen.
+**Phase 5 — hardening** *(L-1, L-3)*
+- `logging` instead of `except: pass`; observability; fix the duplicated progress entries.
 
-| Phase | Schwerpunkt | Blocker für … |
+| Phase | Focus | Blocker for … |
 |---|---|---|
-| 0 | Tests | sicheres Refactoring |
-| 1 | tool-agnostischer Kern | nutzer-erweiterbare Tools |
-| 2 | Entkopplung + Fassade | sauberer Aufruf |
-| 3 | uniformer MCP-Host | eigene = externe Server |
-| 4 | Mandanten + Sicherheit | **öffentlicher Launch** |
-| 5 | Härtung | Betrieb |
+| 0 | tests | safe refactoring |
+| 1 | tool-agnostic core | user-extensible tools |
+| 2 | decoupling + facade | a clean call path |
+| 3 | uniform MCP host | ours = external servers |
+| 4 | tenancy + security | **a public launch** |
+| 5 | hardening | operation |
 
 ---
 
-## 6. Entscheidung: Umbau vs. Neuaufsatz
+## 6. Decision: rebuild or start over
 
-`main` enthält die richtigen **Bausteine** (Registry, MCP-Specs, FastMCP) — ein **inkrementeller Umbau** entlang Phase 0→5 ist machbar und risikoärmer als ein Neuaufsatz. **Aber** Phase 4 (Mandanten/Sicherheit) ist kein Nachgedanke, sondern die Bedingung dafür, dass das Produkt überhaupt öffentlich gehen darf — entsprechend früh einplanen, nicht ans Ende schieben.
+`main` contains the right **building blocks** (registry, MCP specs, FastMCP), so an **incremental rebuild** along phases 0→5 is feasible and lower-risk than starting over. **But** phase 4 (tenancy/security) is not an afterthought: it is the precondition for the product being allowed to go public at all, and therefore belongs early in the plan rather than at the end.
 
-**Empfehlung:** Inkrementeller Umbau, Reihenfolge 0 → 1 → 2 → 3 → **4** → 5. Phase 4 nicht als „später" behandeln — sie definiert, ob aus dem Prototyp ein Produkt werden kann.
+**Recommendation:** an incremental rebuild in the order 0 → 1 → 2 → 3 → **4** → 5. Do not treat phase 4 as "later" — it decides whether the prototype can become a product.

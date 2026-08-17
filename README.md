@@ -9,7 +9,7 @@ delegates each request to six specialist agents, each of which reaches its own i
 servers. Tools are *discovered, never hardcoded* — adding a data source is one new file plus one
 config line.
 
-📖 **Architecture:** [`docs/mcp-architecture.md`](docs/mcp-architecture.md) (German) — the design,
+📖 **Architecture:** [`docs/mcp-architecture.md`](docs/mcp-architecture.md) — the design,
 how to add a server, how to plug in external MCP servers.
 
 ---

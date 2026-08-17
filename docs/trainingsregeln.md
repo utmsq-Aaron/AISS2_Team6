@@ -1,389 +1,387 @@
-# Trainingsregeln — faktenbasierte Grundlage der Coach-/Athlete-Logik
+# Training rules — the evidence base for the coach/athlete logic
 
-Dieses Dokument ist die **Single Source of Truth** für alle Trainings-Berechnungen
-und -Strukturen in `servers/athlete_mcp.py` und der Coach-Prompt-Logik. Jede Regel
-ist gegen die ins Fitness-RAG aufgenommenen **deutschen Fachbücher** belegt (Buch +
-Seite + Originalzitat). Ziel (Entscheidung vom 2026-07-20): **Alles basiert auf
-diesen Werken, nicht auf angloamerikanischen Open-Source-Quellen** (Riegel/Friel/
-Daniels wurden verworfen — sie stehen nicht in unserem Korpus).
+This document is the **single source of truth** for every training calculation and
+structure in `servers/athlete_mcp.py` and in the coach prompt logic. Every rule is
+backed by the **German sport-science textbooks** that make up the fitness RAG corpus
+(book + page + original quotation). The decision of 2026-07-20: **everything rests on
+those works, not on Anglo-American open-source sources** — Riegel, Friel and Daniels
+were discarded because they are not in our corpus.
 
-Quellen-Kurzform (siehe `data/fitness_library/SOURCES.txt`):
-- **Ferrauti** = Ferrauti (Hrsg.), *Trainingswissenschaft für die Sportpraxis*, Springer (ISBN 978-3-662-69524-1)
-- **Güllich** = Güllich/Krüger (Hrsg.), *Handbuch Sport und Sportwissenschaft*, Springer (ISBN 978-3-662-53410-6)
-- **König** = König/Carlsohn (Hrsg.), *Praxis der Sporternährung*, Springer (ISBN 978-3-662-68974-5)
+> **On the quotations.** Every `>` block quotes its source **verbatim in German**. They
+> are left untranslated on purpose: a translated quotation is no longer a quotation, and
+> the same rule already applies to the bibliographic titles (see the note in
+> `scripts/extract_literature_corpus.py`). The German zone names **ReKom / GA 1 / GA 2 /
+> WSA** are likewise kept — they are the source's nomenclature *and* the literal dict
+> keys in `servers/athlete_mcp.py`.
+
+Short citation keys (see `data/fitness_library/SOURCES.txt`):
+- **Ferrauti** = Ferrauti (ed.), *Trainingswissenschaft für die Sportpraxis*, Springer (ISBN 978-3-662-69524-1)
+- **Güllich** = Güllich/Krüger (eds.), *Handbuch Sport und Sportwissenschaft*, Springer (ISBN 978-3-662-53410-6)
 - **Dransmann** = Dransmann, *HIIT vs. extensive Dauermethode*, Springer (ISBN 978-3-658-29154-9)
-- **Engel** = Engel, *Physiologische Reaktionen auf HIIT …* (Dissertation)
+- **Engel** = Engel, *Physiologische Reaktionen auf HIIT …* (dissertation)
 
 ---
 
-## 1. Maximale Herzfrequenz (HFmax)
+## 1. Maximum heart rate (HRmax)
 
-**Regel:** HFmax ist individuell, genetisch festgelegt, nicht trainierbar, sinkt mit
-dem Alter. **Messen** ist immer besser als schätzen. Wenn geschätzt werden muss:
-**HFmax = 208 − (0,7 × Alter)** — nicht die ältere Formel „220 − Alter".
+**Rule:** HRmax is individual, genetically determined, not trainable, and declines with
+age. **Measuring** it always beats estimating. When it must be estimated:
+**HRmax = 208 − (0.7 × age)** — not the older "220 − age" formula.
 
-> Güllich, S.771: „Anhand der Formel: 208 – (0,7 × Lebensalter in Jahren) (Tanaka et al.
+> Güllich, p. 771: „Anhand der Formel: 208 – (0,7 × Lebensalter in Jahren) (Tanaka et al.
 > 2001) lässt sich im Vergleich zur älteren Formel 220-Lebensalter recht gut die maximale
 > Herzfrequenz abschätzen. Da die maximale Herzfrequenz individuell ist, wird die
 > Belastungsintensität zumeist anhand von Prozent der maximalen Herzfrequenz beschrieben."
 
-> Güllich, S.771: „Die maximale Herzfrequenz ist individuell und genetisch festgelegt.
+> Güllich, p. 771: „Die maximale Herzfrequenz ist individuell und genetisch festgelegt.
 > Sie ist höchst reliabel und durch Training nicht beeinflussbar."
 
-**Code-Konsequenz:** `compute_zones` verlangt weiterhin echte `max_hr`. Nur wenn keine
-vorliegt, Fallback `208 − 0.7·age`. **Nie** `220 − age`.
+**Consequence in code:** `compute_zones` still requires a real `max_hr`. Only when none is
+available does it fall back to `208 − 0.7·age`. **Never** `220 − age`.
 
 ---
 
-## 2. Intensitätssteuerung & Trainingsbereiche (Zonen)
+## 2. Intensity control and training zones
 
-**Gewählte Basis (Entscheidung 2026-07-20): %HFmax — KEIN Laktat/v4.** Da wir aus
-Garmin/Strava keine Laktatwerte messen können, steuern wir Intensität über **% der
-maximalen Herzfrequenz** (Garmin liefert HF + Ruhe-HF). Zonen-Nomenklatur: das deutsche
-Schema **ReKom / GA 1 / GA 2 / WSA** (Ferrauti S.442ff.).
+**Chosen basis (decision of 2026-07-20): %HRmax — NO lactate/v4.** Since we cannot measure
+lactate from Garmin or Strava, intensity is steered by **% of maximum heart rate** (Garmin
+supplies HR and resting HR). Zone nomenclature: the German scheme **ReKom / GA 1 / GA 2 /
+WSA** (Ferrauti p. 442 ff.).
 
-> Ferrauti, S.442: „Das Ausdauertraining wird … in vier Trainingsbereiche unterteilt:
+> Ferrauti, p. 442: „Das Ausdauertraining wird … in vier Trainingsbereiche unterteilt:
 > Regeneration/Kompensation (ReKom), Grundlagenausdauer 1 (GA 1), Grundlagenausdauer 2 (GA 2)
 > und wettkampfspezifisches Ausdauertraining (WSA). Synonym … wird auch von Zonen … gesprochen."
 
-### 2a. HF-Zonen über %HFmax bzw. %HFR/Karvonen (Ferrauti S.459) — PRIMÄR
+### 2a. HR zones via %HRmax and %HRR/Karvonen (Ferrauti p. 459) — PRIMARY
 
-| Bereich | %HFmax | %HFR (Karvonen) | Reizcharakter |
+| Zone | %HRmax | %HRR (Karvonen) | Character of the stimulus |
 |---|---|---|---|
-| **ReKom** | **50–60 %** | 35–50 % | Regeneration/Kompensation |
-| **GA 1** | **60–80 %** | 50–70 % | aerobe Grundlagenausdauer (größter Umfang) |
-| **GA 2** | **80–90 %** | 70–85 % | aerob-anaerober Entwicklungsbereich |
-| **WSA** | **90–100 %** | 85–100 % | wettkampfspezifisch/anaerob |
+| **ReKom** | **50–60 %** | 35–50 % | regeneration/compensation |
+| **GA 1** | **60–80 %** | 50–70 % | aerobic base endurance (the largest share of volume) |
+| **GA 2** | **80–90 %** | 70–85 % | the aerobic–anaerobic development range |
+| **WSA** | **90–100 %** | 85–100 % | race-specific/anaerobic |
 
-> Ferrauti, S.459: „ReKom 50–60 % von HFmax bzw. 35–50 % HFR … GA 1 60–80 % von HFmax bzw.
+> Ferrauti, p. 459: „ReKom 50–60 % von HFmax bzw. 35–50 % HFR … GA 1 60–80 % von HFmax bzw.
 > 50–70 % HFR … GA 2 80–90 % von HFmax bzw. 70–85 % HFR … WSA 90–100 % von HFmax bzw.
-> 85–100 % HFR". Und: „Insbesondere bei niedriger oder moderater Intensität verspricht die
+> 85–100 % HFR". And: „Insbesondere bei niedriger oder moderater Intensität verspricht die
 > Herzfrequenzreserve gegenüber der Orientierung an der maximalen Herzfrequenz Vorteile."
 
-**Karvonen/HFR:** Ziel-HF = Ruhe-HF + %HFR × (HFmax − Ruhe-HF). Wird ausgegeben, sobald eine
-Ruhe-HF vorliegt (Garmin) — laut Buch bei ReKom/GA1 präziser.
+**Karvonen/HRR:** target HR = resting HR + %HRR × (HRmax − resting HR). It is emitted as soon
+as a resting HR is available (from Garmin) — per the book, more precise for ReKom and GA 1.
 
-### 2b. Pace-Zonen aus der Renn-/Zielleistung (Ferrauti S.462, Tab. 7.7, Joch 2004)
+### 2b. Pace zones from race/target performance (Ferrauti p. 462, tab. 7.7, Joch 2004)
 
-Ohne Laktat werden Tempobereiche „über eine prozentuale Berechnung anhand der
-**10-km-Bestleistung**" bzw. der angestrebten Leistung abgeleitet. Beispiel Tab. 7.7 für
-ein 10-km-Ziel von 50 min (= 5:00/km):
+Without lactate, pace ranges are derived "as a percentage calculation from the **10 km personal
+best**" or from the targeted performance. Example, tab. 7.7, for a 10 km goal of 50 min
+(= 5:00/km):
 
-| Bereich | Tempo [min/km] | ≈ Faktor × 10-km-Renntempo |
+| Zone | Pace [min/km] | ≈ factor × 10 km race pace |
 |---|---|---|
-| ReKom | ~07:09 | ~1,43 |
-| GA 1 | ~05:53–06:40 | ~1,18–1,33 |
-| GA 2 | ~05:16–05:33 | ~1,05–1,11 |
-| WSA | ~04:46–05:00 | ~0,95–1,00 |
+| ReKom | ~07:09 | ~1.43 |
+| GA 1 | ~05:53–06:40 | ~1.18–1.33 |
+| GA 2 | ~05:16–05:33 | ~1.05–1.11 |
+| WSA | ~04:46–05:00 | ~0.95–1.00 |
 
-> Ferrauti, S.462: „Dies erfolgt beim Laufen … über eine prozentuale Berechnung anhand der
+> Ferrauti, p. 462: „Dies erfolgt beim Laufen … über eine prozentuale Berechnung anhand der
 > 10-km-Bestleistung (Hottenrott & Zülch, 1998; Joch, 2004) oder der Angabe von
 > Trainingsbereichen je nach angestrebter Leistung (Steffny, 2004; Tab. 7.7)."
 
-**Code-Konsequenz:** `_hr_zones` von Friel-%LTHR auf **%HFmax + Karvonen (2a)** umstellen
-(Labels ReKom/GA1/GA2/WSA). `_pace_zones` statt Daniels-VDOT als **Faktor × Renntempo (2b)**
-aus einem realen 10-km-nahen Wettkampf/der Zielleistung. Kein Laktat/v4.
+**Consequence in code:** move `_hr_zones` from Friel's %LTHR to **%HRmax + Karvonen (2a)**
+(labels ReKom/GA1/GA2/WSA). Replace Daniels' VDOT in `_pace_zones` with a **factor × race pace
+(2b)** derived from a real race near 10 km or from the target performance. No lactate, no v4.
 
 ---
 
-## 3. Wettkampfprognose / „bin ich auf Kurs?"
+## 3. Race prediction — "am I on track?"
 
-**Regel:** Die deutsche Sportwissenschaft prognostiziert Leistung **nicht** über
-Distanz-Extrapolation (Riegel), sondern **datenbasiert über Leistungsdiagnostik**: aus
-der individuellen Schwellengeschwindigkeit (v4) bzw. Dauerleistungsgrenze wird das
-realistische Wettkampftempo abgeleitet und gegen die Zielzeit gestellt.
+**Rule:** German sport science does **not** predict performance by extrapolating across
+distances (Riegel). It predicts **from data, via performance diagnostics**: the realistic race
+pace is derived from the individual threshold velocity (v4) or the sustained-performance limit,
+and then compared against the target time.
 
-> Ferrauti, S.50: „Dies kann beim Ausdauertraining eines Freizeitläufers in der
+> Ferrauti, p. 50: „Dies kann beim Ausdauertraining eines Freizeitläufers in der
 > Vorbereitung auf einen Marathon die Ableitung seiner Trainingsgeschwindigkeit von den
 > Ergebnissen einer zuvor durchgeführten Leistungsdiagnostik bedeuten."
 
-**Code-Konsequenz:** `_riegel` entfernen. „on_track" wird nur bestimmt, wenn ein **realer
-Benchmark-Wettkampf nahe der Zieldistanz** vorliegt: Vergleich des tatsächlichen Renntempos
-mit dem für die Zielzeit nötigen Tempo. Fehlt ein vergleichbarer Wettkampf, gibt der Coach
-ehrlich zurück, dass für eine Prognose eine Leistungsdiagnostik / ein Benchmark-Lauf nötig
-ist (Buch: messen statt extrapolieren) — **keine** Distanz-Extrapolation (Riegel/`d^1.06`).
+**Consequence in code:** remove `_riegel`. "on_track" is determined only when a **real benchmark
+race near the target distance** exists: compare the actual race pace against the pace the target
+time requires. Without a comparable race, the coach says honestly that a prediction would need
+performance diagnostics or a benchmark run (the book's stance: measure, don't extrapolate) —
+**no** distance extrapolation (Riegel / `d^1.06`).
 
 ---
 
-## 4. Trainingsplan-Struktur (6-Stufen-Programm)
+## 4. Training-plan structure (the six-step programme)
 
-**Regel:** Ein evidenzbasierter Plan entsteht in 6 Stufen (Ferrauti Tab. 1.2, S.39):
+**Rule:** an evidence-based plan is built in six steps (Ferrauti tab. 1.2, p. 39):
 
-1. **Trainingsziel** — SMART (spezifisch, messbar, achievable/reasonable, time-bound),
-   z. B. „Marathon unter 3 h".
-2. **Literaturrecherche** — wiss. Evidenz + Lehrbücher (→ unser RAG).
-3. **Trainingsrahmen** — Gesamtdauer, Anzahl+Dauer der Mikrozyklen, Anzahl Trainingseinheiten.
-4. **Trainingsinhalte** — geeignete Inhalte/Testmethoden nach Evidenz.
-5. **Langzeitplan/Progression** — Umfang, Belastungsverteilung + Progression im Längsschnitt.
-6. **Kurzzeittrainingsplan** — Wochen/Einheiten, laufend an aktuelles Athleten-Monitoring angepasst.
+1. **Training goal** — SMART (specific, measurable, achievable/reasonable, time-bound),
+   e.g. "a marathon under 3 h".
+2. **Literature review** — scientific evidence plus textbooks (→ our RAG).
+3. **Training frame** — total duration, number and length of the microcycles, number of sessions.
+4. **Training content** — suitable content and test methods, per the evidence.
+5. **Long-term plan/progression** — volume, load distribution and progression longitudinally.
+6. **Short-term plan** — weeks and sessions, continuously adjusted to current athlete monitoring.
 
-> Ferrauti, Tab. 1.2 (S.39): „1. Trainingsziel … (z. B. Marathon unter 3 h) … 3. Trainingsrahmen:
+> Ferrauti, tab. 1.2 (p. 39): „1. Trainingsziel … (z. B. Marathon unter 3 h) … 3. Trainingsrahmen:
 > Festlegung von konkreten Zeitabschnitten (Gesamtdauer, Anzahl und Dauer der Mikrozyklen,
 > Anzahl der Trainingseinheiten) … 5. Langzeitplan/Progression … 6. Kurzzeittrainingsplan:
 > Planung von Trainingswochen und Trainingseinheiten … (z. B. Athleten-Monitoring)."
 
-**Code-Konsequenz:** `set_race_goal` = Stufe 1, `scaffold_plan` = Stufen 3+5, `save_plan` +
-Coach-Workout-Auswahl = Stufen 4+6. Kommentare in `athlete_mcp.py` auf dieses Schema referenzieren.
+**Consequence in code:** `set_race_goal` is step 1, `scaffold_plan` is steps 3 + 5, and
+`save_plan` plus the coach's workout selection are steps 4 + 6. Comments in `athlete_mcp.py`
+reference this scheme.
 
 ---
 
-## 5. Periodisierung & Zyklen
+## 5. Periodisation and cycles
 
-**Regel:** Gesamtbelastung wird über Makro- (1+ Monate), Meso- (mehrere Wochen) und
-Mikrozyklen (~1 Woche) strukturiert. Klassisch drei Makrozyklen: **Vorbereitungs-,
-Wettkampf-, Übergangsphase** (Peaking). Grund: „Topform" ist instabil; konstant hohe
-Belastung ist nicht tolerierbar (Matwejew 1972).
+**Rule:** total load is structured into macro- (one or more months), meso- (several weeks) and
+microcycles (about a week). Classically three macrocycles: **preparation, competition and
+transition phase** (peaking). The reason: peak form is unstable, and constantly high load is not
+tolerable (Matwejew 1972).
 
-> Ferrauti, S.69–70: „… drei Entwicklungsphasen bzw. Makrozyklen (Vorbereitungs-,
+> Ferrauti, pp. 69–70: „… drei Entwicklungsphasen bzw. Makrozyklen (Vorbereitungs-,
 > Wettkampf- und Übergangsphase) zu durchlaufen. Diese werden wiederum in einzelne Zyklen
 > kürzerer Dauer unterteilt … Makrozyklen über einen bis mehrere Monate … Mesozyklen über
 > mehrere Wochen, Mikrozyklen gewöhnlich über eine Woche."
 
-Für den Freizeitläufer existiert ein **einfaches Mesozyklus-Periodisierungsmodell**
-mit den Stellgrößen Reizdauer, Belastungsintensität, Trainingshäufigkeit, Tapering —
-Reihenfolge: erst **Häufigkeit → Dauer** (Umfang) steigern, dann **Intensität** im
-Wettkampftempo, dann Taper.
+For the recreational runner there is a **simple mesocycle periodisation model** with the control
+variables stimulus duration, load intensity, training frequency and tapering — in this order:
+first raise **frequency → duration** (volume), then **intensity** at race pace, then taper.
 
-> Ferrauti, S.188 (Abb. 3.65): „… zunächst den Trainingsumfang (erst Trainingshäufigkeit
+> Ferrauti, p. 188 (fig. 3.65): „… zunächst den Trainingsumfang (erst Trainingshäufigkeit
 > dann -dauer) steigern und erst anschließend intensivere Belastungen im avisierten
 > Wettkampftempo absolvieren, bevor er in der Vorwettkampfwoche (Taper-Phase) die Belastung
 > reduziert." (Einfaches Periodisierungsmodell (Mesozyklus) für den Freizeitläufer)
 
-**Code-Konsequenz:** `_phase_split` (base/build/peak/taper) auf die belegte Reihenfolge
-mappen: base ≈ Umfangsaufbau (Häufigkeit→Dauer), build/peak ≈ Intensität im Wettkampftempo,
-taper ≈ Vorwettkampfphase.
+**Consequence in code:** map `_phase_split` (base/build/peak/taper) onto that documented order:
+base ≈ building volume (frequency → duration), build/peak ≈ intensity at race pace, taper ≈ the
+pre-competition phase.
 
 ---
 
-## 6. Belastungssteigerung (Reizstufenregel) & Entlastung
+## 6. Progressive overload (the stimulus-level rule) and unloading
 
-**Regel (Reizstufenregel, Roux 1895):** Reize wirken nur in einem individuellen Fenster:
-unterschwellig (wirkungslos) → schwach überschwellig (erhaltend) → **stark überschwellig
-(entwickelnd)** → zu stark (schädigend). „Je mehr, desto besser" ist falsch. Belastung
-muss **progressiv, aber allmählich** gesteigert werden.
+**Rule (stimulus-level rule, Roux 1895):** stimuli only work within an individual window:
+sub-threshold (no effect) → weakly supra-threshold (maintaining) → **strongly supra-threshold
+(developing)** → too strong (damaging). "More is better" is wrong. Load must increase
+**progressively but gradually**.
 
-> Ferrauti, S.81: „Auf Roux geht daher die … Reizstufenregel zurück, nach der zwischen
+> Ferrauti, p. 81: „Auf Roux geht daher die … Reizstufenregel zurück, nach der zwischen
 > unterschwelligen, schwach bzw. stark überschwelligen und zu starken Reizen unterschieden wird."
-> Ferrauti, S.87: „… eine individuell optimale Reizsetzung … und unreflektierte Theorien nach
+> Ferrauti, p. 87: „… eine individuell optimale Reizsetzung … und unreflektierte Theorien nach
 > dem Motto ‚Je mehr, desto besser!' [sind] langfristig wenig zielführend."
-> Güllich, S.631: „Die (Kraft-)Trainingsreize müssen also mit zunehmendem Expertiseniveau
+> Güllich, p. 631: „Die (Kraft-)Trainingsreize müssen also mit zunehmendem Expertiseniveau
 > systematisch gesteigert werden (Prinzip der progressiven Belastung)."
 
-**Regel (Entlastung):** Belastungszyklen (z. B. 4 Wochen) enden mit einer
-**Entlastungsphase** zur Ermöglichung von Regeneration und Adaptation.
+**Rule (unloading):** load cycles (e.g. four weeks) end with an **unloading phase** to allow
+recovery and adaptation.
 
-> Ferrauti, S.295: „… Vorbereitungszyklus und einem anschließenden Intensivierungszyklus von
+> Ferrauti, p. 295: „… Vorbereitungszyklus und einem anschließenden Intensivierungszyklus von
 > je vier Wochen Dauer. Die Reizsetzung erfolgt progressiv … Entlastungsphasen sind jeweils am
 > Ende der Zyklen zur Ermöglichung von Regeneration und Adaptation eingeplant."
 
-**Code-Konsequenz:** Der Rampen-Cap (`MAX_WEEKLY_RAMP`) und der **4-Wochen-Cutback**
-(`CUTBACK_EVERY = 4`, Entlastung am Zyklusende) sind **buchgestützt** — als „allmähliche,
-progressive Steigerung mit Entlastung am Zyklusende" dokumentieren (Ferrauti S.295). Die exakte
-Prozentzahl des Caps ist eine konservative Konvention (kein exakter Buchwert) und bleibt als
-**weiche Guardrail** deklariert, nicht als „Gesetz".
+**Consequence in code:** the ramp cap (`MAX_WEEKLY_RAMP`) and the **four-week cutback**
+(`CUTBACK_EVERY = 4`, unloading at the end of a cycle) are **backed by the book** — document them
+as "gradual, progressive increase with unloading at the end of the cycle" (Ferrauti p. 295). The
+exact percentage of the cap is a conservative convention, not a value from the book, and stays
+declared as a **soft guardrail** rather than a law.
 
 ---
 
-## 7. Tapering (unmittelbare Wettkampfvorbereitung)
+## 7. Tapering (the immediate pre-competition phase)
 
-**Regel:** In der letzten Phase vor dem Wettkampf **BelastungsUMFANG deutlich reduzieren,
-Intensität aber erhalten**, damit Ermüdung abklingt und die Fitness gehalten wird. Dauer:
-**bis zu ~2 Wochen (2–15 Tage)**. Richtiger Zeitpunkt → „überschießende" Formsteigerung;
-zu frühe Reduktion verschenkt Leistung.
+**Rule:** in the final phase before a race, **cut load VOLUME markedly but keep intensity**, so
+fatigue dissipates while fitness is retained. Duration: **up to about two weeks (2–15 days)**.
+Timed right it produces an **overshooting** rise in form; reducing too early gives performance
+away.
 
-> Ferrauti, S.117: „… schließt sich … die Taper-Phase an (Mujika & Padilla, 2003). In dieser
+> Ferrauti, p. 117: „… schließt sich … die Taper-Phase an (Mujika & Padilla, 2003). In dieser
 > Phase wird über einen längeren Zeitraum von bis zu zwei Wochen bei deutlich reduziertem
 > Belastungsumfang durch das Abklingen der trainingsbedingten [Ermüdung] …"
-> Ferrauti, S.117 (Abb. 3.17): „1. Phase (2–15 Tage) Tapering".
-> Ferrauti, S.82: „… Taper-Phase … in der nur noch wenige intensive Trainingsreize zum Erhalt
+> Ferrauti, p. 117 (fig. 3.17): „1. Phase (2–15 Tage) Tapering".
+> Ferrauti, p. 82: „… Taper-Phase … in der nur noch wenige intensive Trainingsreize zum Erhalt
 > der Fitness gesetzt werden und die Ermüdung entsprechend kontinuierlich abklingen kann."
-> Ferrauti, S.91 (Abb. 2.28): „Wird das Overreaching zum richtigen Zeitpunkt durch eine
+> Ferrauti, p. 91 (fig. 2.28): „Wird das Overreaching zum richtigen Zeitpunkt durch eine
 > Taperphase unterbrochen (B), kann eine überschießende Leistungssteigerung gegenüber einer zu
 > frühzeitigen Reduktion der Trainingsreize (A) erreicht werden."
 
-**Code-Konsequenz:** Taper = **1–2 Wochen**, **Umfang** deutlich runter (die bisherige
-40–60-%-Volumenstufe passt zu „deutlich reduziert"), **Intensität erhalten**. Der bisherige
-Taper-Guardrail-Check in `_validate_plan` bleibt, mit dieser Quelle belegt.
+**Consequence in code:** taper = **one to two weeks**, **volume** down markedly (the existing
+40–60 % volume step matches "deutlich reduziert"), **intensity retained**. The existing taper
+guardrail check in `_validate_plan` stays, now with this source attached.
 
 ---
 
-## 8. HIIT-Gestaltung (konkrete Protokolle)
+## 8. HIIT design (concrete protocols)
 
-**Regel:** Intensität hängt an der Intervalldauer — je kürzer, desto intensiver
-(% der Maximalleistung/HFmax). Belegte Protokolle (Ferrauti S.58–59):
+**Rule:** intensity follows interval duration — the shorter the interval, the higher the intensity
+(% of maximal performance/HRmax). Documented protocols (Ferrauti pp. 58–59):
 
-| Protokoll | Struktur | Intensität | B:P |
+| Protocol | Structure | Intensity | work:rest |
 |---|---|---|---|
-| Langintervall | **4 × 4 min** | 80–85 % Pmax | 2:1 |
+| long interval | **4 × 4 min** | 80–85 % Pmax | 2:1 |
 | — | 7 × 2 min | ~80–85 % | 1:1 |
-| Kurzintervall | 2 × 10 × 30 s | **90–95 %** | 1:2 |
+| short interval | 2 × 10 × 30 s | **90–95 %** | 1:2 |
 | — | 3 × 9 × 15 s | 90–95 % | 1:3 |
-| Sprint (IST/RST) | 4 × 6 × 5 s | **100 % (all-out)** | 1:6 |
+| sprint (IST/RST) | 4 × 6 × 5 s | **100 % (all-out)** | 1:6 |
 
-> Ferrauti, S.58: „… bei den längeren HIIT-Protokollen über 2 bis 4 min unter der vorgegebenen
+> Ferrauti, p. 58: „… bei den längeren HIIT-Protokollen über 2 bis 4 min unter der vorgegebenen
 > Belastungsintensität (80–85 % der Maximalleistung) höher als bei einer kürzeren Belastungsdauer
 > von 15–30 s, obwohl hier die Belastungsintensität auf 90–95 % der Maximalleistung angehoben
 > wurde … Intervallsprinttraining mit nur 5 s Belastungsdauer, dafür aber mit 100 %
 > Belastungsintensität („all-out")."
 
-Ergänzend (Güllich): intensive Intervallmethode „all out", moderate Pause (2–4 min), einige
-(10–12) Wiederholungen. Für Untrainierte längere Pausen (z. B. 90 s aktiv, Dransmann).
+Additionally (Güllich): the intensive interval method "all out", a moderate rest (2–4 min), and
+some 10–12 repetitions. For untrained athletes, longer rests (e.g. 90 s active, Dransmann).
 
-**Code-Konsequenz:** Der Coach (LLM) wählt HIIT-Workouts **aus diesen belegten Protokollen**
-statt frei zu erfinden; Intensität als Zone/%HFmax gemäß Abschnitt 2. Die Protokolltabelle
-gehört in den Coach-Prompt (bzw. wird über die RAG-Suche zitiert).
+**Consequence in code:** the coach (the LLM) picks HIIT workouts **from these documented
+protocols** instead of inventing them, with intensity expressed as a zone or %HRmax per section 2.
+The protocol table belongs in the coach prompt, or is cited through the RAG search.
 
 ---
 
-## 9. Monitoring & Individualisierung (Readiness — mit Vorsicht)
+## 9. Monitoring and individualisation (readiness — with care)
 
-**Regel:** Trainingssteuerung soll tagesaktuell über **Monitoring** feinjustiert werden
-(externe Belastung + interne Beanspruchung + Readiness). **Aber:** intransparente „Readiness-
-Scores" mit unbekannten Formeln sind laut Ferrauti **hochproblematisch** — Kennzahlen müssen
-definiert, nachvollziehbar und validierbar sein.
+**Rule:** training should be fine-tuned day to day through **monitoring** (external load, internal
+strain, readiness). **But:** opaque "readiness scores" with unknown formulas are, per Ferrauti,
+**highly problematic** — metrics must be defined, traceable and verifiable.
 
-> Ferrauti, S.185 (3.5.4): „Das Monitoring … gilt mittlerweile als zentrale Schlüsselstelle im
+> Ferrauti, p. 185 (3.5.4): „Das Monitoring … gilt mittlerweile als zentrale Schlüsselstelle im
 > Prozess der Individualisierung von Trainingsmaßnahmen."
-> Ferrauti, S.202: „Gleichermaßen bewerten wir die zahlreichen vermeintlich anwenderfreundlichen
+> Ferrauti, p. 202: „Gleichermaßen bewerten wir die zahlreichen vermeintlich anwenderfreundlichen
 > ‚Scores' für Ermüdung, Erholung oder ‚Readiness' als hochgradig problematisch. In den meisten
 > Fällen fehlen Definitionen … bleiben die … Berechnungsformeln unbekannt. Damit ist eine externe
 > und unabhängige Validierung solcher Score oft kaum möglich."
 
-**Code-Konsequenz:** Das athlete-Design (jede Zahl nachrechenbar, Basis protokolliert) ist genau
-richtig. Falls ein Readiness-/Monitoring-Signal ergänzt wird: **transparent und aus dokumentierten
-Rohwerten** (z. B. Ruhe-HF-Trend), nie ein Blackbox-Score.
+**Consequence in code:** the athlete design — every number recomputable, its basis logged — is
+exactly right. Should a readiness or monitoring signal be added, it must be **transparent and
+built from documented raw values** (e.g. a resting-HR trend), never a black-box score.
 
 ---
 
-## 10. Superkompensation — kritisch einordnen
+## 10. Supercompensation — to be treated critically
 
-**Regel:** Das naive Fixed-Timing-Superkompensationsmodell gilt als didaktische Vereinfachung;
-moderne Steuerung ist antagonistisch/komplex und monitoring-basiert.
+**Rule:** the naive fixed-timing supercompensation model counts as a didactic simplification;
+modern control is antagonistic, complex and monitoring-based.
 
-> Ferrauti (Expertenmeinung, Kap. Regeneration): „Superkompensation ist die Erdscheibe der
+> Ferrauti (expert opinion, recovery chapter): „Superkompensation ist die Erdscheibe der
 > Trainingslehre!"
-> Güllich, S.808 / S.796: Reizstufenregel + wellenförmige Belastungsverteilung (Matwejew); starre
-> Anpassungsregeln haben „lediglich einen didaktischen Wert".
+> Güllich, p. 808 / p. 796: the stimulus-level rule plus wave-shaped load distribution (Matwejew);
+> rigid adaptation rules have „lediglich einen didaktischen Wert".
 
-**Code-Konsequenz:** Keine harte Timing-Annahme („nächster Reiz exakt im Superkompensations-
-fenster"). Steuerung über progressive Belastung + Entlastung + Monitoring (Abschnitte 5–7, 9).
+**Consequence in code:** no hard timing assumption ("the next stimulus exactly inside the
+supercompensation window"). Control comes from progressive load plus unloading plus monitoring
+(sections 5–7 and 9).
 
 ---
 
-## 11. Zielorientierte Planstruktur, Cross-Training & Aufbauwettkämpfe
+## 11. Goal-driven plan structure, cross-training and build-up races
 
-**Regel (Ziel zuerst):** Der Plan wird **für das Ziel** gebaut (Stufe 1 des
-6-Stufen-Programms, Abschnitt 4), die Historie liefert nur den Startpunkt. Ferrautis
-Beispielpläne (Tab. 7.10–7.13) zeigen die zielgerichtete Phasenstruktur inklusive der
-Rolle **unspezifischen Ausdauertrainings** (Cross-Training) und **Aufbauwettkämpfen**
-auf dem Weg zum Saisonhöhepunkt.
+**Rule (goal first):** the plan is built **for the goal** (step 1 of the six-step programme,
+section 4); history only supplies the starting point. Ferrauti's example plans (tab. 7.10–7.13)
+show the goal-directed phase structure, including the role of **unspecific endurance training**
+(cross-training) and of **build-up races** on the way to the season's peak.
 
-> Ferrauti, Tab. 7.10 (Marathon-Jahresübersicht): Allgemeine Vorbereitungsphase =
+> Ferrauti, tab. 7.10 (marathon year overview): general preparation phase =
 > „Allgemeine Athletik (Koordination, Beweglichkeit, Technik, Kraft), unspezifisches
 > Ausdauertraining (Skilanglauf, Rad/MTB, Schwimmen, Aquajogging), Ausdauer im Laufen";
-> Spezielle Vorbereitungsphase = „Allgemeine Athletik und spezifische Ausdauer im Laufen
-> (GA 1, GA 1-2, GA 2)"; danach Unmittelbare Wettkampfvorbereitung („Wettkampfspezifische
-> Ausdauer"). Wettkampfzeile auf dem Weg zum Marathon: „Crosslauf … 5 km und 10 km …
-> 10 km und HM …" — reale **Aufbauwettkämpfe als Zwischenstationen**.
+> specific preparation phase = „Allgemeine Athletik und spezifische Ausdauer im Laufen
+> (GA 1, GA 1-2, GA 2)"; then the immediate pre-competition phase („Wettkampfspezifische
+> Ausdauer"). The race row on the way to the marathon: „Crosslauf … 5 km und 10 km …
+> 10 km und HM …" — real **build-up races as intermediate stations**.
 
-> Ferrauti, Tab. 7.11 (Marathon-Wochenpläne): Regenerationseinheiten quer durch alle
-> Phasen als Cross-Training — „Regenerationslauf oder Aquajogging (REKOM) 60 min",
-> „90 min Radfahren oder 60 min Aquajogging (REKOM)"; Schlüsseleinheiten der
-> Wettkampfvorbereitung laufspezifisch im Renntempo („4-5 x 2000 m in
+> Ferrauti, tab. 7.11 (marathon week plans): recovery sessions across all phases as
+> cross-training — „Regenerationslauf oder Aquajogging (REKOM) 60 min",
+> „90 min Radfahren oder 60 min Aquajogging (REKOM)"; the key sessions of race
+> preparation are run-specific at race pace („4-5 x 2000 m in
 > Halbmarathonrenntempo", „3 x 5 km in Marathonrenntempo (GA 2)").
 
-> Ferrauti, Tab. 7.12 (Triathlon-Jahresübersicht): Allgemeine Vorbereitung = „viel
+> Ferrauti, tab. 7.12 (triathlon year overview): general preparation = „viel
 > unspezifisches Ausdauertraining (MTB, Ruderergometer, Aquajogging, Skilanglauf)",
-> später „vermehrt disziplinspezifisches Ausdauertraining" — Multi-Sport-Kombination
-> ist sinnvoll, aber phasengebunden.
+> later „vermehrt disziplinspezifisches Ausdauertraining" — combining sports is
+> sensible, but tied to the phase.
 
-**Cross-Training-Regeln (abgeleitet):** Unspezifische Ausdauer (Rad/Schwimmen/
-Aquajogging) gehört in die **Basisphase** (GA1) und als **ReKom-Regeneration** in jede
-Phase; je näher der Wettkampf, desto **sportart-spezifischer** die Schlüsseleinheiten —
-Cross-Training ersetzt nie die rennspezifische Einheit. Bei Verletzungsfenstern ist
-Cross-Training der designte Ersatz (blocked_sports).
+**Cross-training rules (derived):** unspecific endurance (cycling, swimming, aqua jogging) belongs
+in the **base phase** (GA 1) and as **ReKom recovery** in every phase; the closer the race, the
+more **sport-specific** the key sessions — cross-training never replaces the race-specific
+session. During injury windows, cross-training is the designed substitute (`blocked_sports`).
 
-**Feasibility als Fakten (kein erfundener Schwellwert):** Der Korpus liefert keine
-Tabelle „Marathon braucht X km/Woche". Deshalb stellt der Server nur nachrechenbare
-Fakten nebeneinander — erreichbares Peak-Wochenvolumen (deterministische Rampe) vs.
-Renndistanz, nötiges Renntempo (Zielzeit/Distanz) vs. Benchmark-Renntempo (Abschnitt 3)
-— und der Coach beurteilt sie gegen das SMART-Kriterium „achievable" (Tab. 1.2, Stufe 1)
-im Gespräch mit dem Athleten. Ein Vergleich ist dabei selbstevident arithmetisch und
-wird als explizite `warning` ausgewiesen: Bleibt selbst die maximal erlaubte Rampe mit
-der Peak-**Woche** unter der Renn-**Distanz**, kann der Athlet auf diesem Weg nicht
-rennfertig werden — der Coach MUSS das offen ansprechen (Ziel/Termin/Erwartung anpassen).
+**Feasibility as facts, not an invented threshold:** the corpus contains no table saying "a
+marathon needs X km per week". The server therefore only places recomputable facts side by side —
+achievable peak weekly volume (the deterministic ramp) vs. race distance, and required race pace
+(target time / distance) vs. benchmark race pace (section 3) — and the coach judges them against
+the SMART criterion "achievable" (tab. 1.2, step 1) in conversation with the athlete. One
+comparison is self-evidently arithmetic and is surfaced as an explicit `warning`: if even the
+maximum permitted ramp leaves the peak **week** below the race **distance**, the athlete cannot
+get race-ready on this path, and the coach MUST say so openly (adjust goal, date or expectation).
 
-**Zwei-Phasen-Progression: erst Häufigkeit, dann Dauer (Freizeitläufer-Modell).**
-Eine %-Rampe auf kleiner Basis (8 km/Woche × 1,08 = +0,7 km) ist trainingspraktisch
-unsinnig — und der Korpus schreibt für genau diesen Fall die **Häufigkeits-Steigerung**
-vor:
+**Two-phase progression: frequency first, then duration (the recreational-runner model).**
+A percentage ramp on a small base (8 km/week × 1.08 = +0.7 km) is meaningless in training terms —
+and for exactly this case the corpus prescribes raising **frequency**:
 
 > Ferrauti (Belastungsnormative): „Dies kann beispielsweise während der Vorbereitung auf
 > einen **Halbmarathon** zunächst durch einen **Anstieg der Belastungshäufigkeit pro
 > Woche** und anschließend durch eine **Steigerung der Belastungsdauer** … erfolgen.
 > Schließlich sollte die Belastungsintensität … in Richtung des avisierten
-> Wettkampftempos zunehmen." (S.83)
-> Ferrauti, S.83: „Während die Trainingshäufigkeit im **Freizeitsport häufig nur 2–3
+> Wettkampftempos zunehmen." (p. 83)
+> Ferrauti, p. 83: „Während die Trainingshäufigkeit im **Freizeitsport häufig nur 2–3
 > TE/Woche** erreicht …"
-> Ferrauti, S.188: „… zunächst den Trainingsumfang (**erst Trainingshäufigkeit dann
+> Ferrauti, p. 188: „… zunächst den Trainingsumfang (**erst Trainingshäufigkeit dann
 > -dauer**) steigern …"
 
-**Code-Konsequenz (`_run_targets`) — die Long-Run-Linie:** Geplant werden **Läufe, nicht
-Wochensummen**, rückwärts vom Renntag (das Ziel bestimmt den Plan, die Historie nur das
-Gespräch): Die **Linie der Schlüsseleinheiten** endet in der letzten Aufbauwoche beim
-**Renn-Anspruch** — volle Renndistanz bei Zielen bis ~25 km („die Distanz einmal vorher
-am Stück"), 75 % darüber (Marathon wird nie voll vorgelaufen) — und beginnt bei der
-halben Ankerdistanz, in gleichmäßigen Schritten über alle Aufbauwochen (stetige
-Annäherung, keine Sprünge = progressive Belastung §6). Häufigkeit steigt weiterhin
-zuerst (+1 Einheit/Woche, S.83/S.188); **Begleitläufe ≈ 40 % des Wochen-Long-Runs**, das
-Wochenvolumen ist damit eine **Ableitung der Läufe**. Cutback-Woche: Long Run ×0,7
-(S.295); Taper: 50 %/30 % des Peaks (S.117). Die Faktoren (25-km-Grenze, 75 %, ½-Start,
-40 % Begleitlauf, 50/30 Taper) sind **dokumentierte Engineering-Konventionen**, keine
-Buchwerte. Guardrails (`_validate_plan`): größter Lauf der Woche = `long_run_km` (±10 %),
-Workouts ≙ Wochensumme (±10 %), max. +1 Einheit/Woche; der alte Wochen-%-Cap gilt nur
-noch für Alt-Pläne ohne Linie.
+**Consequence in code (`_run_targets`) — the long-run line:** what gets planned are **runs, not
+weekly totals**, laid out backwards from race day (the goal drives the plan; history only drives
+the conversation). The **line of key sessions** ends in the last build week at the **race
+demand** — the full race distance for goals up to about 25 km ("cover the distance once
+beforehand"), 75 % above that (a marathon is never run in full beforehand) — and starts at half
+the anchor distance, in even steps across all build weeks (steady approach, no jumps = progressive
+load, §6). Frequency still rises first (+1 session per week, pp. 83/188); **companion runs ≈ 40 %
+of the week's long run**, which makes weekly volume a **derivative of the runs**. Cutback week:
+long run × 0.7 (p. 295); taper: 50 % / 30 % of peak (p. 117). The factors (the 25 km boundary,
+75 %, the half-distance start, the 40 % companion run, the 50/30 taper) are **documented
+engineering conventions**, not values from the books. Guardrails (`_validate_plan`): the largest
+run of the week equals `long_run_km` (±10 %), workouts sum to the weekly total (±10 %), at most
++1 session per week; the old weekly percentage cap now applies only to legacy plans without a line.
 
-**Ausblick (bewusst noch nicht umgesetzt):** Die Struktur-Entscheidung liegt derzeit in
-dieser deterministischen Schicht. Geplant ist die Umkehrung — der Coach-Agent entwirft
-die Planstruktur selbst, literatur-gestützt aus einem um **präskriptive Laufliteratur**
-(z. B. Steffny, Hottenrott/Zülch — von Ferrauti selbst zitiert) erweiterten Korpus mit
-strukturierten Referenzplänen und einem expliziten Athleten-Diagnose-Schritt; der Server
-wird dann reiner **Validator + Rechner** (Guardrails, Zonen, Termine, Ist-Erfassung).
+**Outlook (deliberately not implemented yet):** the structural decision currently lives in this
+deterministic layer. The intended inversion is for the coach agent to design the plan structure
+itself, literature-backed, from a corpus extended with **prescriptive running literature** (e.g.
+Steffny, Hottenrott/Zülch — both cited by Ferrauti himself), structured reference plans and an
+explicit athlete-diagnosis step. The server would then be a pure **validator and calculator**
+(guardrails, zones, dates, actuals).
 
-**Adaptionsschleife (Stufe 6 + Monitoring):** Der Kurzzeitplan wird „laufend an
-aktuelles Athleten-Monitoring angepasst" (Tab. 1.2, Abschnitt 4; Monitoring als
-„zentrale Schlüsselstelle", Abschnitt 9). Umsetzung: `record_week_actual` protokolliert
-Ist-Werte (nur Rohwerte — keine Blackbox-Scores, Ferrauti S.202) und rechnet die
-Ist/Soll-Quote; `rescaffold_plan` re-basiert **nur zukünftige** Wochen auf dem real
-demonstrierten Volumen — progressiv gedeckelt (+8 %-Cap ab der letzten eingefrorenen
-Woche, Abschnitt 6), Entlastung bei Überlastung (Ferrauti S.295, Reizstufenregel).
+**The adaptation loop (step 6 + monitoring):** the short-term plan is "continuously adjusted to
+current athlete monitoring" (tab. 1.2, section 4; monitoring as the „zentrale Schlüsselstelle",
+section 9). Implementation: `record_week_actual` logs actuals (raw values only — no black-box
+scores, Ferrauti p. 202) and computes the actual/target ratio; `rescaffold_plan` re-bases **only
+future** weeks on the volume actually demonstrated — progressively capped (+8 % from the last
+frozen week, section 6), with unloading on overload (Ferrauti p. 295, the stimulus-level rule).
 
-**Code-Konsequenz:** `set_race_goal` trägt die Sportart (`sport: run|ride`);
-`scaffold_plan` liefert je Woche `phase_focus` (Inhalte nach Tab. 7.10/7.11) und einen
-`feasibility`-Faktenblock; `save_plan` markiert Nicht-Zielsport-Workouts als
-Cross-Training (Dauer-basiert, zählen nicht ins `target_km`-Ramp-Guardrail);
-Milestones werden aus den gespeicherten Planwochen abgeleitet (+ ein reales
-Aufbaurennen nach Tab. 7.10); `record_week_actual`/`rescaffold_plan` bilden die
-Adaptionsschleife.
+**Consequence in code:** `set_race_goal` carries the sport (`sport: run|ride`); `scaffold_plan`
+returns a `phase_focus` per week (content per tab. 7.10/7.11) and a `feasibility` fact block;
+`save_plan` marks non-target-sport workouts as cross-training (duration-based, excluded from the
+`target_km` ramp guardrail); milestones are derived from the stored plan weeks (plus one real
+build-up race per tab. 7.10); `record_week_actual` and `rescaffold_plan` form the adaptation loop.
 
 ---
 
-## Mapping: aktuelle Code-Konstanten → Buchbeleg → Änderung
+## Mapping: current code constants → source → change
 
-| `athlete_mcp.py` | bisher (Anglo) | Buch-Grundlage | Änderung |
+| `athlete_mcp.py` | previously (Anglo) | basis in the books | change |
 |---|---|---|---|
-| `_hr_zones` | Friel %LTHR | %HFmax (Ferrauti S.446) + v4 (S.200) | **umstellen** auf %HFmax/%v4 |
-| `_pace_zones` | Daniels-VDOT-Vielfache | %v4-Geschwindigkeit (Ferrauti S.200) | **umstellen** auf %v4 |
-| `_riegel` / Prognose | Riegel 1.06 | Leistungsdiagnostik v4 (Ferrauti S.50) | **ersetzen** durch v4-vs-Zieltempo |
-| HFmax-Fallback | (keiner) | 208−0,7·Alter (Güllich S.771) | **ergänzen** |
-| `MAX_WEEKLY_RAMP` | +8 % Konvention | progressive Belastung (Güllich S.631) | **belegen**, als weiche Guardrail deklarieren |
-| `CUTBACK_EVERY=4` | Konvention | 4-Wochen-Zyklus + Entlastung (Ferrauti S.295) | **belegt** — Kommentar mit Quelle |
-| `_phase_split` | base/build/peak/taper | Makro/Meso + Freizeitläufer-Modell (Ferrauti S.69, S.188) | **belegen**, Reihenfolge Häufigkeit→Dauer→Intensität→Taper |
-| Taper-Check | ≤75 % Peak | 2–15 Tage, Umfang↓ Intensität erhalten (Ferrauti S.117) | **belegt** — Quelle ergänzen |
-| HIIT-Workouts | frei erfunden | Protokolle Ferrauti S.58–59 | **in Coach-Prompt** verankern |
-| Superkompensation-Annahme | implizit | kritisch (Ferrauti/Güllich) | Timing-Annahmen entfernen |
-| `PHASE_FOCUS` (Phaseninhalte) | (neu) | Tab. 7.10/7.11 (Phasen + Cross-Training) | je Scaffold-Woche als Inhalts-Vorgabe |
-| `_feasibility` (Ziel-vs-Daten) | (neu) | SMART/Tab. 1.2 + Abschnitt 3 (Benchmark) | nur Fakten, Urteil beim Coach |
-| Cross-Training-Validierung | (neu) | Tab. 7.10/7.11 (REKOM/unspezifisch) | Dauer-basiert, nicht im km-Ramp |
-| `record_week_actual` | (neu) | Tab. 1.2 Stufe 6 + S.185/S.202 (Monitoring, Rohwerte) | Ist-Werte + Ist/Soll-Quote deterministisch |
-| `rescaffold_plan` | (neu) | S.295 (Entlastung), Güllich S.631 (progressiv) | Re-Baseline nur zukünftiger Wochen, +8 %-Cap ab letzter eingefrorener Woche |
+| `_hr_zones` | Friel %LTHR | %HRmax (Ferrauti p. 446) + v4 (p. 200) | **switch** to %HRmax/%v4 |
+| `_pace_zones` | Daniels VDOT multiples | %v4 velocity (Ferrauti p. 200) | **switch** to %v4 |
+| `_riegel` / prediction | Riegel 1.06 | performance diagnostics v4 (Ferrauti p. 50) | **replace** with v4 vs. target pace |
+| HRmax fallback | (none) | 208 − 0.7·age (Güllich p. 771) | **add** |
+| `MAX_WEEKLY_RAMP` | +8 % convention | progressive load (Güllich p. 631) | **cite**, declare as a soft guardrail |
+| `CUTBACK_EVERY=4` | convention | four-week cycle + unloading (Ferrauti p. 295) | **cited** — comment carries the source |
+| `_phase_split` | base/build/peak/taper | macro/meso + recreational-runner model (Ferrauti p. 69, p. 188) | **cite**; order frequency→duration→intensity→taper |
+| taper check | ≤75 % of peak | 2–15 days, volume↓ intensity retained (Ferrauti p. 117) | **cited** — add the source |
+| HIIT workouts | freely invented | protocols, Ferrauti pp. 58–59 | anchor **in the coach prompt** |
+| supercompensation assumption | implicit | treated critically (Ferrauti/Güllich) | remove timing assumptions |
+| `PHASE_FOCUS` (phase content) | (new) | tab. 7.10/7.11 (phases + cross-training) | a content spec per scaffolded week |
+| `_feasibility` (goal vs. data) | (new) | SMART/tab. 1.2 + section 3 (benchmark) | facts only; the judgement is the coach's |
+| cross-training validation | (new) | tab. 7.10/7.11 (REKOM/unspecific) | duration-based, outside the km ramp |
+| `record_week_actual` | (new) | tab. 1.2 step 6 + p. 185/p. 202 (monitoring, raw values) | actuals + actual/target ratio, deterministic |
+| `rescaffold_plan` | (new) | p. 295 (unloading), Güllich p. 631 (progressive) | re-baseline future weeks only, +8 % cap from the last frozen week |

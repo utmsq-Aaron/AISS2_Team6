@@ -1,112 +1,112 @@
-# Training Copilot — MCP-Architektur
+# Training Copilot — MCP architecture
 
-**Zweck dieses Dokuments:** Die aktuelle Architektur sauber beschreiben — wie sie heute im Code steht, warum sie dem Anthropic-/MCP-Standard folgt und wie sie sich um **externe MCP-Server** erweitern lässt.
+**Purpose of this document:** describe the current architecture as it actually stands in the code, why it follows the Anthropic/MCP standard, and how it extends to **external MCP servers**.
 
-> **Verhältnis zu den anderen Docs**
-> - [`docs/architecture-review.md`](architecture-review.md) — das *Warum* (kritisches Review der alten Architektur, das den Umbau begründet). Dient als historische Referenz.
-> - **Dieses Dokument** — das maßgebliche *Was/Wie*. Für alle neuen Server gilt dieses Dokument.
+> **Relation to the other docs**
+> - [`docs/architecture-review.md`](architecture-review.md) — the *why* (a critical review of the old architecture that motivated the rebuild). Kept as a historical reference.
+> - **This document** — the authoritative *what/how*. It governs every new server.
 
 ---
 
-## 1. Designprinzipien (Anthropic-/MCP-Standard)
+## 1. Design principles (the Anthropic/MCP standard)
 
-Die Architektur folgt bewusst dem Modell, das Anthropic für MCP-Hosts beschreibt: **ein** uniformer Client spricht **viele** unabhängige Server, Tools werden **entdeckt statt verdrahtet**, und **Auth ist von der Tool-Deklaration getrennt**.
+The architecture deliberately follows the model Anthropic describes for MCP hosts: **one** uniform client talks to **many** independent servers, tools are **discovered rather than wired in**, and **auth is separated from the tool declaration**.
 
-| Prinzip | Umsetzung im Code |
+| Principle | How the code implements it |
 |---|---|
-| **Tool-agnostisch** — kein Code kennt ein Tool beim Namen | Jeder Spezialist in `agents/` entdeckt seine Tools per `list_tools()` (auf seinen Scope verengt) und entscheidet selbst, was er ruft. |
-| **Ein Aufrufpfad** — eigene = externe Server | `core/host.ToolHost.call_tool()` / `list_tools()` — die *einzige* Tool-Fläche für Agenten, API und Bridge. |
-| **Server = eigenständige Services** | `servers/*_mcp.py`: native FastMCP-Server über Streamable HTTP, je eigener Prozess/Port/Container. |
-| **Entdeckung statt Hardcoding** | Tools kommen aus den Servern; ein nicht erreichbarer Server wird übersprungen, nie hartkodiert. |
-| **Namespacing** | Tool-Namen sind `server__tool` (OpenAI-function-name-safe; Trenner `SEP = "__"`). |
-| **Auth getrennt von der Deklaration (Vault-Muster)** | Credentials sind **Connection-Header** pro Server, nie Tool-Argument und nie im Modell-Kontext. |
-| **Vendor-neutral** | `core/llm.py`: Provider/Modell aus Config/Env; Provider-Wechsel = Config-Änderung, kein Code. |
+| **Tool-agnostic** — no code knows a tool by name | Each specialist in `agents/` discovers its tools via `list_tools()` (narrowed to its scope) and decides for itself what to call. |
+| **One call path** — our servers = external servers | `core/host.ToolHost.call_tool()` / `list_tools()` — the *only* tool surface for the agents, the API and the bridge. |
+| **Servers are standalone services** | `servers/*_mcp.py`: native FastMCP servers over Streamable HTTP, each its own process, port and container. |
+| **Discovery, not hardcoding** | Tools come from the servers; an unreachable server is skipped, never hardcoded around. |
+| **Namespacing** | Tool names are `server__tool` (safe as OpenAI function names; separator `SEP = "__"`). |
+| **Auth separate from the declaration (the vault pattern)** | Credentials are **connection headers** per server — never a tool argument, never in model context. |
+| **Vendor-neutral** | `core/llm.py`: provider and model come from config/env; switching provider is a config change, not code. |
 
 ---
 
-## 1a. Agentenschicht — LangGraph + A2A
+## 1a. The agent layer — LangGraph + A2A
 
-Der Chat-Motor ist heute ein **Multi-Agenten-System** auf Basis von **LangGraph** und dem **A2A-Protokoll** (offizielles `a2a-sdk`, pydantic-/Tutorial-API). Die MCP-Schicht und die Prinzipien aus §1 bleiben unverändert — die Agenten sind nur eine neue Ebene **oberhalb** von `ToolHost`.
+The chat engine is a **multi-agent system** built on **LangGraph** and the **A2A protocol** (the official `a2a-sdk`, pydantic/tutorial API). The MCP layer and the principles in §1 are unchanged — the agents are simply a new tier **above** `ToolHost`.
 
-- **Orchestrator-Agent** (`core/orchestrator_agent.py`, A2A-Server `:9000`): LangGraph-Agent (`langchain.agents.create_agent`), dessen einzige Tools `ask_<spezialist>` sind — jeder Aufruf ist eine A2A-Anfrage an einen Spezialisten. Er zerlegt die Anfrage, delegiert (parallel, wenn das Modell mehrere Tool-Calls ausgibt), sammelt die DataPart-Artefakte der Spezialisten und baut die `trace` via `core/agent_trace.build_trace`. **Kein** eigener MCP-Zugriff.
-- **Spezialisten** (`agents/{recovery,load,context,route,fitness,coach}_agent.py`, `:9001`–`:9006`): je ein LangGraph-ReAct-Agent über einen **auf seine MCP-Server beschränkten ToolHost** (`core/mcp_langchain.scoped_host`; Scope-Map in `core/config.AGENT_MCP_SCOPE`): recovery→garmin, load→strava+garmin+flythrough, context→weather+calendar, route→routes+google_maps, coach→athlete+strava+garmin, fitness→kein MCP (RAG-Vektorindex). Tools werden weiterhin **entdeckt, nie hartkodiert** — nur pro Agent verengt. Jeder liefert seine rohen MCP-Ergebnisse (vollständig, als JSON-String) als DataPart-Artefakt zurück, damit der Orchestrator Karten/Charts/Trace bauen kann.
-- **`core/orchestrator.py`** ist jetzt ein dünner **A2A-Client-Adapter** zum Orchestrator-Agenten und erhält den öffentlichen Vertrag `run()/refresh_tools()` — FastAPI-SSE und Telegram-Bridge bleiben unverändert.
-- **Registry & Betrieb**: `core/config.A2A_AGENTS` (name → URL, env-überschreibbar wie `RECOVERY_A2A_URL=…`); jeder Agent ist ein eigener Prozess/Port/Container mit Agent Card unter `/.well-known/agent-card.json`. Modell-Override für die Agentenschicht: `AGENT_LLM_MODEL` (empfohlen `kit.gpt-4.1`; `glm-4.7` ist für die Mehrfach-Calls unzuverlässig). Agenten laufen **non-streaming** (`ainvoke`); Fortschritt kommt als A2A-Status-Update, nicht als Token-Stream.
+- **Orchestrator agent** (`core/orchestrator_agent.py`, A2A server `:9000`): a LangGraph agent (`langchain.agents.create_agent`) whose only tools are `ask_<specialist>` — each call is an A2A request to a specialist. It decomposes the request, delegates (in parallel when the model emits several tool calls), collects the specialists' DataPart artifacts and assembles the `trace` via `core/agent_trace.build_trace`. It has **no** MCP access of its own.
+- **Specialists** (`agents/{recovery,load,context,route,fitness,coach}_agent.py`, `:9001`–`:9006`): each a LangGraph ReAct agent over a **ToolHost narrowed to its own MCP servers** (`core/mcp_langchain.scoped_host`; scope map in `core/config.AGENT_MCP_SCOPE`): recovery→garmin, load→strava+garmin+flythrough, context→weather+calendar, route→routes+google_maps, coach→athlete+strava+garmin, fitness→no MCP at all (a local RAG vector index). Tools are still **discovered, never hardcoded** — only narrowed per agent. Each returns its raw MCP results (complete, as JSON strings) as a DataPart artifact, so the orchestrator can build maps, charts and the trace.
+- **`core/orchestrator.py`** is a thin **A2A client adapter** to the orchestrator agent. It preserves the public contract `run()/refresh_tools()`, which is why the FastAPI SSE layer and the Telegram bridge needed no changes.
+- **Registry and operation**: `core/config.A2A_AGENTS` (name → URL, env-overridable as `RECOVERY_A2A_URL=…`); every agent is its own process, port and container, with an Agent Card at `/.well-known/agent-card.json`. Model override for the agent layer: `AGENT_LLM_MODEL` (recommended `kit.gpt-4.1`; `glm-4.7` is unreliable for the multi-call loops). Agents run **non-streaming** (`ainvoke`); progress arrives as A2A status updates, not as a token stream.
 
-Datenpfad weiterhin: **Agent → `ToolHost` → MCP-Server**. Chat-Pfad: **React-UI → FastAPI → `FitDashOrchestrator` → (A2A) Orchestrator `:9000` → (A2A) Spezialisten `:9001`–`:9006` → `ToolHost` → MCP**.
+The data path is still **agent → `ToolHost` → MCP server**. The chat path is **React UI → FastAPI → `FitDashOrchestrator` → (A2A) orchestrator `:9000` → (A2A) specialists `:9001`–`:9006` → `ToolHost` → MCP**.
 
 ---
 
-## 2. Komponenten
+## 2. Components
 
 ```
-        ┌────────────────────── Frontends ──────────────────────┐
-        │  React-SPA (web/) → Node-BFF (server/)  ·  Telegram-   │
-        │  Bridge  ·  Tests / CLI                                │
-        └───────────────────────┬────────────────────────────────┘
-                                │  HTTP  (api/ — FastAPI-Naht)
-        ┌───────────────────────▼────────────────────────────────┐
-        │  core/  — UI-framework-frei, vendor-neutral            │
-        │                                                        │
-        │  orchestrator.py       A2A-Client-Adapter (run/trace)  │
-        │  orchestrator_agent.py LangGraph-Orchestrator  :9000   │
-        │  llm.py                LLM-Naht (Provider/Config)      │
+        ┌───────────────────── Frontends ───────────────────────┐
+        │  React SPA (web/) → Node BFF (server/)  ·  Telegram   │
+        │  bridge  ·  tests / CLI                               │
+        └───────────────────────┬───────────────────────────────┘
+                                │  HTTP  (api/ — the FastAPI seam)
+        ┌───────────────────────▼───────────────────────────────┐
+        │  core/  — UI-framework-free, vendor-neutral           │
+        │                                                       │
+        │  orchestrator.py       A2A client adapter (run/trace)  │
+        │  orchestrator_agent.py LangGraph orchestrator  :9000   │
+        │  llm.py                LLM seam (provider/config)      │
         │  host.py               ToolHost  list_tools/call_tool  │
-        │  config.py             Registry: name → MCP-/A2A-URL   │
-        └───────────────────────┬────────────────────────────────┘
+        │  config.py             registry: name → MCP/A2A URL    │
+        └───────────────────────┬───────────────────────────────┘
                                 │  A2A (Agent Cards, JSON-RPC)
-        ┌───────────────────────▼────────────────────────────────┐
-        │  agents/ — 6 Spezialisten  :9001–:9006                 │
+        ┌───────────────────────▼───────────────────────────────┐
+        │  agents/ — 6 specialists  :9001–:9006                 │
         │  recovery · load · context · route · fitness · coach   │
-        └───────────────────────┬────────────────────────────────┘
-                                │  uniformer MCP-Client (Streamable HTTP)
-        ┌───────────────────────┼────────────────────────────────┐
-        ▼                       ▼                                ▼
-  servers/*_mcp.py        servers/telegram_mcp.py        externe MCP-Server
-  (8 native Server)       (Proxy auf stdio-Server)       (Nutzer, gleich behandelt)
+        └───────────────────────┬───────────────────────────────┘
+                                │  uniform MCP client (Streamable HTTP)
+        ┌───────────────────────┼───────────────────────────────┐
+        ▼                       ▼                               ▼
+  servers/*_mcp.py        servers/telegram_mcp.py        external MCP servers
+  (8 native servers)      (proxy to a stdio server)      (user-added, same treatment)
 ```
 
-### `core/config.py` — die Registry
-Eine deklarative Tabelle `name → URL`. Eigene und externe Server haben dieselbe Form; einziger Unterschied ist die URL. **Einen Server hinzufügen = eine Zeile** (oder eine Env-Variable). Jede URL ist per Env überschreibbar: `WEATHER_MCP_URL=http://weather-mcp:8101/mcp` (z. B. im docker-compose, wo der Servicename der Host ist).
+### `core/config.py` — the registry
+A declarative `name → URL` table. Our own servers and external ones have the same shape; the URL is the only difference. **Adding a server is one line** (or one env variable). Every URL is env-overridable: `WEATHER_MCP_URL=http://weather-mcp:8101/mcp` — as used in docker-compose, where the service name is the host.
 
 ```python
-# core/config.py — MCP_PORTS ist die einzige Zahlenquelle; MCP_SERVERS leitet ab.
+# core/config.py — MCP_PORTS is the single numeric source; MCP_SERVERS derives from it.
 MCP_PORTS: dict[str, int] = {
     "weather": 8101, "routes": 8102, "strava": 8103, "garmin": 8104,
     "calendar": 8105, "telegram": 8106, "flythrough": 8107,
     "google_maps": 8108, "athlete": 8109,
 }
 
-MCP_SERVERS = {name: _url(name) for name in MCP_PORTS}   # _url liest <NAME>_MCP_URL
+MCP_SERVERS = {name: _url(name) for name in MCP_PORTS}   # _url reads <NAME>_MCP_URL
 ```
 
-Dieselbe Tabelle speist `ports.sh`, `web/vite.config.ts` und `docker-compose.yml` —
-alle drei lesen sie live über `scripts/export_ports.py`, statt Ports zu kopieren.
+The same table feeds `ports.sh`, `web/vite.config.ts` and `docker-compose.yml` — all three read it live via `scripts/export_ports.py` instead of keeping their own copies of the numbers.
 
 ### `core/host.py` — `ToolHost`
-Der **einzige** MCP-Client der App. Eine uniforme Code-Bahn für jedes Tool, egal welcher Server es liefert:
+The **only** MCP client in the app. One uniform code path for every tool, whichever server provides it:
 
-- `alist_tools()` / `list_tools()` — entdeckt jedes Tool jedes **erreichbaren** Servers im OpenAI-Tool-Format; Namen werden `server__tool` genamespaced. Ein Server, der nicht läuft / nicht autorisiert / unerreichbar ist, wird **übersprungen** — er bricht nie die anderen.
-- `acall_tool(name, args)` / `call_tool(...)` — zerlegt `server__tool`, routet an den Server, gibt Text/JSON zurück; Tool-Fehler werden als `{"error": ...}` zurückgegeben, nicht als Exception.
-- **Async-Kern, Sync-Fassade:** Die echte Implementierung ist async (`mcp.client`); `_run()` überbrückt sie für synchrone Aufrufer (Agenten, Bridge, Tests) (frischer Event-Loop pro Aufruf, auch in ThreadPool-Workern sicher).
-- **Auth pro Server:** `headers={"calendar": {"Authorization": "Bearer …"}}` wird als Connection-Header übergeben — getrennt von der Tool-Deklaration, nie im Tool-Kontext. `default_host` nutzt die globalen Server; **Pro-Nutzer-Hosts** werden explizit mit zusätzlichen Servern + Headern konstruiert.
+- `alist_tools()` / `list_tools()` — discovers every tool of every **reachable** server in OpenAI tool format; names are namespaced `server__tool`. A server that is down, unauthorised or unreachable is **skipped** — it never breaks the others.
+- `acall_tool(name, args)` / `call_tool(...)` — splits `server__tool`, routes to that server, returns text or JSON; tool errors come back as `{"error": …}` rather than as exceptions.
+- **Async core, sync facade:** the real implementation is async (`mcp.client`); `_run()` bridges it for synchronous callers (agents, bridge, tests) with a fresh event loop per call, which is safe inside thread-pool workers too.
+- **Per-server auth:** `headers={"calendar": {"Authorization": "Bearer …"}}` is passed as a connection header — separate from the tool declaration, never in tool context. `default_host` uses the global servers; **per-user hosts** are constructed explicitly with additional servers and headers.
 
-### `core/llm.py` — die LLM-Naht
-Eine Stelle, die den Chat-Client baut und das Modell auflöst — beides aus Env (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `AGENT_MODEL`). Heute ein OpenAI-kompatibler Endpoint (KIT-Gateway). Importiert bewusst **kein** UI-Framework, damit der Kern standalone läuft (CLI, API, Tests, separater Service).
+### `core/llm.py` — the LLM seam
+The single place that builds the chat client and resolves the model, both from env (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `AGENT_MODEL`). Today that is an OpenAI-compatible endpoint (the KIT gateway). It deliberately imports **no** UI framework, so the core runs standalone — CLI, API, tests, or a separate service.
 
-### `core/orchestrator.py` — der tool-agnostische Loop
-**Ein** nativer Tool-Use-Loop ersetzt die alte 4-Agenten-Pipeline:
+### `core/orchestrator.py` — the A2A adapter
+Not a tool-use loop. The single native loop that once replaced the old four-agent pipeline is itself gone; the engine is the LangGraph + A2A system described in §1a, and this class is a thin client to it:
 
-1. Tools einmal entdecken (gecacht), System-Prompt + (gekürzte) Historie + User-Input aufbauen.
-2. Bis zu `MAX_ROUNDS` (6): Modell rufen mit `tools=…, tool_choice="auto"`. Liefert es Tool-Calls, werden alle über `ToolHost.call_tool()` ausgeführt und die Ergebnisse zurückgespeist; liefert es keine, ist das die Antwort.
-3. Große Arrays (`points`, `waypoints`, `segments`, …) werden vor der Rückgabe ans Modell kompaktiert (`_clip`), damit der Kontext nicht zuläuft — die vollen Daten rendert das UI separat.
-4. Es wird ein `trace` für das Debug-Panel der React-UI und den Karten-Renderer gebaut. `ROUTE_TOOLS` dient **ausschließlich** dem UI (welches Ergebnis als Karte gezeichnet wird) — es steuert **nicht** die Tool-Auswahl.
+1. Flatten the conversation history into one A2A message and send it to the orchestrator agent on `:9000`.
+2. Relay the agent's A2A status updates to `progress_cb`, so the UI keeps showing progress even though the agents run non-streaming.
+3. Return `(answer, trace)` — the trace is assembled by the orchestrator agent (`core/agent_trace.build_trace`) and merely passed through here. Runs are appended to `.logs/agent_interactions.jsonl`.
+
+The public contract (`run()`, `refresh_tools()`) is unchanged from the loop era, which is precisely why the API seam and the Telegram bridge did not have to be touched when the engine was replaced.
 
 ---
 
-## 3. Eigenen MCP-Server hinzufügen (das `*_mcp.py`-Muster)
+## 3. Adding your own MCP server (the `*_mcp.py` pattern)
 
-Ein eigener Server ist eine in sich geschlossene Datei — kein `BaseMCPServer`, keine Dispatch-Indirektion, keine Registry-Klasse. Vorlage: `servers/weather_mcp.py`.
+One of our servers is a single self-contained file — no `BaseMCPServer`, no dispatch indirection, no registry class. Use `servers/weather_mcp.py` as the template.
 
 ```python
 # servers/example_mcp.py
@@ -115,104 +115,99 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP(
     "example",
-    instructions="Kurz, was dieser Server kann.",
+    instructions="One line on what this server can do.",
     host=os.getenv("EXAMPLE_MCP_HOST", "127.0.0.1"),
-    port=int(os.getenv("EXAMPLE_MCP_PORT", "8106")),
+    port=int(os.getenv("EXAMPLE_MCP_PORT", "8110")),
     stateless_http=True,
 )
 
 @mcp.tool()
 def do_something(value: str) -> dict:
-    """Prägnante, präskriptive Beschreibung — das Modell wählt das Tool allein anhand
-    dieses Texts. Sag, WANN es zu rufen ist und was die Argumente bedeuten."""
+    """A crisp, prescriptive description — the model picks this tool from this text
+    alone. Say WHEN to call it and what the arguments mean."""
     return {"echo": value}
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
 ```
 
-Dann **eine Zeile** in `core/config.py`:
+Then **one line** in `core/config.py`:
 
 ```python
-"example": _url("example", 8106),
+"example": 8110,   # added to MCP_PORTS; MCP_SERVERS derives the URL
 ```
 
-Starten: `python -m servers.example_mcp`. Mehr braucht es nicht — `ToolHost` entdeckt die Tools beim nächsten `list_tools()`, der Orchestrator kann sie sofort rufen. **Kein** Code in Host, Orchestrator oder UI nennt das neue Tool.
+Start it with `python -m servers.example_mcp`. That is all — `ToolHost` discovers the tools on the next `list_tools()` and the agents can call them immediately. **No** code in the host, the orchestrator or the UI names the new tool.
 
-**Konventionen** (vgl. weather/routes/calendar):
-- Tools sind möglichst **read-only** und geben Dicts zurück (FastMCP serialisiert sie als JSON-Text).
-- Fehler als `{"error": "…"}` zurückgeben, nicht raisen.
-- **Auth nie als Tool-Argument.** Per-Request-Token aus dem `Authorization`-Header der Verbindung lesen (siehe `servers/calendar_mcp.py::_bearer_from_request`) oder im Single-User-Dev aus einer Token-Datei.
-- Minimale Scopes (Calendar nutzt nur `calendar.readonly`).
+**Conventions** (see weather/routes/calendar):
+- Keep tools **read-only** where possible and return dicts (FastMCP serialises them as JSON text).
+- Return errors as `{"error": "…"}` instead of raising.
+- **Never take auth as a tool argument.** Read the per-request token from the connection's `Authorization` header (see `servers/calendar_mcp.py::_bearer_from_request`), or from a token file in single-user development.
+- Request minimal scopes (calendar uses only `calendar.readonly`).
 
 ---
 
-## 4. Externe MCP-Server einhängen (die Erweiterung)
+## 4. Attaching external MCP servers (the extension point)
 
-Der entscheidende Vorteil dieser Standardisierung: **ein externer, nutzer-hinzugefügter Server ist für den Host nichts Besonderes** — er ist genau wie ein eigener nur ein weiterer Streamable-HTTP-Endpoint mit optionalen Auth-Headern.
+This is the decisive payoff of the standardisation: **an external, user-added server is nothing special to the host** — like our own, it is just another Streamable-HTTP endpoint with optional auth headers.
 
 ```python
 from core.host import ToolHost
 from core.config import MCP_SERVERS
 
-# Pro-Nutzer-Host: globale eigene Server + die vom Nutzer hinzugefügten externen
+# A per-user host: the global built-in servers plus the external ones this user added
 user_host = ToolHost(
     servers={**MCP_SERVERS, "notion": "https://mcp.example.com/notion/mcp"},
     headers={"notion": {"Authorization": f"Bearer {user_token}"}},
 )
 ```
 
-Der `FitDashOrchestrator` nimmt einen Host im Konstruktor (`FitDashOrchestrator(host=user_host)`) — derselbe Loop, dieselbe Tool-Fläche, der Nutzer bekommt zusätzlich die externen Tools, ohne dass eine Codezeile im Kern den neuen Server kennt. Im Mehrnutzerbetrieb wird `servers`/`headers` pro Nutzer aus einer Config/DB bzw. einem Secret-Vault befüllt statt aus dem globalen Default.
+`FitDashOrchestrator` takes a host in its constructor (`FitDashOrchestrator(host=user_host)`) — same engine, same tool surface, and the user gains the external tools without a single line in the core knowing that server exists. In multi-tenant operation, `servers`/`headers` are filled per user from a config/DB or a secret vault instead of from the global default.
 
-> ⚠️ **Sicherheit ist hier noch nicht fertig.** Externe Server sind eine große Angriffsfläche (SSRF, Daten-Exfiltration, Prompt-Injection über Tool-*Beschreibungen* und -*Outputs*). Allowlist/Genehmigungs-Flow, Sandboxing, Egress-Limit und „Tool-Output = untrusted" sind **noch offen** — siehe [`docs/architecture-review.md`](architecture-review.md) §3 (C-3) und Phase 4. Der externe Pfad oben ist die *Mechanik*; vor öffentlichem Launch braucht es die Mandanten-/Sicherheitsschicht davor.
+> ⚠️ **The security side of this is not finished.** External servers are a large attack surface: SSRF, data exfiltration, and prompt injection through tool *descriptions* and *outputs*. An allowlist/approval flow, sandboxing, egress limits and treating "tool output = untrusted" are all **still open** — see [`docs/architecture-review.md`](architecture-review.md) §3 (C-3) and phase 4. The external path above is the *mechanism*; a public launch needs the tenancy and security layer in front of it.
 
 ---
 
-## 5. Betrieb / Deployment
+## 5. Operation and deployment
 
-Jeder eigene Server ist ein eigenständiger FastMCP-Service — heute auf einem Host, später beliebig verschiebbar (nur die `*_MCP_URL` ändert sich, kein Code).
+Each of our servers is a standalone FastMCP service — today on one host, later movable anywhere, since only its `*_MCP_URL` changes and no code does.
 
-Im Normalfall startet **ein** Skript den gesamten Stack — einzelne Prozesse zu starten
-ist nur zum Debuggen nötig:
+Normally **one** script starts the whole stack; starting individual processes is only needed for debugging:
 
 ```bash
-./run.sh                 # alles: MLflow, 8 MCP-Server, 7 Agenten, FastAPI, Bridge, Vite
-./run.sh status          # was läuft gerade
-./run.sh stop            # alles beenden
+./run.sh                 # everything: MLflow, 8 MCP servers, 7 agents, FastAPI, bridge, Vite
+./run.sh status          # what is running right now
+./run.sh stop            # stop everything
 
-# Einzeln (nur zum Debuggen):
+# Individually (debugging only):
 python -m servers.weather_mcp      # :8101
 python -m servers.athlete_mcp      # :8109
 
-# Vollständig containerisiert (alle 17 Services, App auf :3000):
+# Fully containerised (all 20 services, app on :3000):
 ./docker-up.sh up --build
 ```
 
-Auf dem Host läuft `ToolHost` neben den Servern und erreicht sie über `localhost`.
-In Compose adressieren sich die Services über ihre **Namen** — deshalb bindet dort
-jeder Server `0.0.0.0` und jede `*_MCP_URL` / `*_A2A_URL` wird gesetzt. Genau dafür
-ist die URL-basierte Registry in `core/config.py` da: derselbe Code, andere Adressen,
-keine Codeänderung.
+On the host, `ToolHost` runs alongside the servers and reaches them over `localhost`. Under Compose the services address each other by **name** — which is why every server binds `0.0.0.0` there and every `*_MCP_URL` / `*_A2A_URL` is set. That is exactly what the URL-based registry in `core/config.py` is for: same code, different addresses, no code change.
 
 | Server | Port | Backend | Auth |
 |---|---|---|---|
-| `weather` | 8101 | Open-Meteo | keine (kostenlos) |
+| `weather` | 8101 | Open-Meteo | none (free) |
 | `routes` | 8102 | OpenRouteService + Overpass | `ORS_API_KEY` |
 | `strava` | 8103 | Strava v3 REST API | OAuth2 (`.tokens/strava.json`) |
-| `garmin` | 8104 | Garmin Connect (garminconnect) | Session-Token (`.tokens/garmin_tokens.json`) |
-| `calendar` | 8105 | Google Calendar | Bearer (Header oder `.tokens/google.json`) |
-| `telegram` | 8106 | Proxy auf `chigwell/telegram-mcp` (stdio) | `TELEGRAM_*` (Session-String) |
-| `flythrough` | 8107 | eigen (GPS-Track → 3D-Flug) | keine |
-| `google_maps` | 8108 | Places (New) / Geocoding v4 / Routes API | `GOOGLE_MAPS_API_KEY` (Demo-Key reicht) |
-| `athlete` | 8109 | eigen — strukturierter Athleten-Store + Trainingsmathematik | Nutzer via `X-FitDash-User`-Header |
+| `garmin` | 8104 | Garmin Connect (garminconnect) | session token (`.tokens/garmin_tokens.json`) |
+| `calendar` | 8105 | Google Calendar | bearer (header or `.tokens/google.json`) |
+| `telegram` | 8106 | proxy to `chigwell/telegram-mcp` (stdio) | `TELEGRAM_*` (session string) |
+| `flythrough` | 8107 | ours (GPS track → 3D flight) | none |
+| `google_maps` | 8108 | Places (New) / Geocoding v4 / Routes API | `GOOGLE_MAPS_API_KEY` (a demo key suffices) |
+| `athlete` | 8109 | ours — structured athlete store + training maths | user via the `X-FitDash-User` header |
 
 ---
 
-## 6. Status & nächste Schritte
+## 6. Status and next steps
 
-**Umgesetzt:** uniformer MCP-Host (`ToolHost`), tool-agnostischer Kern, **acht** native FastMCP-Server (weather/routes/strava/garmin/calendar/flythrough/google_maps/athlete) plus telegram als Proxy auf einen externen stdio-Server, die A2A-Agentenschicht (Orchestrator + sechs Spezialisten), vendor-neutrale LLM-Naht, Tool-Namespacing, Observability via MLflow (`core/tracing.py`), Mandanten-/Auth-Schicht (`api/auth.py`: E-Mail+OTP, signierte Tokens, Pro-Nutzer-State unter `data/user_memory/<slug>/`), vollständige Legacy-Entfernung (Registry, BaseMCPServer, agents-Pipeline, Streamlit-Frontend).
+**Done:** the uniform MCP host (`ToolHost`), a tool-agnostic core, **eight** native FastMCP servers (weather/routes/strava/garmin/calendar/flythrough/google_maps/athlete) plus telegram as a proxy to an external stdio server, the A2A agent layer (orchestrator + six specialists), a vendor-neutral LLM seam, tool namespacing, observability via MLflow (`core/tracing.py`), a tenancy/auth layer (`api/auth.py`: email + OTP, signed tokens, per-user state under `data/user_memory/<slug>/`), and complete legacy removal (registry, `BaseMCPServer`, the agents pipeline, the Streamlit frontend).
 
-**Noch offen:**
-- **Token-Vault:** Identität ist pro Nutzer, die Upstream-Tokens (`.tokens/`) sind es noch nicht — Strava/Garmin sind heute *ein* geteiltes Konto pro Deployment.
-- **Sandboxing/Allowlist/Egress-Kontrolle** für nutzer-hinzugefügte MCP-Server; Tool-Output konsequent als untrusted behandeln.
-- Einheitliches Logging (heute teils `print`, teils `logging`); Contract-Tests an den Nähten über `tests/unit/` hinaus — dort liegen heute die Agent-Trace-Kontrakte, die deterministische Trainingsmathematik und der Routen-Export, alle offline lauffähig via `pytest`.
+**Still open:**
+- **Token vault:** identity is per user, but the upstream tokens (`.tokens/`) are not — Strava and Garmin are currently *one* shared account per deployment.
+- **Sandboxing, allowlist and egress control** for user-added MCP servers, and treating tool output as untrusted throughout.
+- Uniform logging (today partly `print`, partly `logging`); contract tests at the seams beyond `tests/unit/`, which currently holds the agent-trace contracts, the deterministic training maths and the route export — all runnable offline via `pytest`.

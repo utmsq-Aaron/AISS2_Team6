@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Training Copilot** — a React sports-analytics app that unifies Strava + Garmin (plus Weather, Routes, Calendar, Google Maps and a structured athlete store) behind an agentic chat and a training coach. Every answer comes from live API data; nothing is cached-summarized or invented. The repo root is this directory (`AISS2_Team6`); it is the git repository, `main` is the default branch. *(Internal identifiers still say "FitDash" — `FitDashOrchestrator`, the `fitdash` MLflow experiment, the session cookie. The user-facing name is Training Copilot.)*
 
-The authoritative architecture doc is [`docs/mcp-architecture.md`](docs/mcp-architecture.md) (German).
+The authoritative architecture doc is [`docs/mcp-architecture.md`](docs/mcp-architecture.md).
 
 ## Running
 
