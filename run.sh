@@ -90,6 +90,37 @@ _funnel_hostname() {
   printf '%s\n' "$name"
 }
 env_has()   { grep -qE "^$1=[\"']?[A-Za-z0-9]" .env 2>/dev/null; }
+
+# Set KEY=VALUE in .env, replacing an existing line or appending. Line-by-line
+# rather than sed -i, which needs a different syntax on macOS than on Linux and
+# would need the value escaped for whatever delimiter it uses.
+set_env() {
+  local key="$1" val="$2" tmp line
+  if grep -qE "^${key}=" .env 2>/dev/null; then
+    tmp="$(mktemp)"
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in
+        "${key}="*) printf '%s=%s\n' "$key" "$val" ;;
+        *)          printf '%s\n' "$line" ;;
+      esac
+    done < .env > "$tmp"
+    mv "$tmp" .env
+  else
+    printf '%s=%s\n' "$key" "$val" >> .env
+  fi
+}
+
+# Prompt for KEY only when .env has no value for it yet. Silent when already
+# set, and skipped without a terminal so non-interactive runs never block.
+ask_env() {
+  local key="$1" prompt="$2" val
+  env_has "$key" && return 0
+  [ -t 0 ] || return 0
+  printf "  %s " "$prompt"
+  IFS= read -r val || return 0
+  [ -n "$val" ] || return 0
+  set_env "$key" "$val"
+}
 say()       { printf "  %s\n" "$*"; }
 ok()        { printf "  \033[32m✓\033[0m %s\n" "$*"; }
 warn()      { printf "  \033[33m⚠\033[0m %s\n" "$*"; }
@@ -202,13 +233,53 @@ if [ "$MODE" = "setup" ]; then
   fi
 
   if [ ! -f .env ]; then
-    cp .env.example .env
-    ok "created .env from .env.example"
-    warn "EDIT .env NOW — at minimum an LLM key (OPENAI_API_KEY + OPENAI_BASE_URL + AGENT_MODEL)."
-    say  "Then re-run ./run.sh setup to continue with the account connections."
-    exit 0
+    cat > .env <<'ENVEOF'
+# Written by ./run.sh setup. Full reference: .env.example
+# ADMIN_EMAIL + VITE_DEV_AUTO_LOGIN_EMAIL: admin access to Settings and login
+# without an email code. Local use only — drop the second before exposing the app.
+ADMIN_EMAIL=
+VITE_DEV_AUTO_LOGIN_EMAIL=
+VITE_SHOW_GMAIL_REGISTRATION_PAGE=false
+
+# LLM. "openai" means any OpenAI-compatible endpoint — a KIT gateway, a proxy,
+# or api.openai.com. For native Google Gemini set LLM_PROVIDER=gemini and
+# GEMINI_API_KEY instead; see .env.example. Switchable later under Settings.
+LLM_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_BASE_URL=
+AGENT_MODEL=
+AGENT_LLM_MODEL=
+
+# Optional — all editable in the app under Settings.
+CLIENT_ID=
+CLIENT_SECRET=
+GARMIN_EMAIL=
+GARMIN_PASSWORD=
+GARMIN_MOCK_HEALTH=true
+ORS_API_KEY=
+GOOGLE_MAPS_API_KEY=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+ENVEOF
+    ok "created .env"
+  else
+    ok ".env present"
   fi
-  ok ".env present"
+
+  ask_env ADMIN_EMAIL    "Your email (admin access, skips the login code):"
+  env_has ADMIN_EMAIL && ! env_has VITE_DEV_AUTO_LOGIN_EMAIL \
+    && set_env VITE_DEV_AUTO_LOGIN_EMAIL "$(grep -E '^ADMIN_EMAIL=' .env | cut -d= -f2-)"
+  # Asked openly rather than offered as a menu: gateways, their URLs and their
+  # model names change (KIT alone has had several), so anything hardcoded here
+  # would be stale for someone. Whoever runs this knows their endpoint.
+  ask_env OPENAI_API_KEY  "LLM API key:"
+  ask_env OPENAI_BASE_URL "API base URL (OpenAI-compatible endpoint):"
+  ask_env AGENT_MODEL     "Model name:"
+  env_has AGENT_MODEL && ! env_has AGENT_LLM_MODEL \
+    && set_env AGENT_LLM_MODEL "$(grep -E '^AGENT_MODEL=' .env | cut -d= -f2-)"
+
+  env_has OPENAI_API_KEY || env_has GEMINI_API_KEY || env_has OPENAI_OFFICIAL_API_KEY \
+    || warn "no LLM key in .env — ./run.sh will refuse to start until one is set."
 
   head1 "Connecting accounts"
   say "Each of these is optional and can also be done later in the app's Settings page."
@@ -356,6 +427,15 @@ wait_for_api() {
 if [ "$MODE" = "prod" ]; then
   preflight
   trap cleanup EXIT INT TERM
+
+  # VITE_DEV_AUTO_LOGIN_EMAIL bypasses the email+OTP login for ANYONE who can
+  # reach the port — intended for local development, dangerous the moment prod is
+  # published (FUNNEL=1, a tunnel, or 0.0.0.0). Warn rather than refuse: behind
+  # the PIN gate on a trusted LAN it is a legitimate convenience.
+  if env_has VITE_DEV_AUTO_LOGIN_EMAIL || [ -n "${VITE_DEV_AUTO_LOGIN_EMAIL:-}" ]; then
+    warn "VITE_DEV_AUTO_LOGIN_EMAIL is set — anyone reaching this app is logged in without a code."
+    say  "  Remove it from .env before exposing this instance, or keep DO_LOCK=true + APP_PIN in front."
+  fi
 
   if [ "${DO_LOCK:-false}" = "true" ] && [ -z "${APP_PIN:-}" ]; then
     APP_PIN="$(sed -n 's/^APP_PIN=["'\'']\{0,1\}\([^"'\'']*\)["'\'']\{0,1\}[[:space:]]*$/\1/p' .env | tail -1)"
