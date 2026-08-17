@@ -32,6 +32,10 @@ mlartifacts/
 evaluation/reports/*
 !evaluation/reports/.gitkeep
 
+# Integration-script output (tests/README.md). tests/logs/ is already covered by
+# the generic `logs/` rule below; this is the one output that isn't.
+tests/quick_test_results.json
+
 # Runtime API cache (regenerated on demand)
 .cache/
 

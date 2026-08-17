@@ -56,7 +56,7 @@ VITE_PORT: int = int(os.getenv("VITE_PORT", "5173"))
 
 # ── A2A agent layer ───────────────────────────────────────────────────────────
 # Each agent is its own A2A server (LangGraph inside). The orchestrator (:9000)
-# is an A2A client to the four specialists (:9001–:9004). Same declarative shape
+# is an A2A client to the six specialists (:9001–:9006). Same declarative shape
 # as MCP_SERVERS: name → base URL, env-overridable (e.g. RECOVERY_A2A_URL=…).
 
 def _a2a_url(name: str, default_port: int) -> str:

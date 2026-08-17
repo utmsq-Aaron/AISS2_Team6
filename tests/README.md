@@ -8,7 +8,7 @@ Three different things live here, and the split matters:
 | **Run with** | `pytest` | `python tests/integration/<script>.py` | `python tests/tools/<script>.py` |
 | **Needs** | nothing | the full stack, an LLM gateway, real Strava/Garmin accounts | the stack, to have anything to look at |
 | **Exit code** | meaningful | meaningful | always 0 — there is nothing to fail |
-| **Costs** | nothing | LLM tokens | nothing |
+| **Costs** | nothing | LLM tokens | nothing (except `run_remaining.py`) |
 
 If you are evaluating this project, run `pytest` — it works on a fresh checkout
 with no accounts and no keys. `tests/integration/` is what we used while
@@ -29,7 +29,7 @@ seconds.
 
 | File | What it proves |
 |---|---|
-| `test_training_math.py` | The training plan is **computed, not generated**: HF/pace zones, the base→build→peak→taper split, the long-run line, cutback and taper weeks, and that weekly volume derives from the runs. These are the rules of [`docs/trainingsregeln.md`](../docs/trainingsregeln.md) asserted against the code that implements them. |
+| `test_training_math.py` | The training plan is **computed, not generated**: HR/pace zones, the base→build→peak→taper split, the long-run line, cutback and taper weeks, and that weekly volume derives from the runs. These are the rules of [`docs/trainingsregeln.md`](../docs/trainingsregeln.md) asserted against the code that implements them. |
 | `test_agent_layer.py` | The LangGraph + A2A layer: `build_trace()` emits the exact contract the frontend, chart service and route map read; peer `sub_artifacts` are flattened rather than lost; `_peers_for()` honours the depth limit; a full in-process A2A two-hop and a peer-to-peer mesh round-trip (fake chat model, fake MCP host, uvicorn on test ports 9100/9101/9103). |
 | `test_route_export.py` | A planned route survives export: the GPX is valid XML carrying every point (lat/lon the right way round, elevation kept), and the Google Maps link keeps start and finish while thinning only the middle. |
 
@@ -99,12 +99,12 @@ Not tests. They read state and print it; none of them assert anything.
 | `read_log.py`, `read_recent_log.py` | Recent turns from `.logs/agent_interactions.jsonl` |
 | `dump_log.py` | The same, written to a file (avoids console-encoding issues) |
 | `dump_hints.py` | Chart hints vs. tools called, side by side |
-| `dump_report.py` | Chart hints out of a saved test-report JSON |
-| `check_servers.py` | Which MCP ports are answering right now |
+| `dump_report.py` | Chart hints out of a saved test-report JSON (newest in `tests/logs/`, or pass a path) |
+| `check_servers.py` | Which MCP servers are answering right now (ports from `core/config.py`) |
 | `check_cache.py` | Contents of the Strava activity file cache |
-| `clear_dead_cache.py` | **Mutates state** — drops dead activity ids from that cache |
-| `check_constants.py` | Constants as the orchestrator module sees them |
-| `run_remaining.py` | Re-runs only queries 20–25 of the viz-quality suite |
+| `clear_dead_cache.py` | **Mutates state** — drops the activity ids you pass from that cache |
+| `check_constants.py` | Constants and public surface as the orchestrator module sees them |
+| `run_remaining.py` | Re-runs only queries 20–25 of the viz-quality suite — **needs the live stack and spends LLM tokens**, unlike the rest of this table |
 
 Output goes to `tests/logs/` (git-ignored, created on demand).
 

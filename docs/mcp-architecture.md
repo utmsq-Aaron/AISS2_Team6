@@ -107,7 +107,7 @@ The public contract (`run()`, `refresh_tools()`) is unchanged from the loop era,
 
 ## 3. Adding your own MCP server (the `*_mcp.py` pattern)
 
-One of our servers is a single self-contained file — no `BaseMCPServer`, no dispatch indirection, no registry class. Use `servers/weather_mcp.py` as the template.
+Each of our servers is a single self-contained file — no `BaseMCPServer`, no dispatch indirection, no registry class. Use `servers/weather_mcp.py` as the template.
 
 ```python
 # servers/example_mcp.py

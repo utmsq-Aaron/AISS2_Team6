@@ -388,8 +388,8 @@ export const submitFeedback = (text: string, context?: Record<string, unknown>) 
 // ONE main goal drives the training plan; any number of MILESTONES mark the way
 // there — a real tune-up/minor race (kind "race") or a non-race training
 // checkpoint (kind "checkpoint", e.g. "first 15 km long run"). Milestones never
-// alter the plan; race-kind ones softly inform nearby workout choice. Separate
-// from the freeform dashboard goals (core.goal_store).
+// alter the plan; race-kind ones softly inform nearby workout choice. This is the
+// ONLY goal system — the earlier freeform dashboard goals were abolished.
 export interface RaceGoal {
   id?: string;
   name: string;

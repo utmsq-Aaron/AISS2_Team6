@@ -1,7 +1,7 @@
 """FitDash orchestrator — thin A2A client adapter over the multi-agent engine.
 
 The old single tool-use loop is gone; the engine is now a LangGraph + A2A
-multi-agent system (Orchestrator Agent on :9000 → specialist agents :9001–:9004).
+multi-agent system (Orchestrator Agent on :9000 → specialist agents :9001–:9006).
 This class is a thin client to that orchestrator, preserving the public contract
 the UI, the FastAPI SSE layer and the Telegram bridge depend on:
 

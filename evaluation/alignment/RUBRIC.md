@@ -1,4 +1,4 @@
-# Expert validation rubric — FitDash Training Copilot conversations
+# Expert validation rubric — Training Copilot conversations
 
 You are an expert evaluator validating an AI fitness copilot's multi-turn conversations
 (Shankar et al., "Who Validates the Validators?", UIST 2024 — you are the human-expert

@@ -1,6 +1,6 @@
 """MLflow tracing seam — turn on autologging once per process.
 
-The chat engine is several independent processes (orchestrator + four specialists,
+The chat engine is several independent processes (orchestrator + six specialists,
 each its own A2A server, plus the FastAPI seam). Each calls ``setup_tracing(name)``
 once at startup; from then on every LangGraph / LangChain ``ainvoke`` — and every
 raw OpenAI-SDK call (the chart service) — is traced to the MLflow tracking server

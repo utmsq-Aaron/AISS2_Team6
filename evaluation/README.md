@@ -1,4 +1,4 @@
-# FitDash end-to-end evaluation
+# Training Copilot end-to-end evaluation
 
 A self-contained, multi-turn evaluation harness for the **Training Copilot**,
 built on MLflow's GenAI simulator + judges, following
@@ -39,11 +39,12 @@ For each run it:
 
 ## Models (per the brief)
 
-| Role | Model |
-| --- | --- |
-| Persona / user simulator | `gpt-5.4-mini-2026-03-17` |
-| Scorers / judges | `gpt-5.4-nano-2026-03-17` |
-| Report prose fields | `gpt-5.4-nano-2026-03-17` |
+| Role | Model | Constant in `config.py` |
+| --- | --- | --- |
+| Persona / user simulator | `gpt-5.4-mini-2026-03-17` | `SIMULATOR_MODEL_RAW` |
+| Scorers / judges | `gpt-5.4-nano-2026-03-17` | `JUDGE_MODEL_RAW` |
+| Persona-report prose fields | `gpt-5.4-nano-2026-03-17` | `PERSONA_REPORT_MODEL_RAW` |
+| Real-user report (`run_users.py`) | `gpt-5.4-mini-2026-03-17` | `REPORT_MODEL_RAW` |
 
 All three run on the **official OpenAI API**. `config.py` rewrites this
 process's `OPENAI_API_KEY` to `OPENAI_OFFICIAL_API_KEY` from `.env` and clears
@@ -128,7 +129,7 @@ Then gpt-5.4-mini writes one combined HTML report across all users.
 
 ```bash
 python -m evaluation.run_users                      # all users, with LLM judging
-python -m evaluation.run_users --user marvin.kit@gmail.com
+python -m evaluation.run_users --user you@example.com
 python -m evaluation.run_users --no-judge           # deterministic only (no OpenAI key needed)
 python -m evaluation.run_users --max-convos 5 --no-report
 ```

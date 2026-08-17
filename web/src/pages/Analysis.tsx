@@ -1,3 +1,16 @@
+// Analysis — the time-series half of the Dashboard: training volume, official
+// Strava stats, plan-vs-actual, and the per-activity map.
+//
+// NOT a routed page, despite living in pages/. It used to be one; today it is
+// rendered as step 4 of Dashboard.tsx and carries its OWN period selector, which
+// is why it kept its own file rather than dissolving into Dashboard. It is
+// deliberately absent from nav.ts and from App.tsx's <Routes> — reaching it
+// through the Dashboard is the only entry point.
+//
+// Everything here is read-only; the goal and plan it charts are authored in the
+// Coach tab. Sections are split into components/analysis/* so this file stays
+// the composition layer rather than the implementation.
+
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { Data, Layout } from "plotly.js";

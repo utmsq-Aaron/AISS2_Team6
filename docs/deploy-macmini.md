@@ -1,6 +1,6 @@
-# Serving FitDash from a Mac mini (public web access)
+# Serving Training Copilot from a Mac mini (public web access)
 
-Goal: run FitDash on a Mac mini so anyone can open it in a browser, via a public
+Goal: run Training Copilot on a Mac mini so anyone can open it in a browser, via a public
 HTTPS URL — without opening router ports or touching the macOS firewall.
 
 ## How it fits together
@@ -58,7 +58,7 @@ nothing to forward and no inbound firewall rule to add.
 - **First-run bootstrap (chicken-and-egg).** OTP email needs `google_mail.json` present, but
   the in-app connect needs you logged in (which needs an email). Break the loop: run
   `python -m auth gmail` **before** first login (recommended), or start once with
-  `OTP_DEV_ECHO=1` so codes print to the server log (`/tmp/fitdash_api.log`) — log in as the
+  `OTP_DEV_ECHO=1` so codes print to the server log (`/tmp/training-copilot/api.log`) — log in as the
   admin, then restart **without** `OTP_DEV_ECHO`. Never leave it on for a public URL.
 - **Strava / Garmin / Calendar**: any logged-in user can connect these from Settings; tokens
   live in `.tokens/` (gitignored) and are shared across users.
@@ -124,7 +124,7 @@ work unchanged because Funnel forwards everything to `127.0.0.1:3000`.
 
 Rename for a cleaner URL (optional): change the **machine name** (admin console → the
 device → rename) and/or the **tailnet name** (Settings → General) so it reads e.g.
-`https://fitdash.marvin.ts.net`. It's always under `.ts.net` — a truly custom domain
+`https://training-copilot.<your-tailnet>.ts.net`. It's always under `.ts.net` — a truly custom domain
 is the only thing that costs money.
 
 Make it survive reboots — run Funnel as a background service:
@@ -208,7 +208,8 @@ Other notes:
 - **Blank page / "SPA not built":** run `./run.sh prod` without `SKIP_BUILD`, or
   `cd web && npm run build`.
 - **Chat hangs:** the orchestrator (`:9000`) or a specialist isn't up — check
-  `/tmp/agent_*.log`. The BFF proxies SSE with no timeout, so a hang is upstream.
+  `/tmp/training-copilot/agent-*.log` (or `./run.sh logs orchestrator`). The BFF proxies SSE
+  with no timeout, so a hang is upstream.
 - **Google "redirect_uri_mismatch" when a remote user clicks Connect:** expected —
   connect Google **on the mini** only (step 1).
 - **`.ts.net` URL won't load / "can't establish a secure connection" on macOS:** Tailscale's

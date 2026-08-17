@@ -1,35 +1,40 @@
 """Dump recent log entries to a file, bypassing stdout encoding issues."""
-import json, sys
+import json
+import sys
+from pathlib import Path
 
-log_path = ".logs/agent_interactions.jsonl"
-out_path = "tests/logs/tmp_log_dump.txt"
+ROOT = Path(__file__).resolve().parents[2]
+log_path = ROOT / ".logs" / "agent_interactions.jsonl"
+out_path = ROOT / "tests" / "logs" / "tmp_log_dump.txt"
+
+if not log_path.exists():
+    print(f"No log at {log_path} — run a chat turn first.")
+    raise SystemExit(0)
 
 with open(log_path, encoding="utf-8") as f:
     lines = f.readlines()
 
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 28
 recent = []
-for l in lines[-N*3:]:
+for line in lines[-N * 3:]:
     try:
-        recent.append(json.loads(l))
+        recent.append(json.loads(line))
     except Exception:
         pass
 recent = recent[-N:]
 
+out_path.parent.mkdir(parents=True, exist_ok=True)
 with open(out_path, "w", encoding="utf-8") as out:
     out.write(f"Total log entries: {len(recent)}\n\n")
     for e in recent:
-        n_tools = e.get("n_tool_calls", "?")
         error = e.get("error") or ""
-        q = (e.get("user_input") or "")[:65]
-        ans = (e.get("answer_preview") or "")[:90].replace("\n", " ")
-        timing = e.get("timing") or {}
-        total_s = round(sum(timing.values()) / 1000, 1) if timing else 0
         status = "ERR" if error else "OK "
         ts = (e.get("ts") or "?")[11:19]
-        out.write(f"[{ts}] {status} tools={n_tools} {total_s}s\n")
-        out.write(f"  Q: {q}\n")
-        out.write(f"  A: {ans}\n")
+        agents = ",".join(a for a in (e.get("agents") or []) if a)
+        out.write(f"[{ts}] {status} tools={e.get('n_tool_calls', '?')}"
+                  f"{'  agents=' + agents if agents else ''}\n")
+        out.write(f"  Q: {(e.get('user_input') or '')[:65]}\n")
+        out.write(f"  A: {(e.get('answer') or '')[:90].replace(chr(10), ' ')}\n")
         if error:
             out.write(f"  !! {error[:120]}\n")
         out.write("\n")

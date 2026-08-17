@@ -10,7 +10,7 @@ Prerequisites: the MLflow tracking server must be reachable and users must have
 chatted (so per-user experiments exist). Run from the repo root:
 
     python -m evaluation.run_users                      # all users, with LLM judging
-    python -m evaluation.run_users --user marvin.kit@gmail.com
+    python -m evaluation.run_users --user you@example.com
     python -m evaluation.run_users --no-judge           # deterministic only (no LLM, fast/free)
     python -m evaluation.run_users --max-convos 5 --no-report
 """

@@ -58,7 +58,7 @@ def _date_range(start: str, end: str):
 class MockGarminClient:
     """
     Drop-in replacement for garminconnect.Garmin.
-    Implements the exact method signatures used in servers/garmin.py.
+    Implements the exact method signatures used in servers/garmin_mcp.py.
     """
 
     # ── Sleep ─────────────────────────────────────────────────────────────────

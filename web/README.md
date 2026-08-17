@@ -39,7 +39,7 @@ npm run build       # → web/dist (what the BFF serves in production)
 |---|---|
 | `src/App.tsx` | The shell: auth gate → onboarding → sidebar + routes |
 | `src/nav.ts` | **Single source of truth** for the primary navigation — sidebar, breadcrumb and quick-search all read it |
-| `src/pages/` | One file per page: Dashboard, Coach, Health, Chat, Settings, Login |
+| `src/pages/` | One file per routed page: Dashboard, Coach, Health, Chat, Settings, Login. Plus `Analysis.tsx`, which is **not** routed — it is the Dashboard's time-series section, kept in its own file because it carries its own period selector |
 | `src/lib/api.ts` | Typed client over the FastAPI seam (`callTool`, `streamChat`, …) |
 | `src/components/` | Shared kit: `MetricCard`, `PlotlyChart`, `RouteMap` (MapLibre), `PeriodSelector`, `Card` |
 | `src/components/{analysis,chat,dashboard,onboarding}/` | Per-feature components |
